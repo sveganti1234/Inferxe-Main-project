@@ -1,0 +1,75 @@
+/* ───────────────────────────────────────────────────────────
+   Inferxe design tokens
+   Palette is lifted from the pitch deck: graphite-green neutrals
+   (#0F1511 / #18211B) + signal green (#76B900).
+   ─────────────────────────────────────────────────────────── */
+:root {
+  color-scheme: dark;
+
+  /* Surfaces */
+  --bg-0: #060a07;
+  --bg-1: #0a100c;
+  --bg-2: #0f1511;
+  --bg-3: #131b16;
+  --bg-4: #18211b;
+  --bg-5: #202c24;
+
+  /* Ink */
+  --ink: #eef2ea;
+  --ink-2: #b4c0b2;
+  --ink-3: #8e9c8c;
+  --ink-4: #6d7a6a;
+
+  /* Lines */
+  --line: rgba(238, 242, 234, 0.08);
+  --line-2: rgba(238, 242, 234, 0.15);
+  --line-3: rgba(238, 242, 234, 0.26);
+
+  /* Brand */
+  --brand: #76b900;
+  --brand-hi: #9be015;
+  --brand-hi2: #b6f23a;
+  --brand-lo: #3e6b00;
+  --brand-ink: #0a1200;
+  --brand-glow: rgba(118, 185, 0, 0.35);
+  --brand-soft: rgba(118, 185, 0, 0.12);
+
+  /* Supporting signals (data-viz only) */
+  --amber: #f2b84b;
+  --cyan: #47d7c5;
+  --red: #ff6b5e;
+  --violet: #9b8cff;
+
+  /* Paper (light sections) */
+  --paper: #f3f4ee;
+  --paper-2: #e7eadf;
+  --paper-3: #dcdfd3;
+  --paper-ink: #18211b;
+  --paper-ink-2: #4a554a;
+
+  /* Geometry */
+  --r-xs: 8px;
+  --r-s: 12px;
+  --r-m: 18px;
+  --r-l: 24px;
+  --r-xl: 32px;
+
+  --gutter: clamp(18px, 4vw, 44px);
+  --container: 1240px;
+  --nav-h: 72px;
+
+  /* Type */
+  --font-display: 'Rubik Variable', 'Rubik', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-body: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, 'SF Mono', Consolas, monospace;
+
+  /* Motion */
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-io: cubic-bezier(0.65, 0, 0.35, 1);
+
+  /* Elevation */
+  --shadow-1: 0 2px 6px rgba(0, 0, 0, 0.35), 0 10px 24px -10px rgba(0, 0, 0, 0.6);
+  --shadow-2: 0 4px 10px rgba(0, 0, 0, 0.35), 0 30px 60px -24px rgba(0, 0, 0, 0.75);
+  --shadow-glow: 0 0 0 1px rgba(118, 185, 0, 0.35), 0 0 40px -6px var(--brand-glow);
+}
+

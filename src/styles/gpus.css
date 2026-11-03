@@ -1,0 +1,256 @@
+/* ── GPU catalogue ── */
+.cat__head {
+  align-items: flex-end;
+  gap: 24px;
+}
+.cat__head .sec-head {
+  margin-bottom: clamp(24px, 3vw, 36px);
+}
+.cat__head .seg {
+  margin-bottom: clamp(24px, 3vw, 36px);
+}
+.cat {
+  align-items: stretch;
+}
+.cat > div {
+  display: grid;
+}
+.cat__card {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+.cat__name {
+  font-family: var(--font-display);
+  font-size: 1.9rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+}
+.cat__specs {
+  display: grid;
+  grid-template-columns: 1fr 1.3fr;
+  gap: 10px;
+}
+.cat__specs .well {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+}
+.cat__specs b {
+  font-size: 1.12rem;
+  font-weight: 500;
+}
+.cat__bw {
+  font-size: 0.86rem !important;
+  line-height: 1.5;
+}
+.cat__role {
+  color: var(--ink);
+  font-size: 0.98rem;
+}
+.cat__uses {
+  display: grid;
+  gap: 6px;
+  padding-left: 0;
+}
+.cat__uses li {
+  position: relative;
+  padding-left: 18px;
+  font-size: 0.88rem;
+  color: var(--ink-2);
+}
+.cat__uses li::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 0.62em;
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+  background: var(--brand);
+  box-shadow: 0 0 8px var(--brand-glow);
+}
+.cat__price {
+  display: grid;
+  gap: 2px;
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: 1px dashed var(--line-2);
+}
+.cat__price b {
+  font-size: 1.05rem;
+  font-weight: 500;
+}
+.cat__price small {
+  margin-left: 4px;
+  font-size: 0.72rem;
+  color: var(--ink-3);
+}
+
+/* Bars */
+.bars ul {
+  display: grid;
+  gap: 18px;
+  margin-top: 22px;
+}
+.bars li {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) 62px;
+  align-items: center;
+  gap: 14px;
+}
+.bars__label {
+  font-family: var(--font-display);
+  font-size: 0.98rem;
+  font-weight: 500;
+}
+.bars__track {
+  position: relative;
+  height: 14px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #050705;
+  box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.9), 0 1px 0 rgba(255, 255, 255, 0.07);
+  border: 1px solid #040604;
+}
+.bars__fill {
+  display: block;
+  height: 100%;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #c4f94e, #76b900);
+  box-shadow: 0 0 14px var(--brand-glow), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+.bars__fill--cyan {
+  background: linear-gradient(180deg, #8ff5e6, #2fb3a2);
+  box-shadow: 0 0 14px rgba(71, 215, 197, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+.bars__fill--amber {
+  background: linear-gradient(180deg, #ffe3a3, #d9962a);
+  box-shadow: 0 0 14px rgba(242, 184, 75, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+.bars__val {
+  text-align: right;
+  font-size: 0.9rem;
+}
+.bars__note {
+  margin-top: 22px;
+  font-size: 0.84rem;
+}
+
+/* Matrix */
+.matrix {
+  overflow: hidden;
+}
+.matrix__ctl {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px 36px;
+  padding: 22px 26px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.025);
+}
+.matrix__ctl .select {
+  min-width: 170px;
+  padding-block: 10px;
+}
+.matrix__table td,
+.matrix__table th {
+  vertical-align: middle;
+}
+.matrix__arch {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 400;
+  color: var(--ink-4);
+}
+.mcell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  border-radius: 10px;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  white-space: nowrap;
+}
+.mcell svg {
+  width: 14px;
+  height: 14px;
+}
+.mcell--ok {
+  color: var(--brand-hi2);
+  background: rgba(118, 185, 0, 0.13);
+  border: 1px solid rgba(118, 185, 0, 0.3);
+}
+.mcell--no {
+  color: var(--ink-4);
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid var(--line);
+}
+.mcell--best {
+  color: var(--brand-ink);
+  background: linear-gradient(180deg, #c4f94e, #76b900);
+  border-color: #447500;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 8px 18px -8px var(--brand-glow);
+}
+.mcell em {
+  font-style: normal;
+  padding-left: 7px;
+  margin-left: 2px;
+  border-left: 1px solid rgba(10, 18, 0, 0.3);
+  font-size: 0.64rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.matrix__foot {
+  padding: 16px 26px 22px;
+  font-size: 0.78rem;
+  line-height: 1.6;
+  color: var(--ink-4);
+}
+
+/* Benchmarks */
+.pillars {
+  margin-bottom: clamp(18px, 2.4vw, 28px);
+}
+.pillar {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+.pillar .icon-tile {
+  margin-bottom: 8px;
+}
+.pillar p {
+  color: var(--ink-2);
+  font-size: 0.94rem;
+}
+.bench__table {
+  display: grid;
+  gap: 18px;
+}
+.bench__table > * {
+  min-width: 0;
+}
+.bench__table .chip {
+  white-space: normal;
+  line-height: 1.4;
+}
+.pending {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: var(--amber);
+}
+.metrics {
+  display: grid;
+  gap: 14px;
+  margin-top: clamp(24px, 3vw, 36px);
+}
+.metrics .chip svg {
+  color: var(--brand);
+}

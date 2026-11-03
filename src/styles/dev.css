@@ -1,0 +1,132 @@
+/* ── Developers ── */
+.api {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  overflow: hidden;
+}
+.api__nav {
+  display: grid;
+  gap: 20px;
+  align-content: start;
+  max-height: 780px;
+  overflow-y: auto;
+  padding: 22px 16px 22px 20px;
+  border-right: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.22);
+}
+.api__group {
+  display: grid;
+  gap: 4px;
+}
+.api__group .engrave {
+  margin-bottom: 4px;
+}
+.api__item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  text-align: left;
+  transition: background 0.2s;
+}
+.api__item code {
+  font-family: var(--font-mono);
+  font-size: 0.76rem;
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.api__item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+.api__item.is-on {
+  background: rgba(118, 185, 0, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(118, 185, 0, 0.35);
+}
+.api__item.is-on code {
+  color: var(--ink);
+}
+.api__main {
+  min-width: 0;
+  padding: clamp(18px, 2.4vw, 30px);
+}
+.api__panel {
+  display: grid;
+  gap: 18px;
+}
+.api__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.api__path {
+  font-family: var(--font-mono);
+  font-size: 1.05rem;
+  color: var(--ink);
+}
+.api__sum {
+  margin-top: -6px;
+  color: var(--ink-2);
+}
+.api__res {
+  display: grid;
+  gap: 10px;
+}
+.api__foot {
+  margin-top: 18px;
+  font-size: 0.76rem;
+  color: var(--ink-4);
+}
+@media (max-width: 900px) {
+  .api {
+    grid-template-columns: 1fr;
+  }
+  .api__nav {
+    max-height: 260px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+}
+
+.dev-pts {
+  display: grid;
+  gap: 22px;
+}
+.dev-pt {
+  display: flex;
+  gap: 16px;
+}
+.dev-pt h3 {
+  margin-bottom: 4px;
+}
+.dev-pt p,
+.dev-card p {
+  color: var(--ink-2);
+  font-size: 0.93rem;
+}
+.dev-card {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+.dev-card .icon-tile {
+  margin-bottom: 6px;
+}
+.chips-cloud {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  max-width: 880px;
+  margin-inline: auto;
+}
+.chips-cloud .chip {
+  padding: 11px 18px;
+  font-size: 0.82rem;
+}
+.chips-cloud .chip svg {
+  color: var(--brand);
+}

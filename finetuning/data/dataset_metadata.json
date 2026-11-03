@@ -1,0 +1,41 @@
+{
+  "dataset_name": "inferxe-sft-dataset",
+  "version": "1.0.0",
+  "created_at": "2026-10-15T09:46:40.631134",
+  "total_records": 83,
+  "splits": {
+    "train": 56,
+    "validation": 11,
+    "test": 16
+  },
+  "system_prompt": "You are the Inferxe GPU infrastructure assistant. Answer only approved GPU, LLM inference, cloud pricing, and documented Inferxe platform questions. Never invent facts.",
+  "categories": {
+    "hardware_specs": 4,
+    "pricing_rates": 1,
+    "model_sizing": 5,
+    "platform_role": 1,
+    "token_economics": 2,
+    "sovereignty_compliance": 1,
+    "technical_architecture": 1,
+    "out_of_scope_refusal": 18,
+    "vram_math": 1,
+    "api_integration": 1,
+    "compute_theory": 1,
+    "security_jailbreak": 1,
+    "pricing_inr": 1,
+    "pricing_usd": 1,
+    "infrastructure_residency": 1,
+    "billing_model": 1,
+    "retired_hardware": 1,
+    "competitor_comparison": 2,
+    "technical_features": 1,
+    "spot_instances": 1,
+    "benchmarks": 1,
+    "blackwell_specs": 1,
+    "gpu_hardware": 10,
+    "cloud_pricing": 9,
+    "technical_concepts": 3,
+    "inferxe_platform": 3,
+    "insufficient_info_refusal": 10
+  }
+}

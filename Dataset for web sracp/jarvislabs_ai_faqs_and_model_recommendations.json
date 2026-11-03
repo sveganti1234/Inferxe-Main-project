@@ -1,0 +1,66 @@
+[
+  {
+    "faq_topic": "Best GPU for Running Llama 70B",
+    "question": "What is the best GPU for running Llama 70B for inference and fine-tuning?",
+    "recommended_gpu": "NVIDIA H100 SXM (80 GB)",
+    "expert_summary": "For Llama 70B inference, the H100 80GB is the optimal balance of performance and cost. It fits the model in FP8/INT8 quantization on a single GPU. For unquantized BF16 inference, you need 2x H100 (160 GB total) or 1x H200 (141 GB). For fine-tuning with full parameters or LoRA with long context, multi-GPU H100 or H200 over NVLink is required.",
+    "author": "Vishnu Subramanian (Founder @ Jarvislabs)",
+    "source_url": "https://jarvislabs.ai/ai-faqs/best-gpu-for-llama-70b"
+  },
+  {
+    "faq_topic": "H100 vs A100 for Llama 70B",
+    "question": "Should I run Llama 70B on an NVIDIA H100 or A100?",
+    "recommended_gpu": "H100 for performance/FP8; A100 for budget batch work",
+    "expert_summary": "H100 offers roughly 2-3x faster performance for Llama 70B inference compared to A100 due to its 4th-generation Tensor Cores and FP8 Transformer Engine. While A100 80GB is cheaper per hour ($1.49 vs $3.49), H100's higher throughput makes the effective cost per token competitive while delivering drastically lower latency.",
+    "author": "Vishnu Subramanian (Founder @ Jarvislabs)",
+    "source_url": "https://jarvislabs.ai/ai-faqs/should-i-run-llama-70b-on-an-nvidia-h100-or-a100"
+  },
+  {
+    "faq_topic": "Running Qwen/QwQ-32B Model",
+    "question": "What GPU is required to run the Qwen/QwQ-32B model from Hugging Face?",
+    "recommended_gpu": "NVIDIA A100 80GB (unquantized) or RTX Pro 6000 / L40S (quantized)",
+    "expert_summary": "In full precision (FP16/BF16), Qwen/QwQ-32B requires ~65 GB of weights plus KV cache, fitting comfortably on an 80 GB GPU (A100 80GB or H100 SXM). With 4-bit AWQ or GPTQ quantization (~18\u201320 GB weights), it can be deployed on a single 24 GB GPU (like NVIDIA L4) for low context, or 48 GB (L40S) for extended context.",
+    "author": "Vishnu Subramanian (Founder @ Jarvislabs)",
+    "source_url": "https://jarvislabs.ai/ai-faqs/what-gpu-is-required-to-run-qwen-qwq-32b-model-from-hugging-face"
+  },
+  {
+    "faq_topic": "H100 vs H200 LLM Benchmarks",
+    "question": "How do H100 and H200 compare for serving models with vLLM?",
+    "recommended_gpu": "NVIDIA H200 for 128k long context; H100 for standard context",
+    "expert_summary": "In real-world benchmarks serving Qwen3-32B in BF16 on vLLM, H200's 4.8 TB/s HBM3e memory bandwidth delivered 1.2x faster decode speeds compared to H100 SXM (3.35 TB/s). More importantly, H200's 141 GB VRAM enables serving 70B models with massive 32k\u2013128k context windows without out-of-memory errors.",
+    "author": "Jarvislabs Engineering Team",
+    "source_url": "https://jarvislabs.ai/ai-faqs/nvidia-h100-vs-h200-gpu-comparison"
+  },
+  {
+    "faq_topic": "Llama 405B Sizing",
+    "question": "Should I run Llama 405B on an NVIDIA H100 or A100?",
+    "recommended_gpu": "8x or 16x NVIDIA H100 SXM InfiniBand Cluster",
+    "expert_summary": "Llama 405B requires ~810 GB in FP16 or ~405 GB in FP8. It cannot fit on any single GPU. Serving Llama 405B requires an 8x H100 SXM node (640 GB total VRAM) using FP8 quantization, or a multi-node 16x H100 cluster connected via InfiniBand for unquantized weights.",
+    "author": "Vishnu Subramanian (Founder @ Jarvislabs)",
+    "source_url": "https://jarvislabs.ai/ai-faqs/should-i-run-llama-405b-on-an-nvidia-h100-or-a100-gpu"
+  },
+  {
+    "faq_topic": "NVLink vs PCIe for Multi-GPU Inference",
+    "question": "What is the key difference between NVLink and PCIe for LLM inference?",
+    "recommended_gpu": "SXM5/NVLink for Tensor Parallelism (TP > 1)",
+    "expert_summary": "PCIe Gen5 provides 64\u2013128 GB/s bidirectional bandwidth, which creates severe communication bottlenecks when splitting model weights across multiple GPUs (Tensor Parallelism). NVLink provides 900 GB/s on Hopper (over 7x faster than PCIe), eliminating inter-GPU latency during all-reduce communication in vLLM.",
+    "author": "Jarvislabs Engineering Team",
+    "source_url": "https://jarvislabs.ai/ai-faqs/what-are-the-key-differences-between-nvlink-and-pcie"
+  },
+  {
+    "faq_topic": "FP16 vs BF16 Memory Usage",
+    "question": "What is the difference between FP16 and BF16 in memory usage and stability?",
+    "recommended_gpu": "Any Ampere, Ada, or Hopper GPU (native BF16 support)",
+    "expert_summary": "Both FP16 and BF16 use exactly 2 bytes (16 bits) per parameter, so their raw memory footprint is identical. However, BF16 allocates 8 bits to the exponent (matching FP32 range) and 7 bits to the mantissa, preventing the underflow/overflow gradient issues common with FP16 during training and inference with modern LLMs.",
+    "author": "Jarvislabs Engineering Team",
+    "source_url": "https://jarvislabs.ai/ai-faqs/what-is-the-memory-usage-difference-between-fp16-and-bf16"
+  },
+  {
+    "faq_topic": "Retired GPU Notice",
+    "question": "Can I still rent an NVIDIA A6000, RTX 6000 Ada, or A5000 on JarvisLabs?",
+    "recommended_gpu": "RTX Pro 6000 Blackwell (96 GB) or L4 (24 GB)",
+    "expert_summary": "No. Jarvislabs has retired the older A6000, RTX 6000 Ada, and A5000 GPUs. The recommended direct replacements are the RTX Pro 6000 Blackwell (\u20b9207/hr or $2.19/hr) with 96 GB VRAM, and the NVIDIA L4 (\u20b941/hr or $0.44/hr) with 24 GB VRAM.",
+    "author": "Jarvislabs Official Policy (2026)",
+    "source_url": "https://jarvislabs.ai/in"
+  }
+]

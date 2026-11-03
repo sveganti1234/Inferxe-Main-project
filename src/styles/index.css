@@ -1,0 +1,279 @@
+/* ───────────────────────────────────────────────────────────
+   Inferxe — Circular Reveal Transitions & Dark Mode Overhaul
+   ─────────────────────────────────────────────────────────── */
+
+/* ── 1. 🌊 Theme Change Animation (Circular Reveal & Ripple Wave) ── */
+::view-transition-image-pair(root) {
+  isolation: auto;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+  display: block;
+}
+
+::view-transition-old(root) {
+  z-index: 1;
+}
+
+::view-transition-new(root) {
+  z-index: 99999;
+}
+
+/* Cross-Browser Ripple Fallback (expanding radial wave in 500ms) */
+.dash-theme-ripple-wave {
+  position: fixed;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 999999;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 80px rgba(0, 0, 0, 0.25);
+  will-change: transform, opacity;
+}
+
+html[data-theme='dark'],
+body:has(.dash-shell:not([data-theme='light'])),
+body:has(.dash-shell[data-theme='dark']) {
+  background-color: #060a07 !important;
+}
+
+html[data-theme='light'],
+body:has(.dash-shell[data-theme='light']) {
+  background-color: #f4f6f1 !important;
+}
+
+/* ── Animated Icon Morphing (Golden Sun #FBBF24 & Indigo Moon #6366F1) ── */
+.dash-theme-icon--sun {
+  color: #FBBF24 !important;
+  filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.6));
+}
+
+.dash-theme-icon--moon {
+  color: #6366F1 !important;
+  filter: drop-shadow(0 0 6px rgba(99, 102, 241, 0.6));
+}
+
+/* ── 2. 🎨 Dark Mode: Authentic Inferxe Graphite-Green & Glassmorphic Surfaces ── */
+
+/* Signature Graphite-Green Base Palette from tokens.css */
+.dash-shell:not([data-theme='light']),
+.dash-shell[data-theme='dark'] {
+  background-color: transparent !important;
+  color: #eef2ea;
+  --bg-0: #060a07;
+  --bg-1: #0a100c;
+  --bg-2: #0f1511;
+  --bg-3: #131b16;
+  --bg-4: #18211b;
+  --bg-5: #202c24;
+  --ink: #eef2ea;
+  --ink-2: #b4c0b2;
+  --ink-3: #8e9c8c;
+  --ink-4: #6d7a6a;
+  --line: rgba(238, 242, 234, 0.08);
+  --line-2: rgba(238, 242, 234, 0.15);
+  --line-3: rgba(238, 242, 234, 0.26);
+  --brand: #76b900;
+  --brand-hi: #9be015;
+  --brand-hi2: #b6f23a;
+  --brand-lo: #3e6b00;
+  --brand-glow: rgba(118, 185, 0, 0.35);
+  --brand-soft: rgba(118, 185, 0, 0.12);
+}
+
+/* Glassmorphic Top Header matching Home.tsx nav */
+.dash-shell:not([data-theme='light']) .dash-topbar,
+.dash-shell[data-theme='dark'] .dash-topbar {
+  background: rgba(10, 16, 12, 0.88) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(140%) !important;
+  backdrop-filter: blur(20px) saturate(140%) !important;
+  border-bottom: 1px solid rgba(238, 242, 234, 0.08) !important;
+}
+
+/* Dedicated Sidebar Surface with crisp boundary */
+.dash-shell:not([data-theme='light']) .dash-sidebar,
+.dash-shell[data-theme='dark'] .dash-sidebar {
+  background: rgba(10, 16, 12, 0.94) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(140%) !important;
+  backdrop-filter: blur(20px) saturate(140%) !important;
+  border: 1px solid rgba(238, 242, 234, 0.08) !important;
+}
+
+/* Glassmorphic Elevated Surfaces with Specular Reflection & Border Highlights */
+.dash-shell:not([data-theme='light']) .dash-card,
+.dash-shell:not([data-theme='light']) .dash-stat-card,
+.dash-shell:not([data-theme='light']) .dash-panel-card,
+.dash-shell:not([data-theme='light']) .dash-deploy-row,
+.dash-shell:not([data-theme='light']) .dash-role-card,
+.dash-shell:not([data-theme='light']) .dash-quota-card,
+.dash-shell:not([data-theme='light']) .dash-table-wrap,
+.dash-shell:not([data-theme='light']) .mw-panel,
+.dash-shell:not([data-theme='light']) .mw-card,
+.dash-shell:not([data-theme='light']) .mw-metric,
+.dash-shell:not([data-theme='light']) .mw-gpu-card,
+.dash-shell:not([data-theme='light']) .mw-model-card,
+.dash-shell:not([data-theme='light']) .mw-modal,
+.dash-shell:not([data-theme='light']) .xs-card,
+.dash-shell[data-theme='dark'] .dash-card,
+.dash-shell[data-theme='dark'] .dash-stat-card,
+.dash-shell[data-theme='dark'] .dash-panel-card,
+.dash-shell[data-theme='dark'] .dash-deploy-row,
+.dash-shell[data-theme='dark'] .dash-role-card,
+.dash-shell[data-theme='dark'] .dash-quota-card,
+.dash-shell[data-theme='dark'] .dash-table-wrap,
+.dash-shell[data-theme='dark'] .mw-panel,
+.dash-shell[data-theme='dark'] .mw-card,
+.dash-shell[data-theme='dark'] .mw-metric,
+.dash-shell[data-theme='dark'] .mw-gpu-card,
+.dash-shell[data-theme='dark'] .mw-model-card,
+.dash-shell[data-theme='dark'] .mw-modal,
+.dash-shell[data-theme='dark'] .xs-card {
+  background: linear-gradient(145deg, rgba(24, 33, 27, 0.72) 0%, rgba(15, 21, 17, 0.82) 100%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(140%) !important;
+  backdrop-filter: blur(20px) saturate(140%) !important;
+  border: 1px solid rgba(238, 242, 234, 0.09) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    0 4px 16px rgba(0, 0, 0, 0.45) !important;
+  transition: transform 0.3s var(--ease), border-color 0.3s ease, box-shadow 0.3s ease, background 0.3s ease !important;
+}
+
+.dash-shell:not([data-theme='light']) .dash-modal,
+.dash-shell[data-theme='dark'] .dash-modal {
+  background: #0d1510 !important;
+  border: 1px solid rgba(118, 185, 0, 0.35) !important;
+  box-shadow:
+    0 24px 60px rgba(0, 0, 0, 0.95),
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 8px 24px rgba(118, 185, 0, 0.08) !important;
+}
+
+.dash-shell:not([data-theme='light']) .dash-stat-card:hover,
+.dash-shell:not([data-theme='light']) .dash-panel-card:hover,
+.dash-shell:not([data-theme='light']) .dash-deploy-row:hover,
+.dash-shell[data-theme='dark'] .dash-stat-card:hover,
+.dash-shell[data-theme='dark'] .dash-panel-card:hover,
+.dash-shell[data-theme='dark'] .dash-deploy-row:hover {
+  background: linear-gradient(145deg, rgba(32, 44, 36, 0.8) 0%, rgba(19, 27, 22, 0.9) 100%) !important;
+  border-color: rgba(118, 185, 0, 0.35) !important;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.14),
+    0 16px 36px -12px rgba(0, 0, 0, 0.7),
+    0 0 28px -6px var(--brand-glow) !important;
+}
+
+/* Secondary Dark Surface Elements */
+.dash-shell:not([data-theme='light']) .dash-input,
+.dash-shell:not([data-theme='light']) .dash-chat-query,
+.dash-shell:not([data-theme='light']) .dash-deploy-gpu-badge,
+.dash-shell:not([data-theme='light']) .dash-topbar__btn-icon,
+.dash-shell:not([data-theme='light']) .dash-admin-profile,
+.dash-shell:not([data-theme='light']) .dash-theme-toggle,
+.dash-shell:not([data-theme='light']) .dash-topbar__status,
+.dash-shell[data-theme='dark'] .dash-input,
+.dash-shell[data-theme='dark'] .dash-chat-query,
+.dash-shell[data-theme='dark'] .dash-deploy-gpu-badge,
+.dash-shell[data-theme='dark'] .dash-topbar__btn-icon,
+.dash-shell[data-theme='dark'] .dash-admin-profile,
+.dash-shell[data-theme='dark'] .dash-theme-toggle,
+.dash-shell[data-theme='dark'] .dash-topbar__status {
+  background: rgba(15, 21, 17, 0.85) !important;
+  border: 1px solid rgba(238, 242, 234, 0.1) !important;
+}
+
+/* Typography Hierarchy matching Home.tsx */
+.dash-shell:not([data-theme='light']) .dash-header-title,
+.dash-shell:not([data-theme='light']) .dash-form-title,
+.dash-shell:not([data-theme='light']) .dash-modal-title,
+.dash-shell:not([data-theme='light']) .dash-admin-name,
+.dash-shell:not([data-theme='light']) .dash-deploy-name,
+.dash-shell:not([data-theme='light']) .dash-deploy-price,
+.dash-shell:not([data-theme='light']) .dash-stat-value,
+.dash-shell:not([data-theme='light']) .dash-table td,
+.dash-shell:not([data-theme='light']) .dash-input,
+.dash-shell:not([data-theme='light']) .dash-role-card__title,
+.dash-shell:not([data-theme='light']) .mw-panel h2,
+.dash-shell:not([data-theme='light']) .mw-panel h3,
+.dash-shell:not([data-theme='light']) .mw-table td,
+.dash-shell:not([data-theme='light']) .mw-list-main strong,
+.dash-shell:not([data-theme='light']) .xs-card__head strong,
+.dash-shell[data-theme='dark'] .dash-header-title,
+.dash-shell[data-theme='dark'] .dash-form-title,
+.dash-shell[data-theme='dark'] .dash-modal-title,
+.dash-shell[data-theme='dark'] .dash-admin-name,
+.dash-shell[data-theme='dark'] .dash-deploy-name,
+.dash-shell[data-theme='dark'] .dash-deploy-price,
+.dash-shell[data-theme='dark'] .dash-stat-value,
+.dash-shell[data-theme='dark'] .dash-table td,
+.dash-shell[data-theme='dark'] .dash-input,
+.dash-shell[data-theme='dark'] .dash-role-card__title,
+.dash-shell[data-theme='dark'] .mw-panel h2,
+.dash-shell[data-theme='dark'] .mw-panel h3,
+.dash-shell[data-theme='dark'] .mw-table td,
+.dash-shell[data-theme='dark'] .mw-list-main strong,
+.dash-shell[data-theme='dark'] .xs-card__head strong {
+  color: #eef2ea !important;
+}
+
+/* Secondary Crisp Text */
+.dash-shell:not([data-theme='light']) .dash-header-desc,
+.dash-shell:not([data-theme='light']) .dash-form-desc,
+.dash-shell:not([data-theme='light']) .dash-nav-item,
+.dash-shell:not([data-theme='light']) .dash-stat-label,
+.dash-shell:not([data-theme='light']) .dash-panel-title,
+.dash-shell:not([data-theme='light']) .dash-deploy-model,
+.dash-shell:not([data-theme='light']) .dash-deploy-status,
+.dash-shell:not([data-theme='light']) .dash-label,
+.dash-shell:not([data-theme='light']) .dash-topbar__status,
+.dash-shell:not([data-theme='light']) .dash-role-card__desc,
+.dash-shell:not([data-theme='light']) .mw-table th,
+.dash-shell:not([data-theme='light']) .mw-metric-lbl,
+.dash-shell:not([data-theme='light']) .xs-label,
+.dash-shell:not([data-theme='light']) .xs-note,
+.dash-shell[data-theme='dark'] .dash-header-desc,
+.dash-shell[data-theme='dark'] .dash-form-desc,
+.dash-shell[data-theme='dark'] .dash-nav-item,
+.dash-shell[data-theme='dark'] .dash-stat-label,
+.dash-shell[data-theme='dark'] .dash-panel-title,
+.dash-shell[data-theme='dark'] .dash-deploy-model,
+.dash-shell[data-theme='dark'] .dash-deploy-status,
+.dash-shell[data-theme='dark'] .dash-label,
+.dash-shell[data-theme='dark'] .dash-topbar__status,
+.dash-shell[data-theme='dark'] .dash-role-card__desc,
+.dash-shell[data-theme='dark'] .mw-table th,
+.dash-shell[data-theme='dark'] .mw-metric-lbl,
+.dash-shell[data-theme='dark'] .xs-label,
+.dash-shell[data-theme='dark'] .xs-note {
+  color: #b4c0b2 !important;
+}
+
+/* Tertiary Metadata / Timestamps */
+.dash-shell:not([data-theme='light']) .dash-nav-section-title,
+.dash-shell:not([data-theme='light']) .dash-help,
+.dash-shell:not([data-theme='light']) .dash-meta,
+.dash-shell:not([data-theme='light']) .dash-breadcrumb a,
+.dash-shell:not([data-theme='light']) .dash-breadcrumb__sep,
+.dash-shell:not([data-theme='light']) .dash-quota-card__label,
+.dash-shell:not([data-theme='light']) .dash-quota-card__sub,
+.dash-shell:not([data-theme='light']) .dash-field-hint,
+.dash-shell:not([data-theme='light']) .mw-footnote,
+.dash-shell:not([data-theme='light']) .mw-list-main small,
+.dash-shell:not([data-theme='light']) .mw-notification small,
+.dash-shell:not([data-theme='light']) .xs-card__head small,
+.dash-shell[data-theme='dark'] .dash-nav-section-title,
+.dash-shell[data-theme='dark'] .dash-help,
+.dash-shell[data-theme='dark'] .dash-meta,
+.dash-shell[data-theme='dark'] .dash-breadcrumb a,
+.dash-shell[data-theme='dark'] .dash-breadcrumb__sep,
+.dash-shell[data-theme='dark'] .dash-quota-card__label,
+.dash-shell[data-theme='dark'] .dash-quota-card__sub,
+.dash-shell[data-theme='dark'] .dash-field-hint,
+.dash-shell[data-theme='dark'] .mw-footnote,
+.dash-shell[data-theme='dark'] .mw-list-main small,
+.dash-shell[data-theme='dark'] .mw-notification small,
+.dash-shell[data-theme='dark'] .xs-card__head small {
+  color: #8e9c8c !important;
+  font-weight: 500 !important;
+}

@@ -1,0 +1,207 @@
+{
+  "metadata": {
+    "title": "Inferxe Filtered & Curated GPU Knowledge Base",
+    "version": "2.0.0",
+    "processed_at": "2026-10-14T13:04:12.104422",
+    "description": "Cleaned, high-signal technical dataset compiled from verified Inferxe website modules, DPR, and technical documentation with all synthetic bloat removed."
+  },
+  "gpu_hardware": [
+    {
+      "gpu_id": "GPU_H100_SXM5",
+      "name": "NVIDIA H100 SXM5",
+      "architecture": "Hopper",
+      "vram_gb": 80,
+      "memory_type": "HBM3",
+      "memory_bandwidth_gbps": 3350,
+      "fp8_tflops": 1979,
+      "fp16_tflops": 989,
+      "tdp_watts": 700,
+      "interconnect": "NVLink 4 (900 GB/s bidirectional)",
+      "inr_per_hour": 275.0,
+      "usd_per_hour": 3.3,
+      "optimal_workloads": "Frontier inference (70B+ FP8), ultra-low TTFT (<25ms), continuous batching, large-scale pretraining",
+      "key_technologies": "4th Gen Tensor Cores, Transformer Engine, DPX instructions, 2nd Gen Multi-Instance GPU (MIG)"
+    },
+    {
+      "gpu_id": "GPU_H200_SXM",
+      "name": "NVIDIA H200 SXM",
+      "architecture": "Hopper",
+      "vram_gb": 141,
+      "memory_type": "HBM3e",
+      "memory_bandwidth_gbps": 4800,
+      "fp8_tflops": 1979,
+      "fp16_tflops": 989,
+      "tdp_watts": 700,
+      "interconnect": "NVLink 4 (900 GB/s bidirectional)",
+      "inr_per_hour": 435.0,
+      "usd_per_hour": 4.59,
+      "optimal_workloads": "Long-context reasoning (32k\u2013128k), 70B\u2013405B inference without out-of-memory errors",
+      "key_technologies": "First GPU with HBM3e, 1.4x memory capacity and 1.4x bandwidth of H100 SXM"
+    },
+    {
+      "gpu_id": "GPU_B200",
+      "name": "NVIDIA Blackwell B200",
+      "architecture": "Blackwell",
+      "vram_gb": 192,
+      "memory_type": "HBM3e",
+      "memory_bandwidth_gbps": 8000,
+      "fp8_tflops": 4500,
+      "fp16_tflops": 2250,
+      "tdp_watts": 1000,
+      "interconnect": "NVLink 5 (1800 GB/s bidirectional)",
+      "inr_per_hour": 650.0,
+      "usd_per_hour": 7.8,
+      "optimal_workloads": "Massive Mixture-of-Experts (DeepSeek-V3, Llama 405B dense), extreme concurrency, sub-cent token economics",
+      "key_technologies": "5th Gen Tensor Cores, NVLink 5, 2nd Gen Transformer Engine with native FP4 precision"
+    },
+    {
+      "gpu_id": "GPU_L40S",
+      "name": "NVIDIA L40S",
+      "architecture": "Ada Lovelace",
+      "vram_gb": 48,
+      "memory_type": "GDDR6 ECC",
+      "memory_bandwidth_gbps": 864,
+      "fp8_tflops": 733,
+      "fp16_tflops": 366,
+      "tdp_watts": 350,
+      "interconnect": "PCIe Gen4 x16 (64 GB/s)",
+      "inr_per_hour": 100.0,
+      "usd_per_hour": 1.2,
+      "optimal_workloads": "Mid-range inference (14B-32B FP8, 70B AWQ), batch fine-tuning with LoRA, Omniverse, vision models",
+      "key_technologies": "4th Gen Tensor Cores, 3rd Gen RT Cores, DLSS 3, Transformer Engine"
+    },
+    {
+      "gpu_id": "GPU_L4",
+      "name": "NVIDIA L4",
+      "architecture": "Ada Lovelace",
+      "vram_gb": 24,
+      "memory_type": "GDDR6",
+      "memory_bandwidth_gbps": 300,
+      "fp8_tflops": 242,
+      "fp16_tflops": 121,
+      "tdp_watts": 72,
+      "interconnect": "PCIe Gen4 x16 (64 GB/s)",
+      "inr_per_hour": 60.0,
+      "usd_per_hour": 0.72,
+      "optimal_workloads": "Lightweight inference (7B-8B FP8/INT4), high-throughput text embeddings, real-time video/audio AI, Jupyter notebooks",
+      "key_technologies": "Low-profile single-slot form factor, 72W low TDP, energy-efficient universal accelerator"
+    },
+    {
+      "gpu_id": "GPU_A100_80GB",
+      "name": "NVIDIA A100 80GB",
+      "architecture": "Ampere",
+      "vram_gb": 80,
+      "memory_type": "HBM2e",
+      "memory_bandwidth_gbps": 2039,
+      "fp8_tflops": 0,
+      "fp16_tflops": 624,
+      "tdp_watts": 400,
+      "interconnect": "NVLink 3 (600 GB/s) + PCIe Gen4",
+      "inr_per_hour": 141.0,
+      "usd_per_hour": 1.49,
+      "optimal_workloads": "Proven foundation model training, unquantized BF16 inference, distributed deep learning",
+      "key_technologies": "TensorFloat-32 (TF32), 3rd Gen Tensor Cores, 7 MIG instances"
+    }
+  ],
+  "models": [
+    {
+      "model_id": "meta-llama/Llama-3.1-8B-Instruct",
+      "name": "Llama 3.1 8B Instruct",
+      "parameter_count_b": 8.03,
+      "default_precision": "FP16",
+      "weights_fp16_gb": 16.06,
+      "weights_fp8_gb": 8.03,
+      "weights_int4_gb": 4.5,
+      "context_window_tokens": 131072,
+      "recommended_gpu": "NVIDIA L4 (24 GB) for standard context; NVIDIA L40S (48 GB) for extended context and concurrency"
+    },
+    {
+      "model_id": "Qwen/Qwen2.5-14B-Instruct",
+      "name": "Qwen 2.5 14B Instruct",
+      "parameter_count_b": 14.7,
+      "default_precision": "FP16",
+      "weights_fp16_gb": 29.4,
+      "weights_fp8_gb": 14.7,
+      "weights_int4_gb": 8.2,
+      "context_window_tokens": 131072,
+      "recommended_gpu": "NVIDIA L40S (48 GB) or NVIDIA A100 (40GB/80GB)"
+    },
+    {
+      "model_id": "Qwen/Qwen2.5-32B-Instruct",
+      "name": "Qwen 2.5 32B Instruct",
+      "parameter_count_b": 32.5,
+      "default_precision": "FP16",
+      "weights_fp16_gb": 65.0,
+      "weights_fp8_gb": 32.5,
+      "weights_int4_gb": 18.0,
+      "context_window_tokens": 131072,
+      "recommended_gpu": "1x NVIDIA H100 SXM (80 GB) or 2x NVIDIA L40S (96 GB total)"
+    },
+    {
+      "model_id": "meta-llama/Llama-3.3-70B-Instruct",
+      "name": "Llama 3.3 70B Instruct",
+      "parameter_count_b": 70.6,
+      "default_precision": "FP16",
+      "weights_fp16_gb": 141.2,
+      "weights_fp8_gb": 70.6,
+      "weights_int4_gb": 39.5,
+      "context_window_tokens": 131072,
+      "recommended_gpu": "1x NVIDIA H100 SXM (80 GB) in FP8, or 2x H100 SXM (160 GB) in unquantized BF16 with Tensor Parallelism"
+    },
+    {
+      "model_id": "deepseek-ai/DeepSeek-V3",
+      "name": "DeepSeek-V3 (671B MoE)",
+      "parameter_count_b": 671.0,
+      "active_parameters_b": 37.0,
+      "default_precision": "FP8",
+      "weights_fp16_gb": 1342.0,
+      "weights_fp8_gb": 671.0,
+      "weights_int4_gb": 370.0,
+      "context_window_tokens": 128000,
+      "recommended_gpu": "8x NVIDIA Blackwell B200 (1536 GB total) or multi-node H100 SXM cluster over InfiniBand"
+    }
+  ],
+  "vram_derivation_engine": {
+    "formula": "Total_Peak_VRAM = Weights_GB + KV_Cache_GB + Runtime_Overhead_GB",
+    "usable_memory_ceiling": "VRAM_Usable = Total_VRAM * 0.90",
+    "weights_calculation": "Weights_GB = ParamCount_B * BytesPerParam (FP16=2.0, FP8=1.0, INT4=0.5)",
+    "kv_cache_calculation": "KV_Cache_GB = (Context_Tokens / 1024) * Batch_Size * (KV_Factor_MB / 1024)",
+    "runtime_overhead": "2.5 GB reserved for CUDA context, PyTorch/vLLM buffers, and activation scratchpad"
+  },
+  "advanced_technical_concepts": [
+    {
+      "concept": "Roofline Model",
+      "category": "Compute_Theory",
+      "summary": "The Roofline Model provides an intuitive performance model used to bind floating-point performance against memory bandwidth. It characterizes whether an LLM inference workload is memory bandwidth-bound (such as autoregressive token generation/decode where arithmetic intensity is low) or compute-bound (such as prompt prefill with large batch sizes where tensor cores are saturated).",
+      "application_to_inferxe": "Helps users determine whether upgrading to HBM3e (H200/B200 with up to 8 TB/s) is necessary vs PCIe GDDR6 based on prompt-to-decode ratio."
+    },
+    {
+      "concept": "FlashAttention",
+      "category": "LLM_Inference_Software",
+      "summary": "FlashAttention is an IO-aware exact attention algorithm that tiles the input to compute softmax incrementally without materializing the large intermediate N\u00d7N attention matrix in slow GPU High Bandwidth Memory (HBM). By fusing operations and keeping data in fast on-chip SRAM, it achieves 2\u20134\u00d7 faster attention computation with linear memory scaling with respect to sequence length.",
+      "application_to_inferxe": "Integrated into vLLM serving backends across all provisioned GPUs on Inferxe."
+    },
+    {
+      "concept": "NVLink vs PCIe Bandwidth",
+      "category": "Hardware_Interconnect",
+      "summary": "NVLink provides high-bandwidth, direct GPU-to-GPU interconnect bypassing the system CPU and PCIe root complex. NVLink 4 on Hopper delivers 900 GB/s bidirectional bandwidth per GPU, and NVLink 5 on Blackwell reaches 1,800 GB/s, compared to just 64\u2013128 GB/s on PCIe Gen4/Gen5. This 7x\u201314x bandwidth leap is critical for Tensor Parallelism (TP) all-reduce synchronization.",
+      "application_to_inferxe": "Determines when multi-GPU clusters require SXM5/NVLink instances rather than lower-cost PCIe cards."
+    },
+    {
+      "concept": "Quantization Formats (FP8 vs INT4 AWQ/GPTQ)",
+      "category": "Quantization_Techniques",
+      "summary": "Post-training quantization reduces parameter bit-width. FP8 (supported natively on Ada Lovelace, Hopper, and Blackwell) preserves dynamic range via E4M3/E5M2 formats with negligible perplexity degradation (<0.1%) while cutting VRAM in half. AWQ (Activation-aware Weight Quantization) protects the 1% salient weights in INT4, allowing 70B models to fit within 40 GB VRAM with minimal quality loss.",
+      "application_to_inferxe": "Enables customers on limited budgets to run 70B models on a single L40S (48 GB) or 14B models on an L4 (24 GB)."
+    },
+    {
+      "concept": "Data Sovereignty & DPDP Compliance in India",
+      "category": "Cloud_Infrastructure",
+      "summary": "Under India's Digital Personal Data Protection (DPDP) Act and MeitY cloud security empanelment, enterprise AI systems handling domestic user data must maintain verifiable geographic residency. Inferxe infrastructure resides exclusively in Tier-IV facilities in Mumbai (ap-south-1) and Noida, guaranteeing zero cross-border egress for prompts, weights, and telemetry.",
+      "application_to_inferxe": "Guarantees Indian sovereign compliance for government, banking, healthcare, and enterprise workloads."
+    }
+  ],
+  "developer_code_examples": {
+    "python_openai_sdk": "from openai import OpenAI\n\nclient = OpenAI(\n    base_url=\"https://api.inferxe.com/v1\",\n    api_key=\"ix_live_your_api_key_here\"\n)\n\nresponse = client.chat.completions.create(\n    model=\"meta-llama/Llama-3.1-8B-Instruct\",\n    messages=[\n        {\"role\": \"system\", \"content\": \"You are a helpful assistant.\"},\n        {\"role\": \"user\", \"content\": \"Explain NVLink interconnects.\"}\n    ],\n    temperature=0.7,\n    stream=True\n)\n\nfor chunk in response:\n    content = chunk.choices[0].delta.content or \"\"\n    print(content, end=\"\", flush=True)",
+    "curl_example": "curl https://api.inferxe.com/v1/chat/completions \\\n  -H \"Content-Type: application/json\" \\\n  -H \"Authorization: Bearer ix_live_your_api_key_here\" \\\n  -d '{\"model\": \"meta-llama/Llama-3.1-8B-Instruct\", \"messages\": [{\"role\": \"user\", \"content\": \"Hello Inferxe\"}]}'"
+  }
+}

@@ -1,0 +1,1330 @@
+[0] DETAILED PROJECT REPORT
+[1] LLM Inference Marketplace
+[2] An Intermediary Platform for GPU Selection, Provisioning and LLM Inference
+[3] Version 1.0 | September 2026
+[4] Prepared for Product, Engineering and Academic Project 
+[5] Table of Contents
+[6] 1. Document Control
+[7] 1.1 Purpose of the Report
+[8] 1.2 Source Modules Consolidated
+[9] 1.3 Scope Reconciliation
+[10] 1.4 Definitions and Conventions 
+[11] 2. Executive Summary
+[12] 2.1 MVP at a Glance
+[13] 2.2 Key Objectives and Expected Outcomes
+[14] 2.3 Business and Technical Overview 
+[15] 3. Problem Statement & Market Landscape
+[16] 3.1 Problem Statement
+[17] 3.2 GPU and LLM Infrastructure Landscape
+[18] 3.3 India-Focused GPU Provider Landscape
+[19] 3.4 Existing GPU Intermediaries and Marketplaces
+[20] 3.5 Competitive Gap and Project Positioning
+[21] 3.6 Provider vs. Marketplace / Intermediary
+[22] 3.7 MVP Market Positioning 
+[23] 4. Product Definition
+[24] 4.1 Vision and Positioning
+[25] 4.2 MVP Definition and Core Capabilities
+[26] 4.3 MVP Success Metrics
+[27] 4.4 Scope: In Scope, Out of Scope and Future Scope
+[28] 4.5 Target Users
+[29] 4.6 Use Cases
+[30] 4.7 Customer Journey 
+[31] 5. System Architecture
+[32] 5.1 High-Level Architecture
+[33] 5.2 Architecture Layers
+[34] 5.3 Component Breakdown
+[35] 5.4 End-to-End User and Inference Workflow
+[36] 5.5 Deployment Lifecycle
+[37] 5.6 Data and Monitoring Flow
+[38] 5.7 Architecture Principles 
+[39] 6. Local LLM & vLLM Serving Strategy
+[40] 6.1 Local LLM Serving Approach
+[41] 6.2 Supported Open LLM Strategy
+[42] 6.3 Role of vLLM in the Platform
+[43] 6.4 Model-to-GPU Compatibility
+[44] 6.5 AI Assistant Request Lifecycle
+[45] 6.6 LLM Serving Performance and Evaluation
+[46] 6.7 LLM Serving Security and Reliability
+[47] 6.8 LLM Serving Testing Plan
+[48] 6.9 AI-to-Marketplace Integration 
+[49] 7. GPU Provider Strategy
+[50] 7.1 GPU Provider vs. Inference Platform
+[51] 7.2 GPU Classes and Portfolio Tiers
+[52] 7.3 JarvisLabs as the MVP GPU Provider
+[53] 7.4 GPU Selection and Recommendation Workflow
+[54] 7.5 GPU Provider Evaluation Framework
+[55] 7.6 Recommended GPU Portfolio
+[56] 7.7 GPU Pricing Reference
+[57] 7.8 Provider Abstraction and Future Multi-Provider Architecture 
+[58] 8. Database Strategy
+[59] 8.1 PostgreSQL as the Primary Database
+[60] 8.2 Data Entities and Relationships
+[61] 8.3 Database Schema
+[62] 8.4 Deployment and Usage Data Model
+[63] 8.5 Pricing and Cost Data Model
+[64] 8.6 Usage, Audit and Event Records
+[65] 8.7 Database Hosting Options
+[66] 8.8 Database Data Flow and Migration Path 
+[67] 9. API Design
+[68] 9.1 API Architecture and Role
+[69] 9.2 API Groups
+[70] 9.3 Authentication APIs
+[71] 9.4 GPU and Recommendation APIs
+[72] 9.5 Deployment APIs
+[73] 9.6 Inference APIs
+[74] 9.7 Usage and Pricing APIs
+[75] 9.8 Provider Adapter Layer
+[76] 9.9 Error Handling Standards
+[77] 9.10 Performance and Reliability Practices 
+[78] 10. Technology Stack & Deployment
+[79] 10.1 Technology Stack Overview
+[80] 10.2 Frontend Technologies
+[81] 10.3 Backend Technologies
+[82] 10.4 Database and Storage Technologies
+[83] 10.5 Authentication and API Security
+[84] 10.6 JarvisLabs Integration
+[85] 10.7 Docker and Containerization
+[86] 10.8 vLLM and Open-Model Stack
+[87] 10.9 Monitoring and Observability
+[88] 10.10 Cloud and Deployment Environment
+[89] 10.11 Development and CI/CD Environment 
+[90] 11. Risk Management
+[91] 11.1 Risk Management Objectives
+[92] 11.2 Risk Classification
+[93] 11.3 Risk Assessment Methodology
+[94] 11.4 Risk Register
+[95] 11.5 Key Mitigation Strategies
+[96] 11.6 Provider and Infrastructure Failure Handling
+[97] 11.7 Monitoring and Key Risk Indicators
+[98] 11.8 Risk Ownership and Responsibilities 
+[99] 12. Project Timeline & Delivery Plan
+[100] 12.1 Delivery Approach
+[101] 12.2 Work Breakdown Structure
+[102] 12.3 Eight-Week Project Timeline
+[103] 12.4 Key Milestones
+[104] 12.5 Testing and Validation Schedule
+[105] 12.6 Deployment, Documentation and Handover 
+[106] 13. Future Scope
+[107] 13.1 Multi-LLM and Multi-Provider Integration
+[108] 13.2 Intelligent Provider/GPU Routing
+[109] 13.3 Advanced vLLM Serving
+[110] 13.4 Intelligent Request Classification
+[111] 13.5 Dynamic Cost Optimization
+[112] 13.6 Real-Time Monitoring and Performance Optimization
+[113] 13.7 Automatic Failover and Recovery
+[114] 13.8 Privacy-Aware Execution
+[115] 13.9 Enterprise and On-Premise Deployment
+[116] 13.10 Continuous Benchmarking and Quality Evaluation
+[117] 13.11 India-First Multi-Provider Evolution
+[118] 13.12 Architecture Evolution 
+[119] 14. Pricing & Financial Estimation
+[120] 14.1 Pricing Model Overview
+[121] 14.2 MVP Project Cost Envelope
+[122] 14.3 GPU Pricing Reference
+[123] 14.4 Infrastructure Cost Estimation
+[124] 14.5 Platform Pricing / Service Fee Model
+[125] 14.6 Cost Assumptions and Variables
+[126] 14.7 Pricing Limitations and Validation Requirements 
+[127] 15. Conclusion
+[128] 15.1 MVP Summary
+[129] 15.2 Technical Feasibility
+[130] 15.3 Business and Product Positioning
+[131] 15.4 Future Evolution 
+[132] 16. References
+[133] 1. Document Control
+[134] 1.1 Purpose of This Report
+[135] This Detailed Project Report consolidates the supplied project modules into one implementation-oriented document. The report retains the chapter structure and subject coverage of the reference DPR while replacing the original multi-provider inference-marketplace assumptions with the project definition.
+[136] The actual MVP is a customer-facing intermediary between customers and an external GPU infrastructure provider. JarvisLabs.ai is the selected GPU provider for the MVP. The platform collects workload requirements, recommends a compatible GPU, provisions the resource through the JarvisLabs integration, deploys an open LLM with Docker and vLLM, exposes an inference interface, and records basic usage, performance and estimated infrastructure cost.
+[137] 1.2 Source Modules Consolidated
+[138] Source module
+[139] Primary contribution to final DPR
+[140] Updated_LLM_Inference_Marketplace_MVP_Scope.docx
+[141] Authoritative MVP definition, customer flow, functional modules, GPU selection, JarvisLabs integration, vLLM, database, security, dashboard, API, errors, exclusions and success criteria.
+[142] TECHSTACK.docx
+[143] Frontend, backend, database, UI/UX, JarvisLabs, vLLM, model, authentication, API security, caching, monitoring, Docker, AWS and GitLab technology choices.
+[144] GPU_Intermediary_Competitor_Analysis.docx
+[145] Competitive landscape for GPU intermediary/aggregation platforms and positioning of the JarvisLabs-based MVP.
+[146] India_Cloud_GPU_Provider_Evaluation_DPR.docx
+[147] India-focused provider landscape, evaluation criteria, API/provisioning considerations and future multi-provider architecture.
+[148] Risk_Management_DPR_Reference_Updated.docx
+[149] Risk taxonomy, scoring method, risk register, mitigation strategies, failover, monitoring and ownership.
+[150] Total Pricing.docx
+[151] Project cost envelope, GPU pricing reference and recommended marketplace listing rates.
+[152] Future_Scope_10_Elaborated_Table.docx
+[153] Ten future-scope capabilities for the post-MVP roadmap.
+[154] LLM Report.docx
+[155] Local LLM, vLLM/RAG-oriented feasibility, storage, testing and cost concepts that are relevant where they support the current platform.
+[156] DETAILED PROJECT REPORT (2).docx
+[157] Reference DPR structure, section sequence, reporting conventions and breadth of coverage.
+[158] 1.3 Scope Reconciliation Note
+[159] The supplied reference DPR describes a broader multi-provider LLM routing marketplace. The supplied project modules narrow the current MVP to a JarvisLabs-based GPU access and LLM deployment platform. Therefore, this report preserves the reference DPR's topics—market landscape, product definition, architecture, provider strategy, database, API, technology stack, risks, timeline, future scope, pricing and references—but applies them to the actual MVP scope.
+[160] 1.4 Conventions
+[161] MVP means the current JarvisLabs-based intermediary/orchestration platform.
+[162] Provider means an infrastructure or inference source; JarvisLabs is the MVP GPU infrastructure provider.
+[163] Multi-provider marketplace, advanced intelligent routing and enterprise/on-premise features are treated as future scope unless explicitly identified as MVP requirements.
+[164] Pricing and provider information supplied in the project modules is treated as planning/reference information and should be revalidated before commercial commitments.
+[165] 2. Executive Summary
+[166] The project is a customer-facing GPU and LLM inference platform designed to simplify the process of obtaining GPU-backed inference without requiring customers to manually select infrastructure, configure a GPU instance, install a serving engine, deploy an LLM, or manage the basic inference endpoint.
+[167] For the MVP, JarvisLabs.ai supplies the underlying GPU infrastructure. The platform itself does not own the physical GPUs. Instead, it acts as the intermediary and orchestration layer: it collects customer requirements, evaluates available GPU choices, recommends a suitable configuration, requests the resource from JarvisLabs, deploys an open LLM using Docker and vLLM, exposes inference access, and records usage, performance and estimated cost.
+[168] The central value proposition is abstraction. A customer should be able to think in terms of workload requirements—model, VRAM, context length, expected concurrency, performance preference and budget—rather than infrastructure commands. The backend translates those requirements into a GPU recommendation and a repeatable deployment workflow.
+[169] 2.1 MVP at a Glance
+[170] Area
+[171] MVP position
+[172] Platform role
+[173] Intermediary / orchestration layer between customer and GPU provider
+[174] GPU provider
+[175] JarvisLabs.ai
+[176] GPU ownership
+[177] External provider; no physical GPU ownership by the platform
+[178] Frontend
+[179] React + TypeScript
+[180] Backend
+[181] FastAPI + Python
+[182] Database
+[183] PostgreSQL
+[184] GPU provisioning
+[185] JarvisLabs API / SDK integration
+[186] LLM serving
+[187] vLLM
+[188] Models
+[189] Open models such as Qwen, Llama and Mistral, subject to hardware compatibility
+[190] Packaging
+[191] Docker
+[192] Authentication
+[193] AWS Cognito + optional TOTP
+[194] Monitoring
+[195] Prometheus + Grafana
+[196] Cache
+[197] Redis, optional in Phase 1
+[198] Deployment
+[199] AWS for customer-facing/platform services; JarvisLabs for GPU compute
+[200] Primary MVP outcome
+[201] Customer can specify requirements, obtain a suitable GPU, deploy an LLM and use an inference endpoint
+[202] 2.2 Key Success Outcomes
+[203] Secure customer registration and access.
+[204] Requirement-based GPU recommendation.
+[205] Programmatic JarvisLabs provisioning and lifecycle management.
+[206] Automated deployment of a supported open LLM using vLLM.
+[207] Inference through a customer-facing interface/API.
+[208] Deployment status, basic usage and performance visibility.
+[209] Estimated infrastructure-cost visibility.
+[210] Safe handling of common provisioning and inference failures.
+[211] 3. Problem Statement & Market Landscape
+[212] 3.1 The Problem
+[213] GPU-backed LLM inference is technically accessible but operationally complex for many customers. A user may need to understand model size, VRAM, quantization, context length, concurrency, GPU availability, serving engines, networking, deployment commands and cost before a single inference request can be processed.
+[214] The project addresses this infrastructure and deployment complexity by placing a software mediation layer between the customer and GPU infrastructure. Instead of manually operating a GPU environment, the customer supplies requirements and receives a managed path to an inference-ready environment.
+[215] 3.2 Market Landscape
+[216] The supplied India-focused evaluation identifies 15 IndiaAI-empaneled cloud AI service providers as an official baseline for the Indian AI-compute landscape. This should not be interpreted as the complete count of all commercial GPU-cloud companies in India. The broader landscape includes GPUaaS providers, managed AI platforms and general cloud/IT providers.
+[217] Provider
+[218] MVP/marketplace relevance from supplied evaluation
+[219] E2E Networks
+[220] Strong candidate; GPU cloud documentation, multiple GPU generations, model endpoints and OpenAI-compatible GenAI API.
+[221] Cyfuture
+[222] Strong API-driven GPUaaS candidate with documented provisioning/SDK patterns.
+[223] Yotta
+[224] Strong sovereign/large-scale AI infrastructure candidate with GPU infrastructure and AI endpoints.
+[225] Tata Communications Vayu
+[226] Enterprise/sovereign AI-cloud candidate with GPUaaS and AI platform capabilities.
+[227] Sify
+[228] Enterprise GPUaaS candidate with multiple service models.
+[229] NxtGen
+[230] Strong enterprise GPUaaS candidate.
+[231] Neysa
+[232] AI/GPU infrastructure suitable for larger workloads.
+[233] Jio Platforms
+[234] India-hosted GPU-accelerated cloud candidate.
+[235] Vensysco
+[236] Potential GPU marketplace/provider candidate.
+[237] NTT
+[238] Enterprise GPU/cloud infrastructure candidate.
+[239] Others in supplied IndiaAI baseline
+[240] CMS Computers, CtrlS, Ishan, Locuz/SHI India and Orient Technologies; fit depends on API and commercial integration details.
+[241] 3.3 Existing GPU Intermediaries & Marketplaces
+[242] Platform
+[243] Supply model
+[244] Difference from current MVP
+[245] Our platform
+[246] JarvisLabs → platform → customer
+[247] Starts with one provider; customer-facing selection, provisioning, deployment and inference layer.
+[248] Shadeform
+[249] 30+ GPU cloud providers → intermediary → customer
+[250] Much broader provider network and multi-provider deployment.
+[251] Spheron AI
+[252] Multiple certified providers → marketplace → customer
+[253] Provider aggregation and supplier matchmaking already exist.
+[254] GPUNET
+[255] Multiple infrastructure partners → marketplace → customer
+[256] Large multi-datacenter supply network.
+[257] SphereCompute
+[258] Multiple GPU clouds → intermediary → customer
+[259] Multi-provider price/availability comparison.
+[260] Vast.ai
+[261] Independent GPU hosts/data centers → marketplace → customer
+[262] Two-sided GPU marketplace rather than a single-provider intermediary.
+[263] TensorDock
+[264] Distributed GPU hosts → marketplace → customer
+[265] Distributed host marketplace.
+[266] 3.4 Competitive Gap and Positioning
+[267] The project should not claim to be a full multi-provider GPU marketplace at MVP launch. Its immediate differentiation is simplification: requirement collection, GPU recommendation, provider interaction, deployment automation, vLLM serving and customer-facing inference access through one platform.
+[268] The architecture should nevertheless preserve a provider abstraction boundary. This allows JarvisLabs to remain the only current provider while keeping the platform technically ready for additional adapters in later phases.
+[269] 3.5 Provider vs Marketplace
+[270] Aspect
+[271] GPU provider
+[272] Current platform
+[273] Primary role
+[274] Supplies GPU/compute capacity
+[275] Mediates customer requirements and provider access
+[276] Infrastructure
+[277] Owns/operates underlying capacity
+[278] Does not own physical GPUs
+[279] Customer interface
+[280] Provider-specific console/API
+[281] Unified customer-facing application/API
+[282] Provisioning
+[283] Provider performs actual infrastructure provisioning
+[284] Platform requests/provides orchestration through provider integration
+[285] LLM deployment
+[286] May provide infrastructure primitives
+[287] Platform automates deployment of supported open models using vLLM
+[288] Future role
+[289] Could be one of many suppliers
+[290] Can evolve into multi-provider decision/routing layer
+[291] 4. Product Definition
+[292] 4.1 Vision & Positioning
+[293] The vision is to make GPU-backed LLM inference accessible as a simple application workflow. Customers should specify what they need, not how to build it. The platform translates workload requirements into an appropriate GPU configuration, provisions the resource, deploys the model and exposes an inference path.
+[294] 4.2 MVP Definition & Core Capabilities
+[295] Customer registration and secure login.
+[296] Model and workload requirement collection.
+[297] GPU recommendation based on VRAM, model, context, concurrency, performance and budget.
+[298] JarvisLabs GPU availability/resource interaction.
+[299] GPU provisioning and lifecycle management.
+[300] Docker-based deployment environment.
+[301] vLLM-based LLM serving.
+[302] Support for selected open models such as Qwen, Llama and Mistral.
+[303] Customer inference interface/API.
+[304] Deployment status and basic monitoring.
+[305] Usage, latency/TTFT, token and estimated cost recording where available.
+[306] Safe error handling for provisioning and inference failures.
+[307] 4.3 MVP Success Metrics
+[308] Metric
+[309] Target / acceptance condition
+[310] Customer onboarding
+[311] Customer can register/login and reach the platform securely.
+[312] Requirement capture
+[313] Required workload fields can be submitted successfully.
+[314] GPU recommendation
+[315] Platform returns a compatible recommendation for supported workloads.
+[316] Provisioning
+[317] Backend can request a supported GPU resource through JarvisLabs integration.
+[318] LLM deployment
+[319] Supported open model can be deployed with vLLM.
+[320] Inference
+[321] Customer can submit a prompt and receive a model response.
+[322] Status visibility
+[323] Deployment state is visible to customer.
+[324] Cost visibility
+[325] Estimated infrastructure cost can be calculated/displayed.
+[326] Reliability
+[327] Common provisioning/inference failures produce controlled errors and do not leave stale deployment state.
+[328] Observability
+[329] Basic request, latency and resource information is recorded where telemetry is available.
+[330] 4.4 Scope: In / Out / Phased Roadmap
+[331] MVP / Phase 1
+[332] Deferred / future
+[333] Single provider: JarvisLabs.ai
+[334] Multiple GPU providers
+[335] GPU recommendation
+[336] AI-based intelligent routing
+[337] GPU provisioning
+[338] Dynamic multi-provider price optimization
+[339] Docker + vLLM deployment
+[340] Enterprise/on-premise deployment
+[341] Open LLM inference
+[342] Advanced provider failover across multiple suppliers
+[343] Customer dashboard
+[344] Unified multi-provider billing
+[345] Usage and estimated cost
+[346] Continuous cross-provider benchmarking
+[347] Authentication and API security
+[348] Global/multi-cloud infrastructure
+[349] 4.5 Use Cases
+[350] GPU selection assistance — customer specifies model/workload needs and receives a suitable GPU recommendation.
+[351] Managed deployment — customer avoids manual GPU setup, Docker configuration and vLLM installation.
+[352] LLM inference — customer uses the deployed open model through the platform.
+[353] Cost estimation — customer sees estimated infrastructure cost based on selected GPU and usage.
+[354] Deployment lifecycle — customer can monitor and stop/terminate a workload when finished.
+[355] Future provider comparison — the same customer-facing workflow can later compare multiple infrastructure providers.
+[356] 5. System Architecture
+[357] 5.1 High-Level Architecture
+[358] The architecture has six logical layers: customer interface, authentication/API gateway, application/orchestration backend, provider integration, GPU/LLM execution, and data/observability services.
+[359] Layer
+[360] Main components
+[361] Responsibility
+[362] Client
+[363] React + TypeScript
+[364] Requirements, GPU selection, deployment status, pricing and inference UI.
+[365] Identity/API
+[366] AWS Cognito, API keys, HTTPS
+[367] Authentication, authorization and secure programmatic access.
+[368] Application
+[369] FastAPI + Python
+[370] Requirement analysis, GPU recommendation, provisioning orchestration, deployment state and inference coordination.
+[371] Provider integration
+[372] JarvisLabs API/SDK adapter
+[373] Availability/resource lookup, instance creation and lifecycle operations.
+[374] Execution
+[375] JarvisLabs GPU + Docker + vLLM + Qwen/Llama/Mistral
+[376] Actual model serving and inference.
+[377] Data/observability
+[378] PostgreSQL, Redis, Prometheus, Grafana
+[379] Users, resources, deployments, usage, pricing, logs/metrics and cached state.
+[380] 5.2 Component Breakdown
+[381] Requirement collector: captures model, VRAM, context, concurrency, latency/performance preference, budget and region where applicable.
+[382] GPU recommendation engine: maps workload characteristics to supported GPU configurations.
+[383] Provider adapter: isolates JarvisLabs-specific API/SDK operations.
+[384] Deployment manager: creates/updates/stops GPU instances and tracks deployment state.
+[385] Model deployment service: prepares Docker/vLLM serving configuration and model selection.
+[386] Inference gateway: exposes a controlled inference interface and validates requests.
+[387] Usage tracker: records request counts, latency/TTFT, token usage and estimated cost where available.
+[388] Monitoring: application and inference health, resource metrics and operational alerts.
+[389] 5.3 End-to-End Request Workflow
+[390] Customer registers/logs in.
+[391] Customer selects a supported model and enters workload requirements.
+[392] Backend validates requirements and checks compatible GPU options.
+[393] Recommendation logic selects a suitable GPU configuration.
+[394] Backend calls JarvisLabs through the provider adapter.
+[395] GPU instance is provisioned and its lifecycle state is stored.
+[396] Docker and vLLM are configured on the GPU resource.
+[397] Selected open LLM is loaded and exposed through an inference endpoint.
+[398] Customer sends prompts through the platform interface/API.
+[399] Response, latency and usage information are recorded.
+[400] Customer can stop/terminate the deployment when the workload is complete.
+[401] 5.4 Architecture Principles
+[402] Provider abstraction: JarvisLabs-specific code must remain behind an adapter boundary.
+[403] Stateless application logic where practical; persistent state belongs in PostgreSQL.
+[404] Explicit deployment states to prevent orphaned resources.
+[405] Least-privilege credentials and secrets management.
+[406] Observable operations: provisioning, deployment and inference should emit useful logs and metrics.
+[407] 6. Financial Estimation & Deployment Options
+[408] 6.1 LLM Serving Approach
+[409] The MVP uses a locally hosted open-weight LLM as an internal AI component of the GPU marketplace. The model is deployed on a GPU resource provisioned through JarvisLabs, while vLLM acts as the model-serving engine. vLLM is responsible for loading and serving the selected model; it is not itself an LLM model.
+[410] The proposed deployment environment may use Docker to package the vLLM service, model dependencies and runtime configuration. The marketplace backend can communicate with the locally hosted vLLM endpoint when AI-assisted functionality is required.
+[411] The local LLM is intended to support marketplace functions such as:
+[412] Natural-language GPU search
+[413] Workload understanding
+[414] Requirement extraction
+[415] GPU recommendation assistance
+[416] Comparison explanations
+[417] AI assistant conversations
+[418] The local LLM is not the GPU rental service offered by the marketplace. GPU rental, payment, provisioning and infrastructure management remain outside the marketplace's referral-layer responsibility.
+[419] Serving flow:-
+[420] User Query → Marketplace Frontend → FastAPI → Local vLLM Service → Selected Open-Weight Model → AI Response / Structured Requirements → Marketplace Recommendation & Search Layer
+[421] 6.2 Supported Open LLM Strategy:
+[422] The initial model portfolio should remain relatively small so that the selected models can be evaluated consistently during MVP development. Candidate open-weight model families may include Qwen, Llama and Mistral, with the final model variant selected according to the intended assistant workload, model size, quantization, context length, memory requirement, expected concurrency and available GPU resources.
+[423] Model selection should be treated as a configuration and compatibility decision rather than a fixed ranking of model families. A smaller quantized model may require less GPU memory and may be appropriate for lightweight marketplace assistance, while a larger model may require greater memory and compute capacity.
+[424] The selection process should consider:
+[425] Model quality for the intended marketplace tasks
+[426] VRAM requirement
+[427] Quantization format
+[428] Context length
+[429] Response latency
+[430] Throughput
+[431] Concurrent-request behavior
+[432] vLLM compatibility
+[433] Available JarvisLabs GPU configuration
+[434] License and model usage conditions
+[435] 6.3 vLLM Role in the Platform
+[436] High-throughput LLM serving: vLLM provides the inference runtime used to serve the selected open model on the provisioned GPU.
+[437] Efficient request handling: continuous batching and efficient KV-cache management help improve utilization when multiple inference requests are active.
+[438] API access: vLLM can expose an OpenAI-compatible API, allowing the platform to standardize how customer requests reach the deployed model.
+[439] Observability: serving health, request latency, TTFT, throughput and error information can be captured where telemetry is available.
+[440] 6.4 Model-to-GPU Compatibility
+[441] GPU
+[442] Approx. VRAM
+[443] Indicative Use in MVP
+[444] Selection Consideration
+[445] L4
+[446] 24 GB
+[447] Smaller or quantized LLMs; lightweight AI assistant workloads
+[448] Selected model, quantization and runtime overhead must fit available memory
+[449] L40S
+[450] 48 GB
+[451] Medium-sized models and higher-throughput assistant workloads
+[452] Provides additional memory/performance headroom compared with lower-memory GPUs
+[453] H100
+[454] 80 GB
+[455] Larger models, higher concurrency and more demanding AI workloads
+[456] Useful where model size, context, concurrency or latency requirements require additional compute/memory
+[457] H200
+[458] 141 GB
+[459] Larger-memory model experiments and demanding workloads
+[460] Consider where model memory and KV-cache requirements exceed lower-memory configurations
+[461] 6.5 Inference Request Lifecycle — CHANGE THE TERMINOLOGY
+[462] User submits a marketplace-related query through the web interface or AI assistant.
+[463] FastAPI authenticates and validates the request.
+[464] The backend determines whether the request requires local LLM processing.
+[465] The request is sent to the locally hosted vLLM endpoint.
+[466] vLLM processes the request using the selected open-weight model.
+[467] The model returns an answer or structured interpretation of the user's GPU/workload requirements.
+[468] Where required, the structured requirements are passed to the marketplace search and recommendation engine.
+[469] The marketplace retrieves relevant GPU/provider records from the structured database.
+[470] The recommendation layer generates suitable options for presentation to the user.
+[471] The frontend displays the assistant response and/or recommended GPU listings.
+[472] 6.6 LLM Serving Performance & Evaluation
+[473] The local LLM serving environment should be evaluated using measurements relevant to the marketplace AI workload. These may include:
+[474] Time-To-First-Token (TTFT)
+[475] End-to-end response latency
+[476] Output tokens per second
+[477] Model loading time
+[478] GPU memory utilization
+[479] VRAM consumption
+[480] CPU/RAM utilization
+[481] Concurrent request behavior
+[482] Request success/error rate
+[483] Streaming responsiveness.
+[484] 6.7 LLM Serving Security & Reliability
+[485] Keep JarvisLabs credentials and deployment secrets outside source code.
+[486] Use environment variables or an appropriate secret-management mechanism.
+[487] Restrict access to the vLLM endpoint so it is not unnecessarily exposed as a public unauthenticated service.
+[488] Allow the FastAPI backend to act as the controlled application interface to the local model.
+[489] Apply authentication and authorization to protected marketplace endpoints.
+[490] Apply request limits where required to prevent excessive resource consumption.
+[491] Validate request size and input parameters before forwarding requests to the model.
+[492] Use health checks to determine whether the local LLM service is available.
+[493] Store only the minimum necessary user-query information.
+[494] Define logging and retention rules for assistant requests where logs are required.
+[495] Maintain controlled deployment and restart procedures for the vLLM service.
+[496] 6.8 LLM Serving Testing Plan
+[497] Test Area
+[498] Representative Test
+[499] Evaluation Focus
+[500] Environment Setup
+[501] Start Docker/vLLM environment on selected GPU
+[502] Service starts with required dependencies
+[503] Model Loading
+[504] Load selected open model
+[505] Model loads without memory/resource failure
+[506] API Connectivity
+[507] Send request from FastAPI to vLLM
+[508] Backend-to-model communication works correctly
+[509] AI Assistant
+[510] Submit representative marketplace questions
+[511] Relevant and usable responses
+[512] Requirement Extraction
+[513] Provide natural-language GPU requirements
+[514] Correct extraction of model/GPU/VRAM/budget/region preferences where applicable
+[515] Recommendation Integration
+[516] Pass extracted requirements to search/ranking engine
+[517] Returned listings match structured requirements
+[518] Streaming
+[519] Send streaming response request
+[520] Incremental response behavior works as configured
+[521] Performance
+[522] Measure TTFT, latency and tokens/sec
+[523] Metrics recorded consistently
+[524] Concurrency
+[525] Increase simultaneous assistant requests
+[526] Stable behavior or controlled resource limits
+[527] Resource Usage
+[528] Monitor GPU VRAM/CPU/RAM
+[529] Resource behavior recorded during tests
+[530] Failure Handling
+[531] Stop/restart vLLM or simulate unavailable service
+[532] Clear application-side error handling
+[533] Security
+[534] Attempt unauthorized access to model endpoint
+[535] Unauthorized access rejected
+[536] Model Compatibility
+[537] Test selected model under intended configuration
+[538] Stable inference under planned deployment settings
+[539] 6.9 RAG vs. Direct Model Fine-Tuning
+[540] The local LLM does not directly determine or provision a GPU. Its role is to assist the marketplace in interpreting user requirements and presenting relevant information.
+[541] The interaction can be divided into two stages.
+[542] Stage 1 — AI Interpretation
+[543] User
+[544] ↓
+[545] Natural-Language Query
+[546] ↓
+[547] Local LLM + vLLM
+[548] ↓
+[549] Workload / Requirement Extraction
+[550] ↓
+[551] Structured Requirements
+[552] Stage 2 — Marketplace Processing
+[553] Structured Requirements
+[554] ↓
+[555] GPU / Provider Database
+[556] ↓
+[557] Eligibility Filtering
+[558] ↓
+[559] Ranking / Recommendation
+[560] ↓
+[561] GPU Comparison
+[562] ↓
+[563] User Selection
+[564] ↓
+[565] Referral Redirect
+[566] ↓
+[567] Third-Party Provider Website
+[568] This is very important because it clearly shows that:
+[569] The LLM understands the user.
+[570] The marketplace decides which listings match.
+[571] The provider supplies the actual GPU.
+[572] 7. GPU Provider Strategy
+[573] 7.1 GPU Provider vs Inference Platform
+[574] Dimension
+[575] GPU provider
+[576] Inference platform / intermediary
+[577] Resource
+[578] GPU instances/servers
+[579] Uses provider resource
+[580] Pricing basis
+[581] GPU-hour, minute or committed capacity
+[582] May add a platform service/rate layer
+[583] Provisioning
+[584] Creates the actual compute resource
+[585] Requests and manages provider resources
+[586] Model serving
+[587] May provide infrastructure only
+[588] Deploys and exposes supported model serving
+[589] Customer value
+[590] Raw compute access
+[591] Requirement-to-resource abstraction and workflow automation
+[592] 7.2 GPU Classes & Portfolio Tiers
+[593] GPU
+[594] VRAM
+[595] Typical use
+[596] MVP relevance
+[597] L4
+[598] 24 GB
+[599] Small/quantized LLMs, embeddings, lower-volume inference
+[600] Entry option where model and concurrency fit.
+[601] L40S
+[602] 48 GB
+[603] Medium/smaller production models and multimodal workloads
+[604] Mid-tier option.
+[605] H100
+[606] 80 GB
+[607] Higher-performance production inference and larger workloads
+[608] High-performance option where required.
+[609] H200
+[610] 141 GB
+[611] Large models, long context, high-throughput inference
+[612] Future/availability-dependent high-memory option.
+[613] B200 / newer high-memory GPUs
+[614] 180 GB+ class
+[615] Large-scale/high-throughput workloads
+[616] Future portfolio; validate provider availability.
+[617] GB200/GB300-class systems
+[618] Multi-GPU
+[619] Large multi-GPU workloads
+[620] Future/topology-aware capability.
+[621] 7.3 JarvisLabs as MVP Supplier
+[622] JarvisLabs.ai is the underlying GPU provider for the current MVP. The platform should not duplicate provider infrastructure management. Its role is to translate customer requirements into provider actions and present the resulting resource and inference service through a simpler customer experience.
+[623] 7.4 Provider Selection Workflow
+[624] Receive model/workload requirements.
+[625] Determine minimum VRAM and performance requirements.
+[626] Filter GPU configurations that cannot satisfy the workload.
+[627] Compare available JarvisLabs options using current provider data.
+[628] Estimate cost from the selected resource and expected runtime.
+[629] Present recommendation and rationale to the customer.
+[630] Provision the selected resources.
+[631] Deploy vLLM and the selected model.
+[632] Monitor deployment and inference state.
+[633] Release the resource when the customer finishes.
+[634] 7.5 GPU Evaluation Framework
+[635] Criterion
+[636] Weight / importance
+[637] Evaluation
+[638] GPU memory / model fit
+[639] Mandatory
+[640] Model weights + KV cache + runtime overhead must fit.
+[641] Performance
+[642] High
+[643] Measured tokens/sec, prompt processing and concurrency.
+[644] Cost
+[645] High
+[646] Effective GPU-hour and estimated workload cost.
+[647] Latency
+[648] High
+[649] TTFT and response latency under representative load.
+[650] Availability
+[651] High
+[652] Provisioning success and current capacity.
+[653] Reliability
+[654] High
+[655] Failure rate, recovery and provider service stability.
+[656] API/provisioning
+[657] High
+[658] Automation capability and consistency of provider integration.
+[659] Networking
+[660] Medium
+[661] Required for model download, API access and distributed workloads where applicable.
+[662] Security/compliance
+[663] Mandatory for relevant workloads
+[664] Credentials, isolation, encryption and data-handling controls.
+[665] 7.6 Recommended GPU Portfolio
+[666] For the MVP, the practical portfolio should begin with GPU classes that are available through the selected provider and can be benchmarked consistently. The platform should be classified by capability rather than hard coding a GPU name as universally best.
+[667] 7.7 GPU Pricing Reference
+[668] GPU
+[669] Indicative on-demand range in supplied pricing module
+[670] Suggested marketplace list rate
+[671] H100 80GB
+[672] ₹217–₹400/hour
+[673] ₹250–₹300/hour
+[674] L40S 48GB
+[675] ₹83–₹150/hour
+[676] ₹90–₹110/hour
+[677] L4 24GB
+[678] ₹41.92–₹70/hour
+[679] ₹55–₹65/hour
+[680] These are planning figures supplied in the project pricing module, not a contractual JarvisLabs rate card. Actual
+[681] provider pricing, taxes, region, discounts and availability must be verified before commercial launch.
+[682] 7.8 Pricing Model
+[683] 7.8.1 Pricing Model Overview
+[684] A pricing model defines how the cost of LLM inference or GPU capacity is calculated. The marketplace represents different provider pricing methods in a common structure so they can be compared and used by the cost calculator and routing engine.
+[685] Pricing Model
+[686] Cost Basis
+[687] Typical Billing Unit
+[688] Token-based
+[689] Input and output tokens processed
+[690] Per token / per 1M tokens
+[691] GPU-based
+[692] GPU capacity allocated or consumed
+[693] GPU-hour / GPU-minute
+[694] Request-based
+[695] Number of inference requests
+[696] Per request
+[697] Reserved / committed
+[698] Reserved inference or GPU capacity for a defined period
+[699] Hour / Day / Week / Month
+[700] 7.8.2 Pricing Scope
+[701] Pricing scope records the conditions under which a price applies, including provider, model, GPU/resource, region, pricing type, usage type, capacity, currency, and validity period. This prevents the routing engine from comparing prices without the context required to interpret them correctly.
+[702] 7.8.3 Estimated vs Actual Cost
+[703] Estimated cost is calculated before inference using expected usage, selected model/resource, pricing model, and the applicable provider price. A general representation is: Estimated Cost = Estimated Usage × Normalized Price.
+[704] Estimated Cost = Estimated Usage × Normalized Price
+[705] Estimated Cost = (Estimated Input Tokens / 1M × Input Price) + (Estimated Output Tokens / 1M × Output Price)
+[706] Actual cost is calculated after inference from recorded usage and the provider's applicable billing rules. It may include actual input/output tokens, GPU usage, execution time, request count, minimum billing increments, and other provider-specific conditions: Actual Cost = Actual Usage × Applicable Price.
+[707] Actual Cost = Actual Usage × Applicable Price
+[708] Actual Cost = (Actual Input Tokens / 1M × Input Price) + (Actual Output Tokens / 1M × Output Price)
+[709] 7.8.4 Pricing Normalization
+[710] Because providers use different billing models, the marketplace normalizes all pricing formats into a standard internal metric—Normalized Cost per 1M Tokens Equivalent ()—so that the routing engine and cost calculator can evaluate diverse offerings consistently.
+[711] 1. Token-Based Pricing Normalization
+[712] For native token-based pricing, raw token costs are standardly scaled:
+[713] Where  and  represent the provider's advertised prices per 1 million input and output tokens, respectively.
+[714] 2. GPU-Hour to Token Price Normalization
+[715] To evaluate GPU-time-based instances (e.g., Baseten, Modal) against per-token APIs (e.g., OpenRouter, Together, Fireworks), the platform calculates an Effective Cost per 1M Tokens based on estimated runtime and throughput benchmarks.
+[716] Conversion Formulation
+[717] To express this on a per-token basis, the total execution time is modeled as the sum of prompt processing (prefill) time and generation (decode) time:
+[718] Where:
+[719]  = Expected prefill throughput (tokens per second).
+[720]  = Expected generation throughput (tokens per second per active stream).
+[721]  = Engine/network initialization and TTFT (Time-To-First Token) overhead (seconds).
+[722]  = Number of GPUs in the tensor-parallel/pipeline-parallel deployment group.
+[723] Normalized Equivalent Price ()
+[724] For normalized comparison at runtime, the equivalent price per 1M processed tokens on a dedicated GPU instance is derived using workload-specific token split assumptions ( input tokens to  output tokens):
+[725] Concurrency Scaling Factor
+[726] Dedicated GPU instances allow multiple concurrent requests to share execution time. To prevent overestimating GPU costs under load, the normalized cost accounts for expected batch utilization ():
+[727] Low Concurrency (): GPU-time pricing reflects near-exclusive hardware allocation (higher cost per token).
+[728] High Concurrency (): Shared execution amortizes GPU hourly rates across active requests, making time-based hosting competitive with per-token APIs for high-volume workloads.
+[729] 8. Database Strategy
+[730] 8.1 PostgreSQL as Primary Database
+[731] PostgreSQL is proposed as the primary relational database because the platform contains strongly related entities: users, GPU configurations, provider resources, models, deployments, pricing, inference requests and usage records.
+[732] Entity
+[733] Key information
+[734] Users
+[735] Account identity, authentication references, status and roles.
+[736] Providers
+[737] Provider identity, integration configuration and health/status metadata.
+[738] GPU Configurations
+[739] GPU type, VRAM, capabilities, pricing references and compatibility metadata.
+[740] Models
+[741] Model family, version/variant, deployment requirements and supported GPUs.
+[742] Deployments
+[743] Customer, provider resource, model, state, timestamps, endpoint metadata and lifecycle events.
+[744] Inference Requests
+[745] Deployment, request ID, status, latency/TTFT and timestamps.
+[746] Usage
+[747] Token/request counts, runtime and estimated cost.
+[748] Pricing
+[749] GPU/resource price, unit, source, timestamp and validity context.
+[750] Audit / Events
+[751] Provisioning, lifecycle, security and operational events.
+[752] 8.2 Hosting Options
+[753] Option
+[754] Advantages
+[755] Disadvantages
+[756] Recommended use
+[757] Self-hosted PostgreSQL
+[758] Maximum infrastructure control
+[759] Backups, security and maintenance are the team's responsibility
+[760] Development/special deployments if required.
+[761] Managed free/low-cost PostgreSQL
+[762] Fast setup, less administration
+[763] Resource limits
+[764] Initial MVP/testing where limits are sufficient.
+[765] Paid managed PostgreSQL
+[766] Backups, scalability, production features
+[767] Recurring cost
+[768] Production when workload justifies it.
+[769] 8.3 MVP Data Flow
+[770] Customer → FastAPI → validation → GPU recommendation → JarvisLabs provisioning → deployment record → inference request → usage/performance record → cost estimation → dashboard.
+[771] 8.4 Migration Path
+[772] Development can begin with a suitable managed PostgreSQL tier. As usage grows, the database can move to a larger managed plan or another production environment based on workload, storage, performance, availability and budget.
+[773] 9. API Design
+[774] 9.1 API Role
+[775] The API is the central communication layer between the React client, application services, database, JarvisLabs provider adapter and deployed inference service. It validates requirements, orchestrates resource provisioning, exposes deployment state and controls inference access.
+[776] 9.2 Core API Groups
+[777] API group
+[778] Example endpoints
+[779] Purpose
+[780] Authentication
+[781] /api/auth/register, /api/auth/login
+[782] Registration and authentication.
+[783] GPU catalogue
+[784] /api/gpus, /api/gpus/recommend
+[785] List and recommend compatible resources.
+[786] Models
+[787] /api/models
+[788] List supported models and deployment metadata.
+[789] Deployments
+[790] /api/deployments, /api/deployments/{id}
+[791] Create, inspect, stop and manage deployments.
+[792] Inference
+[793] /api/inference
+[794] Submit inference requests to an active deployment.
+[795] Usage
+[796] /api/usage
+[797] Retrieve request, runtime and usage information.
+[798] Pricing
+[799] /api/pricing
+[800] Return pricing references and estimated costs.
+[801] Monitoring
+[802] /api/health, /api/metrics
+[803] Service and performance health.
+[804] 9.3 Provider Adapter Layer
+[805] Translate platform resource requests into JarvisLabs-specific requests.
+[806] Map platform GPU identifiers to provider resource identifiers.
+[807] Attach provider credentials securely.
+[808] Normalize provider responses into internal deployment/resource structures.
+[809] Map provider errors into platform-standard errors.
+[810] Keep the interface generic enough for future E2E, Yotta, Cyfuture or other adapters.
+[811] 9.4 Error Handling Standards
+[812] Status
+[813] Meaning / platform response
+[814] 400
+[815] Invalid requirement, model, GPU or request data.
+[816] 401/403
+[817] Authentication or authorization failure.
+[818] 404
+[819] Deployment, model or resource not found.
+[820] 409
+[821] Conflicting deployment/resource state.
+[822] 429
+[823] Rate limit or controlled admission response.
+[824] 500
+[825] Unexpected platform-side failure.
+[826] 502/503
+[827] Provider/inference service unavailable.
+[828] 504
+[829] Provider or inference service timeout.
+[830] 9.5 Performance & Reliability Practices
+[831] Asynchronous I/O for provider calls where appropriate.
+[832] Provider request timeouts and controlled retries for retryable failures.
+[833] Idempotency for provisioning operations where supported.
+[834] Caching of relatively stable GPU/model metadata; Redis is optional.
+[835] Connection pooling for database access.
+[836] Health checks for provider and vLLM services.
+[837] Explicit deployment-state transitions to prevent duplicate provisioning.
+[838] 10. Technology Stack
+[839] The stack is selected specifically for a customer-facing GPU/LLM access platform. It avoids adding infrastructure that is not required by the MVP.
+[840] Category
+[841] Technology
+[842] Role
+[843] Rationale / alternative considered
+[844] Frontend
+[845] React + TypeScript
+[846] Customer dashboard, requirement forms, GPU selection, deployment status and inference UI.
+[847] Component-based fit; Angular adds overhead and Vue is less aligned with team familiarity.
+[848] Backend
+[849] FastAPI + Python
+[850] API, orchestration, GPU recommendation, provider integration and inference coordination.
+[851] Python aligns with LLM, vLLM and AI/GPU tooling; Django is broader than needed.
+[852] Database
+[853] PostgreSQL
+[854] Users, GPUs, models, deployments, pricing, usage and performance.
+[855] Relational relationships make PostgreSQL a strong fit versus document-first MongoDB.
+[856] UI/UX
+[857] Stitch
+[858] Initial dashboard and interaction design.
+[859] Selected for faster AI-assisted concepts; Figma remains a possible design alternative.
+[860] GPU Provider
+[861] JarvisLabs.ai
+[862] Actual GPU compute and provider resource lifecycle.
+[863] Single provider is sufficient for MVP; multi-provider comes later.
+[864] LLM Serving
+[865] vLLM
+[866] GPU-backed model serving and inference endpoint.
+[867] More suitable for GPU production-style serving than direct Transformers; Ollama is useful for local experimentation.
+[868] Models
+[869] Qwen / Llama / Mistral
+[870] Open model execution on provisioned GPU.
+[871] Closed APIs would bypass the GPU deployment objective.
+[872] Authentication
+[873] AWS Cognito
+[874] Registration, login and tokens.
+[875] Managed security; avoids custom auth maintenance.
+[876] 2FA
+[877] Cognito + TOTP
+[878] Optional second factor.
+[879] Avoids SMS dependency and cost.
+[880] API security
+[881] API keys + HTTPS
+[882] Programmatic access and encryption in transit.
+[883] Better fit for API clients than session-only authentication.
+[884] Rate limiting
+[885] API Gateway / application controls
+[886] Protects platform and GPU resources.
+[887] Avoids uncontrolled usage and cost.
+[888] Provisioning
+[889] JarvisLabs SDK/API
+[890] Programmatic GPU creation and management.
+[891] Manual provisioning does not scale.
+[892] Cache
+[893] Redis
+[894] Optional cache for availability, pricing and deployment state.
+[895] Useful for rapidly changing data and future routing.
+[896] Monitoring
+[897] Prometheus + Grafana
+[898] Health, latency, throughput and resource metrics.
+[899] Lightweight fit for MVP observability.
+[900] Containerization
+[901] Docker
+[902] Reproducible application and vLLM environments.
+[903] Reduces environment drift.
+[904] Deployment
+[905] AWS
+[906] Customer-facing/platform services.
+[907] Consistent with Cognito and planned architecture; JarvisLabs remains GPU provider.
+[908] Team development
+[909] GitLab
+[910] Repository, branches, code review and CI/CD.
+[911] Matches supplied project workflow.
+[912] 10.1 MVP Architecture Flow
+[913] CUSTOMER↓REQUIREMENTS↓GPU RECOMMENDATION↓OUR PLATFORM / FASTAPI↓JARVISLABS GPU↓DOCKER + vLLM↓OPEN LLM↓INFERENCE API↓CUSTOMER RESPONSE↓USAGE + PERFORMANCE + COST
+[914] 10.2 Frontend and Backend Responsibility
+[915] Frontend
+[916] Backend
+[917] Collect requirements
+[918] Validate and normalize requirements
+[919] Show GPU recommendations
+[920] Calculate compatibility
+[921] Display pricing estimates
+[922] Calculate cost estimates
+[923] Show deployment state
+[924] Provision/manage JarvisLabs resource
+[925] Provide inference UI
+[926] Forward inference requests securely
+[927] Show usage/metrics
+[928] Record and aggregate usage/performance
+[929] Handle user interactions
+[930] Enforce authorization, limits and lifecycle rules
+[931] 11. Risk Management
+[932] 11.1 Objectives & Lifecycle
+[933] Risk management protects customer data, credentials, prompts, responses and usage information; reduces exposure from GPU/provider failures; controls cost; maintains predictable performance; and provides traceability through logs, metrics and audit records.
+[934] Lifecycle: Identify → Assess → Prioritise → Mitigate → Monitor.
+[935] 11.2 Risk Classification
+[936] Category
+[937] Scope
+[938] Business & Market
+[939] Provider concentration, changing demand, commercial model and service expectations.
+[940] Provider & Infrastructure
+[941] JarvisLabs outage, local vLLM failure, capacity constraints and infrastructure failures.
+[942] Application & Technical
+[943] Routing/recommendation errors, software defects, API incompatibility, DB/cache failure and scaling limits.
+[944] Security
+[945] Credential compromise, unauthorized access, API abuse, injection and misconfiguration.
+[946] Privacy & Data
+[947] Exposure or inappropriate retention of prompts, responses and credentials.
+[948] Performance & Reliability
+[949] Latency degradation, throughput reduction, high error rates and failed recovery.
+[950] Financial & Billing
+[951] Pricing changes, usage discrepancies and unexpected provider charges.
+[952] Compliance & Governance
+[953] Data residency, contractual obligations, retention and auditability.
+[954] Operational
+[955] Monitoring gaps, incident response weakness and manual dependencies.
+[956] 11.3 Risk Assessment Methodology
+[957] Likelihood (L) and Impact (I) are scored from 1 to 5. Risk Score = L × I. Bands: 1–4 Low, 5–9 Medium, 10–16 High, 17–25 Critical.
+[958] 11.4 Risk Register
+[959] ID
+[960] Risk
+[961] L
+[962] I
+[963] Score
+[964] Level
+[965] Primary mitigation
+[966] R-01
+[967] Local vLLM / inference service failure
+[968] 3
+[969] 5
+[970] 15
+[971] High
+[972] Health checks, service monitoring and controlled recovery.
+[973] R-02
+[974] JarvisLabs/provider outage
+[975] 3
+[976] 5
+[977] 15
+[978] High
+[979] Provider health checks and future eligible fallback.
+[980] R-03
+[981] Traffic spike/resource exhaustion
+[982] 4
+[983] 4
+[984] 16
+[985] High
+[986] Rate limits, quotas, queue/admission controls.
+[987] R-04
+[988] API security attack
+[989] 3
+[990] 5
+[991] 15
+[992] High
+[993] Authentication, authorization, validation, rate limits and monitoring.
+[994] R-05
+[995] Latency degradation
+[996] 3
+[997] 4
+[998] 12
+[999] High
+[1000] P95/P99 monitoring and workload-aware GPU selection.
+[1001] R-06
+[1002] Provider pricing change
+[1003] 3
+[1004] 4
+[1005] 12
+[1006] High
+[1007] Timestamp pricing and customer cost limits.
+[1008] R-07
+[1009] Incorrect GPU recommendation
+[1010] 3
+[1011] 4
+[1012] 12
+[1013] High
+[1014] Compatibility rules, benchmark validation and manual override path.
+[1015] R-08
+[1016] Billing/usage discrepancy
+[1017] 3
+[1018] 4
+[1019] 12
+[1020] High
+[1021] Usage records, reconciliation and audit trail.
+[1022] R-09
+[1023] Provider concentration
+[1024] 3
+[1025] 4
+[1026] 12
+[1027] High
+[1028] Provider abstraction and future multi-provider adapters.
+[1029] R-10
+[1030] Monitoring blind spot
+[1031] 3
+[1032] 4
+[1033] 12
+[1034] High
+[1035] Centralized metrics/logs and alerts.
+[1036] R-11
+[1037] Credential compromise
+[1038] 2
+[1039] 5
+[1040] 10
+[1041] High
+[1042] Secret storage, rotation, least privilege and audit logs.
+[1043] R-12
+[1044] Customer prompt/data exposure
+[1045] 2
+[1046] 5
+[1047] 10
+[1048] High
+[1049] Minimize retention, encrypt data and apply access control.
+[1050] R-13
+[1051] Database/supporting service failure
+[1052] 2
+[1053] 5
+[1054] 10
+[1055] High
+[1056] Backups, recovery and service monitoring.
+[1057] R-14
+[1058] Data residency/compliance gap
+[1059] 2
+[1060] 5
+[1061] 10
+[1062] High
+[1063] Region-aware controls and compliance assessment.
+[1064] R-15
+[1065] Provider API/version change
+[1066] 3
+[1067] 3
+[1068] 9
+[1069] Medium
+[1070] Adapter layer, contract tests and versioned integration.
+[1071] 11.5 Key Mitigation Strategies
+[1072] Provider resilience — isolate provider-specific operations behind an adapter.
+[1073] Local inference reliability — monitor vLLM availability, errors, latency and resource utilization.
+[1074] Capacity management — track request volume, queue time, throughput and GPU usage.
+[1075] Security — managed secrets, encryption, authentication, authorization, RBAC, least privilege, validation and audit logging.
+[1076] Privacy — define retention, access and deletion rules; avoid unnecessary prompt/response storage.
+[1077] Financial controls — timestamp pricing, estimate usage and reconcile where provider billing data is available.
+[1078] 11.6 Provider Failure & Automatic Failover
+[1079] A provider failure is treated as an operational state transition. The platform records the error/timeout, marks the resource/provider state unhealthy and prevents unsafe reuse. In the current single-provider MVP, there may be no equivalent provider to fail over to; therefore the system should return a controlled error and preserve a clean deployment state. Multi-provider automatic failover is a future capability.
+[1080] 11.7 Monitoring & Key Risk Indicators
+[1081] Indicator
+[1082] Detects
+[1083] Response
+[1084] Provider error rate
+[1085] Provider instability
+[1086] Reduce use / investigate / future failover.
+[1087] vLLM error rate
+[1088] Local inference problems
+[1089] Investigate model/service/GPU health.
+[1090] P95/P99 latency
+[1091] Performance degradation
+[1092] Re-evaluate GPU/model fit.
+[1093] Queue/resource utilization
+[1094] Capacity pressure
+[1095] Throttle or scale where supported.
+[1096] Auth failures
+[1097] Credential abuse
+[1098] Throttle, investigate and rotate credentials.
+[1099] Unusual request volume
+[1100] Abuse or accidental spike
+[1101] Apply quotas/rate limits.
+[1102] Usage-cost variance
+[1103] Billing issue
+[1104] Reconcile and alert.
+[1105] Deployment failure rate
+[1106] Provisioning/orchestration problems
+[1107] Review provider API and state transitions.
+[1108] 11.8 Risk Ownership
+[1109] Role
+[1110] Primary responsibility
+[1111] Project/Risk Owner
+[1112] Risk register, reviews and escalation.
+[1113] Platform/Backend Owner
+[1114] Reliability, API, orchestration and controls.
+[1115] Inference/vLLM Owner
+[1116] Model serving and inference performance.
+[1117] Security Owner
+[1118] Security controls and incident response.
+[1119] Data/DB Owner
+[1120] Data integrity, backup and recovery.
+[1121] Provider Integration Owner
+[1122] JarvisLabs adapter, provider health and contract.
+[1123] Finance/Business Owner
+[1124] Pricing, billing and commercial controls.
+[1125] DevOps/Operations Owner
+[1126] Monitoring, alerts and operational response.
+[1127] 12. Project Timeline & Delivery Plan
+[1128] 12.1 Delivery Approach
+[1129] The supplied project materials describe an MVP-oriented delivery process. The final schedule below converts the source modules into an implementation sequence suitable for an approximately 8–12 week delivery window. The exact duration depends on provider API access, GPU availability and the team's implementation capacity.
+[1130] Phase
+[1131] Indicative weeks
+[1132] Major deliverables
+[1133] 1. Requirements & architecture
+[1134] 1–2
+[1135] Requirements freeze, architecture, database model, API contract, technology setup.
+[1136] 2. UI/UX & frontend foundation
+[1137] 2–3
+[1138] Dashboard, requirement form, GPU recommendation screens and authentication flow.
+[1139] 3. Backend foundation
+[1140] 2–4
+[1141] FastAPI services, PostgreSQL schema, auth integration, API security and validation.
+[1142] 4. JarvisLabs integration
+[1143] 3–5
+[1144] Provider adapter, resource lookup, provisioning, lifecycle and error handling.
+[1145] 5. vLLM/model deployment
+[1146] 4–6
+[1147] Docker serving environment, model loading, inference endpoint and deployment automation.
+[1148] 6. Usage/cost/monitoring
+[1149] 5–7
+[1150] Usage records, pricing estimates, Prometheus/Grafana metrics and status dashboard.
+[1151] 7. Integration testing
+[1152] 7–9
+[1153] End-to-end provisioning, inference, failure and performance tests.
+[1154] 8. Optimization & documentation
+[1155] 9–10
+[1156] Bug fixes, benchmark tuning, API docs, deployment guide and user guide.
+[1157] 9. Staging/demo/go-live
+[1158] 10–12
+[1159] Staging validation, final demonstration, handover and production readiness review.
+[1160] 12.2 Work Breakdown Structure
+[1161] Requirements, scope and architecture
+[1162] Database and data model
+[1163] Frontend dashboard and UX
+[1164] Authentication and API security
+[1165] GPU recommendation logic
+[1166] JarvisLabs adapter and provisioning
+[1167] Deployment lifecycle manager
+[1168] Docker/vLLM serving setup
+[1169] Open LLM integration
+[1170] Inference API and UI
+[1171] Usage/cost tracking
+[1172] Monitoring and alerting
+[1173] Error handling and recovery
+[1174] Integration/performance testing
+[1175] Documentation and deployment
+[1176] Final demonstration and handover
+[1177] 12.3 Key Milestones
+[1178] End of Week 1 — Requirements, market research and system architecture finalized.
+[1179] End of Week 3 — JarvisLabs provisioning path and initial GPU environment validated.
+[1180] End of Week 4 — vLLM + selected open model inference working.
+[1181] End of Week 6 — Core marketplace, GPU comparison, recommendation and referral modules integrated.
+[1182] End of Week 7 — End-to-end testing, optimization and security validation substantially complete.
+[1183] End of Week 8 — Final deployment/staging, documentation, demonstration and project handover.
+[1184] 12.4 Testing Strategy
+[1185] Test area
+[1186] Representative tests
+[1187] Authentication
+[1188] Registration, login, token expiry, authorization and API-key revocation.
+[1189] GPU recommendation
+[1190] Minimum VRAM, model fit, invalid requirements and cost comparison.
+[1191] Provisioning
+[1192] Create, status, retry, timeout, duplicate-request and termination scenarios.
+[1193] vLLM
+[1194] Model loading, endpoint health, inference response and concurrency.
+[1195] API
+[1196] Validation, rate limits, error codes and timeout behavior.
+[1197] Performance
+[1198] TTFT, tokens/sec, request latency and resource utilization.
+[1199] Security
+[1200] Secret exposure checks, unauthorized access and input validation.
+[1201] Recovery
+[1202] Provider/API failure, partial deployment and cleanup scenarios.
+[1203] 13. Future Scope
+[1204] The future roadmap extends the MVP from a single-provider intermediary into a broader inference mediation, routing and orchestration platform.
+[1205] #
+[1206] Future scope
+[1207] Elaborated direction
+[1208] 1
+[1209] Multi-LLM & Multi-Provider Integration
+[1210] Add multiple LLMs and third-party inference/GPU providers through a common adapter layer.
+[1211] 2
+[1212] AI-Based Intelligent Routing
+[1213] Select inference source based on cost, latency, model capability and observed availability.
+[1214] 3
+[1215] Advanced vLLM-Based Serving
+[1216] Improve throughput, batching and concurrent request handling.
+[1217] 4
+[1218] Intelligent Request Classification
+[1219] Classify request complexity and determine suitable local/provider execution path.
+[1220] 5
+[1221] Dynamic Cost Optimization
+[1222] Compare current pricing and usage patterns to select cost-efficient execution.
+[1223] 6
+[1224] Real-Time Monitoring & Latency Optimization
+[1225] Use observed response time, errors and provider health to improve selection.
+[1226] 7
+[1227] Automatic Failover & Recovery
+[1228] Move eligible workloads to another provider when the primary source is unavailable.
+[1229] 8
+[1230] Privacy-Aware Routing
+[1231] Use workload sensitivity and data-handling requirements to select controlled execution.
+[1232] 9
+[1233] Enterprise & On-Premise Deployment
+[1234] Support private deployments, governance and enterprise infrastructure requirements.
+[1235] 10
+[1236] Continuous Benchmarking & Quality Evaluation
+[1237] Continuously compare latency, cost and response quality across supported sources.
+[1238] 13.1 India-First Multi-Provider Evolution
+[1239] The India provider evaluation suggests a future architecture with adapters for providers such as E2E Networks, Yotta, Cyfuture, Tata Communications, Sify and others, subject to commercial/API availability. The long-term value should remain the decision and orchestration layer rather than ownership of GPU hardware.
+[1240] 13.2 Architecture Evolution
+[1241] The current provider abstraction should make it possible to add a second adapter without changing the customer-facing workflow. A future routing engine can normalize GPU, price, availability, SLA, latency and benchmark data, then choose a provider according to workload-specific rules.
+[1242] 14. Pricing
+[1243] 14.1 Pricing Model Overview
+[1244] The platform needs two related pricing concepts: infrastructure cost estimation and, if commercialized, a platform customer price. The MVP primarily displays/estimates infrastructure cost; direct provider billing remains with the provider unless a separate billing layer is implemented.
+[1245] Pricing basis
+[1246] Meaning
+[1247] GPU-hour / GPU-minute
+[1248] Cost of allocated compute capacity.
+[1249] Request/inference usage
+[1250] Optional future charge based on customer inference activity.
+[1251] Platform service fee
+[1252] Potential future fee added by the marketplace/intermediary.
+[1253] Reserved/committed capacity
+[1254] Potential discounted pricing for longer commitments.
+[1255] 14.2 MVP Project Cost Envelope
+[1256] The supplied Total Pricing module gives a provisional ₹1,11,000–₹1,45,500 non-GPU infrastructure/software deployment envelope for an 8–12 week MVP. The source module contains some legacy multi-provider external-LLM test items that do not match the current JarvisLabs-only MVP; therefore the figure should be treated as a planning ceiling rather than a final procurement quote.
+[1257] Cost area
+[1258] Supplied planning range / treatment
+[1259] Architecture & design
+[1260] ₹0 — in-house/open-source effort in supplied costing.
+[1261] Core backend & routing/orchestration
+[1262] ₹0 — in-house/open-source implementation.
+[1263] Frontend / marketplace UI
+[1264] ₹0 — React/TypeScript and free-tier MVP hosting assumption.
+[1265] Managed PostgreSQL / storage
+[1266] ₹17,000–₹25,000 in supplied costing; actual sizing should be revalidated.
+[1267] CI/CD and container registry
+[1268] ₹9,500–₹14,500 in supplied costing.
+[1269] Cloud hosting
+[1270] ₹14,500–₹22,000 in supplied costing.
+[1271] Domain / gateway / operational setup
+[1272] ₹20,000–₹22,000 in supplied costing.
+[1273] Redis / monitoring / optional services
+[1274] Use only where required; actual service selection determines cost.
+[1275] GPU infrastructure
+[1276] Excluded from the ₹1,11,000–₹1,45,500 non-GPU envelope; supplied GPU pricing is shown separately.
+[1277] 14.3 GPU Pricing Reference
+[1278] GPU
+[1279] VRAM
+[1280] On-demand range supplied
+[1281] Suggested marketplace list rate
+[1282] NVIDIA H100
+[1283] 80GB
+[1284] ₹217–₹400/hour
+[1285] ₹250–₹300/hour
+[1286] NVIDIA L40S
+[1287] 48GB
+[1288] ₹83–₹150/hour
+[1289] ₹90–₹110/hour
+[1290] NVIDIA L4
+[1291] 24GB
+[1292] ₹41.92–₹70/hour
+[1293] ₹55–₹65/hour
+[1294] 14.4 Cost Estimation Formula
+[1295] Estimated Infrastructure Cost = Estimated GPU Runtime × Applicable GPU Rate + applicable storage/network/platform charges.
+[1296] For a future inference-based pricing layer, an additional normalization can be introduced: Effective Cost per 1M Tokens = Total Execution Cost ÷ Tokens Processed × 1,000,000. This should be based on measured throughput and actual workload assumptions rather than a universal conversion.
+[1297] 14.5 Commercial Pricing Position
+[1298] For MVP demonstrations, the platform can show provider-derived estimated cost plus an optional proposed service margin. Any commercial rate must be recalculated from the live provider rate card, taxes, discounts, support costs and the desired gross margin.
+[1299] 15. Conclusion
+[1300] The project is technically and operationally feasible as a JarvisLabs-based GPU/LLM intermediary and orchestration platform. Its MVP does not require ownership of GPU hardware or a full multi-provider marketplace. The immediate objective is to remove infrastructure complexity from the customer workflow.
+[1301] The strongest MVP architecture is therefore deliberately focused: React + TypeScript for the customer experience; FastAPI + Python for orchestration; PostgreSQL for structured platform data; AWS Cognito for authentication; JarvisLabs for GPU infrastructure; Docker + vLLM for model serving; Qwen/Llama/Mistral as supported open-model options; and Prometheus/Grafana for observability.
+[1302] The design should preserve a clean provider-adapter boundary even though JarvisLabs is the only provider in the MVP. This is the key architectural decision that allows the project to evolve later into a true multi-provider GPU/inference marketplace without redesigning the customer-facing product.
+[1303] The supplied project material also establishes a clear future direction: multi-provider integration, intelligent routing, dynamic cost optimization, privacy-aware execution, automated failover, continuous benchmarking and enterprise deployment. These should remain roadmap capabilities rather than being allowed to expand the MVP beyond a deliverable and testable scope.
+[1304] 16  References
+[1305] Research Papers and Academic Sources
+[1306] Jiang, Y., Fu, F., Yao, X., He, G., Miao, X., Klimovic, A., Cui, B., Yuan, B., & Yoneki, E. (2025). Demystifying Cost-Efficiency in LLM Serving over Heterogeneous GPUs. Proceedings of the 42nd International Conference on Machine Learning (ICML 2025), 267, 27534–27552. 
+[1307] Griggs, T., Liu, X., Yu, J., Kim, D., Chiang, W.-L., Cheung, A., & Stoica, I. (2024). Mélange: Cost Efficient Large Language Model Serving by Exploiting GPU Heterogeneity. arXiv preprint arXiv:2404.14527. 
+[1308] Jiang, Y., Fu, F., & Yoneki, E. (2026). BOute: Cost-Efficient LLM Serving with Heterogeneous LLMs and GPUs via Multi-Objective Bayesian Optimization. Proceedings of Machine Learning and Systems (MLSys 2026). 
+[1309] Reddi, V. J., Cheng, C., Kanter, D., Mattson, P., et al. (2019). MLPerf Inference Benchmark. arXiv:1911.02549. 
+[1310] Benchmarking and Performance Sources
+[1311] MLCommons. MLPerf Inference Benchmark Suite. MLCommons. The benchmark suite provides standardized measurements for inference performance across hardware and software systems. 
+[1312] MLCommons. (2025). MLPerf Inference 5.1: Benchmarking Small LLMs with Llama 3.1-8B. MLCommons. 
+[1313] Artificial Analysis. LLM Performance Leaderboard — Independent Performance Benchmarks and Pricing Across API Providers. Artificial Analysis. 
+[1314] LLM Routing, Aggregation and API Architecture
+[1315] OpenRouter. OpenRouter API and Models — Unified API for Multiple AI Models and Routing. OpenRouter. The platform provides a unified API and routing capabilities across models/providers. 
+[1316] BerriAI. LiteLLM Documentation — Unified LLM Interface, Router and Proxy. LiteLLM. LiteLLM provides a unified OpenAI-compatible interface, routing, load balancing, fallbacks, cost tracking and logging across multiple LLM providers. 
+[1317] vLLM Project. OpenAI-Compatible Server — Online Serving Documentation. vLLM. This documentation describes serving models through OpenAI-compatible APIs such as /v1/chat/completions and /v1/completions. 
+[1318] Security and Risk Management
+[1319] Tabassi, E. (2023). Artificial Intelligence Risk Management Framework (AI RMF 1.0). NIST AI 100-1. National Institute of Standards and Technology. 
+[1320] NIST. Artificial Intelligence Risk Management Framework — Resources and Generative AI Profile. National Institute of Standards and Technology. 
+[1321] OWASP Foundation. (2023). OWASP API Security Top 10 — 2023. OWASP API Security Project. 
+[1322] Technical / Platform References
+[1323] NVIDIA. NVIDIA Data Center GPU Documentation and Specifications. NVIDIA Developer and Data Center documentation. 
+[1324] Amazon Web Services (AWS). Amazon Bedrock Documentation. AWS documentation for managed foundation-model access and inference services. 
+[1325] Microsoft Azure. Azure AI Foundry Documentation. Microsoft documentation for AI models, inference and AI application development. 
+[1326] Google Cloud. Vertex AI Documentation. Google Cloud documentation for managed AI/ML and generative AI services. 
+[1327] Oracle Cloud Infrastructure. OCI Generative AI and GPU Infrastructure Documentation. Oracle Cloud documentation. 
+[1328] CoreWeave. GPU Cloud and AI Infrastructure Documentation. CoreWeave documentation. 
+[1329] Lambda. GPU Cloud and AI Infrastructure Documentation. Lambda documentation.
