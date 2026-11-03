@@ -1,3 +1,38 @@
+# Architecture Overview & Project Structure
+
+The codebase is organized into three clean tiers:
+
+```
+Sahith project/
+├── frontend/             # React 19 + TypeScript + Vite Web Application
+│   ├── public/           # Static assets, logos, and images
+│   ├── src/              # Components, pages, styles, hooks, and client state
+│   ├── index.html        # Web page template
+│   ├── vite.config.ts    # Vite bundler configuration
+│   ├── tsconfig.json     # Frontend TypeScript configuration
+│   └── package.json      # Frontend dependencies & scripts
+│
+├── backend/              # Node.js & Python Services
+│   ├── auth/             # Admin Authentication service & JWT crypto
+│   ├── rag/              # Python FastAPI RAG Service & tests
+│   ├── search/           # Web search grounding service
+│   ├── ml/               # LoRA fine-tuning & model evaluation
+│   ├── requirements.txt  # Python backend requirements
+│   └── package.json      # Backend service scripts
+│
+├── database/             # Vector Database & Data Assets
+│   ├── chroma_db/        # ChromaDB vector database
+│   ├── datasets/         # Curated datasets (hardware, pricing, models, knowledge, training)
+│   ├── scripts/          # Ingestion, scraping, and vector indexing scripts
+│   └── config/           # Guardrails & dataset metadata
+│
+├── docs/                 # Documentation & reference specifications
+├── package.json          # Root workspace runner
+└── start-website.bat     # Windows launcher script
+```
+
+---
+
 # Inferxe Website — Engineering & Concept Reference
 
 > **Inferxe — "One API, many GPU providers."** A product of **Automatrix** · www.inferxe.com
