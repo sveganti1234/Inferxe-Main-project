@@ -1,0 +1,12 @@
+{
+  "name": "inferxe-backend",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Inferxe Backend Services — Admin Authentication, RAG Pipeline & Search",
+  "type": "module",
+  "scripts": {
+    "server:admin": "node auth/adminAuthServer.mjs",
+    "test:chat": "node rag/tests/test_chat_store.mjs"
+  }
+}
+
