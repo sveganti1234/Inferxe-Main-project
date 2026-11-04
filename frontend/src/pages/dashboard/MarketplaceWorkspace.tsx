@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useLocation, Link, useNavigate } from 'react-router-dom'
 import {
   Activity, ArrowDownToLine, Bell, Check, ChevronDown, ChevronRight,
@@ -13,6 +13,7 @@ import { usePageMeta } from '../../lib/hooks'
 import { MODELS, QUANTS, type Quant } from '../../data/gpus'
 import { estimateMemory, recommend, fmtGB, inr } from '../../lib/calc'
 import { getSession, saveSession, changeUserPassword, getUserPasswordLastUpdated } from '../../lib/authStore'
+import { notificationManager } from '../../lib/notificationStore'
 import { NotebooksSection, ReviewsSection, RewardsSection, UsageDetail } from './ExtraSections'
 import { SovereignNodesMap } from '../../components/dashboard/SovereignNodesMap'
 import { InteractivePriceHistoryChart, type PriceHistoryRange, type GpuModel } from '../../components/dashboard/InteractivePriceHistoryChart'
@@ -308,8 +309,25 @@ export default function MarketplaceWorkspace() {
     flash('1-Hour Free Sandbox Trial started! 3600s compute credits activated.')
   }
 
+type ToastNotice = {
+  title: string
+  description?: string
+  icon?: 'check' | 'bell'
+}
+
   // UI notice state
-  const [notice, setNotice] = useState('')
+  const [notice, setNotice] = useState<ToastNotice | null>(null)
+  const noticeTimerRef = useRef<number | null>(null)
+
+  // Centralized Multi-User Notification State (PostgreSQL)
+  const [serverNotifState, setServerNotifState] = useState(() => notificationManager.getState())
+
+  useEffect(() => {
+    const unsub = notificationManager.subscribe(() => {
+      setServerNotifState(notificationManager.getState())
+    })
+    return unsub
+  }, [])
   const [search, setSearch] = useState('')
   const [gpuArchFilter, setGpuArchFilter] = useState<'all' | 'ada' | 'hopper' | 'available' | 'paused'>('all')
   const [gpuSort, setGpuSort] = useState<'rate-asc' | 'rate-desc' | 'vram-desc' | 'qty-desc'>('rate-asc')
@@ -496,7 +514,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
       window.dispatchEvent(new CustomEvent('inferxe_notifications_change'))
     } catch {}
   }, [notifications])
-  useEffect(() => { setNotice(''); setSearch('') }, [route])
+  useEffect(() => { setNotice(null); setSearch('') }, [route])
 
   usePageMeta(`${info.title} · Inferxe`, info.description)
 
@@ -515,9 +533,77 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
     } catch {}
   }
 
-  const flash = (msg: string) => {
-    setNotice(msg)
-    window.setTimeout(() => setNotice(''), 3800)
+  const flash = (
+    msg: string | { title: string; description?: string; detail?: string; icon?: 'check' | 'bell' },
+    maybeDesc?: string
+  ) => {
+    if (noticeTimerRef.current) {
+      window.clearTimeout(noticeTimerRef.current)
+    }
+
+    if (typeof msg === 'object' && msg !== null) {
+      setNotice({
+        title: msg.title,
+        description: msg.description || msg.detail || '',
+        icon: msg.icon || 'check',
+      })
+    } else if (maybeDesc) {
+      setNotice({
+        title: msg,
+        description: maybeDesc,
+        icon: 'check',
+      })
+    } else {
+      const trimmed = msg.trim()
+      const colonIdx = trimmed.indexOf(': ')
+      const exclIdx = trimmed.indexOf('! ')
+
+      if (colonIdx > 0 && colonIdx < 35) {
+        setNotice({
+          title: trimmed.substring(0, colonIdx).trim(),
+          description: trimmed.substring(colonIdx + 2).trim(),
+          icon: 'check',
+        })
+      } else if (exclIdx > 0 && exclIdx < 45) {
+        setNotice({
+          title: trimmed.substring(0, exclIdx + 1).trim(),
+          description: trimmed.substring(exclIdx + 2).trim(),
+          icon: 'check',
+        })
+      } else {
+        let title = 'Notification'
+        let icon: 'check' | 'bell' = 'check'
+        if (/copi(ed|y)/i.test(trimmed)) {
+          title = 'Copied to Clipboard'
+        } else if (/deploy/i.test(trimmed)) {
+          title = 'GPU Deployment'
+        } else if (/wallet|added to your wallet/i.test(trimmed)) {
+          title = 'Wallet Updated'
+        } else if (/wishlist/i.test(trimmed)) {
+          title = 'Wishlist Updated'
+        } else if (/key/i.test(trimmed)) {
+          title = 'Access Key Updated'
+        } else if (/coupon|discount/i.test(trimmed)) {
+          title = 'Discount Applied'
+        } else if (/order/i.test(trimmed)) {
+          title = 'Order Provisioned'
+        } else if (/alert|telemetry|audit|notice/i.test(trimmed)) {
+          title = 'System Alert'
+          icon = 'bell'
+        } else if (/saved|updated|preferences/i.test(trimmed)) {
+          title = 'Settings Saved'
+        }
+        setNotice({
+          title,
+          description: trimmed,
+          icon,
+        })
+      }
+    }
+
+    noticeTimerRef.current = window.setTimeout(() => {
+      setNotice(null)
+    }, 4000)
   }
 
   // Filtered & Sorted GPU Listings
@@ -613,6 +699,26 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
       type: 'Deployment',
     })
     flash(`Deployment "${newDep.name}" initialized and running on ${newDep.gpu}!`)
+
+    // Sync with PostgreSQL multi-user notification backend if authenticated
+    const session = getSession()
+    if (session?.token) {
+      fetch('/api/deployments/status', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          deployment_id: newDep.id,
+          new_status: 'Running',
+          gpu_name: newDep.gpu,
+          deployment_name: newDep.name,
+          region: newDep.region,
+          idempotency_key: `deploy_${newDep.id}_${Date.now()}`,
+        }),
+      }).then(() => notificationManager.fetchNotifications(false)).catch(() => {})
+    }
   }
 
   const handleToggleDeployment = (id: string, action: 'start' | 'stop' | 'restart') => {
@@ -632,18 +738,57 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
       type: 'Hardware',
     })
     flash(`Deployment "${targetDep?.name || id}" is now ${statusLabel}.`)
+
+    const session = getSession()
+    if (session?.token) {
+      fetch('/api/deployments/status', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          deployment_id: id,
+          new_status: action === 'stop' ? 'Stopped' : 'Running',
+          gpu_name: targetDep?.gpu || 'GPU',
+          deployment_name: targetDep?.name,
+          region: targetDep?.region,
+          idempotency_key: `toggle_${id}_${action}_${Date.now()}`,
+        }),
+      }).then(() => notificationManager.fetchNotifications(false)).catch(() => {})
+    }
   }
 
   const handleConfirmDeleteDeployment = () => {
     if (!deployToDelete) return
-    setDeployments((prev) => prev.filter((d) => d.id !== deployToDelete.id))
+    const toDelete = deployToDelete
+    setDeployments((prev) => prev.filter((d) => d.id !== toDelete.id))
     addNotification({
-      title: `GPU Deployment Terminated: ${deployToDelete.name}`,
-      detail: `Released ${deployToDelete.gpu} compute node in ${deployToDelete.region}.`,
+      title: `GPU Deployment Terminated: ${toDelete.name}`,
+      detail: `Released ${toDelete.gpu} compute node in ${toDelete.region}.`,
       type: 'Hardware',
     })
-    flash(`Deployment "${deployToDelete.name}" removed from demo environment.`)
+    flash(`Deployment "${toDelete.name}" removed from demo environment.`)
     setDeployToDelete(null)
+
+    const session = getSession()
+    if (session?.token) {
+      fetch('/api/deployments/status', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          deployment_id: toDelete.id,
+          new_status: 'Terminated',
+          gpu_name: toDelete.gpu,
+          deployment_name: toDelete.name,
+          region: toDelete.region,
+          idempotency_key: `term_${toDelete.id}_${Date.now()}`,
+        }),
+      }).then(() => notificationManager.fetchNotifications(false)).catch(() => {})
+    }
   }
 
   const handleCreateKey = (e: FormEvent) => {
@@ -689,6 +834,22 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
       type: 'Billing',
     })
     flash(`₹${topUpAmount.toLocaleString('en-IN')} added to your wallet! Transaction completed.`)
+
+    // Sync with PostgreSQL multi-user wallet & notification backend
+    const session = getSession()
+    if (session?.token) {
+      fetch('/api/wallet/transactions', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session.token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          amount: topUpAmount,
+          idempotency_key: `wallet_topup_ui_${Date.now()}`,
+        }),
+      }).then(() => notificationManager.fetchNotifications(false)).catch(() => {})
+    }
   }
 
   const handleAddSshKey = (e: FormEvent) => {
@@ -802,6 +963,8 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
   const handleSaveListing = (e: FormEvent) => {
     e.preventDefault()
     if (editingListing) {
+      const targetGpuId = editingListing.id
+      const targetPrice = Number(editingListing.price)
       setListings((prev) =>
         prev.map((l) => (l.id === editingListing.id ? { ...editingListing } : l))
       )
@@ -812,6 +975,23 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
         type: 'Marketplace',
       })
       flash(`GPU listing "${editingListing.name}" updated.`)
+
+      // Broadcast price update to all customers via PostgreSQL
+      const session = getSession()
+      if (session?.token) {
+        fetch('/api/notifications/price-update', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${session.token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            gpu_id: targetGpuId,
+            new_price: targetPrice,
+            idempotency_key: `price_update_${targetGpuId}_${targetPrice}_${Date.now()}`,
+          }),
+        }).then(() => notificationManager.fetchNotifications(false)).catch(() => {})
+      }
     } else {
       const item: Listing = {
         id: `gpu-${Date.now()}`,
@@ -844,7 +1024,11 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
       read: false,
     }
     setNotifications((prev) => [newNotif, ...prev])
-    flash('New demo notification generated.')
+    flash({
+      title: newNotif.title,
+      description: newNotif.detail,
+      icon: 'bell',
+    })
   }
 
   const workspaceContent = (
@@ -860,12 +1044,33 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
       <div className="mw-page">
         {/* Action Toast Feedback */}
         {notice && (
-          <div className="mw-toast" role="status">
-            <Check size={16} />
-            <span>{notice}</span>
-            <button onClick={() => setNotice('')} aria-label="Dismiss message">
+          <div className="mw-toast" role="status" aria-live="polite">
+            <div className="mw-toast-icon-wrap">
+              {notice.icon === 'bell' ? (
+                <Bell size={18} strokeWidth={2.4} />
+              ) : (
+                <Check size={18} strokeWidth={2.8} />
+              )}
+            </div>
+            <div className="mw-toast-content">
+              <div className="mw-toast-title">{notice.title}</div>
+              {notice.description && (
+                <div className="mw-toast-desc">{notice.description}</div>
+              )}
+            </div>
+            <button
+              className="mw-toast-close"
+              onClick={() => {
+                if (noticeTimerRef.current) window.clearTimeout(noticeTimerRef.current)
+                setNotice(null)
+              }}
+              aria-label="Dismiss notification"
+            >
               <X size={14} />
             </button>
+            <div className="mw-toast-progress">
+              <div className="mw-toast-progress-bar" />
+            </div>
           </div>
         )}
 
@@ -1851,89 +2056,120 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
         {/* ───────────────────────────────────────────────────────────
             8. NOTIFICATIONS (route === 'notifications')
             ─────────────────────────────────────────────────────────── */}
-        {route === 'notifications' && (
-          <>
-            <div className="mw-toolbar">
-              <div>
-                <h2>System Alerts & Notifications</h2>
-                <p>Stay informed regarding cluster health, deployment events, and budget warnings.</p>
-              </div>
-              <div className="row" style={{ gap: 8 }}>
-                <button className="mw-secondary" onClick={handleSendTestNotification}>
-                  <Zap size={14} /> Send Test Alert (Demo)
-                </button>
-                <button
-                  className="mw-secondary"
-                  onClick={() => {
-                    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
-                    flash('All notifications marked as read.')
-                  }}
-                >
-                  Mark All Read
-                </button>
-              </div>
-            </div>
+        {route === 'notifications' && (() => {
+          const hasServerNotifs = serverNotifState.notifications.length > 0
+          const activeNotifs = hasServerNotifs
+            ? serverNotifState.notifications.map((sn) => ({
+                id: sn.id,
+                title: sn.title,
+                detail: sn.message,
+                type: sn.notification_type.replace(/_/g, ' '),
+                time: new Date(sn.created_at).toLocaleDateString('en-IN', {
+                  day: '2-digit',
+                  month: 'short',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                }),
+                read: sn.is_read,
+              }))
+            : notifications
 
-            {/* Notification Filter Tabs */}
-            <div className="mw-filter-bar">
-              {(['all', 'unread', 'read'] as const).map((tab) => (
-                <button
-                  key={tab}
-                  className={`mw-filter-pill ${notifFilter === tab ? 'is-active' : ''}`}
-                  onClick={() => setNotifFilter(tab)}
-                >
-                  {tab === 'all'
-                    ? `All (${notifications.length})`
-                    : tab === 'unread'
-                      ? `Unread (${notifications.filter((n) => !n.read).length})`
-                      : 'Read'}
-                </button>
-              ))}
-            </div>
-
-            <div className="mw-panel">
-              {notifications.filter((n) => (notifFilter === 'all' ? true : notifFilter === 'unread' ? !n.read : n.read)).length === 0 ? (
-                <div className="mw-empty">
-                  <span className="mw-icon-box"><Bell size={22} /></span>
-                  <h3>No Notifications</h3>
-                  <p>You have reviewed all alerts matching this filter.</p>
+          return (
+            <>
+              <div className="mw-toolbar">
+                <div>
+                  <h2>System Alerts & Notifications</h2>
+                  <p>Stay informed regarding cluster health, deployment events, and budget warnings.</p>
                 </div>
-              ) : (
-                notifications
-                  .filter((n) => (notifFilter === 'all' ? true : notifFilter === 'unread' ? !n.read : n.read))
-                  .map((n) => (
-                    <div className={`mw-notification ${n.read ? 'is-read' : ''}`} key={n.id}>
-                      <span className="mw-notification-dot" />
-                      <div>
-                        <strong>{n.title}</strong>
-                        <p>{n.detail}</p>
-                        <small>{n.type} · {n.time}</small>
+                <div className="row" style={{ gap: 8 }}>
+                  <button className="mw-secondary" onClick={handleSendTestNotification}>
+                    <Zap size={14} /> Send Test Alert (Demo)
+                  </button>
+                  <button
+                    className="mw-secondary"
+                    onClick={() => {
+                      if (hasServerNotifs) {
+                        notificationManager.markAllAsRead()
+                      } else {
+                        setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+                      }
+                      flash('All notifications marked as read.')
+                    }}
+                  >
+                    Mark All Read
+                  </button>
+                </div>
+              </div>
+
+              {/* Notification Filter Tabs */}
+              <div className="mw-filter-bar">
+                {(['all', 'unread', 'read'] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    className={`mw-filter-pill ${notifFilter === tab ? 'is-active' : ''}`}
+                    onClick={() => setNotifFilter(tab)}
+                  >
+                    {tab === 'all'
+                      ? `All (${activeNotifs.length})`
+                      : tab === 'unread'
+                        ? `Unread (${activeNotifs.filter((n) => !n.read).length})`
+                        : 'Read'}
+                  </button>
+                ))}
+              </div>
+
+              <div className="mw-panel">
+                {activeNotifs.filter((n) => (notifFilter === 'all' ? true : notifFilter === 'unread' ? !n.read : n.read)).length === 0 ? (
+                  <div className="mw-empty">
+                    <span className="mw-icon-box"><Bell size={22} /></span>
+                    <h3>No Notifications</h3>
+                    <p>You have reviewed all alerts matching this filter.</p>
+                  </div>
+                ) : (
+                  activeNotifs
+                    .filter((n) => (notifFilter === 'all' ? true : notifFilter === 'unread' ? !n.read : n.read))
+                    .map((n) => (
+                      <div className={`mw-notification ${n.read ? 'is-read' : ''}`} key={n.id}>
+                        <span className="mw-notification-dot" />
+                        <div>
+                          <strong>{n.title}</strong>
+                          <p>{n.detail}</p>
+                          <small>{n.type} · {n.time}</small>
+                        </div>
+                        <div className="row" style={{ gap: 6 }}>
+                          <button
+                            className="mw-secondary"
+                            onClick={() => {
+                              if (hasServerNotifs) {
+                                notificationManager.markAsRead(n.id)
+                              } else {
+                                setNotifications((prev) => prev.map((item) => (item.id === n.id ? { ...item, read: !item.read } : item)))
+                              }
+                            }}
+                          >
+                            {n.read ? 'Mark Unread' : 'Mark Read'}
+                          </button>
+                          <button
+                            className="mw-icon-btn mw-danger"
+                            onClick={() => {
+                              if (hasServerNotifs) {
+                                notificationManager.deleteNotification(n.id)
+                              } else {
+                                setNotifications((prev) => prev.filter((item) => item.id !== n.id))
+                              }
+                            }}
+                            aria-label="Delete Notification"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </div>
                       </div>
-                      <div className="row" style={{ gap: 6 }}>
-                        <button
-                          className="mw-secondary"
-                          onClick={() => {
-                            setNotifications((prev) => prev.map((item) => (item.id === n.id ? { ...item, read: !item.read } : item)))
-                          }}
-                        >
-                          {n.read ? 'Mark Unread' : 'Mark Read'}
-                        </button>
-                        <button
-                          className="mw-icon-btn mw-danger"
-                          onClick={() => {
-                            setNotifications((prev) => prev.filter((item) => item.id !== n.id))
-                          }}
-                          aria-label="Delete Notification"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
-                    </div>
-                  ))
-              )}
-            </div>
-          </>
-        )}
+                    ))
+                )}
+              </div>
+            </>
+          )
+        })()}
 
         {/* ───────────────────────────────────────────────────────────
             9. SETTINGS (route === 'settings')
