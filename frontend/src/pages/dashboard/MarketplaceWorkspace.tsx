@@ -14,6 +14,7 @@ import { MODELS, QUANTS, type Quant } from '../../data/gpus'
 import { estimateMemory, recommend, fmtGB, inr } from '../../lib/calc'
 import { getSession, saveSession, changeUserPassword, getUserPasswordLastUpdated } from '../../lib/authStore'
 import { notificationManager } from '../../lib/notificationStore'
+import { BotAvatar } from 'bot-avatars'
 import { NotebooksSection, ReviewsSection, RewardsSection, UsageDetail } from './ExtraSections'
 import { SovereignNodesMap } from '../../components/dashboard/SovereignNodesMap'
 import { InteractivePriceHistoryChart, type PriceHistoryRange, type GpuModel } from '../../components/dashboard/InteractivePriceHistoryChart'
@@ -312,7 +313,7 @@ export default function MarketplaceWorkspace() {
 type ToastNotice = {
   title: string
   description?: string
-  icon?: 'check' | 'bell'
+  icon?: 'server' | 'bell' | 'wallet' | 'check'
 }
 
   // UI notice state
@@ -534,7 +535,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
   }
 
   const flash = (
-    msg: string | { title: string; description?: string; detail?: string; icon?: 'check' | 'bell' },
+    msg: string | { title: string; description?: string; detail?: string; icon?: 'server' | 'bell' | 'wallet' | 'check' },
     maybeDesc?: string
   ) => {
     if (noticeTimerRef.current) {
@@ -545,13 +546,13 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
       setNotice({
         title: msg.title,
         description: msg.description || msg.detail || '',
-        icon: msg.icon || 'check',
+        icon: msg.icon || 'server',
       })
     } else if (maybeDesc) {
       setNotice({
         title: msg,
         description: maybeDesc,
-        icon: 'check',
+        icon: 'server',
       })
     } else {
       const trimmed = msg.trim()
@@ -562,31 +563,37 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
         setNotice({
           title: trimmed.substring(0, colonIdx).trim(),
           description: trimmed.substring(colonIdx + 2).trim(),
-          icon: 'check',
+          icon: 'server',
         })
       } else if (exclIdx > 0 && exclIdx < 45) {
         setNotice({
           title: trimmed.substring(0, exclIdx + 1).trim(),
           description: trimmed.substring(exclIdx + 2).trim(),
-          icon: 'check',
+          icon: 'server',
         })
       } else {
         let title = 'Notification'
-        let icon: 'check' | 'bell' = 'check'
+        let icon: 'server' | 'bell' | 'wallet' | 'check' = 'server'
         if (/copi(ed|y)/i.test(trimmed)) {
           title = 'Copied to Clipboard'
         } else if (/deploy/i.test(trimmed)) {
-          title = 'GPU Deployment'
+          title = 'GPU Deployment Initialized'
+          icon = 'server'
         } else if (/wallet|added to your wallet/i.test(trimmed)) {
-          title = 'Wallet Updated'
-        } else if (/wishlist/i.test(trimmed)) {
-          title = 'Wishlist Updated'
+          title = 'Wallet Recharge Successful'
+          icon = 'wallet'
+        } else if (/price/i.test(trimmed)) {
+          title = 'GPU Price Updated'
+          icon = 'bell'
         } else if (/key/i.test(trimmed)) {
-          title = 'Access Key Updated'
-        } else if (/coupon|discount/i.test(trimmed)) {
-          title = 'Discount Applied'
+          title = 'Access Key Generated'
+          icon = 'server'
+        } else if (/payout/i.test(trimmed)) {
+          title = 'Payout Submitted'
+          icon = 'wallet'
         } else if (/order/i.test(trimmed)) {
           title = 'Order Provisioned'
+          icon = 'server'
         } else if (/alert|telemetry|audit|notice/i.test(trimmed)) {
           title = 'System Alert'
           icon = 'bell'
@@ -603,7 +610,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
 
     noticeTimerRef.current = window.setTimeout(() => {
       setNotice(null)
-    }, 4000)
+    }, 3800)
   }
 
   // Filtered & Sorted GPU Listings
@@ -693,12 +700,22 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
     setDeployments((prev) => [newDep, ...prev])
     setShowDeployModal(false)
     setDeployForm({ name: '', model: 'Qwen2.5 7B Instruct', gpu: 'L4', region: 'Hyderabad, IN' })
+    const depTitle = 'GPU Deployment Initialized'
+    const gpuDisplayName = newDep.gpu.startsWith('NVIDIA') ? newDep.gpu : `NVIDIA ${newDep.gpu}`
+    const regionDisplayName = newDep.region.includes('Hyderabad')
+      ? 'Hyderabad (Sovereign Tier IV)'
+      : (newDep.region.includes('Mumbai') ? 'Mumbai (Sovereign Tier IV)' : newDep.region)
+    const depDesc = `Deployment '${newDep.name}' (${newDep.id.toUpperCase()}) for ${newDep.model} on ${gpuDisplayName} (${regionDisplayName}) has been requested and is currently provisioning.`
     addNotification({
-      title: `GPU Deployed: ${newDep.name}`,
-      detail: `${newDep.model} running on ${newDep.gpu} (${newDep.region}) at ₹${newDep.hourlyRate}/hr.`,
+      title: depTitle,
+      detail: depDesc,
       type: 'Deployment',
     })
-    flash(`Deployment "${newDep.name}" initialized and running on ${newDep.gpu}!`)
+    flash({
+      title: depTitle,
+      description: depDesc,
+      icon: 'server',
+    })
 
     // Sync with PostgreSQL multi-user notification backend if authenticated
     const session = getSession()
@@ -1042,14 +1059,16 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
       backButtonLabel="Back to overview"
     >
       <div className="mw-page">
-        {/* Action Toast Feedback */}
+        {/* Action Toast Feedback - Matching Image 2 Reference */}
         {notice && (
           <div className="mw-toast" role="status" aria-live="polite">
             <div className="mw-toast-icon-wrap">
-              {notice.icon === 'bell' ? (
-                <Bell size={18} strokeWidth={2.4} />
+              {notice.icon === 'wallet' ? (
+                <Wallet size={20} strokeWidth={2.2} />
+              ) : notice.icon === 'bell' ? (
+                <Bell size={20} strokeWidth={2.2} />
               ) : (
-                <Check size={18} strokeWidth={2.8} />
+                <Server size={20} strokeWidth={2.2} />
               )}
             </div>
             <div className="mw-toast-content">
@@ -1057,6 +1076,17 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
               {notice.description && (
                 <div className="mw-toast-desc">{notice.description}</div>
               )}
+            </div>
+            <div className="mw-toast-mascot" aria-hidden="true">
+              <BotAvatar
+                type="ghost"
+                size={54}
+                state="default"
+                face="mouth"
+                color="#76b900"
+                shading="fabric"
+                interactive={false}
+              />
             </div>
             <button
               className="mw-toast-close"
@@ -1066,7 +1096,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
               }}
               aria-label="Dismiss notification"
             >
-              <X size={14} />
+              <X size={15} />
             </button>
             <div className="mw-toast-progress">
               <div className="mw-toast-progress-bar" />
