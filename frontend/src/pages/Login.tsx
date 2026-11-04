@@ -13,7 +13,6 @@ import {
 } from 'aws-amplify/auth'
 
 import { saveSession, loginAdminBackend } from '../lib/authStore'
-import { recordUserRegistration } from '../lib/userStore'
 import {
   AlertCircle,
   ArrowLeft,
@@ -423,12 +422,6 @@ export default function Login({ initialMode }: LoginProps) {
               createdAt: new Date().toISOString(),
             }
             localStorage.setItem('inferxe_registered_users', JSON.stringify(registered))
-            recordUserRegistration({
-              fullName: fullName.trim(),
-              email: cleanEmail,
-              username: cleanEmail.split('@')[0],
-              organization: organization.trim() || 'Customer Workspace',
-            })
           } catch (e) {
             console.error('Failed to store customer locally:', e)
           }

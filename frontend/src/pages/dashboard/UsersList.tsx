@@ -10,7 +10,7 @@ import {
 import { DashboardLayout } from '../../components/dashboard/DashboardLayout'
 import { Tilt } from '../../components/ui/Tilt'
 import { Counter } from '../../components/ui/Counter'
-import { loadUsers, deleteUser, toggleUserStatus, ROLE_DEFINITIONS } from '../../lib/userStore'
+import { loadUsers, deleteUser, ROLE_DEFINITIONS } from '../../lib/userStore'
 import type { UserRecord } from '../../types/dashboard'
 import { usePageMeta } from '../../lib/hooks'
 
@@ -23,25 +23,8 @@ export default function UsersList() {
   const [selectedUser, setSelectedUser] = useState<UserRecord | null>(null)
 
   useEffect(() => {
-    const refresh = () => setUsers(loadUsers())
-    refresh()
-    window.addEventListener('inferxe_users_change', refresh)
-    window.addEventListener('inferxe_auth_change', refresh)
-    window.addEventListener('storage', refresh)
-    return () => {
-      window.removeEventListener('inferxe_users_change', refresh)
-      window.removeEventListener('inferxe_auth_change', refresh)
-      window.removeEventListener('storage', refresh)
-    }
-  }, [])
-
-  const handleToggleStatus = (id: string) => {
-    const updated = toggleUserStatus(id)
     setUsers(loadUsers())
-    if (selectedUser?.id === id && updated) {
-      setSelectedUser(updated)
-    }
-  }
+  }, [])
 
   const handleDelete = (id: string, name: string) => {
     if (window.confirm(`Are you sure you want to revoke marketplace access for ${name}?`)) {
@@ -53,28 +36,19 @@ export default function UsersList() {
     }
   }
 
-  const filteredUsers = users
-    .filter((u) => {
-      const matchesSearch =
-        u.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        u.username.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredUsers = users.filter((u) => {
+    const matchesSearch =
+      u.fullName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      u.username.toLowerCase().includes(searchQuery.toLowerCase())
 
-      if (!matchesSearch) return false
+    if (!matchesSearch) return false
 
-      if (roleFilter === 'all') return true
-      if (roleFilter === 'active') return u.status === 'active'
-      // Strictly only users kept as inactive in their status are shown in the inactive list
-      if (roleFilter === 'inactive') return u.status === 'inactive'
-      if (roleFilter === 'customer') return (u.role === 'customer' || u.role === 'developer') && u.status === 'active'
-      return u.role === roleFilter
-    })
-    .sort((a, b) => {
-      // Prioritize customers who signed in latest (lastActive === 'Just now') at the top of the list
-      if (a.lastActive === 'Just now' && b.lastActive !== 'Just now') return -1
-      if (b.lastActive === 'Just now' && a.lastActive !== 'Just now') return 1
-      return 0
-    })
+    if (roleFilter === 'all') return true
+    if (roleFilter === 'active') return u.status === 'active'
+    if (roleFilter === 'inactive') return u.status === 'inactive'
+    return u.role === roleFilter
+  })
 
   return (
     <DashboardLayout
@@ -96,13 +70,9 @@ export default function UsersList() {
               <span className="dash-stat-label engrave">Team Members</span>
             </div>
             <div className="dash-stat-value readout">
-              <Counter to={users.length} />
+              <Counter to={users.length || 14} />
             </div>
-            <small style={{ color: 'var(--ink-4)', fontSize: '0.72rem', marginTop: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ color: '#76b900', fontWeight: 600 }}>● {users.filter((u) => u.status === 'active').length} Active</span>
-              <span>·</span>
-              <span style={{ color: 'var(--ink-3)' }}>○ {users.filter((u) => u.status === 'inactive').length} Inactive</span>
-            </small>
+            <small style={{ color: 'var(--ink-4)', fontSize: '0.72rem', marginTop: 4 }}>Active Seats Provisioned</small>
           </div>
         </Tilt>
 
@@ -173,22 +143,15 @@ export default function UsersList() {
 
           {/* Filter Chips */}
           <div className="dash-presets-row" style={{ marginTop: 0 }}>
-            {[
-              { key: 'all', label: `All (${users.length})` },
-              { key: 'active', label: `Active (${users.filter((u) => u.status === 'active').length})` },
-              { key: 'inactive', label: `Inactive (${users.filter((u) => u.status === 'inactive').length})` },
-              { key: 'customer', label: `Clients (${users.filter((u) => (u.role === 'customer' || u.role === 'developer') && u.status === 'active').length})` },
-              { key: 'admin', label: 'Admins' },
-              { key: 'developer', label: 'Developers' },
-              { key: 'viewer', label: 'Viewers' },
-            ].map((f) => (
+            {['all', 'admin', 'developer', 'viewer', 'active'].map((f) => (
               <button
-                key={f.key}
+                key={f}
                 type="button"
-                className={`dash-preset-chip ${roleFilter === f.key ? 'is-active' : ''}`}
-                onClick={() => setRoleFilter(f.key)}
+                className={`dash-preset-chip ${roleFilter === f ? 'is-active' : ''}`}
+                style={{ textTransform: 'capitalize' }}
+                onClick={() => setRoleFilter(f)}
               >
-                {f.label}
+                {f === 'all' ? 'All Users' : f}
               </button>
             ))}
           </div>
@@ -226,12 +189,7 @@ export default function UsersList() {
                 </tr>
               ) : (
                 filteredUsers.map((u) => {
-                  const roleDef = ROLE_DEFINITIONS[u.role] || {
-                    title: u.role ? u.role.charAt(0).toUpperCase() + u.role.slice(1) : 'Customer',
-                    description: 'User access',
-                    badgeClass: 'chip--cyan',
-                    permissions: ['Platform Access'],
-                  }
+                  const roleDef = ROLE_DEFINITIONS[u.role]
                   return (
                     <tr key={u.id}>
                       <td>
@@ -274,13 +232,7 @@ export default function UsersList() {
                       </td>
 
                       <td>
-                        <span
-                          className={`dash-status-dot dash-status-dot--${u.status}`}
-                          style={{
-                            color: u.status === 'active' ? '#76b900' : 'var(--ink-4)',
-                            fontWeight: u.status === 'active' ? 600 : 400,
-                          }}
-                        >
+                        <span className={`dash-status-dot dash-status-dot--${u.status}`}>
                           {u.status === 'active' ? 'Active' : 'Inactive'}
                         </span>
                       </td>
@@ -320,19 +272,6 @@ export default function UsersList() {
                             onClick={() => setSelectedUser(u)}
                           >
                             Details
-                          </button>
-                          <button
-                            type="button"
-                            className="dash-btn-ghost"
-                            style={{
-                              padding: '5px 8px',
-                              fontSize: '0.72rem',
-                              color: u.status === 'active' ? 'var(--ink-3)' : '#76b900',
-                            }}
-                            title={u.status === 'active' ? 'Mark user as inactive' : 'Mark user as active'}
-                            onClick={() => handleToggleStatus(u.id)}
-                          >
-                            {u.status === 'active' ? 'Set Inactive' : 'Set Active'}
                           </button>
                           <button
                             type="button"
@@ -394,21 +333,8 @@ export default function UsersList() {
 
               <div style={{ padding: 12, borderRadius: 8, background: 'var(--bg-2)', border: '1px solid var(--line)' }}>
                 <span className="readout-label">Status</span>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
-                  <div
-                    className={`dash-status-dot dash-status-dot--${selectedUser.status}`}
-                    style={{ fontWeight: 600, color: selectedUser.status === 'active' ? '#76b900' : 'var(--ink-4)' }}
-                  >
-                    {selectedUser.status === 'active' ? 'Active' : 'Inactive'}
-                  </div>
-                  <button
-                    type="button"
-                    className="dash-btn-ghost"
-                    style={{ padding: '2px 8px', fontSize: '0.72rem', color: selectedUser.status === 'active' ? 'var(--ink-3)' : '#76b900' }}
-                    onClick={() => handleToggleStatus(selectedUser.id)}
-                  >
-                    Mark as {selectedUser.status === 'active' ? 'Inactive' : 'Active'}
-                  </button>
+                <div className={`dash-status-dot dash-status-dot--${selectedUser.status}`} style={{ fontWeight: 600, marginTop: 2 }}>
+                  {selectedUser.status === 'active' ? 'Active' : 'Inactive'}
                 </div>
               </div>
 
