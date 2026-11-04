@@ -44,6 +44,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Mount Inferxe Centralized Notification Router
+try:
+    from backend.notifications.router import router as notifications_router
+    app.include_router(notifications_router)
+except Exception as _notif_err:
+    print(f"Warning: Could not mount notifications router in RAG server: {_notif_err}")
+
 # Constants & Configuration
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, "../.."))
