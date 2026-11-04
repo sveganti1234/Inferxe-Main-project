@@ -118,9 +118,6 @@ export function Navbar() {
             <span>Search</span>
             <kbd>Ctrl K</kbd>
           </button>
-          <Link to="/dashboard/customer" className="nav__link" style={{ fontSize: '0.86rem', color: 'var(--brand-hi)', fontWeight: 600 }}>
-            Customer Console
-          </Link>
           <Link to="/login" className="nav__signin">
             Sign in
           </Link>
@@ -155,14 +152,6 @@ export function Navbar() {
                   )}
                 </motion.div>
               ))}
-              <Link
-                to="/dashboard/customer"
-                className="btn btn--glass btn--block mt-3"
-                style={{ color: 'var(--brand-hi)', borderColor: 'rgba(118, 185, 0, 0.4)' }}
-                onClick={() => setMobile(false)}
-              >
-                Customer Console
-              </Link>
               <Link
                 to="/login"
                 className="btn btn--glass btn--block mt-2"
