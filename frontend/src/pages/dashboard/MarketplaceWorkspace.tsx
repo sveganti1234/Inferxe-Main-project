@@ -14,7 +14,6 @@ import { MODELS, QUANTS, type Quant } from '../../data/gpus'
 import { estimateMemory, recommend, fmtGB, inr } from '../../lib/calc'
 import { getSession, saveSession, changeUserPassword, getUserPasswordLastUpdated } from '../../lib/authStore'
 import { notificationManager } from '../../lib/notificationStore'
-import { BotAvatar } from 'bot-avatars'
 import { NotebooksSection, ReviewsSection, RewardsSection, UsageDetail } from './ExtraSections'
 import { SovereignNodesMap } from '../../components/dashboard/SovereignNodesMap'
 import { InteractivePriceHistoryChart, type PriceHistoryRange, type GpuModel } from '../../components/dashboard/InteractivePriceHistoryChart'
@@ -1076,17 +1075,6 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
               {notice.description && (
                 <div className="mw-toast-desc">{notice.description}</div>
               )}
-            </div>
-            <div className="mw-toast-mascot" aria-hidden="true">
-              <BotAvatar
-                type="ghost"
-                size={54}
-                state="default"
-                face="mouth"
-                color="#76b900"
-                shading="fabric"
-                interactive={false}
-              />
             </div>
             <button
               className="mw-toast-close"

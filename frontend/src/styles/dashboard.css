@@ -2462,20 +2462,20 @@
 /* ── Marketplace customer/provider workspace additions ────── */
 .mw-page { display: flex; flex-direction: column; gap: 18px; padding-bottom: 36px; min-width: 0; }
 .mw-demo-note, .dh-demo { display: none !important; }
-/* ── INFERXE Notification Popup (Toast Card - Image 2 Reference) ────── */
+/* ── INFERXE Notification Popup (Toast Card) ────────────────────────── */
 .mw-toast {
   position: fixed;
   bottom: 28px;
   right: 28px;
   z-index: 99999;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 16px;
   min-width: 480px;
   max-width: 580px;
   width: min(560px, calc(100vw - 48px));
   min-height: 94px;
-  padding: 18px 20px 22px 20px;
+  padding: 18px 46px 20px 20px;
   background: linear-gradient(145deg, #060b05 0%, #0d170a 55%, #060b05 100%);
   background-color: #070e06;
   border: 1px solid rgba(118, 185, 0, 0.42);
@@ -2515,6 +2515,7 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  margin-top: 2px;
   box-shadow:
     0 0 16px rgba(118, 185, 0, 0.35),
     inset 0 0 10px rgba(118, 185, 0, 0.15);
@@ -2532,7 +2533,7 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  padding-right: 6px;
+  padding-right: 8px;
 }
 
 /* Clear, bold white notification heading */
@@ -2557,26 +2558,7 @@
   word-break: break-word;
 }
 
-/* 3. Right side – INFERXE green ghost mascot */
-.mw-toast-mascot {
-  flex-shrink: 0;
-  width: 54px;
-  height: 54px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-right: 14px;
-  filter: drop-shadow(0 0 10px rgba(118, 185, 0, 0.4));
-  pointer-events: none;
-}
-
-.mw-toast-mascot canvas {
-  width: 54px !important;
-  height: 54px !important;
-  display: block;
-}
-
-/* 4. Top-right – Close button with small X icon */
+/* 3. Top-right – Close button with small X icon */
 .mw-toast-close {
   position: absolute;
   top: 12px;
@@ -2606,7 +2588,7 @@
   stroke: currentColor !important;
 }
 
-/* 5. Bottom – Thin neon-green horizontal progress bar */
+/* 4. Bottom – Thin neon-green horizontal progress bar */
 .mw-toast-progress {
   position: absolute;
   bottom: 0;
@@ -2646,7 +2628,7 @@
     min-width: 0;
     max-width: none;
     width: auto;
-    padding: 16px 16px 20px 16px;
+    padding: 16px 40px 18px 16px;
     gap: 12px;
   }
   .mw-toast-icon-wrap {
@@ -2664,15 +2646,6 @@
   .mw-toast-desc {
     font-size: 0.79rem;
     line-height: 1.45;
-  }
-  .mw-toast-mascot {
-    width: 44px;
-    height: 44px;
-    margin-right: 12px;
-  }
-  .mw-toast-mascot canvas {
-    width: 44px !important;
-    height: 44px !important;
   }
 }
 
