@@ -276,7 +276,13 @@ export function createAdminAuthMiddleware(config = {}) {
           },
           expiresAt: expSec * 1000,
         })
-      } catch {
+      } catch (err) {
+        if (err instanceof SyntaxError) {
+          return sendJson(res, 400, {
+            ok: false,
+            error: 'Malformed JSON request body.',
+          })
+        }
         return sendJson(res, 500, {
           ok: false,
           error: 'An unexpected server error occurred during admin authentication.',
