@@ -783,29 +783,13 @@ export function DashboardLayout({
             
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2, paddingTop: 4 }}>
-
-                  <Link
-                    to="/dashboard/profile"
-                    className="dash-nav-item"
-                    onClick={() => setAdminMenuOpen(false)}
-                  >
-                    <User size={15} /> Profile & Account
-                  </Link>
-                  <Link
-                    to="/"
-                    className="dash-nav-item"
-                    style={{ color: 'var(--brand-hi)' }}
-                    onClick={() => setAdminMenuOpen(false)}
-                  >
-                    <ExternalLink size={15} /> Exit to Public Site
-                  </Link>
                   <button
                     type="button"
                     className="dash-nav-item dash-nav-item--danger"
                     onClick={() => {
                       setAdminMenuOpen(false)
                       clearSession()
-                      navigate('/login')
+                      navigate('/')
                     }}
                   >
                     <LogOut size={15} /> Sign Out
