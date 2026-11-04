@@ -28,6 +28,7 @@ const DashboardOverview = lazy(() => import('./pages/dashboard/DashboardOverview
 const MarketplaceWorkspace = lazy(() => import('./pages/dashboard/MarketplaceWorkspace'))
 const Login = lazy(() => import('./pages/Login'))
 import { AdminGuard } from './components/auth/AdminGuard'
+import { CustomerGuard } from './components/auth/CustomerGuard'
 
 /** Scroll to top on route change, or to the #hash target when present. */
 function ScrollManager() {
@@ -93,7 +94,14 @@ export default function App() {
                 </AdminGuard>
               }
             />
-            <Route path="/dashboard/*" element={<MarketplaceWorkspace />} />
+            <Route
+              path="/dashboard/*"
+              element={
+                <CustomerGuard>
+                  <MarketplaceWorkspace />
+                </CustomerGuard>
+              }
+            />
           </Routes>
         </Suspense>
         <GlobalBotCompanion />

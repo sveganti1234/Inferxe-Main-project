@@ -53,6 +53,27 @@ const STORAGE_KEY = 'inferxe_dashboard_users_v2'
 
 const SEED_USERS: UserRecord[] = [
   {
+    id: 'usr_inf_00_sahith',
+    fullName: 'Sahith V',
+    email: 'sahith1689vss@gmail.com',
+    username: 'sahith',
+    avatarUrl: '',
+    role: 'developer',
+    status: 'active',
+    authMethod: 'password',
+    modelAccess: 'all',
+    selectedModels: ['deepseek-r1-671b', 'llama-3.3-70b', 'qwen-2.5-coder-32b'],
+    providerAccess: 'all',
+    selectedProviders: [],
+    apiAccess: true,
+    analyticsAccess: true,
+    monthlySpendLimit: 250000,
+    rateLimit: '1,000 RPM (Enterprise Sovereign Tier)',
+    internalNote: 'Customer workspace lead for sovereign cloud deployment.',
+    createdAt: '2026-10-01T08:00:00Z',
+    lastActive: 'Just now',
+  },
+  {
     id: 'usr_inf_01',
     fullName: 'Bhumi Reddy',
     email: 'bhumireddy@inferxe.com',
