@@ -190,6 +190,11 @@ export default function UsersList() {
               ) : (
                 filteredUsers.map((u) => {
                   const roleDef = ROLE_DEFINITIONS[u.role]
+                  const roleTitle =
+                    roleDef?.title ??
+                    (typeof u.role === 'string' && u.role.trim()
+                      ? u.role.replace(/[_-]+/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
+                      : 'Unknown')
                   return (
                     <tr key={u.id}>
                       <td>
@@ -227,7 +232,7 @@ export default function UsersList() {
                             textTransform: 'uppercase',
                           }}
                         >
-                          {roleDef.title}
+                          {roleTitle}
                         </span>
                       </td>
 
