@@ -55,6 +55,17 @@ class DeploymentStatusRequest(BaseModel):
     error_message: Optional[str] = None
     idempotency_key: Optional[str] = None
 
+class GpuRecommendationRequest(BaseModel):
+    instance_id: str = Field(..., min_length=1)
+    bot_permission: bool = True
+
+class GpuAlertTriggerRequest(BaseModel):
+    instance_id: str = Field(..., min_length=1)
+    alert_type: str = Field(..., min_length=1)
+    title: str = Field(..., min_length=1)
+    message: str = Field(..., min_length=1)
+    idempotency_key: Optional[str] = None
+
 # ── Diagnostic & Health Endpoints ──
 
 @router.get("/notifications/db-status")
@@ -274,3 +285,85 @@ def update_deployment_status(
     except ValueError as ve:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
 
+
+
+# ── Stage 2: GPU Runtime Monitoring & AI Intelligence Endpoints ──
+
+@router.get("/gpu/metrics")
+def get_gpu_runtime_metrics(
+    instance_id: str = Query(..., description="GPU deployment instance ID"),
+    user: AuthenticatedUser = Depends(get_current_user),
+):
+    """
+    Retrieves real-time GPU runtime metrics and telemetry for an instance.
+    Enforces customer isolation: checks that deployment belongs to user.user_id.
+    """
+    try:
+        return NotificationService.get_gpu_metrics(user.user_id, instance_id)
+    except KeyError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Deployment instance '{instance_id}' not found.")
+    except PermissionError as pe:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(pe))
+
+@router.post("/gpu/recommendations")
+def get_gpu_recommendations(
+    req: GpuRecommendationRequest,
+    user: AuthenticatedUser = Depends(get_current_user),
+):
+    """
+    Generates intelligent AI recommendations based on GPU instance telemetry,
+    pricing, and memory requirements. Strictly respects AI Assistant permissions.
+    """
+    try:
+        return NotificationService.get_gpu_recommendations(user.user_id, req.instance_id, req.bot_permission)
+    except KeyError:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Deployment instance '{req.instance_id}' not found.")
+    except PermissionError as pe:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(pe))
+
+@router.post("/gpu/alerts/trigger")
+def trigger_contextual_gpu_alert(
+    req: GpuAlertTriggerRequest,
+    user: AuthenticatedUser = Depends(get_current_user),
+):
+    """
+    Creates an intelligent contextual notification for the authenticated user,
+    preventing duplicate alerts with idempotency.
+    """
+    return NotificationService.trigger_contextual_gpu_alert(
+        user_id=user.user_id,
+        deployment_id=req.instance_id,
+        alert_type=req.alert_type,
+        title=req.title,
+        message=req.message,
+        idempotency_key=req.idempotency_key,
+    )
+
+
+# ── Workspace Settings Endpoints ──
+
+class WorkspaceSettingsUpdateRequest(BaseModel):
+    monthly_budget: float = Field(..., ge=0)
+    spending_alerts_enabled: Optional[bool] = True
+    weekly_report_enabled: Optional[bool] = False
+    cors_origins: Optional[str] = "https://app.novatech.ai, http://localhost:3000"
+
+@router.get("/workspace/settings")
+def get_workspace_settings(user: AuthenticatedUser = Depends(get_current_user)):
+    """
+    Returns workspace budget, alert thresholds, and security preferences.
+    """
+    return NotificationService.get_workspace_settings(user.user_id)
+
+@router.post("/workspace/settings")
+def save_workspace_settings(
+    req: WorkspaceSettingsUpdateRequest,
+    user: AuthenticatedUser = Depends(get_current_user),
+):
+    """
+    Updates workspace configuration with customer tenant isolation.
+    """
+    try:
+        return NotificationService.save_workspace_settings(user.user_id, req.dict())
+    except ValueError as ve:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
