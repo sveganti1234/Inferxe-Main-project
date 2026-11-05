@@ -13,6 +13,11 @@ import { usePageMeta } from '../../lib/hooks'
 import { MODELS, QUANTS, type Quant } from '../../data/gpus'
 import { estimateMemory, recommend, fmtGB, inr } from '../../lib/calc'
 import { getSession, saveSession, changeUserPassword, getUserPasswordLastUpdated } from '../../lib/authStore'
+import {
+  fetchBackendApiKeys,
+  createBackendApiKey,
+  revokeBackendApiKey,
+} from '../../lib/apiKeyService'
 import { NotebooksSection, ReviewsSection, RewardsSection, UsageDetail } from './ExtraSections'
 import { SovereignNodesMap } from '../../components/dashboard/SovereignNodesMap'
 import { InteractivePriceHistoryChart, type PriceHistoryRange, type GpuModel } from '../../components/dashboard/InteractivePriceHistoryChart'
@@ -47,6 +52,8 @@ type ApiKey = {
   key: string
   created: string
   revoked: boolean
+  environment?: 'live' | 'test'
+  lastUsed?: string | null
 }
 
 type SshKey = {
@@ -324,9 +331,43 @@ export default function MarketplaceWorkspace() {
   // API Keys UI State
   const [showNewKeyModal, setShowNewKeyModal] = useState(false)
   const [newKeyName, setNewKeyName] = useState('')
-  const [showKeySecretId, setShowKeySecretId] = useState<string | null>(null)
+  const [newKeyEnv, setNewKeyEnv] = useState<'live' | 'test'>('live')
+  const [keysLoading, setKeysLoading] = useState(false)
+  const [keysError, setKeysError] = useState<string | null>(null)
+  const [createdSecretData, setCreatedSecretData] = useState<{ id: string; name: string; key: string } | null>(null)
   const [keyToRevoke, setKeyToRevoke] = useState<ApiKey | null>(null)
   const [showJwtModal, setShowJwtModal] = useState(false)
+
+  const loadApiKeys = async () => {
+    const session = getSession()
+    if (!session?.token) {
+      return
+    }
+    setKeysLoading(true)
+    setKeysError(null)
+    const res = await fetchBackendApiKeys()
+    if (res.ok && res.keys) {
+      const mapped: ApiKey[] = res.keys.map((k) => ({
+        id: k.id,
+        name: k.name,
+        key: `${k.key_prefix}••••••••`,
+        created: k.created_at ? new Date(k.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Recently',
+        revoked: !k.is_active || Boolean(k.revoked_at),
+        environment: k.environment,
+        lastUsed: k.last_used_at ? new Date(k.last_used_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Never used',
+      }))
+      setKeys(mapped)
+    } else if (res.error) {
+      setKeysError(res.error)
+    }
+    setKeysLoading(false)
+  }
+
+  useEffect(() => {
+    if (route === 'api-keys') {
+      void loadApiKeys()
+    }
+  }, [route])
 
   // SSH Keys UI State
   const [showAddSshModal, setShowAddSshModal] = useState(false)
@@ -646,28 +687,48 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
     setDeployToDelete(null)
   }
 
-  const handleCreateKey = (e: FormEvent) => {
+  const handleCreateKey = async (e: FormEvent) => {
     e.preventDefault()
     const name = newKeyName.trim() || `API Key ${keys.length + 1}`
-    const newKey: ApiKey = {
-      id: `key-${Date.now()}`,
-      name,
-      key: `inf_demo_live_${Math.random().toString(36).slice(2, 10)}${Math.random().toString(36).slice(2, 8)}`,
-      created: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
-      revoked: false,
+    const session = getSession()
+
+    if (!session?.token) {
+      flash('Please sign in with Cognito to generate production API keys.')
+      return
     }
-    setKeys((prev) => [newKey, ...prev])
-    setShowNewKeyModal(false)
-    setNewKeyName('')
-    setShowKeySecretId(newKey.id)
-    flash(`Demo API key "${name}" generated locally.`)
+
+    setKeysLoading(true)
+    const res = await createBackendApiKey(name, newKeyEnv)
+    setKeysLoading(false)
+
+    if (res.ok && res.data) {
+      setShowNewKeyModal(false)
+      setNewKeyName('')
+      setNewKeyEnv('live')
+      setCreatedSecretData({
+        id: res.data.id,
+        name: res.data.name,
+        key: res.data.api_key,
+      })
+      flash(`API key "${name}" created and saved to PostgreSQL.`)
+      void loadApiKeys()
+    } else {
+      flash(res.error || 'Failed to create API key.')
+    }
   }
 
-  const handleConfirmRevokeKey = () => {
+  const handleConfirmRevokeKey = async () => {
     if (!keyToRevoke) return
-    setKeys((prev) => prev.map((k) => (k.id === keyToRevoke.id ? { ...k, revoked: true } : k)))
-    flash(`Key "${keyToRevoke.name}" revoked locally.`)
-    setKeyToRevoke(null)
+    setKeysLoading(true)
+    const res = await revokeBackendApiKey(keyToRevoke.id)
+    setKeysLoading(false)
+    if (res.ok) {
+      flash(`API key "${keyToRevoke.name}" revoked in PostgreSQL.`)
+      setKeyToRevoke(null)
+      void loadApiKeys()
+    } else {
+      flash(res.error || 'Failed to revoke API key.')
+    }
   }
 
   const handleTopUpWallet = (e: FormEvent) => {
@@ -1505,12 +1566,31 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
             <div className="mw-toolbar">
               <div>
                 <h2>API Credentials</h2>
-                <p>Generate and manage authentication tokens for client applications and OpenAI SDK callers.</p>
+                <p>Generate and manage PostgreSQL-backed authentication keys for Inferxe Nemotron Inference API.</p>
               </div>
-              <button className="mw-primary" onClick={() => setShowNewKeyModal(true)}>
-                <Plus size={16} /> Create Demo Key
-              </button>
+              <div style={{ display: 'flex', gap: 10 }}>
+                {keysLoading && <span className="mw-muted" style={{ display: 'flex', alignItems: 'center', fontSize: '0.8rem' }}>Syncing...</span>}
+                <button className="mw-primary" onClick={() => setShowNewKeyModal(true)}>
+                  <Plus size={16} /> Create API Key
+                </button>
+              </div>
             </div>
+
+            {!getSession()?.token && (
+              <div style={{ padding: '12px 16px', background: 'rgba(234, 179, 8, 0.1)', border: '1px solid rgba(234, 179, 8, 0.3)', borderRadius: 8, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.82rem', color: '#eab308' }}>
+                  <strong>Authentication Notice:</strong> Please sign in with your Cognito account to manage persistent production API keys.
+                </span>
+                <Link to="/login" style={{ fontSize: '0.8rem', color: 'var(--brand-hi)', textDecoration: 'underline' }}>Sign In</Link>
+              </div>
+            )}
+
+            {keysError && (
+              <div style={{ padding: '12px 16px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 8, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.82rem', color: '#ef4444' }}>{keysError}</span>
+                <button className="mw-secondary" style={{ padding: '4px 10px', fontSize: '0.76rem' }} onClick={() => void loadApiKeys()}>Retry</button>
+              </div>
+            )}
 
             <div className="mw-panel">
               <div className="mw-panel-head">
@@ -1518,11 +1598,11 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                 <span className="mw-muted">{keys.filter((k) => !k.revoked).length} active</span>
               </div>
 
-              {keys.length === 0 ? (
+              {keys.length === 0 && !keysLoading ? (
                 <div className="mw-empty">
                   <span className="mw-icon-box"><KeyRound size={22} /></span>
                   <h3>No API Keys Issued</h3>
-                  <p>Generate a demo token to authenticate with the Inferxe endpoint.</p>
+                  <p>Generate a secure key to authenticate with the Inferxe PostgreSQL inference gateway.</p>
                   <button className="mw-primary" onClick={() => setShowNewKeyModal(true)}>
                     Generate Key
                   </button>
@@ -1533,8 +1613,10 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                     <thead>
                       <tr>
                         <th>Key Label</th>
-                        <th>Secret Token</th>
+                        <th>Prefix / Key</th>
+                        <th>Environment</th>
                         <th>Issued Date</th>
+                        <th>Last Used</th>
                         <th>Status</th>
                         <th>Actions</th>
                       </tr>
@@ -1547,35 +1629,35 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                             <small>{k.id}</small>
                           </td>
                           <td className="mw-key-cell">
-                            {k.revoked ? (
-                              '••••••••••••••••'
-                            ) : showKeySecretId === k.id ? (
-                              k.key
-                            ) : (
-                              `${k.key.slice(0, 14)}••••••••`
-                            )}
-                            {!k.revoked && (
-                              <button
-                                className="mw-icon-btn"
-                                onClick={() => setShowKeySecretId(showKeySecretId === k.id ? null : k.id)}
-                                aria-label="Toggle Key Visibility"
-                              >
-                                {showKeySecretId === k.id ? <EyeOff size={13} /> : <Eye size={13} />}
-                              </button>
-                            )}
+                            <code>{k.key}</code>
+                          </td>
+                          <td>
+                            <span style={{
+                              fontSize: '0.68rem',
+                              padding: '2px 7px',
+                              borderRadius: 4,
+                              background: k.environment === 'test' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(34, 197, 94, 0.15)',
+                              color: k.environment === 'test' ? '#60a5fa' : '#4ade80',
+                              border: k.environment === 'test' ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid rgba(34, 197, 94, 0.3)',
+                              fontWeight: 600,
+                              textTransform: 'uppercase'
+                            }}>
+                              {k.environment || 'live'}
+                            </span>
                           </td>
                           <td>{k.created}</td>
+                          <td style={{ fontSize: '0.8rem', color: 'var(--ink-3)' }}>{k.lastUsed || 'Never'}</td>
                           <td><StatusBadge>{k.revoked ? 'Revoked' : 'Active'}</StatusBadge></td>
                           <td>
                             {!k.revoked && (
                               <div className="mw-actions">
                                 <button
                                   onClick={() => {
-                                    void navigator.clipboard?.writeText(k.key)
-                                    flash('API key copied to clipboard.')
+                                    void navigator.clipboard?.writeText(k.key.replace(/•/g, ''))
+                                    flash('Key prefix copied to clipboard.')
                                   }}
                                 >
-                                  <Copy size={13} /> Copy
+                                  <Copy size={13} /> Copy Prefix
                                 </button>
                                 <button className="mw-danger" onClick={() => setKeyToRevoke(k)}>
                                   Revoke
@@ -3960,7 +4042,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
         <div className="mw-modal-backdrop" onClick={() => setShowNewKeyModal(false)}>
           <div className="mw-modal" onClick={(e) => e.stopPropagation()}>
             <div className="mw-modal-head">
-              <h3>Create Demo API Key</h3>
+              <h3>Create Inferxe API Key</h3>
               <button onClick={() => setShowNewKeyModal(false)} aria-label="Close"><X size={16} /></button>
             </div>
             <form onSubmit={handleCreateKey}>
@@ -3971,19 +4053,90 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                     required
                     value={newKeyName}
                     onChange={(e) => setNewKeyName(e.target.value)}
-                    placeholder="e.g. Chatbot Service Backend"
+                    placeholder="e.g. Production Nemotron Client"
                     style={{ padding: '8px 10px', background: 'var(--bg-2)', border: '1px solid var(--line-2)', borderRadius: 7, color: 'var(--ink)' }}
                   />
                 </label>
-                <p style={{ margin: 0, fontSize: '0.74rem', color: 'var(--ink-4)', lineHeight: 1.5 }}>
-                  This creates a simulated key for local frontend testing. Never share actual production credentials.
+                <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: '0.76rem', color: 'var(--ink-3)', marginTop: 10 }}>
+                  Environment
+                  <select
+                    value={newKeyEnv}
+                    onChange={(e) => setNewKeyEnv(e.target.value as 'live' | 'test')}
+                    style={{ padding: '8px 10px', background: 'var(--bg-2)', border: '1px solid var(--line-2)', borderRadius: 7, color: 'var(--ink)' }}
+                  >
+                    <option value="live">Live (Production)</option>
+                    <option value="test">Test (Sandbox / Staging)</option>
+                  </select>
+                </label>
+                <p style={{ margin: 0, fontSize: '0.74rem', color: 'var(--ink-4)', lineHeight: 1.5, marginTop: 10 }}>
+                  Keys are cryptographically hashed using SHA-256 and verified through PostgreSQL. Only the raw key will be displayed once.
                 </p>
               </div>
               <div className="mw-modal-foot">
                 <button type="button" className="mw-secondary" onClick={() => setShowNewKeyModal(false)}>Cancel</button>
-                <button type="submit" className="mw-primary">Generate Key</button>
+                <button type="submit" className="mw-primary" disabled={keysLoading}>
+                  {keysLoading ? 'Generating...' : 'Generate Key'}
+                </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 3b. Secret Key Generated Modal (Display Once) */}
+      {createdSecretData && (
+        <div className="mw-modal-backdrop" onClick={() => setCreatedSecretData(null)}>
+          <div className="mw-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
+            <div className="mw-modal-head" style={{ borderBottom: '1px solid rgba(34, 197, 94, 0.2)' }}>
+              <h3 style={{ color: '#4ade80', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Check size={18} /> API Key Created Successfully
+              </h3>
+              <button onClick={() => setCreatedSecretData(null)} aria-label="Close"><X size={16} /></button>
+            </div>
+            <div className="mw-modal-body" style={{ gap: 14 }}>
+              <div style={{ padding: '10px 14px', background: 'rgba(234, 179, 8, 0.1)', border: '1px solid rgba(234, 179, 8, 0.25)', borderRadius: 7, fontSize: '0.78rem', color: '#eab308', lineHeight: 1.5 }}>
+                <strong>Important:</strong> Save this key now! For security reasons, Inferxe only stores the SHA-256 hash. <strong>You will not be able to view this secret token again.</strong>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <span style={{ fontSize: '0.76rem', color: 'var(--ink-3)' }}>Key Name: <strong>{createdSecretData.name}</strong></span>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <input
+                    readOnly
+                    value={createdSecretData.key}
+                    style={{
+                      flex: 1,
+                      fontFamily: 'monospace',
+                      fontSize: '0.85rem',
+                      padding: '10px 12px',
+                      background: 'rgba(0, 0, 0, 0.4)',
+                      border: '1px solid var(--brand-line, #38bdf8)',
+                      borderRadius: 7,
+                      color: 'var(--brand-hi, #38bdf8)',
+                    }}
+                  />
+                  <button
+                    className="mw-primary"
+                    style={{ whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}
+                    onClick={() => {
+                      void navigator.clipboard?.writeText(createdSecretData.key)
+                      flash('Secret API Key copied to clipboard!')
+                    }}
+                  >
+                    <Copy size={14} /> Copy
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="mw-modal-foot">
+              <button
+                className="mw-primary"
+                style={{ width: '100%' }}
+                onClick={() => setCreatedSecretData(null)}
+              >
+                I have safely stored this key
+              </button>
+            </div>
           </div>
         </div>
       )}

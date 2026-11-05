@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "server:admin": "node auth/adminAuthServer.mjs",
-    "test:chat": "node rag/tests/test_chat_store.mjs"
+    "server:inference": "uvicorn inference.main:app --host 127.0.0.1 --port 8001 --reload",
+    "test:chat": "node rag/tests/test_chat_store.mjs",
+    "test:inference": "python -m unittest inference/tests/test_inference_api.py"
   }
 }
-
