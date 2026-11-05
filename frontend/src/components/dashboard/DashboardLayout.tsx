@@ -7,7 +7,6 @@ import {
   Bell,
   Gift,
   Moon,
-  NotebookPen,
   Star,
   Sun,
   Bookmark,
@@ -20,7 +19,6 @@ import {
   Globe,
   HelpCircle,
   KeyRound,
-  Layers,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -139,6 +137,50 @@ export function DashboardLayout({
   }, [])
 
   const unreadNotifCount = liveNotifs.filter((n) => !n.read).length
+
+  // Synchronized Monthly Spend Limit & Quota state (shared with Workspace Settings)
+  const [monthlyBudget, setMonthlyBudget] = useState<number>(() => {
+    try {
+      const raw = localStorage.getItem('inferxe_demo_budget')
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        const num = Number(parsed)
+        if (!isNaN(num) && num > 0) return num
+      }
+    } catch {
+      /* fallback to default */
+    }
+    return 10000
+  })
+
+  useEffect(() => {
+    const syncBudget = () => {
+      try {
+        const raw = localStorage.getItem('inferxe_demo_budget')
+        if (raw) {
+          const parsed = JSON.parse(raw)
+          const num = Number(parsed)
+          if (!isNaN(num) && num > 0) {
+            setMonthlyBudget(num)
+            return
+          }
+        }
+      } catch {
+        /* fallback to default */
+      }
+      setMonthlyBudget(10000)
+    }
+
+    window.addEventListener('inferxe_budget_updated', syncBudget)
+    window.addEventListener('storage', syncBudget)
+    return () => {
+      window.removeEventListener('inferxe_budget_updated', syncBudget)
+      window.removeEventListener('storage', syncBudget)
+    }
+  }, [])
+
+  const currentMonthSpend = 4820
+  const budgetUsedPct = Math.min(100, Math.max(0, Math.round((currentMonthSpend / (monthlyBudget || 1)) * 100)))
 
   // Responsive mobile screen tracking
   const [isMobile, setIsMobile] = useState<boolean>(() => {
@@ -399,8 +441,7 @@ export function DashboardLayout({
   const customerNavItems: NavItem[] = [
     { label: 'Customer Dashboard', to: '/dashboard/customer', icon: LayoutDashboard, matchExact: true },
     { label: 'GPU Marketplace', to: '/dashboard/gpus', icon: Cpu, matchExact: true },
-    { label: 'GPU Recommendations', to: '/dashboard/models', icon: Sparkles, matchExact: true },
-    { label: 'GPU Comparison', to: '/dashboard/compare', icon: Layers, matchExact: true },
+    { label: 'LLM Catalog', to: '/dashboard/models', icon: Sparkles, matchExact: true },
     { label: 'Orders and Purchase History', to: '/dashboard/orders', icon: FileText, matchExact: true },
     { label: 'Wallet, Payments and Billing', to: '/dashboard/wallet', icon: Wallet, matchExact: true },
     { label: 'Checkout & Payments', to: '/dashboard/checkout', icon: CreditCard, matchExact: true },
@@ -413,7 +454,6 @@ export function DashboardLayout({
     { label: 'Spot Price History', to: '/dashboard/price-history', icon: TrendingUp, matchExact: true },
     { label: 'Notifications', to: '/dashboard/notifications', icon: Bell, matchExact: true },
     { label: 'Profile and Settings', to: '/dashboard/profile', icon: User, matchExact: true },
-    { label: 'Notebooks and SSH', to: '/dashboard/notebooks', icon: NotebookPen, matchExact: true },
     { label: 'Reviews and Notes', to: '/dashboard/reviews', icon: Star, matchExact: true },
     { label: 'Rewards and Discounts', to: '/dashboard/rewards', icon: Gift, matchExact: true },
     { label: 'Chatbot and Help', to: '/dashboard/faq', icon: HelpCircle, matchExact: true },
@@ -1047,13 +1087,16 @@ export function DashboardLayout({
           {/* Quota & Organization Footer */}
           <div className="dash-sidebar__footer">
             {portalRole === 'customer' ? (
-              <div className="dash-quota-card" title="Monthly Spend Limit: ₹75,000 (42% used)">
+              <div
+                className="dash-quota-card"
+                title={`Monthly Spend Limit: ₹${monthlyBudget.toLocaleString('en-IN')} (${budgetUsedPct}% used)`}
+              >
                 <div className="dash-quota-card__header">
                   <span className="dash-quota-card__label">Monthly Spend Limit</span>
-                  <span className="dash-quota-card__val">₹75,000</span>
+                  <span className="dash-quota-card__val">₹{monthlyBudget.toLocaleString('en-IN')}</span>
                 </div>
                 <div className="dash-quota-progress">
-                  <div className="dash-quota-bar" style={{ width: '42%' }} />
+                  <div className="dash-quota-bar" style={{ width: `${budgetUsedPct}%` }} />
                 </div>
                 <div className="dash-quota-card__sub">
                   NovaTech AI Systems · Sovereign Active Tier
