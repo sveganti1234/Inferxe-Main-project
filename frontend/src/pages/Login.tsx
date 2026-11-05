@@ -14,7 +14,6 @@ import {
 
 import { saveSession, loginAdminBackend, isAdministratorEmail } from '../lib/authStore'
 import { recordCustomerActivity } from '../lib/customerService'
-import { recordUserRegistration } from '../lib/userStore'
 import {
   AlertCircle,
   ArrowLeft,
@@ -443,12 +442,6 @@ export default function Login({ initialMode }: LoginProps) {
               createdAt: new Date().toISOString(),
             }
             localStorage.setItem('inferxe_registered_users', JSON.stringify(registered))
-            recordUserRegistration({
-              fullName: fullName.trim(),
-              email: cleanEmail,
-              username: cleanEmail.split('@')[0],
-              organization: organization.trim() || 'Customer Workspace',
-            })
           } catch (e) {
             console.error('Failed to store customer locally:', e)
           }
