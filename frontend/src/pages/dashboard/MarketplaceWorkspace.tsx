@@ -260,7 +260,7 @@ export default function MarketplaceWorkspace() {
 
   useEffect(() => {
     if (route === 'providers') {
-      navigate('/dashboard/customer', { replace: true })
+      navigate('/dashboard/provider', { replace: true })
     }
   }, [route, navigate])
 

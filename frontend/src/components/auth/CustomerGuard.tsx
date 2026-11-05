@@ -24,14 +24,27 @@ export function CustomerGuard({ children }: CustomerGuardProps) {
       return
     }
 
-    // 2. An admin account MUST NOT access customer routes
     const role = getPortalRole(session.user?.role)
+    const subpath = location.pathname.replace(/^\/dashboard\/?/, '')
+    const isAdminRoute = subpath.startsWith('provider') || subpath === 'users/map'
+
+    // 2. Admin accounts accessing admin/provider routes are authorized; customer-only routes redirect to /dashboard
     if (role === 'admin') {
+      if (isAdminRoute) {
+        setAuthState('authorized')
+        return
+      }
       setAuthState('to_admin')
       return
     }
 
-    // 3. Authorized customer
+    // 3. Customer accounts must not access admin/provider management routes
+    if (isAdminRoute) {
+      setAuthState('to_admin')
+      return
+    }
+
+    // 4. Authorized customer
     setAuthState('authorized')
   }, [location.pathname])
 
