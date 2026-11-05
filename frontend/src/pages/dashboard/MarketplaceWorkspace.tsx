@@ -127,7 +127,7 @@ const initialOrders: OrderItem[] = [
 ]
 
 const initialTransactions: TransactionItem[] = [
-  { id: 'TX-1048', desc: 'Wallet top-up (Demo)', date: '10 Oct 2026', amount: 5000, isCredit: true, status: 'Completed' },
+  { id: 'TX-1048', desc: 'Wallet top-up (Demo)', date: '10 Oct 2026', amount: 10000, isCredit: true, status: 'Completed' },
   { id: 'TX-1032', desc: 'Inference deployment billing', date: '08 Oct 2026', amount: 1240, isCredit: false, status: 'Completed' },
   { id: 'TX-1011', desc: 'Inference runtime usage', date: '01 Oct 2026', amount: 3580, isCredit: false, status: 'Completed' },
 ]
@@ -450,8 +450,19 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
 
   // Billing UI State
   const [showTopUpModal, setShowTopUpModal] = useState(false)
-  const [topUpAmount, setTopUpAmount] = useState<number>(5000)
+  const [topUpAmount, setTopUpAmount] = useState<string>('10000')
   const [viewInvoiceItem, setViewInvoiceItem] = useState<TransactionItem | null>(null)
+
+  const numericTopUp = Math.floor(Number(topUpAmount)) || 0
+
+  const handleOpenTopUpModal = (prefill?: string) => {
+    if (prefill) {
+      setTopUpAmount(prefill)
+    } else if (!topUpAmount || Number(topUpAmount) <= 0) {
+      setTopUpAmount('10000')
+    }
+    setShowTopUpModal(true)
+  }
 
   // Notifications Filter
   const [notifFilter, setNotifFilter] = useState<'all' | 'unread' | 'read'>('all')
@@ -757,23 +768,45 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
 
   const handleTopUpWallet = (e: FormEvent) => {
     e.preventDefault()
-    setWalletBalance((prev) => prev + topUpAmount)
+    const amountNum = Math.floor(Number(topUpAmount))
+    if (!amountNum || isNaN(amountNum) || amountNum <= 0) {
+      flash('Please enter a valid amount greater than ₹0')
+      return
+    }
+
+    const newBalance = walletBalance + amountNum
+    setWalletBalance(newBalance)
+    saveStore(STORE.wallet, newBalance)
+
     const newTx: TransactionItem = {
       id: `TX-${Math.floor(1000 + Math.random() * 9000)}`,
       desc: 'Wallet top-up (Demo)',
       date: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
-      amount: topUpAmount,
+      amount: amountNum,
       isCredit: true,
       status: 'Completed',
     }
-    setTransactions((prev) => [newTx, ...prev])
+    const updatedTxs = [newTx, ...transactions]
+    setTransactions(updatedTxs)
+    saveStore(STORE.transactions, updatedTxs)
+
     setShowTopUpModal(false)
     addNotification({
-      title: `Wallet Credited: +₹${topUpAmount.toLocaleString('en-IN')}`,
-      detail: `₹${topUpAmount.toLocaleString('en-IN')} successfully credited to compute wallet. Transaction ${newTx.id} confirmed.`,
+      title: `Wallet Credited: +₹${amountNum.toLocaleString('en-IN')}`,
+      detail: `₹${amountNum.toLocaleString('en-IN')} successfully credited to compute wallet. Transaction ${newTx.id} confirmed.`,
       type: 'Billing',
     })
-    flash(`₹${topUpAmount.toLocaleString('en-IN')} added to your wallet! Transaction completed.`)
+    flash(`₹${amountNum.toLocaleString('en-IN')} added to your wallet! Transaction completed.`)
+
+    try {
+      window.dispatchEvent(new CustomEvent('inferxe_wallet_change', { detail: newBalance }))
+    } catch {
+      /* ignore */
+    }
+
+    if (route !== 'wallet' && route !== 'billing') {
+      navigate('/dashboard/wallet')
+    }
   }
 
   const handleAddSshKey = (e: FormEvent) => {
@@ -1043,8 +1076,19 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                   <strong>{money(walletBalance)}</strong>
                   <small>
                     {hoursLeft === null ? 'Nothing billing right now' : `≈ ${hoursLeft.toFixed(1)} hrs left at current usage`}
-                    {lowWallet && ' · '}
-                    {lowWallet && <Link to="/dashboard/wallet" style={{ color: 'var(--brand-hi)', fontWeight: 600 }}>Top up</Link>}
+                    {' · '}
+                    <button
+                      type="button"
+                      className="mw-link-btn"
+                      onClick={() => handleOpenTopUpModal()}
+                      style={{ color: 'var(--brand-hi)', fontWeight: 600 }}
+                    >
+                      Top up
+                    </button>
+                    {' · '}
+                    <Link to="/dashboard/wallet" style={{ color: 'var(--ink-3)' }}>
+                      History
+                    </Link>
                   </small>
                 </div>
                 <div className="mw-metric">
@@ -1882,7 +1926,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                 <h2>Wallet & Billing</h2>
                 <p>Manage prepaid inference credits, monitor consumption, and inspect invoices.</p>
               </div>
-              <button className="mw-primary" onClick={() => setShowTopUpModal(true)}>
+              <button className="mw-primary" onClick={() => handleOpenTopUpModal()}>
                 <Plus size={16} /> Top Up Balance (Demo)
               </button>
             </div>
@@ -1928,27 +1972,35 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                     </tr>
                   </thead>
                   <tbody>
-                    {transactions.map((tx) => (
-                      <tr key={tx.id}>
-                        <td>
-                          <strong>{tx.id}</strong>
-                        </td>
-                        <td>{tx.desc}</td>
-                        <td>{tx.date}</td>
-                        <td style={{ color: tx.isCredit ? 'var(--brand-hi)' : 'var(--ink)' }}>
-                          {tx.isCredit ? `+${money(tx.amount)}` : `−${money(tx.amount)}`}
-                        </td>
-                        <td><StatusBadge>{tx.status}</StatusBadge></td>
-                        <td>
-                          <button
-                            className="mw-link-btn"
-                            onClick={() => setViewInvoiceItem(tx)}
-                          >
-                            View Invoice
-                          </button>
+                    {transactions.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} style={{ textAlign: 'center', color: 'var(--ink-4)', padding: 24 }}>
+                          No transactions recorded yet.
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      transactions.map((tx) => (
+                        <tr key={tx.id}>
+                          <td>
+                            <strong>{tx.id}</strong>
+                          </td>
+                          <td>{tx.desc}</td>
+                          <td>{tx.date}</td>
+                          <td style={{ color: tx.isCredit ? 'var(--brand-hi)' : 'var(--ink)' }}>
+                            {tx.isCredit ? `+${money(tx.amount)}` : `−${money(tx.amount)}`}
+                          </td>
+                          <td><StatusBadge>{tx.status}</StatusBadge></td>
+                          <td>
+                            <button
+                              className="mw-link-btn"
+                              onClick={() => setViewInvoiceItem(tx)}
+                            >
+                              View Invoice
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -3363,7 +3415,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                 <h2>Prepaid Wallet & Credit Ledger</h2>
                 <p>Manage prepaid inference credits, monitor consumption, and inspect invoices.</p>
               </div>
-              <button className="mw-primary" onClick={() => setShowTopUpModal(true)}>
+              <button className="mw-primary" onClick={() => handleOpenTopUpModal()}>
                 <Plus size={16} /> Top Up Balance (Demo)
               </button>
             </div>
@@ -3409,22 +3461,30 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                     </tr>
                   </thead>
                   <tbody>
-                    {transactions.map((tx) => (
-                      <tr key={tx.id}>
-                        <td><strong>{tx.id}</strong></td>
-                        <td>{tx.desc}</td>
-                        <td>{tx.date}</td>
-                        <td style={{ color: tx.isCredit ? 'var(--brand-hi)' : 'var(--ink)' }}>
-                          {tx.isCredit ? `+${money(tx.amount)}` : `−${money(tx.amount)}`}
-                        </td>
-                        <td><StatusBadge>{tx.status}</StatusBadge></td>
-                        <td>
-                          <button className="mw-link-btn" onClick={() => setViewInvoiceItem(tx)}>
-                            View Invoice
-                          </button>
+                    {transactions.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} style={{ textAlign: 'center', color: 'var(--ink-4)', padding: 24 }}>
+                          No transactions recorded yet.
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      transactions.map((tx) => (
+                        <tr key={tx.id}>
+                          <td><strong>{tx.id}</strong></td>
+                          <td>{tx.desc}</td>
+                          <td>{tx.date}</td>
+                          <td style={{ color: tx.isCredit ? 'var(--brand-hi)' : 'var(--ink)' }}>
+                            {tx.isCredit ? `+${money(tx.amount)}` : `−${money(tx.amount)}`}
+                          </td>
+                          <td><StatusBadge>{tx.status}</StatusBadge></td>
+                          <td>
+                            <button className="mw-link-btn" onClick={() => setViewInvoiceItem(tx)}>
+                              View Invoice
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -4171,30 +4231,117 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
               <button onClick={() => setShowTopUpModal(false)} aria-label="Close"><X size={16} /></button>
             </div>
             <form onSubmit={handleTopUpWallet}>
-              <div className="mw-modal-body">
-                <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--ink-3)' }}>
-                  Select an amount to simulate adding funds to your prepaid inference balance:
+              <div className="mw-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--ink-3)', lineHeight: 1.5 }}>
+                  Enter your desired amount or pick a quick preset to add funds to your prepaid inference wallet:
                 </p>
-                <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-                  {[2000, 5000, 10000, 25000].map((amt) => (
-                    <button
-                      key={amt}
-                      type="button"
-                      className={`mw-filter-pill ${topUpAmount === amt ? 'is-active' : ''}`}
-                      onClick={() => setTopUpAmount(amt)}
+
+                {/* Custom Amount Input Field */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <label htmlFor="wallet-topup-input" style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--ink-2)' }}>
+                    Top-Up Amount (₹)
+                  </label>
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <span
+                      style={{
+                        position: 'absolute',
+                        left: 14,
+                        color: 'var(--brand-hi, #76b900)',
+                        fontSize: '1.15rem',
+                        fontWeight: 700,
+                        pointerEvents: 'none',
+                        userSelect: 'none',
+                      }}
                     >
-                      {money(amt)}
-                    </button>
-                  ))}
+                      ₹
+                    </span>
+                    <input
+                      id="wallet-topup-input"
+                      type="number"
+                      min="1"
+                      step="1"
+                      placeholder="Enter amount (e.g. 10000)"
+                      value={topUpAmount}
+                      onChange={(e) => {
+                        const sanitized = e.target.value.replace(/[^0-9]/g, '')
+                        setTopUpAmount(sanitized)
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '10px 14px 10px 34px',
+                        fontSize: '1.05rem',
+                        fontWeight: 600,
+                        fontFamily: 'var(--font-mono, monospace)',
+                        background: 'var(--bg-2, #111a14)',
+                        border: '1px solid var(--line-2, #26382a)',
+                        borderRadius: 8,
+                        color: 'var(--ink, #fff)',
+                        outline: 'none',
+                      }}
+                      autoFocus
+                      required
+                    />
+                  </div>
                 </div>
-                <div className="mw-info-box" style={{ marginTop: 8 }}>
+
+                {/* Quick Presets (Amounts 2000 and 5000 removed) */}
+                <div>
+                  <span style={{ fontSize: '0.74rem', color: 'var(--ink-4)', display: 'block', marginBottom: 8, fontWeight: 500 }}>
+                    Quick Select Presets:
+                  </span>
+                  <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+                    {[10000, 25000, 50000, 100000].map((amt) => (
+                      <button
+                        key={amt}
+                        type="button"
+                        className={`mw-filter-pill ${numericTopUp === amt ? 'is-active' : ''}`}
+                        onClick={() => setTopUpAmount(String(amt))}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        {money(amt)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Live balance preview */}
+                {numericTopUp > 0 && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '10px 14px',
+                      background: 'rgba(118, 185, 0, 0.08)',
+                      borderRadius: 8,
+                      border: '1px solid rgba(118, 185, 0, 0.25)',
+                      fontSize: '0.8rem',
+                    }}
+                  >
+                    <span style={{ color: 'var(--ink-3)' }}>
+                      Current Balance: <strong>{money(walletBalance)}</strong>
+                    </span>
+                    <span style={{ color: 'var(--brand-hi, #76b900)', fontWeight: 600 }}>
+                      New Balance: <strong>{money(walletBalance + numericTopUp)}</strong>
+                    </span>
+                  </div>
+                )}
+
+                <div className="mw-info-box" style={{ marginTop: 0 }}>
                   <ShieldCheck size={16} />
-                  <span>Simulated transaction. No actual credit card or bank account is charged.</span>
+                  <span>Simulated transaction. Funds will instantly reflect in your wallet and show in the transaction history.</span>
                 </div>
               </div>
               <div className="mw-modal-foot">
                 <button type="button" className="mw-secondary" onClick={() => setShowTopUpModal(false)}>Cancel</button>
-                <button type="submit" className="mw-primary">Add {money(topUpAmount)}</button>
+                <button
+                  type="submit"
+                  className="mw-primary"
+                  disabled={numericTopUp <= 0}
+                  style={numericTopUp <= 0 ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                >
+                  {numericTopUp > 0 ? `Add ${money(numericTopUp)}` : 'Enter an amount'}
+                </button>
               </div>
             </form>
           </div>
@@ -4961,4 +5108,3 @@ function SettingsSection({ flash }: { flash: (msg: string) => void }) {
     </div>
   )
 }
-

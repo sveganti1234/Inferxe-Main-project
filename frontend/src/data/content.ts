@@ -338,7 +338,7 @@ export const E2E_STEPS = [
 
 export const ARCH_LAYERS = [
   { layer: 'Client', main: 'React + TypeScript', does: 'Requirements, GPU selection, deployment status, pricing and inference UI.' },
-  { layer: 'Identity / API', main: 'AWS Cognito, API keys, HTTPS', does: 'Authentication, authorization and secure programmatic access.' },
+  { layer: 'Identity / API', main: 'Demo sessions, API keys, HTTPS', does: 'Local demo identity and secure programmatic access.' },
   { layer: 'Application', main: 'FastAPI + Python', does: 'Requirement analysis, GPU recommendation, provisioning orchestration, deployment state and inference coordination.' },
   { layer: 'Provider integration', main: 'Provider API / SDK adapter', does: 'Availability and resource lookup, instance creation and lifecycle operations.' },
   { layer: 'Execution', main: 'GPU + Docker + vLLM + Qwen / Llama / Mistral', does: 'Actual model serving and inference.' },
@@ -424,7 +424,7 @@ export const STACK: { cat: string; tech: string; role: string }[] = [
   { cat: 'GPU compute', tech: 'NVIDIA GPUs via JarvisLabs.ai', role: 'Actual GPU compute and provider resource lifecycle (single provider in the MVP).' },
   { cat: 'LLM serving', tech: 'vLLM', role: 'GPU-backed model serving and OpenAI-compatible inference endpoint.' },
   { cat: 'Models', tech: 'Qwen / Llama / Mistral', role: 'Open-weight model execution on provisioned GPUs.' },
-  { cat: 'Authentication', tech: 'AWS Cognito + TOTP', role: 'Registration, login and tokens, with optional second factor — no SMS dependency.' },
+  { cat: 'Authentication', tech: 'Local demo sessions', role: 'Browser-only demo registration and login; not intended for production identity or access control.' },
   { cat: 'API security', tech: 'API keys + HTTPS', role: 'Programmatic access and encryption in transit.' },
   { cat: 'Cache', tech: 'Redis (optional)', role: 'Availability, pricing and deployment-state cache.' },
   { cat: 'Observability', tech: 'Prometheus + Grafana', role: 'Health, latency, throughput and resource metrics.' },
@@ -436,7 +436,7 @@ export const STACK: { cat: string; tech: string; role: string }[] = [
 /* ── Security, trust, risk (DPR §6.7, §11) ────────────── */
 export const SECURITY_CONTROLS: { icon: LucideIcon; title: string; body: string }[] = [
   { icon: KeyRound, title: 'Managed secrets', body: 'Provider credentials and deployment secrets never live in source code — environment variables or secret management, with rotation.' },
-  { icon: Fingerprint, title: 'Strong identity', body: 'AWS Cognito for registration and login, with optional TOTP second factor and no SMS dependency.' },
+  { icon: Fingerprint, title: 'Demo authentication', body: 'Customer demo accounts are stored in the browser and are not production-secure. Production deployments must configure a trusted identity provider.' },
   { icon: Network, title: 'Isolated inference endpoints', body: 'vLLM is never exposed as a public unauthenticated service — the backend is the controlled interface to the model.' },
   { icon: Gauge, title: 'Rate limits & quotas', body: 'Request limits protect both the platform and GPU spend from abuse or accidental spikes.' },
   { icon: ScanSearch, title: 'Input validation', body: 'Request size and parameters are validated before anything is forwarded to a model.' },
@@ -632,7 +632,7 @@ export const STACK_MARQUEE = [
   'PostgreSQL',
   'React',
   'TypeScript',
-  'AWS Cognito',
+  'Demo authentication',
   'Prometheus',
   'Grafana',
   'Redis',
@@ -642,4 +642,3 @@ export const STACK_MARQUEE = [
   'JarvisLabs',
   'OpenAPI',
 ]
-

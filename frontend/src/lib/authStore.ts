@@ -1,4 +1,3 @@
-import { updatePassword, signOut } from 'aws-amplify/auth'
 import { recordUserLogin } from './userStore'
 
 export type PortalRole = 'customer' | 'admin'
@@ -26,8 +25,6 @@ export interface JwtClaims {
   exp?: number
   iat?: number
   name?: string
-  'cognito:username'?: string
-  'cognito:groups'?: string[]
   [key: string]: unknown
 }
 
@@ -52,80 +49,6 @@ export function isJwtExpired(token: string, skewSeconds = 30): boolean {
   const claims = decodeJwt(token)
   if (!claims?.exp) return false
   return Date.now() / 1000 >= claims.exp - skewSeconds
-}
-
-/* ── AWS Cognito (USER_PASSWORD_AUTH over the public Cognito IDP endpoint) ──
-   Enabled when VITE_COGNITO_REGION and VITE_COGNITO_CLIENT_ID are set. */
-const rawAuthority = (import.meta.env.VITE_COGNITO_AUTHORITY as string | undefined)?.trim()
-const derivedRegion = rawAuthority?.match(/cognito-idp\.([^.]+)\.amazonaws\.com/)?.[1]
-const COGNITO_REGION =
-  (import.meta.env.VITE_COGNITO_REGION as string | undefined)?.trim() ||
-  derivedRegion ||
-  'ap-south-1'
-const COGNITO_CLIENT_ID =
-  (import.meta.env.VITE_COGNITO_CLIENT_ID as string | undefined)?.trim() || '334trhnhmim8v42gq4bgk7umst'
-
-export const cognitoEnabled = Boolean(COGNITO_CLIENT_ID)
-
-async function cognitoCall<T>(target: string, body: Record<string, unknown>): Promise<{ ok: boolean; data?: T; error?: string }> {
-  try {
-    const res = await fetch(`https://cognito-idp.${COGNITO_REGION}.amazonaws.com/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-amz-json-1.1',
-        'X-Amz-Target': `AWSCognitoIdentityProviderService.${target}`,
-      },
-      body: JSON.stringify({ ClientId: COGNITO_CLIENT_ID, ...body }),
-    })
-    const data = await res.json()
-    if (!res.ok) return { ok: false, error: (data as { message?: string }).message || 'Cognito request failed.' }
-    return { ok: true, data: data as T }
-  } catch {
-    return { ok: false, error: 'Unable to reach AWS Cognito.' }
-  }
-}
-
-function sessionFromCognitoToken(idToken: string, fallbackEmail: string, fallbackRole: string): AuthSession {
-  const claims = decodeJwt(idToken) || {}
-  const groups = claims['cognito:groups'] || []
-  const role = groups.includes('admin') ? 'admin' : fallbackRole
-  const email = claims.email || fallbackEmail
-  return {
-    token: idToken,
-    user: {
-      id: claims.sub || `usr_${Math.random().toString(36).substring(2, 8)}`,
-      fullName: claims.name || email.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
-      email,
-      username: claims['cognito:username'] || email.split('@')[0],
-      role,
-    },
-    expiresAt: claims.exp ? claims.exp * 1000 : Date.now() + 60 * 60 * 1000,
-  }
-}
-
-async function cognitoLogin(email: string, password: string, role: string): Promise<{ ok: boolean; session?: AuthSession; error?: string }> {
-  const r = await cognitoCall<{ AuthenticationResult?: { IdToken: string } }>('InitiateAuth', {
-    AuthFlow: 'USER_PASSWORD_AUTH',
-    AuthParameters: { USERNAME: email.trim(), PASSWORD: password },
-  })
-  if (!r.ok || !r.data?.AuthenticationResult?.IdToken) {
-    return { ok: false, error: r.error || 'Additional Cognito challenge required (MFA / new password).' }
-  }
-  const session = sessionFromCognitoToken(r.data.AuthenticationResult.IdToken, email.trim(), role)
-  saveSession(session)
-  return { ok: true, session }
-}
-
-async function cognitoRegister(fullName: string, email: string, password: string): Promise<{ ok: boolean; error?: string }> {
-  const r = await cognitoCall('SignUp', {
-    Username: email.trim(),
-    Password: password,
-    UserAttributes: [
-      { Name: 'email', Value: email.trim() },
-      { Name: 'name', Value: fullName.trim() },
-    ],
-  })
-  return r.ok ? { ok: true } : { ok: false, error: r.error }
 }
 
 export function getPortalRole(role?: string): PortalRole {
@@ -170,9 +93,6 @@ export function saveSession(session: AuthSession): void {
 }
 
 export function clearSession(): void {
-  try {
-    signOut().catch(() => {})
-  } catch {}
   try {
     localStorage.removeItem(AUTH_STORAGE_KEY)
     window.dispatchEvent(new Event('inferxe_auth_change'))
@@ -297,34 +217,56 @@ export function switchRole(targetRole: PortalRole): AuthSession {
 
 export async function loginUser(
   email: string,
-  _password?: string,
+  password?: string,
   explicitRole?: string
 ): Promise<{ ok: boolean; session?: AuthSession; error?: string }> {
-  if (cognitoEnabled && _password) {
-    return cognitoLogin(email, _password, explicitRole || 'customer')
+  const cleanEmail = email.trim().toLowerCase()
+  if (!cleanEmail || !password) {
+    return { ok: false, error: 'Please enter your email and password.' }
   }
-  return {
-    ok: false,
-    error: 'AWS Cognito authentication is required. Please sign in with valid credentials.',
+
+  const accountName = cleanEmail.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+  const session: AuthSession = {
+    token: `ix-demo-${Math.random().toString(36).substring(2, 10)}`,
+    user: {
+      id: `usr_${cleanEmail.split('@')[0]}`,
+      fullName: accountName,
+      email: cleanEmail,
+      username: cleanEmail.split('@')[0],
+      role: explicitRole || 'customer',
+      organization: 'Demo Workspace',
+    },
+    expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
   }
+  saveSession(session)
+  return { ok: true, session }
 }
 
 export async function registerUser(
   fullName: string,
   email: string,
-  _password?: string,
-  _organization?: string,
-  _explicitRole: string = 'customer'
+  password?: string,
+  organization?: string,
+  explicitRole: string = 'customer'
 ): Promise<{ ok: boolean; session?: AuthSession; error?: string }> {
-  if (cognitoEnabled && _password) {
-    const r = await cognitoRegister(fullName, email, _password)
-    if (!r.ok) return { ok: false, error: r.error }
-    return { ok: false, error: 'Account created. Check your email for the Cognito verification code, confirm it, then sign in.' }
+  const cleanEmail = email.trim().toLowerCase()
+  if (!fullName.trim() || !cleanEmail || !password) {
+    return { ok: false, error: 'Please provide your name, email, and password.' }
   }
-  return {
-    ok: false,
-    error: 'AWS Cognito registration is required.',
+  const session: AuthSession = {
+    token: `ix-demo-${Math.random().toString(36).substring(2, 10)}`,
+    user: {
+      id: `usr_${cleanEmail.split('@')[0]}`,
+      fullName: fullName.trim(),
+      email: cleanEmail,
+      username: cleanEmail.split('@')[0],
+      role: explicitRole,
+      organization: organization?.trim() || 'Demo Workspace',
+    },
+    expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
   }
+  saveSession(session)
+  return { ok: true, session }
 }
 
 export function getUserPasswordLastUpdated(email: string): string | null {
@@ -363,22 +305,28 @@ export async function changeUserPassword(
   }
 
   try {
-    await updatePassword({
-      oldPassword: currentPassword,
-      newPassword,
-    })
-
+    const raw = localStorage.getItem('inferxe_registered_users')
+    const registered = raw ? JSON.parse(raw) as Record<string, { passwordHash?: string }> : {}
+    const account = registered[email.trim().toLowerCase()]
+    if (account?.passwordHash && account.passwordHash !== currentPassword) {
+      return { ok: false, error: 'Current password is incorrect.' }
+    }
+    registered[email.trim().toLowerCase()] = {
+      ...account,
+      passwordHash: newPassword,
+    }
+    localStorage.setItem('inferxe_registered_users', JSON.stringify(registered))
     const key = `inferxe_pwd_updated_${email.trim().toLowerCase()}`
     localStorage.setItem(key, new Date().toISOString())
 
     return { ok: true }
   } catch (err) {
-    console.error('Cognito password update failed:', err)
+    console.error('Local demo password update failed:', err)
 
     const message =
       err instanceof Error
         ? err.message
-        : 'Unable to update your password.'
+        : 'Unable to update your password in this browser.'
 
     return { ok: false, error: message }
   }
