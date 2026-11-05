@@ -95,6 +95,30 @@ export default function App() {
               }
             />
             <Route
+              path="/dashboard/users/map"
+              element={
+                <AdminGuard>
+                  <MarketplaceWorkspace />
+                </AdminGuard>
+              }
+            />
+            <Route
+              path="/dashboard/provider"
+              element={
+                <AdminGuard>
+                  <MarketplaceWorkspace />
+                </AdminGuard>
+              }
+            />
+            <Route
+              path="/dashboard/provider/*"
+              element={
+                <AdminGuard>
+                  <MarketplaceWorkspace />
+                </AdminGuard>
+              }
+            />
+            <Route
               path="/dashboard/*"
               element={
                 <CustomerGuard>

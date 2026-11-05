@@ -26,8 +26,29 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react(), authPlugin],
-    server: { host: '127.0.0.1', port: 5173, strictPort: false },
-    preview: { host: '127.0.0.1', port: 4173 },
+    server: {
+      host: '127.0.0.1',
+      port: 5173,
+      strictPort: false,
+      proxy: {
+        '/api/notifications': { target: 'http://127.0.0.1:8000', changeOrigin: true },
+        '/api/wallet': { target: 'http://127.0.0.1:8000', changeOrigin: true },
+        '/api/deployments': { target: 'http://127.0.0.1:8000', changeOrigin: true },
+        '/api/gpu': { target: 'http://127.0.0.1:8000', changeOrigin: true },
+        '/api/chat': { target: 'http://127.0.0.1:8000', changeOrigin: true },
+      },
+    },
+    preview: {
+      host: '127.0.0.1',
+      port: 4173,
+      proxy: {
+        '/api/notifications': { target: 'http://127.0.0.1:8000', changeOrigin: true },
+        '/api/wallet': { target: 'http://127.0.0.1:8000', changeOrigin: true },
+        '/api/deployments': { target: 'http://127.0.0.1:8000', changeOrigin: true },
+        '/api/gpu': { target: 'http://127.0.0.1:8000', changeOrigin: true },
+        '/api/chat': { target: 'http://127.0.0.1:8000', changeOrigin: true },
+      },
+    },
     build: { target: 'es2022', sourcemap: false },
   }
 })
