@@ -32,12 +32,24 @@ import './styles/index.css'
 
 import App from './App'
 
-// AWS Cognito configuration
+// AWS Cognito configuration: Derive configuration directly from VITE_COGNITO_AUTHORITY and VITE_COGNITO_CLIENT_ID
+const rawAuthority = (import.meta.env.VITE_COGNITO_AUTHORITY as string | undefined)?.trim()
+const derivedPoolId = rawAuthority ? rawAuthority.replace(/\/+$/, '').split('/').pop() : undefined
+
+const userPoolId =
+  (import.meta.env.VITE_COGNITO_USER_POOL_ID as string | undefined)?.trim() ||
+  derivedPoolId ||
+  'ap-south-1_cYw1QjgbQ'
+
+const userPoolClientId =
+  (import.meta.env.VITE_COGNITO_CLIENT_ID as string | undefined)?.trim() ||
+  '334trhnhmim8v42gq4bgk7umst'
+
 Amplify.configure({
   Auth: {
     Cognito: {
-      userPoolId: 'ap-south-1_cYw1QjgbQ',
-      userPoolClientId: import.meta.env.VITE_COGNITO_CLIENT_ID,
+      userPoolId,
+      userPoolClientId,
       loginWith: {
         email: true,
       },

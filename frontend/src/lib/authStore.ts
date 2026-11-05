@@ -55,8 +55,14 @@ export function isJwtExpired(token: string, skewSeconds = 30): boolean {
 
 /* ── AWS Cognito (USER_PASSWORD_AUTH over the public Cognito IDP endpoint) ──
    Enabled when VITE_COGNITO_REGION and VITE_COGNITO_CLIENT_ID are set. */
-const COGNITO_REGION = (import.meta.env.VITE_COGNITO_REGION as string | undefined) || 'ap-south-1'
-const COGNITO_CLIENT_ID = import.meta.env.VITE_COGNITO_CLIENT_ID as string | undefined
+const rawAuthority = (import.meta.env.VITE_COGNITO_AUTHORITY as string | undefined)?.trim()
+const derivedRegion = rawAuthority?.match(/cognito-idp\.([^.]+)\.amazonaws\.com/)?.[1]
+const COGNITO_REGION =
+  (import.meta.env.VITE_COGNITO_REGION as string | undefined)?.trim() ||
+  derivedRegion ||
+  'ap-south-1'
+const COGNITO_CLIENT_ID =
+  (import.meta.env.VITE_COGNITO_CLIENT_ID as string | undefined)?.trim() || '334trhnhmim8v42gq4bgk7umst'
 
 export const cognitoEnabled = Boolean(COGNITO_CLIENT_ID)
 

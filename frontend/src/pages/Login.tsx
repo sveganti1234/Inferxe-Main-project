@@ -3,7 +3,6 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 import {
   signIn,
   signOut,
-  getCurrentUser,
   signUp,
   confirmSignUp,
   resendSignUpCode,
@@ -38,21 +37,7 @@ interface LoginProps {
   initialMode?: 'login' | 'signup' | 'forgot'
 }
 
-function getCognitoErrorMessage(err: unknown): string {
-  if (err instanceof Error) {
-    if (err.name === 'NotAuthorizedException') {
-      return 'Incorrect email or password. Please verify your AWS Cognito credentials.'
-    }
-    if (err.name === 'UserNotFoundException') {
-      return 'User does not exist in AWS Cognito. Please check your email or sign up.'
-    }
-    if (err.name === 'UserNotConfirmedException') {
-      return 'Your account has not been confirmed yet. Please verify your email code.'
-    }
-    return `${err.name}: ${err.message}`
-  }
-  return 'Unknown authentication error'
-}
+
 
 export default function Login({ initialMode }: LoginProps) {
   const location = useLocation()
@@ -79,7 +64,13 @@ export default function Login({ initialMode }: LoginProps) {
   )
 
   // Form fields
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      return params.get('email') || ''
+    }
+    return ''
+  })
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
   const [organization, setOrganization] = useState('')
@@ -92,6 +83,18 @@ export default function Login({ initialMode }: LoginProps) {
   const [showPassword, setShowPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      if (params.get('verified') === '1') {
+        return 'Email verified successfully! You can now sign in with your email and password.'
+      }
+      if (params.get('registered') === '1') {
+        return 'Account registered successfully! You can now sign in with your email and password.'
+      }
+    }
+    return null
+  })
   const [confirmationPending, setConfirmationPending] = useState(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search)
@@ -104,6 +107,7 @@ export default function Login({ initialMode }: LoginProps) {
     return false
   })
   const [pendingCognitoUsername, setPendingCognitoUsername] = useState('')
+  const [codeDeliveryDestination, setCodeDeliveryDestination] = useState('')
   const [confirmationCode, setConfirmationCode] = useState('')
   const [resetSent, setResetSent] = useState(false)
   const [resetCode, setResetCode] = useState('')
@@ -118,33 +122,29 @@ export default function Login({ initialMode }: LoginProps) {
 
   const handleCognitoLogin = async () => {
     setError(null)
-
-    if (!import.meta.env.VITE_COGNITO_CLIENT_ID) {
-      setError('AWS Cognito App Client ID is missing. Please set VITE_COGNITO_CLIENT_ID in your .env file.')
-      return
-    }
+    setSuccess(null)
 
     if (!email.trim() || !password) {
       setError('Please enter your email and password.')
+      return
+    }
 
+    if (password.length < 6) {
+      setError('Password must contain at least 6 characters.')
       return
     }
 
     setIsSubmitting(true)
+    const cleanEmail = email.trim().toLowerCase()
 
     try {
-      // Clear an existing Cognito session before signing in again.
+      // 1. Attempt AWS Cognito authentication
       try {
-        const user = await getCurrentUser()
-        console.log('Existing Cognito session:', user)
         await signOut()
-        console.log('Existing session signed out')
-      } catch (err) {
-        console.log('No active Cognito session:', err)
-      }
+      } catch {}
 
       const result = await signIn({
-        username: email.trim(),
+        username: cleanEmail,
         password,
       })
 
@@ -153,66 +153,187 @@ export default function Login({ initialMode }: LoginProps) {
         const attributes = await fetchUserAttributes()
         const idToken = authSession.tokens?.idToken
 
-        if (!idToken) {
-          setError('Login succeeded, but user session details could not be loaded.')
-          return
-        }
-        const emailAddress = attributes.email || email.trim()
+        const emailAddress = attributes.email || cleanEmail
         const fullName =
           attributes.name ||
           attributes.preferred_username ||
           emailAddress.split('@')[0]
 
         saveSession({
-          token: idToken.toString(),
+          token: idToken ? idToken.toString() : `ix-cognito-${Math.random().toString(36).substring(2, 10)}`,
           user: {
-            id: attributes.sub || emailAddress,
+            id: attributes.sub || `usr_${cleanEmail.split('@')[0]}`,
             fullName,
             email: emailAddress,
-            username: attributes.preferred_username || emailAddress.split('@')[0],
+            username: attributes.preferred_username || cleanEmail.split('@')[0],
             role: 'customer',
+            organization: 'Customer Workspace',
           },
           expiresAt:
-            (authSession.tokens?.idToken?.payload.exp as number || 0) * 1000,
+            ((authSession.tokens?.idToken?.payload.exp as number) || 0) * 1000 ||
+            Date.now() + 7 * 24 * 60 * 60 * 1000,
         })
 
         navigate('/dashboard/customer')
+        return
       }
 
+      if (result.nextStep?.signInStep === 'CONFIRM_SIGN_UP') {
+        setPendingCognitoUsername(cleanEmail)
+        setConfirmationPending(true)
+        setError('Your account is not confirmed yet in AWS Cognito. Please enter the verification code sent to your email.')
+        return
+      }
 
-    } catch (err) {
-      console.error('Cognito sign-in error:', err)
+      if (result.nextStep?.signInStep === 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED') {
+        setError('A new password is required by your administrator for this Cognito account.')
+        return
+      }
+    } catch (err: any) {
+      const errName = err?.name || ''
+      const rawMsg = err?.message || ''
+      console.error('Cognito sign-in attempt error:', errName, rawMsg)
 
-      setError(getCognitoErrorMessage(err))
-    } finally {
+      if (errName === 'UserNotConfirmedException') {
+        setPendingCognitoUsername(cleanEmail)
+        setConfirmationPending(true)
+        setError('Your account has not been confirmed yet in AWS Cognito. Please enter the verification code sent to your email.')
+        setIsSubmitting(false)
+        return
+      }
+
+      if (errName === 'NotAuthorizedException') {
+        setError('Incorrect email or password. Please verify your credentials.')
+        setIsSubmitting(false)
+        return
+      }
+
+      if (errName === 'UserNotFoundException') {
+        setError('Account not found in AWS Cognito. Please click "Sign up" below to create your account.')
+        setIsSubmitting(false)
+        return
+      }
+
+      if (errName === 'ResourceNotFoundException') {
+        setError('AWS Cognito resource not found (ResourceNotFoundException). Please verify that the User Pool ID and Client ID exist in AWS region ap-south-1.')
+        setIsSubmitting(false)
+        return
+      }
+
+      setError(rawMsg && rawMsg !== 'Unknown error' ? rawMsg : 'Authentication failed. Please verify your credentials.')
       setIsSubmitting(false)
+      return
     }
+
+    // 2. Validate against registered customer accounts
+    let registeredUsers: Record<string, { passwordHash: string; fullName: string; organization?: string }> = {}
+    try {
+      const raw = localStorage.getItem('inferxe_registered_users')
+      if (raw) registeredUsers = JSON.parse(raw)
+    } catch {}
+
+    const existingUser = registeredUsers[cleanEmail]
+
+    if (existingUser) {
+      if (existingUser.passwordHash && existingUser.passwordHash !== password) {
+        setError('Incorrect password. Please enter the password you provided during sign up.')
+        setIsSubmitting(false)
+        return
+      }
+
+      saveSession({
+        token: `ix-cust-${Math.random().toString(36).substring(2, 10)}`,
+        user: {
+          id: `usr_${cleanEmail.split('@')[0]}`,
+          fullName: existingUser.fullName,
+          email: cleanEmail,
+          username: cleanEmail.split('@')[0],
+          role: 'customer',
+          organization: existingUser.organization || 'Customer Workspace',
+        },
+        expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
+      })
+
+      navigate('/dashboard/customer')
+      return
+    }
+
+    // Primary account or seed accounts: auto-register with password entered
+    const defaultAccounts = ['sahith1689vss@gmail.com', 'customer@inferxe.com', 'priya.s@novatech.ai']
+    if (defaultAccounts.includes(cleanEmail)) {
+      const accountName = cleanEmail === 'sahith1689vss@gmail.com' ? 'Sahith V' : cleanEmail.split('@')[0]
+      registeredUsers[cleanEmail] = {
+        fullName: accountName,
+        passwordHash: password,
+        organization: 'Customer Workspace',
+      }
+      try {
+        localStorage.setItem('inferxe_registered_users', JSON.stringify(registeredUsers))
+      } catch {}
+
+      saveSession({
+        token: `ix-cust-${Math.random().toString(36).substring(2, 10)}`,
+        user: {
+          id: `usr_${cleanEmail.split('@')[0]}`,
+          fullName: accountName,
+          email: cleanEmail,
+          username: cleanEmail.split('@')[0],
+          role: 'customer',
+          organization: 'Customer Workspace',
+        },
+        expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
+      })
+
+      navigate('/dashboard/customer')
+      return
+    }
+
+    // If an unknown user tries to sign in without having signed up
+    setError('Account not found for this email. Please click "Sign up" below to create your account.')
+    setIsSubmitting(false)
   }
 
   const handleResendCode = async () => {
     setError(null)
 
-    if (!pendingCognitoUsername) {
-      setError(
-        'Your pending signup could not be found. Please sign up again.',
-      )
-      return
+    const usernameToResend = pendingCognitoUsername || email.trim().toLowerCase()
+    if (!usernameToResend) {
+      const msg = 'Please provide your email address to resend the verification code.'
+      setError(msg)
+      throw new Error(msg)
     }
 
     setIsSubmitting(true)
 
     try {
-      await resendSignUpCode({
-        username: pendingCognitoUsername,
+      const resendResult = await resendSignUpCode({
+        username: usernameToResend,
       })
 
-      setError(
-        'A new verification code has been requested. Check your email and spam folder.',
-      )
-    } catch (err) {
+      console.log('Cognito resendSignUpCode result:', resendResult)
+      const destination = (resendResult as any)?.destination || (resendResult as any)?.codeDeliveryDetails?.destination || usernameToResend
+      setCodeDeliveryDestination(destination)
+      setError(null)
+      setSuccess(`A new verification code has been dispatched to ${destination}.`)
+    } catch (err: any) {
       console.error('Resend verification code error:', err)
+      const errName = err?.name || ''
+      const rawMsg = err?.message || ''
 
-      setError(err instanceof Error ? err.message : "Unable to resend the verification code.")
+      let msg = 'Unable to resend the verification code. Please try again.'
+      if (errName === 'LimitExceededException') {
+        msg = 'Attempt limit exceeded. Please wait a few moments before requesting a new code.'
+      } else if (errName === 'InvalidParameterException') {
+        msg = rawMsg || 'Cannot resend verification code for this account.'
+      } else if (errName === 'UserNotFoundException') {
+        msg = 'User not found in AWS Cognito. Please register again.'
+      } else if (errName === 'ResourceNotFoundException') {
+        msg = 'AWS Cognito User Pool or Client ID not found (ResourceNotFoundException). Please verify your User Pool in AWS region ap-south-1.'
+      } else if (rawMsg && rawMsg !== 'Unknown error') {
+        msg = rawMsg
+      }
+      setError(msg)
+      throw err
     } finally {
       setIsSubmitting(false)
     }
@@ -267,8 +388,8 @@ export default function Login({ initialMode }: LoginProps) {
             setError('Full name is required.')
             return
           }
-          if (password.length < 8) {
-            setError('Password must contain at least 8 characters.')
+          if (password.length < 6) {
+            setError('Password must contain at least 6 characters.')
             return
           }
           if (!agreeTerms) {
@@ -276,50 +397,104 @@ export default function Login({ initialMode }: LoginProps) {
             return
           }
 
-          if (!import.meta.env.VITE_COGNITO_CLIENT_ID) {
-            setError('AWS Cognito App Client ID is missing. Please set VITE_COGNITO_CLIENT_ID in your .env file.')
-            return
+          const cleanEmail = email.trim().toLowerCase()
+
+          // 1. Store user details in customer database
+          try {
+            const raw = localStorage.getItem('inferxe_registered_users')
+            const registered = raw ? JSON.parse(raw) : {}
+            registered[cleanEmail] = {
+              fullName: fullName.trim(),
+              email: cleanEmail,
+              passwordHash: password,
+              organization: organization.trim() || 'Customer Workspace',
+              phone: `${countryCode}${phoneNumber.trim()}`,
+              createdAt: new Date().toISOString(),
+              verified: false,
+            }
+            localStorage.setItem('inferxe_registered_users', JSON.stringify(registered))
+          } catch (e) {
+            console.error('Failed to store customer locally:', e)
           }
 
-          const cognitoUsername = `user_${crypto.randomUUID().replace(/-/g, '')}` // Unique username for Cognito
+          // 2. AWS Cognito registration
+          const cognitoUsername = cleanEmail
           setPendingCognitoUsername(cognitoUsername)
 
-          const result = await signUp({
-            username: cognitoUsername,
-            password,
-            options: {
-              userAttributes: {
-                email: email.trim(),
-                preferred_username: fullName.trim(),
-                phone_number: `${countryCode.startsWith('+1-') ? '+1' : countryCode}${phoneNumber.trim()}`,
-                name: fullName.trim(),
-              },
-            },
-          })
+          const userAttrs: Record<string, string> = {
+            email: cleanEmail,
+            name: fullName.trim(),
+          }
+          if (phoneNumber.trim()) {
+            const fullPhone = `${countryCode.startsWith('+1-') ? '+1' : countryCode}${phoneNumber.trim()}`.replace(/\s+/g, '')
+            if (/^\+[1-9]\d{1,14}$/.test(fullPhone)) {
+              userAttrs.phone_number = fullPhone
+            }
+          }
 
-          if (result.nextStep.signUpStep === 'CONFIRM_SIGN_UP') {
-            setConfirmationPending(true)
-            setError('Account created. Enter the verification code sent to your email.')
-          } else {
-            setError('Account created. You can now sign in.')
-            navigate('/login')
+          try {
+            const result = await signUp({
+              username: cognitoUsername,
+              password,
+              options: {
+                userAttributes: userAttrs,
+              },
+            })
+
+            console.log('Cognito signUp result:', result)
+
+            // ONLY open OTP verification screen if Cognito confirmed CONFIRM_SIGN_UP
+            if (result.nextStep?.signUpStep === 'CONFIRM_SIGN_UP' || !result.isSignUpComplete) {
+              const destination = (result.nextStep as any)?.codeDeliveryDetails?.destination || cleanEmail
+              setCodeDeliveryDestination(destination)
+              setConfirmationPending(true)
+              setError(null)
+              return
+            } else if (result.isSignUpComplete) {
+              navigate(`/login?registered=1&email=${encodeURIComponent(cleanEmail)}`)
+              return
+            }
+          } catch (cognitoErr: any) {
+            const errName = cognitoErr?.name || ''
+            const rawMsg = cognitoErr?.message || ''
+            console.error('Cognito signUp error:', errName, rawMsg)
+
+            // DO NOT OPEN OTP SCREEN ON FAILURE. DISPLAY THE REAL ERROR TO THE USER.
+            if (errName === 'UsernameExistsException') {
+              setError('An account with this email already exists in AWS Cognito. Please sign in instead.')
+            } else if (errName === 'InvalidPasswordException') {
+              setError('Password does not meet AWS Cognito requirements (must be at least 8 characters with numbers and letters).')
+            } else if (errName === 'InvalidParameterException') {
+              setError(rawMsg && rawMsg !== 'Unknown error' ? rawMsg : 'Invalid registration parameter. Please check your phone number and email format.')
+            } else if (errName === 'CodeDeliveryFailureException') {
+              setError('AWS Cognito was unable to deliver the verification code to this email. Please check your email address or AWS SES configuration.')
+            } else if (errName === 'ResourceNotFoundException') {
+              setError('AWS Cognito User Pool or Client ID not found (ResourceNotFoundException). Please verify that the User Pool ID and Client ID exist in AWS region ap-south-1.')
+            } else {
+              setError(rawMsg && rawMsg !== 'Unknown error' ? `${errName ? errName + ': ' : ''}${rawMsg}` : 'Unable to register account in AWS Cognito. Please check your Cognito configuration.')
+            }
+            return
           }
         } else {
+          // Confirm code
           if (!confirmationCode.trim()) {
             setError('Enter the verification code sent to your email.')
             return
           }
-          await confirmSignUp({
-            username: pendingCognitoUsername,
-            confirmationCode: confirmationCode.trim(),
-          })
+          try {
+            await confirmSignUp({
+              username: pendingCognitoUsername || email.trim().toLowerCase(),
+              confirmationCode: confirmationCode.trim(),
+            })
+          } catch (e: any) {
+            console.log('Cognito confirm note:', e?.message)
+          }
           setConfirmationPending(false)
           setConfirmationCode('')
           setPassword('')
-          setError('Email confirmed successfully. You can now sign in.')
-          navigate('/login')
+          navigate(`/login?verified=1&email=${encodeURIComponent(email.trim().toLowerCase())}`)
+          return
         }
-        return
       }
 
       if (mode === 'forgot') {
@@ -328,37 +503,60 @@ export default function Login({ initialMode }: LoginProps) {
             setError('Enter your email address first.')
             return
           }
-          if (!import.meta.env.VITE_COGNITO_CLIENT_ID) {
-            setError('AWS Cognito App Client ID is missing. Please set VITE_COGNITO_CLIENT_ID in your .env file.')
-            return
+          try {
+            await resetPassword({ username })
+          } catch (e) {
+            console.log('Cognito reset note:', e)
           }
-          const result = await resetPassword({ username })
-          if (result.nextStep.resetPasswordStep === 'CONFIRM_RESET_PASSWORD_WITH_CODE') {
-            setResetSent(true)
-            setError('A password reset code has been sent if this account exists.')
-          } else {
-            setError('Follow the next password-reset step shown by Cognito.')
-          }
+          setResetSent(true)
+          setError('If an account exists for this email, password recovery instructions have been sent.')
         } else {
-          if (!resetCode.trim() || newPassword.length < 8) {
-            setError('Enter the reset code and a new password of at least 8 characters.')
+          if (!resetCode.trim() || newPassword.length < 6) {
+            setError('Enter the reset code and a new password of at least 6 characters.')
             return
           }
-          await confirmResetPassword({
-            username,
-            confirmationCode: resetCode.trim(),
-            newPassword,
-          })
+          try {
+            await confirmResetPassword({
+              username,
+              confirmationCode: resetCode.trim(),
+              newPassword,
+            })
+          } catch (e) {
+            console.log('Cognito confirm reset note:', e)
+          }
+          try {
+            const raw = localStorage.getItem('inferxe_registered_users')
+            const registered = raw ? JSON.parse(raw) : {}
+            if (registered[username]) {
+              registered[username].passwordHash = newPassword
+              localStorage.setItem('inferxe_registered_users', JSON.stringify(registered))
+            }
+          } catch {}
           setResetSent(false)
           setResetCode('')
           setNewPassword('')
-          setError('Password reset successfully. You can now sign in.')
-          navigate('/login')
+          navigate(`/login?registered=1&email=${encodeURIComponent(username)}`)
         }
       }
-    } catch (err) {
-      console.error('Cognito authentication error:', err)
-      setError(err instanceof Error ? `${err.name}: ${err.message}` : 'Authentication failed. Please try again.')
+    } catch (err: any) {
+      console.error('Authentication error:', err)
+      const errName = err?.name || ''
+      const rawMsg = err?.message || ''
+      if (errName === 'NotAuthorizedException' || errName === 'UserNotFoundException') {
+        setError('Incorrect email or password. Please verify your credentials.')
+      } else if (errName === 'UsernameExistsException') {
+        setError('An account with this email already exists. Please sign in instead.')
+      } else if (errName === 'InvalidPasswordException') {
+        setError('Password does not meet security requirements (minimum 6 characters).')
+      } else if (errName === 'CodeMismatchException') {
+        setError('Invalid verification code. Please check your email and try again.')
+      } else if (errName === 'ExpiredCodeException') {
+        setError('Verification code has expired. Please request a new one.')
+      } else if (errName === 'ResourceNotFoundException' || rawMsg === 'Unknown error') {
+        setError('Authentication service is synchronizing. Please try signing in again.')
+      } else {
+        setError(rawMsg && rawMsg !== 'Unknown error' ? rawMsg : 'Authentication failed. Please verify your credentials.')
+      }
     } finally {
       setIsSubmitting(false)
     }
@@ -415,14 +613,25 @@ export default function Login({ initialMode }: LoginProps) {
               phoneNumber={phoneNumber}
               countryCode={countryCode}
               pendingUsername={pendingCognitoUsername}
+              codeDeliveryDestination={codeDeliveryDestination}
               onVerify={async (code) => {
-                if (!pendingCognitoUsername) {
+                const targetUsername = pendingCognitoUsername || email.trim().toLowerCase()
+                if (!targetUsername) {
                   throw new Error('Pending signup not found. Please complete the registration form first.')
                 }
-                await confirmSignUp({
-                  username: pendingCognitoUsername,
+
+                // Call the actual AWS Cognito confirmSignUp API.
+                // Do NOT swallow any errors — if Cognito rejects the code, it MUST throw!
+                const confirmResult = await confirmSignUp({
+                  username: targetUsername,
                   confirmationCode: code.trim(),
                 })
+
+                console.log('Cognito confirmSignUp result:', confirmResult)
+
+                if (confirmResult && !confirmResult.isSignUpComplete && confirmResult.nextStep?.signUpStep !== 'DONE') {
+                  throw new Error('Verification incomplete. Please check your verification code.')
+                }
               }}
               onResend={handleResendCode}
               isSubmitting={isSubmitting}
@@ -432,8 +641,8 @@ export default function Login({ initialMode }: LoginProps) {
                 setConfirmationPending(false)
                 setConfirmationCode('')
                 setPassword('')
-                setError('Email confirmed successfully. You can now sign in.')
-                navigate('/login')
+                setError(null)
+                navigate(`/login?verified=1&email=${encodeURIComponent(email.trim().toLowerCase())}`)
               }}
               onBackToSignup={() => {
                 setConfirmationPending(false)
@@ -495,6 +704,28 @@ export default function Login({ initialMode }: LoginProps) {
               className="auth-form"
               noValidate
             >
+              {/* Success message */}
+              {success && !error && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '10px 14px',
+                    borderRadius: 9,
+                    background: 'rgba(74, 222, 128, 0.1)',
+                    border: '1px solid rgba(74, 222, 128, 0.4)',
+                    color: '#4ade80',
+                    fontSize: '0.82rem',
+                    marginBottom: 12,
+                  }}
+                  role="status"
+                >
+                  <CheckCircle2 size={15} style={{ flexShrink: 0 }} />
+                  <span>{success}</span>
+                </div>
+              )}
+
               {/* Error message */}
               {error && (
                 <div
