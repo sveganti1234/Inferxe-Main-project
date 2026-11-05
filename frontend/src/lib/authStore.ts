@@ -1,4 +1,5 @@
-import { updatePassword } from 'aws-amplify/auth'
+import { updatePassword, signOut } from 'aws-amplify/auth'
+import { recordUserLogin } from './userStore'
 
 export type PortalRole = 'customer' | 'admin'
 export type UserRole = 'customer' | 'provider' | 'admin' | 'developer' | 'viewer'
@@ -152,6 +153,16 @@ export function getSession(): AuthSession | null {
 export function saveSession(session: AuthSession): void {
   try {
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session))
+    if (session.user?.email) {
+      recordUserLogin({
+        id: session.user.id,
+        fullName: session.user.fullName,
+        email: session.user.email,
+        username: session.user.username,
+        role: session.user.role,
+        organization: session.user.organization,
+      })
+    }
     window.dispatchEvent(new Event('inferxe_auth_change'))
   } catch (err) {
     console.error('Failed to save auth session', err)
@@ -159,6 +170,9 @@ export function saveSession(session: AuthSession): void {
 }
 
 export function clearSession(): void {
+  try {
+    signOut().catch(() => {})
+  } catch {}
   try {
     localStorage.removeItem(AUTH_STORAGE_KEY)
     window.dispatchEvent(new Event('inferxe_auth_change'))

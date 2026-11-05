@@ -40,7 +40,7 @@ import {
 } from 'lucide-react'
 import { LogoMark } from '../Logo'
 import { Ambient } from '../layout/Ambient'
-import { getSession, clearSession, getPortalRole, switchRole, type AuthSession, type PortalRole } from '../../lib/authStore'
+import { getSession, clearSession, getPortalRole, type AuthSession, type PortalRole } from '../../lib/authStore'
 interface BreadcrumbItem {
   label: string
   to?: string
@@ -383,28 +383,7 @@ export function DashboardLayout({
   }
 
   const user = currentSession?.user ?? defaultCustomerUser
-  const isAdminRoute = location.pathname === '/dashboard' || location.pathname.startsWith('/dashboard/users')
-  const isCustomerRoute = location.pathname.startsWith('/dashboard/customer') ||
-    location.pathname.startsWith('/dashboard/gpus') ||
-    location.pathname.startsWith('/dashboard/models') ||
-    location.pathname.startsWith('/dashboard/compare') ||
-    location.pathname.startsWith('/dashboard/orders') ||
-    location.pathname.startsWith('/dashboard/wallet') ||
-    location.pathname.startsWith('/dashboard/checkout') ||
-    location.pathname.startsWith('/dashboard/analytics') ||
-    location.pathname.startsWith('/dashboard/playground') ||
-    location.pathname.startsWith('/dashboard/api-keys') ||
-    location.pathname.startsWith('/dashboard/ssh-keys') ||
-    location.pathname.startsWith('/dashboard/profile') ||
-    location.pathname.startsWith('/dashboard/rewards') ||
-    location.pathname.startsWith('/dashboard/notebooks') ||
-    location.pathname.startsWith('/dashboard/reviews') ||
-    location.pathname.startsWith('/dashboard/nodes') ||
-    location.pathname.startsWith('/dashboard/gpu-studio')
-
-  const portalRole: PortalRole = isAdminRoute
-    ? 'admin'
-    : (isCustomerRoute ? 'customer' : getPortalRole(user.role))
+  const portalRole: PortalRole = getPortalRole(user.role)
 
   const initials = (user.fullName || 'User')
     .split(' ')
@@ -520,32 +499,7 @@ export function DashboardLayout({
           >
             {portalRole === 'admin' ? 'Admin Portal' : 'Customer Portal'}
           </span>
-          <button
-            type="button"
-            onClick={() => {
-              if (portalRole === 'admin') {
-                switchRole('customer')
-                navigate('/dashboard/customer')
-              } else {
-                switchRole('admin')
-                navigate('/dashboard')
-              }
-            }}
-            style={{
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              color: 'var(--ink-muted)',
-              borderRadius: 4,
-              fontSize: '0.68rem',
-              padding: '2px 8px',
-              cursor: 'pointer',
-              marginLeft: 8,
-              transition: 'all 0.15s ease',
-            }}
-            title={portalRole === 'admin' ? 'Switch to Customer Portal' : 'Switch to Admin Portal'}
-          >
-            {portalRole === 'admin' ? 'Customer View ↗' : 'Admin View ↗'}
-          </button>
+
         </div>
 
         {/* Center: Cluster status & Free Trial Countdown Telemetry */}
@@ -829,55 +783,13 @@ export function DashboardLayout({
             
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2, paddingTop: 4 }}>
-                  {portalRole === 'admin' ? (
-                    <button
-                      type="button"
-                      className="dash-nav-item"
-                      style={{ color: '#06b6d4', width: '100%', textAlign: 'left', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
-                      onClick={() => {
-                        setAdminMenuOpen(false)
-                        switchRole('customer')
-                        navigate('/dashboard/customer')
-                      }}
-                    >
-                      <LayoutDashboard size={15} /> Switch to Customer Portal
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      className="dash-nav-item"
-                      style={{ color: 'var(--brand-hi)', width: '100%', textAlign: 'left', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
-                      onClick={() => {
-                        setAdminMenuOpen(false)
-                        switchRole('admin')
-                        navigate('/dashboard')
-                      }}
-                    >
-                      <ShieldCheck size={15} /> Switch to Admin Portal
-                    </button>
-                  )}
-                  <Link
-                    to="/dashboard/profile"
-                    className="dash-nav-item"
-                    onClick={() => setAdminMenuOpen(false)}
-                  >
-                    <User size={15} /> Profile & Account
-                  </Link>
-                  <Link
-                    to="/"
-                    className="dash-nav-item"
-                    style={{ color: 'var(--brand-hi)' }}
-                    onClick={() => setAdminMenuOpen(false)}
-                  >
-                    <ExternalLink size={15} /> Exit to Public Site
-                  </Link>
                   <button
                     type="button"
                     className="dash-nav-item dash-nav-item--danger"
                     onClick={() => {
                       setAdminMenuOpen(false)
                       clearSession()
-                      navigate('/login')
+                      navigate('/')
                     }}
                   >
                     <LogOut size={15} /> Sign Out

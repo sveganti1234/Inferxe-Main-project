@@ -44,6 +44,7 @@ const userPoolId =
 const userPoolClientId =
   (import.meta.env.VITE_COGNITO_CLIENT_ID as string | undefined)?.trim() ||
   '334trhnhmim8v42gq4bgk7umst'
+  '334trhnhmim8v42gq4bgk7umst'
 
 Amplify.configure({
   Auth: {

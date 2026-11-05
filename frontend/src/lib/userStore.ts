@@ -47,11 +47,38 @@ export const ROLE_DEFINITIONS: Record<
     badgeClass: 'chip--amber',
     permissions: ['Read-only Metrics', 'Cost & Spend Reports', 'Cluster Uptime Dashboard', 'No API Key Access'],
   },
+  customer: {
+    title: 'Customer',
+    description: 'Client workspace access: deploy models, manage inference API workloads, and monitor usage.',
+    badgeClass: 'chip--cyan',
+    permissions: ['GPU Marketplace Access', 'Serverless Endpoints', 'Usage & Billing Dashboard', 'Inference Playground'],
+  },
 }
 
 const STORAGE_KEY = 'inferxe_dashboard_users_v2'
 
 const SEED_USERS: UserRecord[] = [
+  {
+    id: 'usr_inf_00_sahith',
+    fullName: 'Sahith V',
+    email: 'sahith1689vss@gmail.com',
+    username: 'sahith',
+    avatarUrl: '',
+    role: 'developer',
+    status: 'active',
+    authMethod: 'password',
+    modelAccess: 'all',
+    selectedModels: ['deepseek-r1-671b', 'llama-3.3-70b', 'qwen-2.5-coder-32b'],
+    providerAccess: 'all',
+    selectedProviders: [],
+    apiAccess: true,
+    analyticsAccess: true,
+    monthlySpendLimit: 250000,
+    rateLimit: '1,000 RPM (Enterprise Sovereign Tier)',
+    internalNote: 'Customer workspace lead for sovereign cloud deployment.',
+    createdAt: '2026-10-01T08:00:00Z',
+    lastActive: 'Just now',
+  },
   {
     id: 'usr_inf_01',
     fullName: 'Bhumi Reddy',
@@ -160,17 +187,90 @@ const SEED_USERS: UserRecord[] = [
 ]
 
 export function loadUsers(): UserRecord[] {
+  let list: UserRecord[] = []
   try {
     const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(SEED_USERS))
-      return SEED_USERS
+      list = [...SEED_USERS]
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(list))
+    } else {
+      const parsed = JSON.parse(raw) as UserRecord[]
+      list = Array.isArray(parsed) && parsed.length > 0 ? parsed : [...SEED_USERS]
     }
-    const parsed = JSON.parse(raw) as UserRecord[]
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : SEED_USERS
   } catch {
-    return SEED_USERS
+    list = [...SEED_USERS]
   }
+
+  // Sync active session user to guarantee active status and top placement
+  try {
+    const rawSession = localStorage.getItem('inferxe_auth_session')
+    if (rawSession) {
+      const session = JSON.parse(rawSession)
+      const sessionEmail = session?.user?.email?.trim().toLowerCase()
+      if (sessionEmail) {
+        const sIndex = list.findIndex((u) => u.email.trim().toLowerCase() === sessionEmail)
+        if (sIndex !== -1) {
+          const activeUser = {
+            ...list[sIndex],
+            status: 'active' as const,
+            lastActive: 'Just now',
+          }
+          const remaining = list.filter((_, idx) => idx !== sIndex)
+          list = [activeUser, ...remaining]
+        }
+      }
+    }
+  } catch {}
+
+  // Also sync any registered customer accounts from inferxe_registered_users if not present
+  try {
+    const rawReg = localStorage.getItem('inferxe_registered_users')
+    if (rawReg) {
+      const registeredMap = JSON.parse(rawReg) as Record<
+        string,
+        { fullName?: string; email?: string; organization?: string; createdAt?: string }
+      >
+      let hasNew = false
+      Object.entries(registeredMap).forEach(([emailKey, regData]) => {
+        const cleanEmail = (regData.email || emailKey).trim().toLowerCase()
+        if (cleanEmail && !list.some((u) => u.email.trim().toLowerCase() === cleanEmail)) {
+          const newRec: UserRecord = {
+            id: "usr_reg_" + cleanEmail.split("@")[0],
+            fullName:
+              regData.fullName?.trim() ||
+              cleanEmail
+                .split('@')[0]
+                .replace(/[._-]/g, ' ')
+                .replace(/\b\w/g, (c) => c.toUpperCase()),
+            email: cleanEmail,
+            username: cleanEmail.split('@')[0],
+            avatarUrl: '',
+            role: 'customer',
+            status: 'inactive',
+            authMethod: 'password',
+            modelAccess: 'all',
+            selectedModels: [],
+            providerAccess: 'all',
+            selectedProviders: [],
+            apiAccess: true,
+            analyticsAccess: true,
+            monthlySpendLimit: 100000,
+            rateLimit: '300 RPM (Registered User)',
+            internalNote: regData.organization ? ("Client from " + regData.organization) : 'Self-registered customer account.',
+            createdAt: regData.createdAt || new Date().toISOString(),
+            lastActive: 'Never logged in',
+          }
+          list.push(newRec)
+          hasNew = true
+        }
+      })
+      if (hasNew) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(list))
+      }
+    }
+  } catch {}
+
+  return list
 }
 
 export function saveUsers(users: UserRecord[]): void {
@@ -249,4 +349,172 @@ export function deleteUser(id: string): void {
   const users = loadUsers()
   const filtered = users.filter((u) => u.id !== id)
   saveUsers(filtered)
+}
+
+
+export function recordUserLogin(user: {
+  id?: string
+  fullName?: string
+  email: string
+  username?: string
+  role?: string
+  organization?: string
+}): void {
+  if (!user.email) return
+  try {
+    const users = loadUsers()
+    const cleanEmail = user.email.trim().toLowerCase()
+    const existingIndex = users.findIndex(
+      (u) => u.email.trim().toLowerCase() === cleanEmail
+    )
+
+    const nowStr = 'Just now'
+
+    if (existingIndex !== -1) {
+      const existing = users[existingIndex]
+      const updatedUser: UserRecord = {
+        ...existing,
+        status: 'active',
+        lastActive: nowStr,
+        fullName: user.fullName?.trim() || existing.fullName,
+        username: user.username?.trim() || existing.username,
+      }
+      // Keep latest signed-in customer at the very top of the list
+      const remaining = users.filter((_, idx) => idx !== existingIndex)
+      saveUsers([updatedUser, ...remaining])
+    } else {
+      const derivedName =
+        user.fullName?.trim() ||
+        cleanEmail
+          .split('@')[0]
+          .replace(/[._-]/g, ' ')
+          .replace(/\b\w/g, (c) => c.toUpperCase())
+
+      const newRecord: UserRecord = {
+        id: user.id || ("usr_client_" + Math.random().toString(36).substring(2, 8)),
+        fullName: derivedName,
+        email: cleanEmail,
+        username: user.username?.trim() || cleanEmail.split('@')[0],
+        avatarUrl: '',
+        role: (user.role === 'admin' ? 'admin' : (user.role === 'viewer' ? 'viewer' : 'customer')) as UserRole,
+        status: 'active',
+        authMethod: 'password',
+        modelAccess: 'all',
+        selectedModels: [],
+        providerAccess: 'all',
+        selectedProviders: [],
+        apiAccess: true,
+        analyticsAccess: true,
+        monthlySpendLimit: 150000,
+        rateLimit: '600 RPM (Customer Tier)',
+        internalNote: user.organization
+          ? ("Client from " + user.organization)
+          : 'Authenticated client login.',
+        createdAt: new Date().toISOString(),
+        lastActive: nowStr,
+      }
+      saveUsers([newRecord, ...users])
+    }
+
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('inferxe_users_change'))
+    }
+  } catch (err) {
+    console.error('Failed to record user login in userStore', err)
+  }
+}
+
+export function recordUserLogout(email?: string): void {
+  try {
+    if (!email && typeof window !== 'undefined') {
+      try {
+        const raw = localStorage.getItem('inferxe_auth_session')
+        if (raw) {
+          const parsed = JSON.parse(raw)
+          email = parsed?.user?.email
+        }
+      } catch {}
+    }
+
+    if (!email) return
+
+    const users = loadUsers()
+    const cleanEmail = email.trim().toLowerCase()
+    const index = users.findIndex((u) => u.email.trim().toLowerCase() === cleanEmail)
+    if (index !== -1) {
+      users[index] = {
+        ...users[index],
+        status: 'inactive',
+        lastActive: 'Recently logged out',
+      }
+      saveUsers([...users])
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('inferxe_users_change'))
+      }
+    }
+  } catch (err) {
+    console.error('Failed to record user logout in userStore', err)
+  }
+}
+
+export function recordUserRegistration(user: {
+  fullName: string
+  email: string
+  username?: string
+  organization?: string
+}): void {
+  if (!user.email) return
+  try {
+    const cleanEmail = user.email.trim().toLowerCase()
+    const users = loadUsers()
+    const existing = users.find((u) => u.email.trim().toLowerCase() === cleanEmail)
+    if (!existing) {
+      const newRec: UserRecord = {
+        id: "usr_reg_" + cleanEmail.split("@")[0] + "_" + Math.random().toString(36).substring(2, 6),
+        fullName: user.fullName.trim(),
+        email: cleanEmail,
+        username: user.username?.trim() || cleanEmail.split('@')[0],
+        avatarUrl: '',
+        role: 'customer',
+        status: 'inactive',
+        authMethod: 'password',
+        modelAccess: 'all',
+        selectedModels: [],
+        providerAccess: 'all',
+        selectedProviders: [],
+        apiAccess: true,
+        analyticsAccess: true,
+        monthlySpendLimit: 100000,
+        rateLimit: '300 RPM (Registered User)',
+        internalNote: user.organization ? ("Client from " + user.organization) : 'Self-registered customer account.',
+        createdAt: new Date().toISOString(),
+        lastActive: 'Never logged in',
+      }
+      saveUsers([newRec, ...users])
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('inferxe_users_change'))
+      }
+    }
+  } catch (err) {
+    console.error('Failed to record user registration in userStore', err)
+  }
+}
+
+export function toggleUserStatus(id: string): UserRecord | undefined {
+  const users = loadUsers()
+  const index = users.findIndex((u) => u.id === id)
+  if (index !== -1) {
+    const nextStatus = users[index].status === 'active' ? 'inactive' : 'active'
+    users[index] = {
+      ...users[index],
+      status: nextStatus,
+      lastActive: nextStatus === 'active' ? 'Just now' : 'Marked inactive',
+    }
+    saveUsers([...users])
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('inferxe_users_change'))
+    }
+    return users[index]
+  }
+  return undefined
 }
