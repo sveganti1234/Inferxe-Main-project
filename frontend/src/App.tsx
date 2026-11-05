@@ -26,6 +26,8 @@ const AddUser = lazy(() => import('./pages/dashboard/AddUser'))
 const UsersList = lazy(() => import('./pages/dashboard/UsersList'))
 const DashboardOverview = lazy(() => import('./pages/dashboard/DashboardOverview'))
 const MarketplaceWorkspace = lazy(() => import('./pages/dashboard/MarketplaceWorkspace'))
+const CustomerManagement = lazy(() => import('./pages/dashboard/CustomerManagement'))
+import { CustomerHeartbeat } from './components/dashboard/CustomerHeartbeat'
 const Login = lazy(() => import('./pages/Login'))
 import { AdminGuard } from './components/auth/AdminGuard'
 import { CustomerGuard } from './components/auth/CustomerGuard'
@@ -79,6 +81,14 @@ export default function App() {
               }
             />
             <Route
+              path="/dashboard/customers"
+              element={
+                <AdminGuard>
+                  <CustomerManagement />
+                </AdminGuard>
+              }
+            />
+            <Route
               path="/dashboard/users"
               element={
                 <AdminGuard>
@@ -128,6 +138,7 @@ export default function App() {
             />
           </Routes>
         </Suspense>
+        <CustomerHeartbeat />
         <GlobalBotCompanion />
       </MotionConfig>
     )
@@ -144,6 +155,7 @@ export default function App() {
             <Route path="/forgot-password" element={<Login initialMode="forgot" />} />
           </Routes>
         </Suspense>
+        <CustomerHeartbeat />
         <GlobalBotCompanion />
       </MotionConfig>
     )
@@ -192,7 +204,8 @@ export default function App() {
         </motion.main>
       </AnimatePresence>
       <Footer />
-      <GlobalBotCompanion />
+      <CustomerHeartbeat />
+        <GlobalBotCompanion />
     </MotionConfig>
   )
 }

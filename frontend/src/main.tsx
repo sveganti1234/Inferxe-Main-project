@@ -1,7 +1,7 @@
-
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
+import { Amplify } from 'aws-amplify'
 
 import '@fontsource-variable/rubik'
 import '@fontsource-variable/jetbrains-mono'
@@ -30,6 +30,28 @@ import './styles/dashboard-extra.css'
 import './styles/index.css'
 
 import App from './App'
+
+// AWS Cognito configuration
+const userPoolId =
+  (import.meta.env.VITE_COGNITO_USER_POOL_ID as string | undefined) ||
+  ((import.meta.env.VITE_COGNITO_AUTHORITY as string | undefined)?.split('/').pop()) ||
+  'ap-south-1_cYw1QjgbQ'
+
+const userPoolClientId =
+  (import.meta.env.VITE_COGNITO_CLIENT_ID as string | undefined) ||
+  '334trhnhmim8v42gq4bgk7umst'
+
+Amplify.configure({
+  Auth: {
+    Cognito: {
+      userPoolId,
+      userPoolClientId,
+      loginWith: {
+        email: true,
+      },
+    },
+  },
+})
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

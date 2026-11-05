@@ -27,3 +27,7 @@ __pycache__/
 *.class
 .pytest_cache/
 *.sqlite3-journal
+database/*.db
+database/*.db-wal
+database/*.db-shm
+database/backups/

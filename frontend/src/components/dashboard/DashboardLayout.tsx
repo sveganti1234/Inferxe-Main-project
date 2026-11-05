@@ -463,6 +463,7 @@ export function DashboardLayout({
   // 2. Admin Portal Navigation items: Administration section
   const adminAdministrationItems: NavItem[] = [
     { label: 'Admin Console', to: '/dashboard', icon: LayoutDashboard, matchExact: true },
+    { label: 'Customer Management', to: '/dashboard/customers', icon: Users, matchExact: true },
     { label: 'Users Directory', to: '/dashboard/users', icon: Users, matchExact: true },
     { label: 'Add User', to: '/dashboard/users/add', icon: UserPlus, matchExact: true },
     { label: 'Sovereign Nodes Map', to: '/dashboard/users/map', icon: Globe, matchExact: true },
