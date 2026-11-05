@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useLocation, Link, useNavigate } from 'react-router-dom'
 import {
   Activity, ArrowDownToLine, Bell, Check, ChevronDown, ChevronRight,
@@ -308,8 +308,15 @@ export default function MarketplaceWorkspace() {
     flash('1-Hour Free Sandbox Trial started! 3600s compute credits activated.')
   }
 
+type ToastNotice = {
+  title: string
+  description?: string
+  icon?: 'server' | 'bell' | 'wallet' | 'check'
+}
+
   // UI notice state
-  const [notice, setNotice] = useState('')
+  const [notice, setNotice] = useState<ToastNotice | null>(null)
+  const noticeTimerRef = useRef<number | null>(null)
   const [search, setSearch] = useState('')
   const [gpuArchFilter, setGpuArchFilter] = useState<'all' | 'ada' | 'hopper' | 'available' | 'paused'>('all')
   const [gpuSort, setGpuSort] = useState<'rate-asc' | 'rate-desc' | 'vram-desc' | 'qty-desc'>('rate-asc')
@@ -496,7 +503,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
       window.dispatchEvent(new CustomEvent('inferxe_notifications_change'))
     } catch {}
   }, [notifications])
-  useEffect(() => { setNotice(''); setSearch('') }, [route])
+  useEffect(() => { setNotice(null); setSearch('') }, [route])
 
   usePageMeta(`${info.title} · Inferxe`, info.description)
 
@@ -515,9 +522,83 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
     } catch {}
   }
 
-  const flash = (msg: string) => {
-    setNotice(msg)
-    window.setTimeout(() => setNotice(''), 3800)
+  const flash = (
+    msg: string | { title: string; description?: string; detail?: string; icon?: 'server' | 'bell' | 'wallet' | 'check' },
+    maybeDesc?: string
+  ) => {
+    if (noticeTimerRef.current) {
+      window.clearTimeout(noticeTimerRef.current)
+    }
+
+    if (typeof msg === 'object' && msg !== null) {
+      setNotice({
+        title: msg.title,
+        description: msg.description || msg.detail || '',
+        icon: msg.icon || 'server',
+      })
+    } else if (maybeDesc) {
+      setNotice({
+        title: msg,
+        description: maybeDesc,
+        icon: 'server',
+      })
+    } else {
+      const trimmed = msg.trim()
+      const colonIdx = trimmed.indexOf(': ')
+      const exclIdx = trimmed.indexOf('! ')
+
+      if (colonIdx > 0 && colonIdx < 35) {
+        setNotice({
+          title: trimmed.substring(0, colonIdx).trim(),
+          description: trimmed.substring(colonIdx + 2).trim(),
+          icon: 'server',
+        })
+      } else if (exclIdx > 0 && exclIdx < 45) {
+        setNotice({
+          title: trimmed.substring(0, exclIdx + 1).trim(),
+          description: trimmed.substring(exclIdx + 2).trim(),
+          icon: 'server',
+        })
+      } else {
+        let title = 'Notification'
+        let icon: 'server' | 'bell' | 'wallet' | 'check' = 'server'
+        if (/copi(ed|y)/i.test(trimmed)) {
+          title = 'Copied to Clipboard'
+        } else if (/deploy/i.test(trimmed)) {
+          title = 'GPU Deployment Initialized'
+          icon = 'server'
+        } else if (/wallet|added to your wallet/i.test(trimmed)) {
+          title = 'Wallet Recharge Successful'
+          icon = 'wallet'
+        } else if (/price/i.test(trimmed)) {
+          title = 'GPU Price Updated'
+          icon = 'bell'
+        } else if (/key/i.test(trimmed)) {
+          title = 'Access Key Generated'
+          icon = 'server'
+        } else if (/payout/i.test(trimmed)) {
+          title = 'Payout Submitted'
+          icon = 'wallet'
+        } else if (/order/i.test(trimmed)) {
+          title = 'Order Provisioned'
+          icon = 'server'
+        } else if (/alert|telemetry|audit|notice/i.test(trimmed)) {
+          title = 'System Alert'
+          icon = 'bell'
+        } else if (/saved|updated|preferences/i.test(trimmed)) {
+          title = 'Settings Saved'
+        }
+        setNotice({
+          title,
+          description: trimmed,
+          icon,
+        })
+      }
+    }
+
+    noticeTimerRef.current = window.setTimeout(() => {
+      setNotice(null)
+    }, 3800)
   }
 
   // Filtered & Sorted GPU Listings
@@ -612,7 +693,11 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
       detail: `${newDep.model} running on ${newDep.gpu} (${newDep.region}) at ₹${newDep.hourlyRate}/hr.`,
       type: 'Deployment',
     })
-    flash(`Deployment "${newDep.name}" initialized and running on ${newDep.gpu}!`)
+    flash({
+      title: 'GPU Deployment Initialized',
+      description: `Deployment '${newDep.name}' (${newDep.id.toUpperCase()}) for ${newDep.model} on NVIDIA ${newDep.gpu} (${newDep.region}) has been requested and is currently provisioning.`,
+      icon: 'server',
+    })
   }
 
   const handleToggleDeployment = (id: string, action: 'start' | 'stop' | 'restart') => {
@@ -858,14 +943,37 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
       backButtonLabel="Back to overview"
     >
       <div className="mw-page">
-        {/* Action Toast Feedback */}
+        {/* Action Toast Feedback - Matching Image 2 Reference */}
         {notice && (
-          <div className="mw-toast" role="status">
-            <Check size={16} />
-            <span>{notice}</span>
-            <button onClick={() => setNotice('')} aria-label="Dismiss message">
-              <X size={14} />
+          <div className="mw-toast" role="status" aria-live="polite">
+            <div className="mw-toast-icon-wrap">
+              {notice.icon === 'wallet' ? (
+                <Wallet size={20} strokeWidth={2.2} />
+              ) : notice.icon === 'bell' ? (
+                <Bell size={20} strokeWidth={2.2} />
+              ) : (
+                <Server size={20} strokeWidth={2.2} />
+              )}
+            </div>
+            <div className="mw-toast-content">
+              <div className="mw-toast-title">{notice.title}</div>
+              {notice.description && (
+                <div className="mw-toast-desc">{notice.description}</div>
+              )}
+            </div>
+            <button
+              className="mw-toast-close"
+              onClick={() => {
+                if (noticeTimerRef.current) window.clearTimeout(noticeTimerRef.current)
+                setNotice(null)
+              }}
+              aria-label="Dismiss notification"
+            >
+              <X size={15} />
             </button>
+            <div className="mw-toast-progress">
+              <div className="mw-toast-progress-bar" />
+            </div>
           </div>
         )}
 
