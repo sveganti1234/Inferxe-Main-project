@@ -13,6 +13,16 @@ import { usePageMeta } from '../../lib/hooks'
 import { MODELS, QUANTS, type Quant } from '../../data/gpus'
 import { estimateMemory, recommend, fmtGB, inr } from '../../lib/calc'
 import { getSession, saveSession, changeUserPassword, getUserPasswordLastUpdated } from '../../lib/authStore'
+import {
+  fetchBackendApiKeys,
+  createBackendApiKey,
+  revokeBackendApiKey,
+} from '../../lib/apiKeyService'
+import {
+  fetchBackendSshKeys,
+  createBackendSshKey,
+  deleteBackendSshKey,
+} from '../../lib/sshKeyService'
 import { NotebooksSection, ReviewsSection, RewardsSection, UsageDetail } from './ExtraSections'
 import { SovereignNodesMap } from '../../components/dashboard/SovereignNodesMap'
 import { InteractivePriceHistoryChart, type PriceHistoryRange, type GpuModel } from '../../components/dashboard/InteractivePriceHistoryChart'
@@ -47,6 +57,8 @@ type ApiKey = {
   key: string
   created: string
   revoked: boolean
+  environment?: 'live' | 'test'
+  lastUsed?: string | null
 }
 
 type SshKey = {
@@ -54,6 +66,7 @@ type SshKey = {
   name: string
   key: string
   fingerprint: string
+  keyType?: string
   addedDate: string
 }
 
@@ -87,6 +100,15 @@ type NotificationItem = {
   read: boolean
 }
 
+type PayoutRecord = {
+  id: string
+  period: string
+  gross: number
+  fee: number
+  net: number
+  status: 'Paid' | 'Pending' | 'Processing'
+}
+
 const STORE = {
   listings: 'inferxe_demo_provider_listings_v1',
   deployments: 'inferxe_demo_deployments_v1',
@@ -98,6 +120,8 @@ const STORE = {
   wallet: 'inferxe_demo_wallet_balance_v1',
   transactions: 'inferxe_demo_transactions_v2',
   announcementDismissed: 'inferxe_dismissed_gpu_announcement_v1',
+  payouts: 'inferxe_demo_provider_payouts_v1',
+  pendingPayout: 'inferxe_demo_provider_pending_payout_v1',
 }
 
 const initialListings: Listing[] = [
@@ -114,11 +138,6 @@ const initialDeployments: Deployment[] = [
   { id: 'dep-1027', name: 'mistral-evaluation', model: 'Mistral 7B Instruct v0.3', gpu: 'L40S', region: 'Mumbai, IN', status: 'Provisioning', hourlyRate: 100 },
 ]
 
-const initialSshKeys: SshKey[] = [
-  { id: 'ssh-1', name: 'Workstation ed25519', key: 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOm5KqB1+7Lq/9+Xk9P+aJ dev@novatech.ai', fingerprint: 'SHA256:7mP4e2x9...yK9', addedDate: '02 Oct 2026' },
-  { id: 'ssh-2', name: 'CI/CD Deployer key', key: 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC8vF0w1e9K8p... ci@novatech.ai', fingerprint: 'SHA256:3aF8x11q...9wQ', addedDate: '08 Oct 2026' },
-]
-
 const initialOrders: OrderItem[] = [
   { id: 'ORD-8492', modelOrGpu: 'Qwen 2.5 7B · 1x NVIDIA L4', provider: 'Yotta NM1 (Mumbai)', date: '10 Oct 2026', duration: '24 hours', cost: 1440, status: 'Running', details: 'Dedicated endpoint deployment with FP16 weights', is_archived: false },
   { id: 'ORD-8431', modelOrGpu: 'Llama 3.1 8B · 1x NVIDIA L40S', provider: 'E2E Cloud (Noida)', date: '08 Oct 2026', duration: '12 hours', cost: 1200, status: 'Completed', details: 'Customer support batch fine-tuning pipeline', is_archived: false },
@@ -131,6 +150,11 @@ const initialTransactions: TransactionItem[] = [
   { id: 'TX-1048', desc: 'Wallet top-up (Demo)', date: '10 Oct 2026', amount: 10000, isCredit: true, status: 'Completed' },
   { id: 'TX-1032', desc: 'Inference deployment billing', date: '08 Oct 2026', amount: 1240, isCredit: false, status: 'Completed' },
   { id: 'TX-1011', desc: 'Inference runtime usage', date: '01 Oct 2026', amount: 3580, isCredit: false, status: 'Completed' },
+]
+
+const initialPayouts: PayoutRecord[] = [
+  { id: 'PO-2026-09', period: 'Sep 2026', gross: 110000, fee: 13200, net: 96800, status: 'Paid' },
+  { id: 'PO-2026-10', period: 'Oct 2026', gross: 72000, fee: 8640, net: 63360, status: 'Pending' },
 ]
 
 const initialNotifications: NotificationItem[] = [
@@ -272,7 +296,7 @@ export default function MarketplaceWorkspace() {
     { id: 'key-1', name: 'Production Backend API', key: 'inf_demo_live_pk_93a74b12c8e0', created: '01 Oct 2026', revoked: false },
     { id: 'key-2', name: 'Staging Evaluation Key', key: 'inf_demo_test_sk_44f12d88e7a1', created: '06 Oct 2026', revoked: false },
   ]))
-  const [sshKeys, setSshKeys] = useState<SshKey[]>(() => readStore(STORE.sshKeys, initialSshKeys))
+  const [sshKeys, setSshKeys] = useState<SshKey[]>([])
   const [orders, setOrders] = useState<OrderItem[]>(() => readStore(STORE.orders, initialOrders))
   const [wishlist, setWishlist] = useState<string[]>(() => readStore(STORE.wishlist, ['gpu-101', 'gpu-104']))
   const [walletBalance, setWalletBalance] = useState<number>(() => readStore(STORE.wallet, 10000))
@@ -335,16 +359,86 @@ type ToastNotice = {
   // API Keys UI State
   const [showNewKeyModal, setShowNewKeyModal] = useState(false)
   const [newKeyName, setNewKeyName] = useState('')
-  const [showKeySecretId, setShowKeySecretId] = useState<string | null>(null)
+  const [newKeyEnv, setNewKeyEnv] = useState<'live' | 'test'>('live')
+  const [keysLoading, setKeysLoading] = useState(false)
+  const [keysError, setKeysError] = useState<string | null>(null)
+  const [createdSecretData, setCreatedSecretData] = useState<{ id: string; name: string; key: string } | null>(null)
   const [keyToRevoke, setKeyToRevoke] = useState<ApiKey | null>(null)
   const [showJwtModal, setShowJwtModal] = useState(false)
+
+  const loadApiKeys = async () => {
+    const session = getSession()
+    if (!session?.token) {
+      return
+    }
+    setKeysLoading(true)
+    setKeysError(null)
+    const res = await fetchBackendApiKeys()
+    if (res.ok && res.keys) {
+      const mapped: ApiKey[] = res.keys.map((k) => ({
+        id: k.id,
+        name: k.name,
+        key: `${k.key_prefix}••••••••`,
+        created: k.created_at ? new Date(k.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Recently',
+        revoked: !k.is_active || Boolean(k.revoked_at),
+        environment: k.environment,
+        lastUsed: k.last_used_at ? new Date(k.last_used_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Never used',
+      }))
+      setKeys(mapped)
+    } else if (res.error) {
+      setKeysError(res.error)
+    }
+    setKeysLoading(false)
+  }
+
+  useEffect(() => {
+    if (route === 'api-keys') {
+      void loadApiKeys()
+    }
+  }, [route])
 
   // SSH Keys UI State
   const [showAddSshModal, setShowAddSshModal] = useState(false)
   const [newSshName, setNewSshName] = useState('')
   const [newSshKey, setNewSshKey] = useState('')
-  const [sshError, setSshError] = useState('')
+  const [sshModalError, setSshModalError] = useState('')
+  const [sshError, setSshError] = useState<string | null>(null)
+  const [sshLoading, setSshLoading] = useState(false)
+  const [sshSubmitting, setSshSubmitting] = useState(false)
   const [sshKeyToDelete, setSshKeyToDelete] = useState<SshKey | null>(null)
+
+  const loadSshKeys = async () => {
+    const session = getSession()
+    if (!session?.token) {
+      setSshKeys([])
+      return
+    }
+    setSshLoading(true)
+    setSshError(null)
+    const res = await fetchBackendSshKeys()
+    if (res.ok && res.keys) {
+      const mapped: SshKey[] = res.keys.map((k) => ({
+        id: k.id,
+        name: k.name,
+        key: k.public_key,
+        fingerprint: k.fingerprint,
+        keyType: k.key_type,
+        addedDate: k.created_at
+          ? new Date(k.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+          : 'Recently',
+      }))
+      setSshKeys(mapped)
+    } else if (res.error) {
+      setSshError(res.error)
+    }
+    setSshLoading(false)
+  }
+
+  useEffect(() => {
+    if (route === 'ssh-keys') {
+      void loadSshKeys()
+    }
+  }, [route])
 
   // Orders UI State
   const [orderTab, setOrderTab] = useState<'All' | 'Running' | 'Completed' | 'Cancelled' | 'Archived'>('All')
@@ -485,6 +579,14 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
   const [providerForm, setProviderForm] = useState({ company: 'Yotta Sovereign Infrastructure Ltd', contact: 'Anil Mehta', email: 'anil.mehta@yotta.com', regions: 'Mumbai NM1, Noida D1', apiType: 'REST + Daemon' })
   const [providerSaved, setProviderSaved] = useState(false)
   const [showPayoutModal, setShowPayoutModal] = useState(false)
+  const [payoutHistory, setPayoutHistory] = useState<PayoutRecord[]>(() =>
+    readStore(STORE.payouts, initialPayouts)
+  )
+  const [pendingPayout, setPendingPayout] = useState<number>(() =>
+    readStore(STORE.pendingPayout, 72000)
+  )
+  const [payoutAmount, setPayoutAmount] = useState<string>('72000')
+  const numericPayout = Math.floor(Number(payoutAmount)) || 0
   const [workloadTelemetry, setWorkloadTelemetry] = useState<Deployment | null>(null)
 
   // User Profile State
@@ -511,11 +613,12 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
   useEffect(() => { saveStore(STORE.listings, listings) }, [listings])
   useEffect(() => { saveStore(STORE.deployments, deployments) }, [deployments])
   useEffect(() => { saveStore(STORE.keys, keys) }, [keys])
-  useEffect(() => { saveStore(STORE.sshKeys, sshKeys) }, [sshKeys])
   useEffect(() => { saveStore(STORE.orders, orders) }, [orders])
   useEffect(() => { saveStore(STORE.wishlist, wishlist) }, [wishlist])
   useEffect(() => { saveStore(STORE.wallet, walletBalance) }, [walletBalance])
   useEffect(() => { saveStore(STORE.transactions, transactions) }, [transactions])
+  useEffect(() => { saveStore(STORE.payouts, payoutHistory) }, [payoutHistory])
+  useEffect(() => { saveStore(STORE.pendingPayout, pendingPayout) }, [pendingPayout])
   useEffect(() => {
     saveStore(STORE.notifications, notifications)
     try {
@@ -755,28 +858,48 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
     setDeployToDelete(null)
   }
 
-  const handleCreateKey = (e: FormEvent) => {
+  const handleCreateKey = async (e: FormEvent) => {
     e.preventDefault()
     const name = newKeyName.trim() || `API Key ${keys.length + 1}`
-    const newKey: ApiKey = {
-      id: `key-${Date.now()}`,
-      name,
-      key: `inf_demo_live_${Math.random().toString(36).slice(2, 10)}${Math.random().toString(36).slice(2, 8)}`,
-      created: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
-      revoked: false,
+    const session = getSession()
+
+    if (!session?.token) {
+      flash('Please sign in with Cognito to generate production API keys.')
+      return
     }
-    setKeys((prev) => [newKey, ...prev])
-    setShowNewKeyModal(false)
-    setNewKeyName('')
-    setShowKeySecretId(newKey.id)
-    flash(`Demo API key "${name}" generated locally.`)
+
+    setKeysLoading(true)
+    const res = await createBackendApiKey(name, newKeyEnv)
+    setKeysLoading(false)
+
+    if (res.ok && res.data) {
+      setShowNewKeyModal(false)
+      setNewKeyName('')
+      setNewKeyEnv('live')
+      setCreatedSecretData({
+        id: res.data.id,
+        name: res.data.name,
+        key: res.data.api_key,
+      })
+      flash(`API key "${name}" created and saved to PostgreSQL.`)
+      void loadApiKeys()
+    } else {
+      flash(res.error || 'Failed to create API key.')
+    }
   }
 
-  const handleConfirmRevokeKey = () => {
+  const handleConfirmRevokeKey = async () => {
     if (!keyToRevoke) return
-    setKeys((prev) => prev.map((k) => (k.id === keyToRevoke.id ? { ...k, revoked: true } : k)))
-    flash(`Key "${keyToRevoke.name}" revoked locally.`)
-    setKeyToRevoke(null)
+    setKeysLoading(true)
+    const res = await revokeBackendApiKey(keyToRevoke.id)
+    setKeysLoading(false)
+    if (res.ok) {
+      flash(`API key "${keyToRevoke.name}" revoked in PostgreSQL.`)
+      setKeyToRevoke(null)
+      void loadApiKeys()
+    } else {
+      flash(res.error || 'Failed to revoke API key.')
+    }
   }
 
   const handleTopUpWallet = (e: FormEvent) => {
@@ -822,32 +945,53 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
     }
   }
 
-  const handleAddSshKey = (e: FormEvent) => {
+  const handleAddSshKey = async (e: FormEvent) => {
     e.preventDefault()
-    if (!newSshKey.trim().startsWith('ssh-') && !newSshKey.trim().startsWith('ecdsa-')) {
-      setSshError('Public key must begin with ssh-rsa, ssh-ed25519, or ecdsa-sha2-nistp256')
+    setSshModalError('')
+
+    const trimmedKey = newSshKey.trim()
+    const trimmedName = newSshName.trim()
+
+    if (trimmedKey.includes('PRIVATE KEY')) {
+      setSshModalError('Private keys are strictly forbidden. Please provide your OpenSSH public key (e.g. id_ed25519.pub).')
       return
     }
-    const keyObj: SshKey = {
-      id: `ssh-${Date.now()}`,
-      name: newSshName.trim() || 'Workstation Key',
-      key: newSshKey.trim(),
-      fingerprint: `SHA256:${Math.random().toString(36).slice(2, 10)}...${Math.random().toString(36).slice(2, 6)}`,
-      addedDate: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+
+    if (!trimmedKey.startsWith('ssh-') && !trimmedKey.startsWith('ecdsa-')) {
+      setSshModalError('Public key must begin with ssh-ed25519, ssh-rsa, or ecdsa-sha2-nistp256')
+      return
     }
-    setSshKeys((prev) => [keyObj, ...prev])
-    setShowAddSshModal(false)
-    setNewSshName('')
-    setNewSshKey('')
-    setSshError('')
-    flash(`SSH Public Key "${keyObj.name}" added for compute cluster pairing (demo).`)
+
+    setSshSubmitting(true)
+    const res = await createBackendSshKey(trimmedName || 'Workstation Key', trimmedKey)
+    setSshSubmitting(false)
+
+    if (res.ok && res.data) {
+      flash(`SSH Public Key "${res.data.name}" registered in PostgreSQL.`)
+      setShowAddSshModal(false)
+      setNewSshName('')
+      setNewSshKey('')
+      setSshModalError('')
+      void loadSshKeys()
+    } else {
+      setSshModalError(res.error || 'Failed to register SSH key.')
+    }
   }
 
-  const handleConfirmDeleteSshKey = () => {
+  const handleConfirmDeleteSshKey = async () => {
     if (!sshKeyToDelete) return
-    setSshKeys((prev) => prev.filter((k) => k.id !== sshKeyToDelete.id))
-    flash(`SSH key "${sshKeyToDelete.name}" removed from local store.`)
-    setSshKeyToDelete(null)
+    setSshSubmitting(true)
+    const res = await deleteBackendSshKey(sshKeyToDelete.id)
+    setSshSubmitting(false)
+
+    if (res.ok) {
+      flash(`SSH key "${sshKeyToDelete.name}" removed from PostgreSQL.`)
+      setSshKeyToDelete(null)
+      void loadSshKeys()
+    } else {
+      flash(res.error || 'Failed to delete SSH key.')
+      setSshKeyToDelete(null)
+    }
   }
 
   const handleApplyCoupon = (e: FormEvent) => {
@@ -1015,6 +1159,58 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
       })
       flash(`New GPU listing "${item.name}" added to inventory.`)
     }
+  }
+
+  const handleConfirmPayout = (e?: FormEvent) => {
+    if (e) e.preventDefault()
+    if (numericPayout <= 0) {
+      flash('Please enter a valid amount greater than ₹0')
+      return
+    }
+    if (numericPayout > pendingPayout) {
+      flash(`Amount exceeds available pending payout of ${money(pendingPayout)}`)
+      return
+    }
+
+    let maxNum = 10
+    for (const r of payoutHistory) {
+      const m = r.id.match(/PO-(\d{4})-(\d+)/)
+      if (m) {
+        const n = parseInt(m[2], 10)
+        if (n > maxNum) maxNum = n
+      }
+    }
+    const nextSeq = String(maxNum + 1).padStart(2, '0')
+    const currentYear = new Date().getFullYear()
+    const nextId = `PO-${currentYear}-${nextSeq}`
+    const currentPeriod = new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+    const fee = Math.round(numericPayout * 0.12)
+    const net = Math.round(numericPayout * 0.88)
+
+    const newRecord: PayoutRecord = {
+      id: nextId,
+      period: currentPeriod,
+      gross: numericPayout,
+      fee,
+      net,
+      status: 'Pending',
+    }
+
+    const updatedHistory = [...payoutHistory, newRecord]
+    const updatedPending = Math.max(0, pendingPayout - numericPayout)
+
+    setPayoutHistory(updatedHistory)
+    setPendingPayout(updatedPending)
+    saveStore(STORE.payouts, updatedHistory)
+    saveStore(STORE.pendingPayout, updatedPending)
+
+    setShowPayoutModal(false)
+    addNotification({
+      title: `Payout Requested: ${nextId}`,
+      detail: `Withdrawal request for ${money(numericPayout)} (Net ${money(net)}) initiated via RTGS/NEFT.`,
+      type: 'Billing',
+    })
+    flash(`Payout request ${nextId} of ${money(numericPayout)} submitted successfully!`)
   }
 
   const handleSendTestNotification = () => {
@@ -1767,12 +1963,31 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
             <div className="mw-toolbar">
               <div>
                 <h2>API Credentials</h2>
-                <p>Generate and manage authentication tokens for client applications and OpenAI SDK callers.</p>
+                <p>Generate and manage PostgreSQL-backed authentication keys for Inferxe Nemotron Inference API.</p>
               </div>
-              <button className="mw-primary" onClick={() => setShowNewKeyModal(true)}>
-                <Plus size={16} /> Create Demo Key
-              </button>
+              <div style={{ display: 'flex', gap: 10 }}>
+                {keysLoading && <span className="mw-muted" style={{ display: 'flex', alignItems: 'center', fontSize: '0.8rem' }}>Syncing...</span>}
+                <button className="mw-primary" onClick={() => setShowNewKeyModal(true)}>
+                  <Plus size={16} /> Create API Key
+                </button>
+              </div>
             </div>
+
+            {!getSession()?.token && (
+              <div style={{ padding: '12px 16px', background: 'rgba(234, 179, 8, 0.1)', border: '1px solid rgba(234, 179, 8, 0.3)', borderRadius: 8, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.82rem', color: '#eab308' }}>
+                  <strong>Authentication Notice:</strong> Please sign in with your Cognito account to manage persistent production API keys.
+                </span>
+                <Link to="/login" style={{ fontSize: '0.8rem', color: 'var(--brand-hi)', textDecoration: 'underline' }}>Sign In</Link>
+              </div>
+            )}
+
+            {keysError && (
+              <div style={{ padding: '12px 16px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 8, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.82rem', color: '#ef4444' }}>{keysError}</span>
+                <button className="mw-secondary" style={{ padding: '4px 10px', fontSize: '0.76rem' }} onClick={() => void loadApiKeys()}>Retry</button>
+              </div>
+            )}
 
             <div className="mw-panel">
               <div className="mw-panel-head">
@@ -1780,11 +1995,11 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                 <span className="mw-muted">{keys.filter((k) => !k.revoked).length} active</span>
               </div>
 
-              {keys.length === 0 ? (
+              {keys.length === 0 && !keysLoading ? (
                 <div className="mw-empty">
                   <span className="mw-icon-box"><KeyRound size={22} /></span>
                   <h3>No API Keys Issued</h3>
-                  <p>Generate a demo token to authenticate with the Inferxe endpoint.</p>
+                  <p>Generate a secure key to authenticate with the Inferxe PostgreSQL inference gateway.</p>
                   <button className="mw-primary" onClick={() => setShowNewKeyModal(true)}>
                     Generate Key
                   </button>
@@ -1795,8 +2010,10 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                     <thead>
                       <tr>
                         <th>Key Label</th>
-                        <th>Secret Token</th>
+                        <th>Prefix / Key</th>
+                        <th>Environment</th>
                         <th>Issued Date</th>
+                        <th>Last Used</th>
                         <th>Status</th>
                         <th>Actions</th>
                       </tr>
@@ -1809,35 +2026,35 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                             <small>{k.id}</small>
                           </td>
                           <td className="mw-key-cell">
-                            {k.revoked ? (
-                              '••••••••••••••••'
-                            ) : showKeySecretId === k.id ? (
-                              k.key
-                            ) : (
-                              `${k.key.slice(0, 14)}••••••••`
-                            )}
-                            {!k.revoked && (
-                              <button
-                                className="mw-icon-btn"
-                                onClick={() => setShowKeySecretId(showKeySecretId === k.id ? null : k.id)}
-                                aria-label="Toggle Key Visibility"
-                              >
-                                {showKeySecretId === k.id ? <EyeOff size={13} /> : <Eye size={13} />}
-                              </button>
-                            )}
+                            <code>{k.key}</code>
+                          </td>
+                          <td>
+                            <span style={{
+                              fontSize: '0.68rem',
+                              padding: '2px 7px',
+                              borderRadius: 4,
+                              background: k.environment === 'test' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(34, 197, 94, 0.15)',
+                              color: k.environment === 'test' ? '#60a5fa' : '#4ade80',
+                              border: k.environment === 'test' ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid rgba(34, 197, 94, 0.3)',
+                              fontWeight: 600,
+                              textTransform: 'uppercase'
+                            }}>
+                              {k.environment || 'live'}
+                            </span>
                           </td>
                           <td>{k.created}</td>
+                          <td style={{ fontSize: '0.8rem', color: 'var(--ink-3)' }}>{k.lastUsed || 'Never'}</td>
                           <td><StatusBadge>{k.revoked ? 'Revoked' : 'Active'}</StatusBadge></td>
                           <td>
                             {!k.revoked && (
                               <div className="mw-actions">
                                 <button
                                   onClick={() => {
-                                    void navigator.clipboard?.writeText(k.key)
-                                    flash('API key copied to clipboard.')
+                                    void navigator.clipboard?.writeText(k.key.replace(/•/g, ''))
+                                    flash('Key prefix copied to clipboard.')
                                   }}
                                 >
-                                  <Copy size={13} /> Copy
+                                  <Copy size={13} /> Copy Prefix
                                 </button>
                                 <button className="mw-danger" onClick={() => setKeyToRevoke(k)}>
                                   Revoke
@@ -2767,8 +2984,14 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                 <h2>Earnings & Payouts</h2>
                 <p>Track accrued revenue from marketplace capacity allocations and review payout records.</p>
               </div>
-              <button className="mw-primary" onClick={() => setShowPayoutModal(true)}>
-                <ArrowDownToLine size={16} /> Request Payout (Demo)
+              <button
+                className="mw-primary"
+                onClick={() => {
+                  setPayoutAmount(pendingPayout > 0 ? String(pendingPayout) : '0')
+                  setShowPayoutModal(true)
+                }}
+              >
+                <ArrowDownToLine size={16} /> Request Payment
               </button>
             </div>
 
@@ -2787,7 +3010,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
               </div>
               <div className="mw-metric">
                 <div className="mw-metric-top"><span>Pending Payout</span><span className="mw-icon-box"><ArrowDownToLine /></span></div>
-                <strong>₹72,000</strong>
+                <strong>{money(pendingPayout)}</strong>
               </div>
             </div>
 
@@ -2809,19 +3032,18 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                     </tr>
                   </thead>
                   <tbody>
-                    {[
-                      ['PO-2026-09', 'Sep 2026', '₹1,10,000', '₹13,200', '₹96,800', 'Paid'],
-                      ['PO-2026-10', 'Oct 2026', '₹72,000', '₹8,640', '₹63,360', 'Pending'],
-                    ].map((row) => (
-                      <tr key={row[0]}>
-                        <td><strong>{row[0]}</strong></td>
-                        <td>{row[1]}</td>
-                        <td>{row[2]}</td>
-                        <td>{row[3]}</td>
-                        <td>{row[4]}</td>
-                        <td><StatusBadge>{row[5]}</StatusBadge></td>
-                      </tr>
-                    ))}
+                    {[...payoutHistory]
+                      .sort((a, b) => b.id.localeCompare(a.id))
+                      .map((row) => (
+                        <tr key={row.id}>
+                          <td><strong>{row.id}</strong></td>
+                          <td>{row.period}</td>
+                          <td>{money(row.gross)}</td>
+                          <td>{money(row.fee)}</td>
+                          <td>{money(row.net)}</td>
+                          <td><StatusBadge>{row.status}</StatusBadge></td>
+                        </tr>
+                      ))}
                   </tbody>
                 </table>
               </div>
@@ -3257,30 +3479,49 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                 <h2>SSH Public Keys Vault</h2>
                 <p>Register public keys to enable secure terminal and container shell pairing with dedicated GPU nodes.</p>
               </div>
-              <button className="mw-primary" onClick={() => setShowAddSshModal(true)}>
-                <Plus size={16} /> Add Public SSH Key
-              </button>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                {sshLoading && <span className="mw-muted" style={{ display: 'flex', alignItems: 'center', fontSize: '0.8rem' }}>Syncing...</span>}
+                <button className="mw-primary" onClick={() => { setSshModalError(''); setShowAddSshModal(true) }}>
+                  <Plus size={16} /> Add Public SSH Key
+                </button>
+              </div>
             </div>
+
+            {!getSession()?.token && (
+              <div style={{ padding: '12px 16px', background: 'rgba(234, 179, 8, 0.1)', border: '1px solid rgba(234, 179, 8, 0.3)', borderRadius: 8, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.82rem', color: '#eab308' }}>
+                  <strong>Authentication Notice:</strong> Please sign in with your account to register and manage persistent SSH keys.
+                </span>
+                <Link to="/login" style={{ fontSize: '0.8rem', color: 'var(--brand-hi)', textDecoration: 'underline' }}>Sign In</Link>
+              </div>
+            )}
+
+            {sshError && (
+              <div style={{ padding: '12px 16px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 8, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.82rem', color: '#ef4444' }}>{sshError}</span>
+                <button className="mw-secondary" style={{ padding: '4px 10px', fontSize: '0.76rem' }} onClick={() => void loadSshKeys()}>Retry</button>
+              </div>
+            )}
 
             <div className="mw-info-box" style={{ marginBottom: 16 }}>
               <ShieldCheck size={18} />
               <span>
-                <strong>Sovereign Security Notice:</strong> Never upload private keys. Only public key pairs (e.g., id_ed25519.pub) are accepted. Public keys are stored locally in your browser demo session.
+                <strong>Sovereign Security Notice:</strong> Never upload private keys. Only OpenSSH public keys (e.g., id_ed25519.pub, id_rsa.pub) are accepted. Stored securely in PostgreSQL and cryptographically verified.
               </span>
             </div>
 
             <div className="mw-panel">
               <div className="mw-panel-head">
                 <h3>Registered Public Keys</h3>
-                <span className="mw-muted">{sshKeys.length} keys</span>
+                <span className="mw-muted">{sshKeys.length} {sshKeys.length === 1 ? 'key' : 'keys'}</span>
               </div>
 
-              {sshKeys.length === 0 ? (
+              {sshKeys.length === 0 && !sshLoading ? (
                 <div className="mw-empty">
                   <span className="mw-icon-box"><KeyRound size={22} /></span>
                   <h3>No SSH Keys Configured</h3>
-                  <p>Add a public key to pair with GPU container shells.</p>
-                  <button className="mw-primary" onClick={() => setShowAddSshModal(true)}>
+                  <p>Add an OpenSSH public key to pair with GPU container shells.</p>
+                  <button className="mw-primary" onClick={() => { setSshModalError(''); setShowAddSshModal(true) }}>
                     Add Public Key
                   </button>
                 </div>
@@ -3290,6 +3531,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                     <thead>
                       <tr>
                         <th>Key Label</th>
+                        <th>Type</th>
                         <th>Fingerprint</th>
                         <th>Public Key Snippet</th>
                         <th>Added Date</th>
@@ -3302,6 +3544,18 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                           <td>
                             <strong>{k.name}</strong>
                             <small>{k.id}</small>
+                          </td>
+                          <td>
+                            <span style={{
+                              fontSize: '0.72rem',
+                              padding: '2px 7px',
+                              borderRadius: 4,
+                              background: 'rgba(255, 255, 255, 0.06)',
+                              border: '1px solid rgba(255, 255, 255, 0.1)',
+                              fontFamily: 'var(--font-mono)'
+                            }}>
+                              {k.keyType || 'ssh'}
+                            </span>
                           </td>
                           <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.74rem', color: 'var(--brand-hi)' }}>
                             {k.fingerprint}
@@ -4398,7 +4652,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
         <div className="mw-modal-backdrop" onClick={() => setShowNewKeyModal(false)}>
           <div className="mw-modal" onClick={(e) => e.stopPropagation()}>
             <div className="mw-modal-head">
-              <h3>Create Demo API Key</h3>
+              <h3>Create Inferxe API Key</h3>
               <button onClick={() => setShowNewKeyModal(false)} aria-label="Close"><X size={16} /></button>
             </div>
             <form onSubmit={handleCreateKey}>
@@ -4409,19 +4663,90 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                     required
                     value={newKeyName}
                     onChange={(e) => setNewKeyName(e.target.value)}
-                    placeholder="e.g. Chatbot Service Backend"
+                    placeholder="e.g. Production Nemotron Client"
                     style={{ padding: '8px 10px', background: 'var(--bg-2)', border: '1px solid var(--line-2)', borderRadius: 7, color: 'var(--ink)' }}
                   />
                 </label>
-                <p style={{ margin: 0, fontSize: '0.74rem', color: 'var(--ink-4)', lineHeight: 1.5 }}>
-                  This creates a simulated key for local frontend testing. Never share actual production credentials.
+                <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: '0.76rem', color: 'var(--ink-3)', marginTop: 10 }}>
+                  Environment
+                  <select
+                    value={newKeyEnv}
+                    onChange={(e) => setNewKeyEnv(e.target.value as 'live' | 'test')}
+                    style={{ padding: '8px 10px', background: 'var(--bg-2)', border: '1px solid var(--line-2)', borderRadius: 7, color: 'var(--ink)' }}
+                  >
+                    <option value="live">Live (Production)</option>
+                    <option value="test">Test (Sandbox / Staging)</option>
+                  </select>
+                </label>
+                <p style={{ margin: 0, fontSize: '0.74rem', color: 'var(--ink-4)', lineHeight: 1.5, marginTop: 10 }}>
+                  Keys are cryptographically hashed using SHA-256 and verified through PostgreSQL. Only the raw key will be displayed once.
                 </p>
               </div>
               <div className="mw-modal-foot">
                 <button type="button" className="mw-secondary" onClick={() => setShowNewKeyModal(false)}>Cancel</button>
-                <button type="submit" className="mw-primary">Generate Key</button>
+                <button type="submit" className="mw-primary" disabled={keysLoading}>
+                  {keysLoading ? 'Generating...' : 'Generate Key'}
+                </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* 3b. Secret Key Generated Modal (Display Once) */}
+      {createdSecretData && (
+        <div className="mw-modal-backdrop" onClick={() => setCreatedSecretData(null)}>
+          <div className="mw-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
+            <div className="mw-modal-head" style={{ borderBottom: '1px solid rgba(34, 197, 94, 0.2)' }}>
+              <h3 style={{ color: '#4ade80', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Check size={18} /> API Key Created Successfully
+              </h3>
+              <button onClick={() => setCreatedSecretData(null)} aria-label="Close"><X size={16} /></button>
+            </div>
+            <div className="mw-modal-body" style={{ gap: 14 }}>
+              <div style={{ padding: '10px 14px', background: 'rgba(234, 179, 8, 0.1)', border: '1px solid rgba(234, 179, 8, 0.25)', borderRadius: 7, fontSize: '0.78rem', color: '#eab308', lineHeight: 1.5 }}>
+                <strong>Important:</strong> Save this key now! For security reasons, Inferxe only stores the SHA-256 hash. <strong>You will not be able to view this secret token again.</strong>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <span style={{ fontSize: '0.76rem', color: 'var(--ink-3)' }}>Key Name: <strong>{createdSecretData.name}</strong></span>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <input
+                    readOnly
+                    value={createdSecretData.key}
+                    style={{
+                      flex: 1,
+                      fontFamily: 'monospace',
+                      fontSize: '0.85rem',
+                      padding: '10px 12px',
+                      background: 'rgba(0, 0, 0, 0.4)',
+                      border: '1px solid var(--brand-line, #38bdf8)',
+                      borderRadius: 7,
+                      color: 'var(--brand-hi, #38bdf8)',
+                    }}
+                  />
+                  <button
+                    className="mw-primary"
+                    style={{ whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6 }}
+                    onClick={() => {
+                      void navigator.clipboard?.writeText(createdSecretData.key)
+                      flash('Secret API Key copied to clipboard!')
+                    }}
+                  >
+                    <Copy size={14} /> Copy
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="mw-modal-foot">
+              <button
+                className="mw-primary"
+                style={{ width: '100%' }}
+                onClick={() => setCreatedSecretData(null)}
+              >
+                I have safely stored this key
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -4829,30 +5154,208 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
         <div className="mw-modal-backdrop" onClick={() => setShowPayoutModal(false)}>
           <div className="mw-modal" onClick={(e) => e.stopPropagation()}>
             <div className="mw-modal-head">
-              <h3>Request Provider Payout (Demo)</h3>
+              <h3>Request Payment</h3>
               <button onClick={() => setShowPayoutModal(false)} aria-label="Close"><X size={16} /></button>
             </div>
-            <div className="mw-modal-body">
-              <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--ink-2)', lineHeight: 1.5 }}>
-                Confirm requesting disbursement for pending earnings of <strong>₹72,000</strong> to your registered bank account?
-              </p>
-              <div className="mw-info-box">
-                <ShieldCheck size={16} />
-                <span>Simulated payout request. In production, disbursements are processed via NEFT/RTGS settlement.</span>
+            {pendingPayout <= 0 ? (
+              <div className="mw-modal-body" style={{ textAlign: 'center', padding: '28px 22px' }}>
+                <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--ink-2)', lineHeight: 1.6 }}>
+                  You currently have no pending earnings available for disbursement. All accrued revenue has already been requested.
+                </p>
+                <div style={{ marginTop: 16 }}>
+                  <button
+                    type="button"
+                    className="mw-secondary"
+                    onClick={() => {
+                      setPendingPayout(72000)
+                      setPayoutAmount('72000')
+                      saveStore(STORE.pendingPayout, 72000)
+                      flash('Demo pending balance reset to ₹72,000.')
+                    }}
+                  >
+                    Reset Demo Balance (₹72,000)
+                  </button>
+                </div>
               </div>
-            </div>
-            <div className="mw-modal-foot">
-              <button className="mw-secondary" onClick={() => setShowPayoutModal(false)}>Cancel</button>
-              <button
-                className="mw-primary"
-                onClick={() => {
-                  setShowPayoutModal(false)
-                  flash('Payout request PO-2026-11 submitted (simulated).')
-                }}
-              >
-                Confirm Payout
-              </button>
-            </div>
+            ) : (
+              <form onSubmit={handleConfirmPayout}>
+                <div className="mw-modal-body">
+                  {/* Available Balance Box */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '12px 16px',
+                      background: 'rgba(118, 185, 0, 0.08)',
+                      border: '1px solid rgba(118, 185, 0, 0.22)',
+                      borderRadius: 10,
+                    }}
+                  >
+                    <div>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--ink-3)', display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Available to Withdraw
+                      </span>
+                      <strong style={{ fontSize: '1.25rem', color: 'var(--brand-hi, #76b900)' }}>
+                        {money(pendingPayout)}
+                      </strong>
+                    </div>
+                    <span style={{ fontSize: '0.74rem', color: 'var(--ink-4)', maxWidth: 170, textAlign: 'right' }}>
+                      Max balance eligible for payout disbursement
+                    </span>
+                  </div>
+
+                  {/* Amount Input */}
+                  <div>
+                    <label
+                      htmlFor="payout-amount-input"
+                      style={{ fontSize: '0.78rem', color: 'var(--ink-2)', display: 'block', marginBottom: 6, fontWeight: 500 }}
+                    >
+                      Withdrawal Amount (₹)
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <span
+                        style={{
+                          position: 'absolute',
+                          left: 14,
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          color: 'var(--ink-3)',
+                          fontWeight: 600,
+                          fontSize: '1rem',
+                          pointerEvents: 'none',
+                        }}
+                      >
+                        ₹
+                      </span>
+                      <input
+                        id="payout-amount-input"
+                        type="number"
+                        min="1"
+                        max={pendingPayout}
+                        step="1"
+                        value={payoutAmount}
+                        onChange={(e) => {
+                          const sanitized = e.target.value.replace(/[^0-9]/g, '')
+                          setPayoutAmount(sanitized)
+                        }}
+                        placeholder="Enter amount to withdraw"
+                        style={{
+                          width: '100%',
+                          padding: '10px 14px 10px 34px',
+                          fontSize: '1.05rem',
+                          fontWeight: 600,
+                          fontFamily: 'var(--font-mono, monospace)',
+                          background: 'var(--bg-2, #111a14)',
+                          border: '1px solid var(--line-2, #26382a)',
+                          borderRadius: 8,
+                          color: 'var(--ink, #fff)',
+                          outline: 'none',
+                        }}
+                        autoFocus
+                        required
+                      />
+                    </div>
+                    {numericPayout > pendingPayout && (
+                      <span style={{ color: '#ef4444', fontSize: '0.76rem', display: 'block', marginTop: 4 }}>
+                        Amount cannot exceed available pending earnings of {money(pendingPayout)}.
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Quick Select Presets */}
+                  <div>
+                    <span style={{ fontSize: '0.74rem', color: 'var(--ink-4)', display: 'block', marginBottom: 8, fontWeight: 500 }}>
+                      Quick Select Presets:
+                    </span>
+                    <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+                      {[10000, 25000, 50000].filter((amt) => amt < pendingPayout).map((amt) => (
+                        <button
+                          key={amt}
+                          type="button"
+                          className={`mw-filter-pill ${numericPayout === amt ? 'is-active' : ''}`}
+                          onClick={() => setPayoutAmount(String(amt))}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          {money(amt)}
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        className={`mw-filter-pill ${numericPayout === pendingPayout ? 'is-active' : ''}`}
+                        onClick={() => setPayoutAmount(String(pendingPayout))}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        Max ({money(pendingPayout)})
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Live Breakdown Box */}
+                  {numericPayout > 0 && numericPayout <= pendingPayout && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 8,
+                        padding: '12px 14px',
+                        background: 'rgba(255, 255, 255, 0.02)',
+                        borderRadius: 8,
+                        border: '1px solid var(--line, #1e2c22)',
+                        fontSize: '0.82rem',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--ink-2)' }}>
+                        <span>Gross Inflow Requested</span>
+                        <strong>{money(numericPayout)}</strong>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--ink-3)' }}>
+                        <span>Platform Fee (12%)</span>
+                        <span style={{ color: '#f59e0b' }}>- {money(Math.round(numericPayout * 0.12))}</span>
+                      </div>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          color: 'var(--ink)',
+                          borderTop: '1px solid rgba(255,255,255,0.08)',
+                          paddingTop: 6,
+                          fontWeight: 600,
+                        }}
+                      >
+                        <span>Net Disbursed to Bank</span>
+                        <span style={{ color: 'var(--brand-hi, #76b900)' }}>
+                          {money(Math.round(numericPayout * 0.88))}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--ink-4)', fontSize: '0.74rem' }}>
+                        <span>Remaining Pending Balance</span>
+                        <span>{money(pendingPayout - numericPayout)}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="mw-info-box" style={{ marginTop: 0 }}>
+                    <ShieldCheck size={16} />
+                    <span>Simulated payout request. In production, disbursements are processed via NEFT/RTGS settlement to your registered bank account.</span>
+                  </div>
+                </div>
+
+                <div className="mw-modal-foot">
+                  <button type="button" className="mw-secondary" onClick={() => setShowPayoutModal(false)}>
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="mw-primary"
+                    disabled={numericPayout <= 0 || numericPayout > pendingPayout}
+                    style={numericPayout <= 0 || numericPayout > pendingPayout ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                  >
+                    Confirm Payout
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}
@@ -4885,11 +5388,11 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
 
       {/* 11. Add SSH Public Key Modal */}
       {showAddSshModal && (
-        <div className="mw-modal-backdrop" onClick={() => setShowAddSshModal(false)}>
+        <div className="mw-modal-backdrop" onClick={() => !sshSubmitting && setShowAddSshModal(false)}>
           <div className="mw-modal" onClick={(e) => e.stopPropagation()}>
             <div className="mw-modal-head">
               <h3>Add Public SSH Key</h3>
-              <button onClick={() => setShowAddSshModal(false)} aria-label="Close"><X size={16} /></button>
+              <button disabled={sshSubmitting} onClick={() => setShowAddSshModal(false)} aria-label="Close"><X size={16} /></button>
             </div>
             <form onSubmit={handleAddSshKey}>
               <div className="mw-modal-body">
@@ -4897,6 +5400,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                   Key Name / Machine Label
                   <input
                     required
+                    disabled={sshSubmitting}
                     value={newSshName}
                     onChange={(e) => setNewSshName(e.target.value)}
                     placeholder="e.g. Workstation id_ed25519"
@@ -4904,28 +5408,31 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                   />
                 </label>
                 <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: '0.76rem', color: 'var(--ink-3)' }}>
-                  Public Key (ssh-rsa, ssh-ed25519, or ecdsa-*)
+                  Public Key (.pub file content)
                   <textarea
                     required
+                    disabled={sshSubmitting}
                     rows={4}
                     value={newSshKey}
                     onChange={(e) => {
                       setNewSshKey(e.target.value)
-                      setSshError('')
+                      setSshModalError('')
                     }}
                     placeholder="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... user@machine"
                     style={{ padding: '8px 10px', background: 'var(--bg-2)', border: '1px solid var(--line-2)', borderRadius: 7, color: 'var(--ink)', fontFamily: 'var(--font-mono)', fontSize: '0.74rem' }}
                   />
                 </label>
-                {sshError && <small style={{ color: '#ef4444', display: 'block' }}>{sshError}</small>}
+                {sshModalError && <small style={{ color: '#ef4444', display: 'block', lineHeight: 1.4 }}>{sshModalError}</small>}
                 <div className="mw-info-box" style={{ marginTop: 4 }}>
                   <ShieldCheck size={16} />
-                  <span>Never upload private keys (.id_rsa). Only public (.pub) keys are accepted. Stored locally in browser session for demonstration.</span>
+                  <span>Never upload private keys (.id_rsa). Only OpenSSH public (.pub) keys are accepted. Cryptographically validated and saved to PostgreSQL.</span>
                 </div>
               </div>
               <div className="mw-modal-foot">
-                <button type="button" className="mw-secondary" onClick={() => setShowAddSshModal(false)}>Cancel</button>
-                <button type="submit" className="mw-primary">Add Public Key</button>
+                <button type="button" disabled={sshSubmitting} className="mw-secondary" onClick={() => setShowAddSshModal(false)}>Cancel</button>
+                <button type="submit" disabled={sshSubmitting} className="mw-primary">
+                  {sshSubmitting ? 'Registering Key...' : 'Add Public Key'}
+                </button>
               </div>
             </form>
           </div>
@@ -4934,11 +5441,11 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
 
       {/* 12. Delete SSH Key Confirmation Dialog */}
       {sshKeyToDelete && (
-        <div className="mw-modal-backdrop" onClick={() => setSshKeyToDelete(null)}>
+        <div className="mw-modal-backdrop" onClick={() => !sshSubmitting && setSshKeyToDelete(null)}>
           <div className="mw-modal" onClick={(e) => e.stopPropagation()}>
             <div className="mw-modal-head">
               <h3>Remove SSH Key</h3>
-              <button onClick={() => setSshKeyToDelete(null)} aria-label="Close"><X size={16} /></button>
+              <button disabled={sshSubmitting} onClick={() => setSshKeyToDelete(null)} aria-label="Close"><X size={16} /></button>
             </div>
             <div className="mw-modal-body">
               <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--ink-2)', lineHeight: 1.5 }}>
@@ -4947,9 +5454,14 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
               </p>
             </div>
             <div className="mw-modal-foot">
-              <button className="mw-secondary" onClick={() => setSshKeyToDelete(null)}>Cancel</button>
-              <button className="mw-primary" style={{ background: '#ef4444', borderColor: '#ef4444', color: '#fff' }} onClick={handleConfirmDeleteSshKey}>
-                Remove Key
+              <button disabled={sshSubmitting} className="mw-secondary" onClick={() => setSshKeyToDelete(null)}>Cancel</button>
+              <button
+                disabled={sshSubmitting}
+                className="mw-primary"
+                style={{ background: '#ef4444', borderColor: '#ef4444', color: '#fff' }}
+                onClick={handleConfirmDeleteSshKey}
+              >
+                {sshSubmitting ? 'Removing...' : 'Remove Key'}
               </button>
             </div>
           </div>
