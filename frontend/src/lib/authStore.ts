@@ -208,6 +208,22 @@ const ADMIN_API_BASE =
   (import.meta.env.VITE_ADMIN_AUTH_ENDPOINT as string | undefined)?.replace(/\/$/, '') ||
   '/api/admin'
 
+export const ADMIN_EMAILS = [
+  'admin@inferxe.com',
+  'alex.chen@inferxe.internal',
+  'bhumireddy@inferxe.com',
+]
+
+export function isAdministratorEmail(email: string): boolean {
+  if (!email) return false
+  const clean = email.trim().toLowerCase()
+  return (
+    ADMIN_EMAILS.includes(clean) ||
+    clean.startsWith('admin@') ||
+    clean.endsWith('@inferxe.internal')
+  )
+}
+
 export interface AdminLoginResult {
   ok: boolean
   isAdmin: boolean
@@ -252,8 +268,6 @@ export async function loginAdminBackend(
         ok: false,
         isAdmin: true,
         error: data.error || 'Incorrect email or password. Please verify your credentials and try again.',
-<<<<<<< HEAD
-=======
       }
     }
 
@@ -287,7 +301,6 @@ export async function loginAdminBackend(
         ok: false,
         isAdmin: true,
         error: 'Incorrect email or password. Please verify your credentials and try again.',
->>>>>>> 2fd77d811b053b54fad823e43ae45ccd82ce13d2
       }
     }
   }

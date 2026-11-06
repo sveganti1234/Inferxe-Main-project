@@ -125,30 +125,6 @@ export default function UsersList() {
         <Tilt max={5} className="dash-stat-tilt">
           <div className="dash-stat-card glass glass--lift">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-<<<<<<< HEAD
-=======
-<<<<<<< HEAD
-              <span className="dash-stat-label engrave">Pending Invitations</span>
-            </div>
-            <div className="dash-stat-value readout">
-              <Counter to={pendingUsers} />
-            </div>
-            <small style={{ color: 'var(--ink-4)', fontSize: '0.72rem', marginTop: 4 }}>Awaiting Cognito first sign-in</small>
-          </div>
-        </Tilt>
-
-        <Tilt max={5} className="dash-stat-tilt">
-          <div className="dash-stat-card glass glass--lift">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-              <span className="dash-stat-label engrave">Assigned Spend Caps</span>
-              <span className="engrave" style={{ fontSize: '0.62rem', opacity: 0.7 }}>INR</span>
-            </div>
-            <div className="dash-stat-value readout">
-              <Counter to={assignedSpendCaps} prefix="₹" />
-            </div>
-            <small style={{ color: 'var(--ink-4)', fontSize: '0.72rem', marginTop: 4 }}>Sum of configured monthly limits</small>
-=======
->>>>>>> 2fd77d811b053b54fad823e43ae45ccd82ce13d2
               <span className="dash-stat-label engrave">Total Requests</span>
               <span className="engrave" style={{ fontSize: '0.62rem', opacity: 0.7 }}>ALL TIME</span>
             </div>
@@ -168,12 +144,7 @@ export default function UsersList() {
             <div className="dash-stat-value readout">
               <Counter to={assignedSpendCaps} prefix="₹" />
             </div>
-<<<<<<< HEAD
             <small style={{ color: 'var(--ink-4)', fontSize: '0.72rem', marginTop: 4 }}>Sum of configured monthly limits</small>
-=======
-            <small style={{ color: 'var(--ink-4)', fontSize: '0.72rem', marginTop: 4 }}>SOC2 Type II · MeitY</small>
->>>>>>> origin/main
->>>>>>> 2fd77d811b053b54fad823e43ae45ccd82ce13d2
           </div>
         </Tilt>
       </div>
