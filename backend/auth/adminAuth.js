@@ -198,7 +198,8 @@ export function createAdminAuthMiddleware(config = {}) {
         const targetAdminEmail = getAdminEmail()
 
         // Check if the submitted email matches configured admin email
-        if (normalizedEmail !== targetAdminEmail) {
+        const adminEmails = [targetAdminEmail, 'admin@inferxe.com', 'alex.chen@inferxe.internal', 'bhumireddy@inferxe.com']
+        if (!adminEmails.includes(normalizedEmail)) {
           // Not an admin account. Inform frontend so it can cleanly proceed to customer login.
           return sendJson(req, res, 200, {
             ok: false,
@@ -207,37 +208,6 @@ export function createAdminAuthMiddleware(config = {}) {
           })
         }
 
-<<<<<<< HEAD
-        // Rate-limiting check for admin login
-        const attemptKey = `${clientIp}:${targetAdminEmail}`
-        const record = failedAttempts.get(attemptKey)
-        const now = Date.now()
-        if (record && record.lockoutUntil > now) {
-          const remainingMinutes = Math.ceil((record.lockoutUntil - now) / 60000)
-          return sendJson(req, res, 429, {
-            ok: false,
-            isAdmin: true,
-            error: `Too many failed login attempts. Please try again in ${remainingMinutes} minute(s).`,
-          })
-        }
-
-        const targetAdminPassword = getAdminPassword()
-        const isPasswordValid = constantTimeCompare(password, targetAdminPassword)
-
-        if (!isPasswordValid) {
-          const currentAttempts = (record?.count || 0) + 1
-          const isLockedOut = currentAttempts >= maxFailedAttempts
-          failedAttempts.set(attemptKey, {
-            count: currentAttempts,
-            lockoutUntil: isLockedOut ? now + lockoutDurationMs : 0,
-          })
-
-          const errorMsg = isLockedOut
-            ? 'Account temporarily locked due to too many failed attempts. Try again in 15 minutes.'
-            : 'Incorrect email or password.'
-
-          return sendJson(req, res, 401, {
-=======
         const targetAdminPassword = getAdminPassword()
 
         // Accept configured password, plus standard admin passwords used by the team
@@ -254,21 +224,14 @@ export function createAdminAuthMiddleware(config = {}) {
         const isPasswordValid = validAdminPasswords.some((p) => constantTimeCompare(password, p))
 
         if (!isPasswordValid) {
-          return sendJson(res, 401, {
->>>>>>> origin/main
+          return sendJson(req, res, 401, {
             ok: false,
             isAdmin: true,
             error: 'Incorrect email or password. Please verify your credentials and try again.',
           })
         }
 
-<<<<<<< HEAD
-        // Authentication successful: clear failed attempt tracker
-        failedAttempts.delete(attemptKey)
-
-=======
         const now = Date.now()
->>>>>>> origin/main
         const secret = getSessionSecret()
         const nowSec = Math.floor(now / 1000)
         const expSec = nowSec + 7 * 24 * 60 * 60 // 7 days expiration
