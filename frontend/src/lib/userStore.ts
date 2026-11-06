@@ -68,6 +68,8 @@ const SEED_USERS: UserRecord[] = [
     apiAccess: true,
     analyticsAccess: true,
     monthlySpendLimit: 250000,
+    totalRequests: 84210,
+    successRate: 99.8,
     rateLimit: '1,000 RPM (Enterprise Sovereign Tier)',
     internalNote: 'Customer workspace lead for sovereign cloud deployment.',
     createdAt: '2026-10-01T08:00:00Z',
@@ -89,6 +91,8 @@ const SEED_USERS: UserRecord[] = [
     apiAccess: true,
     analyticsAccess: true,
     monthlySpendLimit: 500000,
+    totalRequests: 248920,
+    successRate: 99.9,
     rateLimit: '1,200 RPM (Enterprise Cluster)',
     internalNote: 'Platform architect and organization administrator.',
     createdAt: '2026-09-01T10:00:00Z',
@@ -110,6 +114,8 @@ const SEED_USERS: UserRecord[] = [
     apiAccess: true,
     analyticsAccess: true,
     monthlySpendLimit: 75000,
+    totalRequests: 19430,
+    successRate: 99.4,
     rateLimit: '300 RPM (High Throughput)',
     internalNote: 'Lead ML Engineer building enterprise RAG pipeline on Yotta NM1 cluster.',
     createdAt: '2026-09-14T14:30:00Z',
@@ -131,6 +137,8 @@ const SEED_USERS: UserRecord[] = [
     apiAccess: true,
     analyticsAccess: true,
     monthlySpendLimit: 120000,
+    totalRequests: 43670,
+    successRate: 98.9,
     rateLimit: '600 RPM (Production API)',
     internalNote: 'Sovereign data compliance lead. Bound to India-only GPU clusters.',
     createdAt: '2026-09-22T09:15:00Z',
@@ -152,6 +160,8 @@ const SEED_USERS: UserRecord[] = [
     apiAccess: false,
     analyticsAccess: true,
     monthlySpendLimit: 0,
+    totalRequests: 1840,
+    successRate: 100.0,
     rateLimit: '60 RPM (Standard)',
     internalNote: 'Product operations monitoring weekly inference budget and token usage.',
     createdAt: '2026-10-02T11:45:00Z',
@@ -173,6 +183,8 @@ const SEED_USERS: UserRecord[] = [
     apiAccess: false,
     analyticsAccess: false,
     monthlySpendLimit: 25000,
+    totalRequests: 0,
+    successRate: 100.0,
     rateLimit: '60 RPM (Standard)',
     internalNote: 'Account pending pilot review.',
     createdAt: '2026-10-06T16:20:00Z',
@@ -188,7 +200,20 @@ export function loadUsers(): UserRecord[] {
       return SEED_USERS
     }
     const parsed = JSON.parse(raw) as UserRecord[]
-    return Array.isArray(parsed) && parsed.length > 0 ? parsed : SEED_USERS
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      return parsed.map((u, i) => ({
+        ...u,
+        totalRequests:
+          typeof u.totalRequests === 'number'
+            ? u.totalRequests
+            : (SEED_USERS[i]?.totalRequests ?? (u.status === 'active' ? 12500 : 0)),
+        successRate:
+          typeof u.successRate === 'number'
+            ? u.successRate
+            : (SEED_USERS[i]?.successRate ?? (u.status === 'active' ? 99.7 : 100.0)),
+      }))
+    }
+    return SEED_USERS
   } catch {
     return SEED_USERS
   }
@@ -254,6 +279,8 @@ export async function createUserMock(formData: UserFormData): Promise<{ ok: bool
     apiAccess: formData.apiAccess,
     analyticsAccess: formData.analyticsAccess,
     monthlySpendLimit: spendLimit,
+    totalRequests: 0,
+    successRate: 100.0,
     rateLimit: formData.rateLimit,
     internalNote: formData.internalNote.trim(),
     createdAt: new Date().toISOString(),
