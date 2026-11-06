@@ -2,12 +2,21 @@
   "name": "inferxe-backend",
   "private": true,
   "version": "1.0.0",
-  "description": "Inferxe Backend Services — Admin Authentication, RAG Pipeline & Search",
+  "description": "Inferxe Backend Services",
   "type": "module",
   "scripts": {
     "server:admin": "node auth/adminAuthServer.mjs",
     "server:inference": "uvicorn inference.main:app --host 127.0.0.1 --port 8001 --reload",
     "test:chat": "node rag/tests/test_chat_store.mjs",
-    "test:inference": "python -m unittest inference/tests/test_inference_api.py"
+    "test:inference": "python -m unittest inference/tests/test_inference_api.py",
+    "test:auth": "node --test auth/tests/*.test.mjs",
+    "check:supabase": "node scripts/check-supabase.mjs"
+  },
+  "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.1162.0",
+    "@supabase/supabase-js": "^2.119.0",
+    "aws-jwt-verify": "^5.2.1",
+    "dotenv": "^18.0.9",
+    "inferxe-platform": "file:.."
   }
 }
