@@ -1,3 +1,4 @@
+
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
@@ -31,6 +32,12 @@ import './styles/index.css'
 
 import App from './App'
 
+try {
+  localStorage.removeItem('inferxe_registered_users')
+} catch (error) {
+  console.error('Unable to remove the legacy local customer credential store:', error)
+}
+
 // AWS Cognito configuration
 const userPoolId =
   (import.meta.env.VITE_COGNITO_USER_POOL_ID as string | undefined) ||
@@ -41,6 +48,16 @@ const userPoolClientId =
   (import.meta.env.VITE_COGNITO_CLIENT_ID as string | undefined) ||
   '334trhnhmim8v42gq4bgk7umst'
 
+const cognitoDomain = (import.meta.env.VITE_COGNITO_DOMAIN as string | undefined)?.replace(/^https?:\/\//, '')
+const redirectSignIn = (import.meta.env.VITE_COGNITO_REDIRECT_SIGN_IN as string | undefined)
+  ?.split(',')
+  .map((url) => url.trim())
+  .filter(Boolean)
+const redirectSignOut = (import.meta.env.VITE_COGNITO_REDIRECT_SIGN_OUT as string | undefined)
+  ?.split(',')
+  .map((url) => url.trim())
+  .filter(Boolean)
+
 Amplify.configure({
   Auth: {
     Cognito: {
@@ -48,6 +65,17 @@ Amplify.configure({
       userPoolClientId,
       loginWith: {
         email: true,
+        ...(cognitoDomain && redirectSignIn?.length && redirectSignOut?.length
+          ? {
+              oauth: {
+                domain: cognitoDomain,
+                scopes: ['openid', 'email', 'profile'],
+                redirectSignIn,
+                redirectSignOut,
+                responseType: 'code' as const,
+              },
+            }
+          : {}),
       },
     },
   },

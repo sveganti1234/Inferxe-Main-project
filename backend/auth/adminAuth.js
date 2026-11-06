@@ -1,18 +1,5 @@
 // @ts-nocheck
 import crypto from 'node:crypto'
-import {
-  registerOrUpdateCustomer,
-  recordHeartbeat,
-  recordCustomerLogout,
-  listCustomers,
-  getCustomerSummary,
-  getCustomerDetails,
-  backupDatabase,
-  restoreDatabase,
-  exportCustomersToCsv,
-  syncCustomersBatch,
-  computeActivityStatus,
-} from '../database/customerDatabase.js'
 
 // In-memory failed attempt tracker (cleared and disabled - no temporary lockouts)
 const failedAttempts = new Map()
@@ -66,67 +53,20 @@ export function createAdminToken(payload, secret) {
 /**
  * Verify a cryptographically signed HMAC-SHA256 JWT
  */
-/**
- * Verify Cognito ID/Access token claims for customer endpoints.
- */
-function verifyCognitoCustomerToken(authHeader) {
-  if (!authHeader || typeof authHeader !== 'string') return null
-  const match = authHeader.match(/^Bearer\s+(.+)$/i)
-  if (!match) return null
-  const token = match[1].trim()
-  if (token.startsWith('ix-cust-') || token.startsWith('ix-cognito-')) {
-    return { valid: true, sub: null, email: null }
-  }
-
-  const parts = token.split('.')
-  if (parts.length !== 3) return null
-
-  try {
-    const payload = JSON.parse(base64UrlDecode(parts[1]))
-    const nowSec = Math.floor(Date.now() / 1000)
-
-    if (payload.exp && payload.exp < nowSec) {
-      return { valid: false, error: 'Customer session token has expired.' }
-    }
-
-    if (payload.token_use && payload.token_use !== 'id' && payload.token_use !== 'access') {
-      return { valid: false, error: 'Invalid token_use claim.' }
-    }
-
-    return {
-      valid: true,
-      sub: payload.sub,
-      email: payload.email || payload['cognito:username'],
-      payload,
-    }
-  } catch (err) {
-    return { valid: false, error: 'Malformed customer token payload.' }
-  }
-}
-
 export function verifyAdminToken(token, secret) {
-  const isProduction = process.env.NODE_ENV === 'production'
-  if (typeof token === 'string' && token.startsWith('ix-tok-')) {
-    if (isProduction) {
-      return { valid: false, error: 'Development bypass tokens are rejected in production mode.' }
-    }
-    return {
-      valid: true,
-      payload: {
-        sub: 'usr_admin',
-        email: 'admin@inferxe.com',
-        role: 'admin',
-        fullName: 'Inferxe Administrator',
-        organization: 'Inferxe Platform Org',
-      },
-    }
-  }
   try {
+    if (typeof token !== 'string' || typeof secret !== 'string' || !secret) {
+      return { valid: false, error: 'Invalid token or signing configuration' }
+    }
     const parts = token.split('.')
     if (parts.length !== 3) {
       return { valid: false, error: 'Malformed token structure' }
     }
     const [encodedHeader, encodedPayload, signature] = parts
+    const header = JSON.parse(base64UrlDecode(encodedHeader))
+    if (header.alg !== 'HS256' || header.typ !== 'JWT') {
+      return { valid: false, error: 'Unsupported token algorithm' }
+    }
     const data = `${encodedHeader}.${encodedPayload}`
     const expectedSignature = crypto
       .createHmac('sha256', secret)
@@ -143,16 +83,21 @@ export function verifyAdminToken(token, secret) {
     }
 
     const payload = JSON.parse(base64UrlDecode(encodedPayload))
-    if (payload.exp && Date.now() / 1000 > payload.exp) {
-      return { valid: false, error: 'Admin session has expired' }
+    const now = Math.floor(Date.now() / 1000)
+    if (typeof payload.exp !== 'number' || now >= payload.exp) {
+      return { valid: false, error: 'Token expired or missing expiration' }
     }
+    if (typeof payload.iat !== 'number' || payload.iat > now) {
+      return { valid: false, error: 'Invalid token issue time' }
+    }
+
     if (payload.role !== 'admin') {
-      return { valid: false, error: 'Unauthorized: Admin role required' }
+      return { valid: false, error: 'Unauthorized role' }
     }
 
     return { valid: true, payload }
-  } catch (err) {
-    return { valid: false, error: err.message || 'Token verification failed' }
+  } catch {
+    return { valid: false, error: 'Failed to verify token' }
   }
 }
 
@@ -181,278 +126,69 @@ async function parseJsonBody(req) {
   })
 }
 
-function sendJson(res, statusCode, data) {
+function setCorsHeaders(req, res) {
+  const origin = typeof req.headers.origin === 'string' ? req.headers.origin : '*'
+  res.setHeader('Access-Control-Allow-Origin', origin)
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, X-Requested-With')
+  res.setHeader('Access-Control-Max-Age', '600')
+  res.setHeader('Vary', 'Origin, Access-Control-Request-Method, Access-Control-Request-Headers')
+}
+
+function sendJson(req, res, statusCode, data) {
   res.statusCode = statusCode
-  if (typeof res.setHeader === 'function') {
-    res.setHeader('Content-Type', 'application/json; charset=utf-8')
-    res.setHeader('Access-Control-Allow-Origin', '*')
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-admin-token')
-  }
+  setCorsHeaders(req, res)
+  res.setHeader('Content-Type', 'application/json; charset=utf-8')
+  res.setHeader('Cache-Control', 'no-store')
   res.end(JSON.stringify(data))
 }
 
 /**
- * Creates connect/http middleware to handle `/api/admin/*` and `/api/customer/*` endpoints.
+ * Creates connect/http middleware to handle `/api/admin/*` authentication endpoints.
  */
 export function createAdminAuthMiddleware(config = {}) {
   const getAdminEmail = () =>
-    (process.env.ADMIN_EMAIL || config.adminEmail || 'admin@inferxe.com').trim().toLowerCase()
-  const getAdminPassword = () =>
-    process.env.ADMIN_PASSWORD || config.adminPassword || 'admin123'
-  const sessionSecret =
-    process.env.ADMIN_SESSION_SECRET ||
-    config.sessionSecret ||
-    'inferxe_platform_admin_session_secret_2026'
-  const getSessionSecret = () => sessionSecret
+    (process.env.ADMIN_EMAIL || config.adminEmail || '').trim().toLowerCase()
+  const getAdminPassword = () => process.env.ADMIN_PASSWORD || config.adminPassword || ''
+  const getSessionSecret = () => process.env.ADMIN_SESSION_SECRET || config.sessionSecret || ''
+  const isConfigured = () =>
+    Boolean(getAdminEmail() && getAdminPassword() && getSessionSecret().length >= 32)
 
   return async function adminAuthMiddleware(req, res, next) {
     const rawUrl = req.url || '/'
-    const [parsedPath, queryString] = rawUrl.split('?')
-    const queryParams = new URLSearchParams(queryString || '')
+    const parsedPath = rawUrl.split('?')[0]
 
-    // Intercept both /api/admin and /api/customer routes
-    if (!parsedPath.startsWith('/api/admin') && !parsedPath.startsWith('/api/customer')) {
+    // Only intercept /api/admin routes
+    if (!parsedPath.startsWith('/api/admin')) {
       return next()
     }
 
     // CORS pre-flight
     if (req.method === 'OPTIONS') {
+      setCorsHeaders(req, res)
       res.statusCode = 204
-      if (typeof res.setHeader === 'function') {
-        res.setHeader('Access-Control-Allow-Origin', '*')
-        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-admin-token')
-      }
       return res.end()
     }
 
-    const clientIp =
-      req.headers['x-forwarded-for']?.split(',')[0].trim() ||
-      req.socket?.remoteAddress ||
-      'unknown'
+    const clientIp = req.socket.remoteAddress || 'unknown'
 
-    // Helper: Verify Super Admin session for protected admin routes
-    function verifyAdminAccess() {
-      let token = ''
-      const authHeader = req.headers['authorization'] || ''
-      if (authHeader.startsWith('Bearer ')) {
-        token = authHeader.slice(7).trim()
-      } else if (req.headers['x-admin-token']) {
-        token = String(req.headers['x-admin-token']).trim()
-      }
-      if (!token) return { valid: false, error: 'Super Admin authentication token required.' }
-      return verifyAdminToken(token, getSessionSecret())
-    }
-
-    // ─────────────────────────────────────────────────────────
-    // CUSTOMER ACTIVITY & HEARTBEAT ENDPOINTS
-    // ─────────────────────────────────────────────────────────
-
-    // 1. POST /api/customer/activity (Registration / Login activity update)
-    if (parsedPath === '/api/customer/activity' && req.method === 'POST') {
-      try {
-        const tokenAuth = verifyCognitoCustomerToken(req.headers['authorization'])
-        if (tokenAuth && !tokenAuth.valid) {
-          return sendJson(res, 401, { ok: false, error: tokenAuth.error })
-        }
-
-        const body = await parseJsonBody(req)
-        const email = (tokenAuth?.email || body.email || '').trim().toLowerCase()
-        const cognito_sub = tokenAuth?.sub || body.cognito_sub || null
-
-        if (!email) {
-          return sendJson(res, 400, { ok: false, error: 'Customer email is required.' })
-        }
-
-        const customer = registerOrUpdateCustomer({
-          cognito_sub,
-          full_name: body.full_name,
-          email,
-          phone_number: body.phone_number,
-          organization: body.organization,
-          role: body.role || 'customer',
-          account_status: body.account_status || 'active',
-          isLogin: Boolean(body.isLogin),
-          metadata: body.metadata || {},
-        })
-
-        return sendJson(res, 200, { ok: true, customer })
-      } catch (err) {
-        return sendJson(res, 500, { ok: false, error: err.message || 'Failed to record customer activity.' })
-      }
-    }
-
-    // 2. POST /api/customer/heartbeat (30-60s heartbeat from active customer session)
-    if (parsedPath === '/api/customer/heartbeat' && req.method === 'POST') {
-      try {
-        const body = await parseJsonBody(req)
-        const email = (body.email || '').trim().toLowerCase()
-        const cognito_sub = (body.cognito_sub || '').trim()
-
-        if (!email && !cognito_sub) {
-          return sendJson(res, 400, { ok: false, error: 'Customer identifier (sub or email) is required.' })
-        }
-
-        const success = recordHeartbeat({ cognito_sub, email })
-        return sendJson(res, 200, { ok: true, heartbeat: success })
-      } catch (err) {
-        return sendJson(res, 500, { ok: false, error: 'Failed to record customer heartbeat.' })
-      }
-    }
-
-    // 3. POST /api/customer/logout (Customer sign-out event)
-    if (parsedPath === '/api/customer/logout' && req.method === 'POST') {
-      try {
-        const body = await parseJsonBody(req)
-        const email = (body.email || '').trim().toLowerCase()
-        const cognito_sub = (body.cognito_sub || '').trim()
-
-        recordCustomerLogout({ cognito_sub, email })
-        return sendJson(res, 200, { ok: true, message: 'Customer logout recorded.' })
-      } catch (err) {
-        return sendJson(res, 500, { ok: false, error: 'Failed to record customer logout.' })
-      }
-    }
-
-    // ─────────────────────────────────────────────────────────
-    // SUPER ADMIN CUSTOMER MANAGEMENT & DATABASE ENDPOINTS
-    // ─────────────────────────────────────────────────────────
-
-    // 4. GET /api/admin/customers/summary (Total, Online, Active, Inactive metrics)
-    if (parsedPath === '/api/admin/customers/summary' && req.method === 'GET') {
-      const auth = verifyAdminAccess()
-      if (!auth.valid) {
-        return sendJson(res, 401, { ok: false, error: auth.error || 'Super Admin access required.' })
-      }
-
-      const summary = getCustomerSummary()
-      return sendJson(res, 200, { ok: true, summary })
-    }
-
-    // 5. POST /api/admin/customers/backup (Database backup on demand)
-    if (parsedPath === '/api/admin/customers/backup' && req.method === 'POST') {
-      const auth = verifyAdminAccess()
-      if (!auth.valid) {
-        return sendJson(res, 401, { ok: false, error: auth.error || 'Super Admin access required.' })
-      }
-
-      try {
-        const backup = backupDatabase()
-        return sendJson(res, 200, { ok: true, backup })
-      } catch (err) {
-        return sendJson(res, 500, { ok: false, error: 'Backup creation failed: ' + err.message })
-      }
-    }
-
-    // 6. GET /api/admin/customers (List all customers with filters & pagination)
-    if (parsedPath === '/api/admin/customers' && req.method === 'GET') {
-      const auth = verifyAdminAccess()
-      if (!auth.valid) {
-        return sendJson(res, 401, { ok: false, error: auth.error || 'Super Admin access required.' })
-      }
-
-      const search = queryParams.get('search') || ''
-      const status = queryParams.get('status') || 'all'
-      const sortBy = queryParams.get('sortBy') || 'registration_date'
-      const sortOrder = queryParams.get('sortOrder') || 'desc'
-      const page = queryParams.get('page') || 1
-      const limit = queryParams.get('limit') || 20
-
-      const result = listCustomers({ search, status, sortBy, sortOrder, page, limit })
-      return sendJson(res, 200, { ok: true, ...result })
-    }
-
-    // 5b. POST /api/admin/customers/restore (Database restore from backup)
-    if (parsedPath === '/api/admin/customers/restore' && req.method === 'POST') {
-      const auth = verifyAdminAccess()
-      if (!auth.valid) {
-        return sendJson(res, 401, { ok: false, error: auth.error || 'Super Admin access required.' })
-      }
-
-      try {
-        const body = await parseJsonBody(req)
-        if (!body.backupFile) {
-          return sendJson(res, 400, { ok: false, error: 'Backup filename is required.' })
-        }
-        const restored = restoreDatabase(body.backupFile)
-        return sendJson(res, 200, { ok: true, restored })
-      } catch (err) {
-        return sendJson(res, 500, { ok: false, error: 'Restore failed: ' + err.message })
-      }
-    }
-
-    // 5c. GET /api/admin/customers/export (Export all customer records as CSV)
-    if (parsedPath === '/api/admin/customers/export' && req.method === 'GET') {
-      const auth = verifyAdminAccess()
-      if (!auth.valid) {
-        return sendJson(res, 401, { ok: false, error: auth.error || 'Super Admin access required.' })
-      }
-
-      try {
-        const csvContent = exportCustomersToCsv()
-        const timestamp = new Date().toISOString().slice(0, 10)
-        res.statusCode = 200
-        res.setHeader('Content-Type', 'text/csv; charset=utf-8')
-        res.setHeader('Content-Disposition', `attachment; filename="inferxe_customers_${timestamp}.csv"`)
-        res.setHeader('Access-Control-Allow-Origin', '*')
-        res.end(csvContent)
-        return
-      } catch (err) {
-        return sendJson(res, 500, { ok: false, error: 'Export failed: ' + err.message })
-      }
-    }
-
-    // 5d. POST /api/admin/customers/sync (Batch synchronize Cognito customers)
-    if (parsedPath === '/api/admin/customers/sync' && req.method === 'POST') {
-      const auth = verifyAdminAccess()
-      if (!auth.valid) {
-        return sendJson(res, 401, { ok: false, error: auth.error || 'Super Admin access required.' })
-      }
-
-      try {
-        const body = await parseJsonBody(req)
-        const customersList = Array.isArray(body.customers) ? body.customers : []
-        const result = syncCustomersBatch(customersList)
-        return sendJson(res, 200, { ok: true, ...result })
-      } catch (err) {
-        return sendJson(res, 500, { ok: false, error: 'Sync failed: ' + err.message })
-      }
-    }
-
-    // 7. GET /api/admin/customers/:id (Detailed customer profile + activity logs)
-    if (parsedPath.startsWith('/api/admin/customers/') && req.method === 'GET') {
-      const auth = verifyAdminAccess()
-      if (!auth.valid) {
-        return sendJson(res, 401, { ok: false, error: auth.error || 'Super Admin access required.' })
-      }
-
-      const customerId = decodeURIComponent(parsedPath.slice('/api/admin/customers/'.length).trim())
-      if (!customerId) {
-        return sendJson(res, 400, { ok: false, error: 'Customer ID is required.' })
-      }
-
-      const customer = getCustomerDetails(customerId)
-      if (!customer) {
-        return sendJson(res, 404, { ok: false, error: 'Customer record not found.' })
-      }
-
-      return sendJson(res, 200, { ok: true, customer })
-    }
-
-    // ─────────────────────────────────────────────────────────
-    // SUPER ADMIN AUTHENTICATION ENDPOINTS
-    // ─────────────────────────────────────────────────────────
-
-    // 8. POST /api/admin/login
+    // 1. POST /api/admin/login
     if (parsedPath === '/api/admin/login' && req.method === 'POST') {
       try {
+        if (!isConfigured()) {
+          return sendJson(req, res, 503, {
+            ok: false,
+            isAdmin: false,
+            error: 'Administrator authentication is not configured on the backend.',
+          })
+        }
+
         const body = await parseJsonBody(req)
         const email = typeof body.email === 'string' ? body.email.trim() : ''
         const password = typeof body.password === 'string' ? body.password : ''
 
         if (!email || !password) {
-          return sendJson(res, 400, {
+          return sendJson(req, res, 400, {
             ok: false,
             error: 'Please enter your email and password.',
           })
@@ -462,15 +198,46 @@ export function createAdminAuthMiddleware(config = {}) {
         const targetAdminEmail = getAdminEmail()
 
         // Check if the submitted email matches configured admin email
-        const adminEmails = [targetAdminEmail, 'alex.chen@inferxe.internal', 'bhumireddy@inferxe.com']
-        if (!adminEmails.includes(normalizedEmail)) {
-          return sendJson(res, 200, {
+        if (normalizedEmail !== targetAdminEmail) {
+          // Not an admin account. Inform frontend so it can cleanly proceed to customer login.
+          return sendJson(req, res, 200, {
             ok: false,
             isAdmin: false,
             message: 'Not an admin account',
           })
         }
 
+<<<<<<< HEAD
+        // Rate-limiting check for admin login
+        const attemptKey = `${clientIp}:${targetAdminEmail}`
+        const record = failedAttempts.get(attemptKey)
+        const now = Date.now()
+        if (record && record.lockoutUntil > now) {
+          const remainingMinutes = Math.ceil((record.lockoutUntil - now) / 60000)
+          return sendJson(req, res, 429, {
+            ok: false,
+            isAdmin: true,
+            error: `Too many failed login attempts. Please try again in ${remainingMinutes} minute(s).`,
+          })
+        }
+
+        const targetAdminPassword = getAdminPassword()
+        const isPasswordValid = constantTimeCompare(password, targetAdminPassword)
+
+        if (!isPasswordValid) {
+          const currentAttempts = (record?.count || 0) + 1
+          const isLockedOut = currentAttempts >= maxFailedAttempts
+          failedAttempts.set(attemptKey, {
+            count: currentAttempts,
+            lockoutUntil: isLockedOut ? now + lockoutDurationMs : 0,
+          })
+
+          const errorMsg = isLockedOut
+            ? 'Account temporarily locked due to too many failed attempts. Try again in 15 minutes.'
+            : 'Incorrect email or password.'
+
+          return sendJson(req, res, 401, {
+=======
         const targetAdminPassword = getAdminPassword()
 
         // Accept configured password, plus standard admin passwords used by the team
@@ -488,55 +255,72 @@ export function createAdminAuthMiddleware(config = {}) {
 
         if (!isPasswordValid) {
           return sendJson(res, 401, {
+>>>>>>> origin/main
             ok: false,
             isAdmin: true,
             error: 'Incorrect email or password. Please verify your credentials and try again.',
           })
         }
 
-        const now = Date.now()
-        const secret = getSessionSecret()
-        const expiresAt = now + 8 * 60 * 60 * 1000 // 8 hours
-        const token = createAdminToken(
-          {
-            sub: 'usr_admin',
-            email: normalizedEmail,
-            role: 'admin',
-            fullName: 'Inferxe Administrator',
-            organization: 'Inferxe Platform Org',
-            exp: Math.floor(expiresAt / 1000),
-            iat: Math.floor(now / 1000),
-          },
-          secret,
-        )
+<<<<<<< HEAD
+        // Authentication successful: clear failed attempt tracker
+        failedAttempts.delete(attemptKey)
 
-        return sendJson(res, 200, {
+=======
+        const now = Date.now()
+>>>>>>> origin/main
+        const secret = getSessionSecret()
+        const nowSec = Math.floor(now / 1000)
+        const expSec = nowSec + 7 * 24 * 60 * 60 // 7 days expiration
+        const adminFullName = 'Inferxe Administrator'
+
+        const payload = {
+          sub: 'usr_admin',
+          email: normalizedEmail,
+          role: 'admin',
+          fullName: adminFullName,
+          organization: 'Inferxe Platform Org',
+          iat: nowSec,
+          exp: expSec,
+        }
+
+        const token = createAdminToken(payload, secret)
+
+        return sendJson(req, res, 200, {
           ok: true,
           isAdmin: true,
           token,
           user: {
             id: 'usr_admin',
-            fullName: 'Inferxe Administrator',
+            fullName: adminFullName,
             email: normalizedEmail,
-            username: normalizedEmail.split('@')[0],
+            username: 'admin',
             role: 'admin',
             organization: 'Inferxe Platform Org',
           },
-          expiresAt,
+          expiresAt: expSec * 1000,
         })
-      } catch (err) {
-        return sendJson(res, 500, {
+      } catch {
+        return sendJson(req, res, 500, {
           ok: false,
-          error: 'An unexpected internal error occurred during authentication.',
+          error: 'An unexpected server error occurred during admin authentication.',
         })
       }
     }
 
-    // 9. POST or GET /api/admin/verify
+    // 2. POST or GET /api/admin/verify
     if (parsedPath === '/api/admin/verify' && (req.method === 'POST' || req.method === 'GET')) {
       try {
+        if (!isConfigured()) {
+          return sendJson(req, res, 503, {
+            ok: false,
+            valid: false,
+            error: 'Administrator authentication is not configured on the backend.',
+          })
+        }
+
         let token = ''
-        const authHeader = req.headers['authorization']
+        const authHeader = req.headers.authorization
         if (authHeader && authHeader.startsWith('Bearer ')) {
           token = authHeader.substring(7).trim()
         }
@@ -549,7 +333,7 @@ export function createAdminAuthMiddleware(config = {}) {
         }
 
         if (!token) {
-          return sendJson(res, 401, {
+          return sendJson(req, res, 401, {
             ok: false,
             valid: false,
             error: 'No session token provided.',
@@ -559,15 +343,15 @@ export function createAdminAuthMiddleware(config = {}) {
         const secret = getSessionSecret()
         const verification = verifyAdminToken(token, secret)
 
-        if (!verification.valid) {
-          return sendJson(res, 401, {
+        if (!verification.valid || !verification.payload) {
+          return sendJson(req, res, 401, {
             ok: false,
             valid: false,
-            error: verification.error || 'Invalid session token.',
+            error: verification.error || 'Invalid or expired admin session token.',
           })
         }
 
-        return sendJson(res, 200, {
+        return sendJson(req, res, 200, {
           ok: true,
           valid: true,
           user: {
@@ -580,7 +364,7 @@ export function createAdminAuthMiddleware(config = {}) {
           },
         })
       } catch {
-        return sendJson(res, 500, {
+        return sendJson(req, res, 500, {
           ok: false,
           valid: false,
           error: 'Failed to verify admin session token.',
@@ -588,12 +372,12 @@ export function createAdminAuthMiddleware(config = {}) {
       }
     }
 
-    // 10. POST /api/admin/logout
+    // 3. POST /api/admin/logout
     if (parsedPath === '/api/admin/logout' && req.method === 'POST') {
-      return sendJson(res, 200, { ok: true })
+      return sendJson(req, res, 200, { ok: true })
     }
 
-    // Unknown route
-    return sendJson(res, 404, { ok: false, error: 'Endpoint not found' })
+    // Unknown admin sub-route
+    return sendJson(req, res, 404, { ok: false, error: 'Endpoint not found' })
   }
 }
