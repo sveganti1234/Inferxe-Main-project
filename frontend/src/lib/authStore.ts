@@ -223,6 +223,9 @@ export async function loginAdminBackend(
   email: string,
   password: string,
 ): Promise<AdminLoginResult> {
+  const cleanEmail = email.trim().toLowerCase()
+  const isKnownAdmin = isAdministratorEmail(cleanEmail)
+
   try {
     const res = await fetch(`${ADMIN_API_BASE}/login`, {
       method: 'POST',
@@ -230,7 +233,7 @@ export async function loginAdminBackend(
         'Content-Type': 'application/json',
         Accept: 'application/json',
       },
-      body: JSON.stringify({ email: email.trim(), password }),
+      body: JSON.stringify({ email: cleanEmail, password }),
     })
 
     const data = await res.json().catch(() => ({}))
@@ -245,15 +248,18 @@ export async function loginAdminBackend(
         saveSession(session)
         return { ok: true, isAdmin: true, session }
       }
-<<<<<<< HEAD
       return {
         ok: false,
         isAdmin: true,
-        error: data.error || 'Incorrect email or password.',
-=======
-    } catch {
-      // Continue to next candidate URL
+        error: data.error || 'Incorrect email or password. Please verify your credentials and try again.',
+      }
     }
+
+    if (data.isAdmin === false) {
+      return { ok: false, isAdmin: false }
+    }
+  } catch (err) {
+    console.error('Admin backend login request failed:', err)
   }
 
   // Resilient fallback for local development only (strictly disabled in production builds)
@@ -279,19 +285,11 @@ export async function loginAdminBackend(
         ok: false,
         isAdmin: true,
         error: 'Incorrect email or password. Please verify your credentials and try again.',
->>>>>>> origin/main
       }
     }
-
-    return { ok: false, isAdmin: false }
-  } catch (err) {
-    console.error('Admin backend login request failed:', err)
-    return {
-      ok: false,
-      isAdmin: false,
-      error: 'Unable to reach backend authentication service.',
-    }
   }
+
+  return { ok: false, isAdmin: false }
 }
 
 /**
