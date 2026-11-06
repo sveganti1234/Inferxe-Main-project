@@ -100,6 +100,15 @@ type NotificationItem = {
   read: boolean
 }
 
+type PayoutRecord = {
+  id: string
+  period: string
+  gross: number
+  fee: number
+  net: number
+  status: 'Paid' | 'Pending' | 'Processing'
+}
+
 const STORE = {
   listings: 'inferxe_demo_provider_listings_v1',
   deployments: 'inferxe_demo_deployments_v1',
@@ -111,6 +120,8 @@ const STORE = {
   wallet: 'inferxe_demo_wallet_balance_v1',
   transactions: 'inferxe_demo_transactions_v2',
   announcementDismissed: 'inferxe_dismissed_gpu_announcement_v1',
+  payouts: 'inferxe_demo_provider_payouts_v1',
+  pendingPayout: 'inferxe_demo_provider_pending_payout_v1',
 }
 
 const initialListings: Listing[] = [
@@ -139,6 +150,11 @@ const initialTransactions: TransactionItem[] = [
   { id: 'TX-1048', desc: 'Wallet top-up (Demo)', date: '10 Oct 2026', amount: 10000, isCredit: true, status: 'Completed' },
   { id: 'TX-1032', desc: 'Inference deployment billing', date: '08 Oct 2026', amount: 1240, isCredit: false, status: 'Completed' },
   { id: 'TX-1011', desc: 'Inference runtime usage', date: '01 Oct 2026', amount: 3580, isCredit: false, status: 'Completed' },
+]
+
+const initialPayouts: PayoutRecord[] = [
+  { id: 'PO-2026-09', period: 'Sep 2026', gross: 110000, fee: 13200, net: 96800, status: 'Paid' },
+  { id: 'PO-2026-10', period: 'Oct 2026', gross: 72000, fee: 8640, net: 63360, status: 'Pending' },
 ]
 
 const initialNotifications: NotificationItem[] = [
@@ -563,6 +579,14 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
   const [providerForm, setProviderForm] = useState({ company: 'Yotta Sovereign Infrastructure Ltd', contact: 'Anil Mehta', email: 'anil.mehta@yotta.com', regions: 'Mumbai NM1, Noida D1', apiType: 'REST + Daemon' })
   const [providerSaved, setProviderSaved] = useState(false)
   const [showPayoutModal, setShowPayoutModal] = useState(false)
+  const [payoutHistory, setPayoutHistory] = useState<PayoutRecord[]>(() =>
+    readStore(STORE.payouts, initialPayouts)
+  )
+  const [pendingPayout, setPendingPayout] = useState<number>(() =>
+    readStore(STORE.pendingPayout, 72000)
+  )
+  const [payoutAmount, setPayoutAmount] = useState<string>('72000')
+  const numericPayout = Math.floor(Number(payoutAmount)) || 0
   const [workloadTelemetry, setWorkloadTelemetry] = useState<Deployment | null>(null)
 
   // User Profile State
@@ -593,6 +617,8 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
   useEffect(() => { saveStore(STORE.wishlist, wishlist) }, [wishlist])
   useEffect(() => { saveStore(STORE.wallet, walletBalance) }, [walletBalance])
   useEffect(() => { saveStore(STORE.transactions, transactions) }, [transactions])
+  useEffect(() => { saveStore(STORE.payouts, payoutHistory) }, [payoutHistory])
+  useEffect(() => { saveStore(STORE.pendingPayout, pendingPayout) }, [pendingPayout])
   useEffect(() => {
     saveStore(STORE.notifications, notifications)
     try {
@@ -1133,6 +1159,58 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
       })
       flash(`New GPU listing "${item.name}" added to inventory.`)
     }
+  }
+
+  const handleConfirmPayout = (e?: FormEvent) => {
+    if (e) e.preventDefault()
+    if (numericPayout <= 0) {
+      flash('Please enter a valid amount greater than ₹0')
+      return
+    }
+    if (numericPayout > pendingPayout) {
+      flash(`Amount exceeds available pending payout of ${money(pendingPayout)}`)
+      return
+    }
+
+    let maxNum = 10
+    for (const r of payoutHistory) {
+      const m = r.id.match(/PO-(\d{4})-(\d+)/)
+      if (m) {
+        const n = parseInt(m[2], 10)
+        if (n > maxNum) maxNum = n
+      }
+    }
+    const nextSeq = String(maxNum + 1).padStart(2, '0')
+    const currentYear = new Date().getFullYear()
+    const nextId = `PO-${currentYear}-${nextSeq}`
+    const currentPeriod = new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+    const fee = Math.round(numericPayout * 0.12)
+    const net = Math.round(numericPayout * 0.88)
+
+    const newRecord: PayoutRecord = {
+      id: nextId,
+      period: currentPeriod,
+      gross: numericPayout,
+      fee,
+      net,
+      status: 'Pending',
+    }
+
+    const updatedHistory = [...payoutHistory, newRecord]
+    const updatedPending = Math.max(0, pendingPayout - numericPayout)
+
+    setPayoutHistory(updatedHistory)
+    setPendingPayout(updatedPending)
+    saveStore(STORE.payouts, updatedHistory)
+    saveStore(STORE.pendingPayout, updatedPending)
+
+    setShowPayoutModal(false)
+    addNotification({
+      title: `Payout Requested: ${nextId}`,
+      detail: `Withdrawal request for ${money(numericPayout)} (Net ${money(net)}) initiated via RTGS/NEFT.`,
+      type: 'Billing',
+    })
+    flash(`Payout request ${nextId} of ${money(numericPayout)} submitted successfully!`)
   }
 
   const handleSendTestNotification = () => {
@@ -2396,8 +2474,13 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                 <h2>GPU Provider Workspace</h2>
                 <p>Manage hardware supply, monitor workload allocations, and review earnings across Indian clusters.</p>
               </div>
-              <Link className="mw-primary" to="/dashboard/provider/onboarding">
-                <Plus size={16} /> Onboard Datacenter
+              <Link
+                className="dash-btn-primary mw-primary"
+                to="/dashboard/provider/onboarding"
+                style={{ padding: '10px 18px', fontSize: '0.86rem', display: 'inline-flex', alignItems: 'center', gap: 8 }}
+              >
+                <Plus size={16} />
+                <span>Onboard Datacenter</span>
               </Link>
             </div>
 
@@ -2901,8 +2984,14 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                 <h2>Earnings & Payouts</h2>
                 <p>Track accrued revenue from marketplace capacity allocations and review payout records.</p>
               </div>
-              <button className="mw-primary" onClick={() => setShowPayoutModal(true)}>
-                <ArrowDownToLine size={16} /> Request Payout (Demo)
+              <button
+                className="mw-primary"
+                onClick={() => {
+                  setPayoutAmount(pendingPayout > 0 ? String(pendingPayout) : '0')
+                  setShowPayoutModal(true)
+                }}
+              >
+                <ArrowDownToLine size={16} /> Request Payment
               </button>
             </div>
 
@@ -2921,7 +3010,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
               </div>
               <div className="mw-metric">
                 <div className="mw-metric-top"><span>Pending Payout</span><span className="mw-icon-box"><ArrowDownToLine /></span></div>
-                <strong>₹72,000</strong>
+                <strong>{money(pendingPayout)}</strong>
               </div>
             </div>
 
@@ -2943,19 +3032,18 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                     </tr>
                   </thead>
                   <tbody>
-                    {[
-                      ['PO-2026-09', 'Sep 2026', '₹1,10,000', '₹13,200', '₹96,800', 'Paid'],
-                      ['PO-2026-10', 'Oct 2026', '₹72,000', '₹8,640', '₹63,360', 'Pending'],
-                    ].map((row) => (
-                      <tr key={row[0]}>
-                        <td><strong>{row[0]}</strong></td>
-                        <td>{row[1]}</td>
-                        <td>{row[2]}</td>
-                        <td>{row[3]}</td>
-                        <td>{row[4]}</td>
-                        <td><StatusBadge>{row[5]}</StatusBadge></td>
-                      </tr>
-                    ))}
+                    {[...payoutHistory]
+                      .sort((a, b) => b.id.localeCompare(a.id))
+                      .map((row) => (
+                        <tr key={row.id}>
+                          <td><strong>{row.id}</strong></td>
+                          <td>{row.period}</td>
+                          <td>{money(row.gross)}</td>
+                          <td>{money(row.fee)}</td>
+                          <td>{money(row.net)}</td>
+                          <td><StatusBadge>{row.status}</StatusBadge></td>
+                        </tr>
+                      ))}
                   </tbody>
                 </table>
               </div>
@@ -5066,30 +5154,208 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
         <div className="mw-modal-backdrop" onClick={() => setShowPayoutModal(false)}>
           <div className="mw-modal" onClick={(e) => e.stopPropagation()}>
             <div className="mw-modal-head">
-              <h3>Request Provider Payout (Demo)</h3>
+              <h3>Request Payment</h3>
               <button onClick={() => setShowPayoutModal(false)} aria-label="Close"><X size={16} /></button>
             </div>
-            <div className="mw-modal-body">
-              <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--ink-2)', lineHeight: 1.5 }}>
-                Confirm requesting disbursement for pending earnings of <strong>₹72,000</strong> to your registered bank account?
-              </p>
-              <div className="mw-info-box">
-                <ShieldCheck size={16} />
-                <span>Simulated payout request. In production, disbursements are processed via NEFT/RTGS settlement.</span>
+            {pendingPayout <= 0 ? (
+              <div className="mw-modal-body" style={{ textAlign: 'center', padding: '28px 22px' }}>
+                <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--ink-2)', lineHeight: 1.6 }}>
+                  You currently have no pending earnings available for disbursement. All accrued revenue has already been requested.
+                </p>
+                <div style={{ marginTop: 16 }}>
+                  <button
+                    type="button"
+                    className="mw-secondary"
+                    onClick={() => {
+                      setPendingPayout(72000)
+                      setPayoutAmount('72000')
+                      saveStore(STORE.pendingPayout, 72000)
+                      flash('Demo pending balance reset to ₹72,000.')
+                    }}
+                  >
+                    Reset Demo Balance (₹72,000)
+                  </button>
+                </div>
               </div>
-            </div>
-            <div className="mw-modal-foot">
-              <button className="mw-secondary" onClick={() => setShowPayoutModal(false)}>Cancel</button>
-              <button
-                className="mw-primary"
-                onClick={() => {
-                  setShowPayoutModal(false)
-                  flash('Payout request PO-2026-11 submitted (simulated).')
-                }}
-              >
-                Confirm Payout
-              </button>
-            </div>
+            ) : (
+              <form onSubmit={handleConfirmPayout}>
+                <div className="mw-modal-body">
+                  {/* Available Balance Box */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '12px 16px',
+                      background: 'rgba(118, 185, 0, 0.08)',
+                      border: '1px solid rgba(118, 185, 0, 0.22)',
+                      borderRadius: 10,
+                    }}
+                  >
+                    <div>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--ink-3)', display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Available to Withdraw
+                      </span>
+                      <strong style={{ fontSize: '1.25rem', color: 'var(--brand-hi, #76b900)' }}>
+                        {money(pendingPayout)}
+                      </strong>
+                    </div>
+                    <span style={{ fontSize: '0.74rem', color: 'var(--ink-4)', maxWidth: 170, textAlign: 'right' }}>
+                      Max balance eligible for payout disbursement
+                    </span>
+                  </div>
+
+                  {/* Amount Input */}
+                  <div>
+                    <label
+                      htmlFor="payout-amount-input"
+                      style={{ fontSize: '0.78rem', color: 'var(--ink-2)', display: 'block', marginBottom: 6, fontWeight: 500 }}
+                    >
+                      Withdrawal Amount (₹)
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <span
+                        style={{
+                          position: 'absolute',
+                          left: 14,
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          color: 'var(--ink-3)',
+                          fontWeight: 600,
+                          fontSize: '1rem',
+                          pointerEvents: 'none',
+                        }}
+                      >
+                        ₹
+                      </span>
+                      <input
+                        id="payout-amount-input"
+                        type="number"
+                        min="1"
+                        max={pendingPayout}
+                        step="1"
+                        value={payoutAmount}
+                        onChange={(e) => {
+                          const sanitized = e.target.value.replace(/[^0-9]/g, '')
+                          setPayoutAmount(sanitized)
+                        }}
+                        placeholder="Enter amount to withdraw"
+                        style={{
+                          width: '100%',
+                          padding: '10px 14px 10px 34px',
+                          fontSize: '1.05rem',
+                          fontWeight: 600,
+                          fontFamily: 'var(--font-mono, monospace)',
+                          background: 'var(--bg-2, #111a14)',
+                          border: '1px solid var(--line-2, #26382a)',
+                          borderRadius: 8,
+                          color: 'var(--ink, #fff)',
+                          outline: 'none',
+                        }}
+                        autoFocus
+                        required
+                      />
+                    </div>
+                    {numericPayout > pendingPayout && (
+                      <span style={{ color: '#ef4444', fontSize: '0.76rem', display: 'block', marginTop: 4 }}>
+                        Amount cannot exceed available pending earnings of {money(pendingPayout)}.
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Quick Select Presets */}
+                  <div>
+                    <span style={{ fontSize: '0.74rem', color: 'var(--ink-4)', display: 'block', marginBottom: 8, fontWeight: 500 }}>
+                      Quick Select Presets:
+                    </span>
+                    <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+                      {[10000, 25000, 50000].filter((amt) => amt < pendingPayout).map((amt) => (
+                        <button
+                          key={amt}
+                          type="button"
+                          className={`mw-filter-pill ${numericPayout === amt ? 'is-active' : ''}`}
+                          onClick={() => setPayoutAmount(String(amt))}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          {money(amt)}
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        className={`mw-filter-pill ${numericPayout === pendingPayout ? 'is-active' : ''}`}
+                        onClick={() => setPayoutAmount(String(pendingPayout))}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        Max ({money(pendingPayout)})
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Live Breakdown Box */}
+                  {numericPayout > 0 && numericPayout <= pendingPayout && (
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 8,
+                        padding: '12px 14px',
+                        background: 'rgba(255, 255, 255, 0.02)',
+                        borderRadius: 8,
+                        border: '1px solid var(--line, #1e2c22)',
+                        fontSize: '0.82rem',
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--ink-2)' }}>
+                        <span>Gross Inflow Requested</span>
+                        <strong>{money(numericPayout)}</strong>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--ink-3)' }}>
+                        <span>Platform Fee (12%)</span>
+                        <span style={{ color: '#f59e0b' }}>- {money(Math.round(numericPayout * 0.12))}</span>
+                      </div>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          color: 'var(--ink)',
+                          borderTop: '1px solid rgba(255,255,255,0.08)',
+                          paddingTop: 6,
+                          fontWeight: 600,
+                        }}
+                      >
+                        <span>Net Disbursed to Bank</span>
+                        <span style={{ color: 'var(--brand-hi, #76b900)' }}>
+                          {money(Math.round(numericPayout * 0.88))}
+                        </span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--ink-4)', fontSize: '0.74rem' }}>
+                        <span>Remaining Pending Balance</span>
+                        <span>{money(pendingPayout - numericPayout)}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="mw-info-box" style={{ marginTop: 0 }}>
+                    <ShieldCheck size={16} />
+                    <span>Simulated payout request. In production, disbursements are processed via NEFT/RTGS settlement to your registered bank account.</span>
+                  </div>
+                </div>
+
+                <div className="mw-modal-foot">
+                  <button type="button" className="mw-secondary" onClick={() => setShowPayoutModal(false)}>
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="mw-primary"
+                    disabled={numericPayout <= 0 || numericPayout > pendingPayout}
+                    style={numericPayout <= 0 || numericPayout > pendingPayout ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                  >
+                    Confirm Payout
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

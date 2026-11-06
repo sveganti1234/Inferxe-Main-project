@@ -22,7 +22,6 @@ import {
   LayoutDashboard,
   LogOut,
   Menu,
-  Plus,
   Server,
   Settings,
   ShieldCheck,
@@ -30,7 +29,6 @@ import {
   Terminal,
   TrendingUp,
   User,
-  UserPlus,
   Users,
   Wallet,
   Wrench,
@@ -460,19 +458,17 @@ export function DashboardLayout({
     { label: 'Workspace Settings', to: '/dashboard/settings', icon: Settings, matchExact: true },
   ]
 
-  // 2. Admin Portal Navigation items: Administration section
+  // 2. Admin Portal Navigation items: Administration section (Add User accessed directly from Users Directory)
   const adminAdministrationItems: NavItem[] = [
     { label: 'Admin Console', to: '/dashboard', icon: LayoutDashboard, matchExact: true },
     { label: 'Customer Management', to: '/dashboard/customers', icon: Users, matchExact: true },
     { label: 'Users Directory', to: '/dashboard/users', icon: Users, matchExact: true },
-    { label: 'Add User', to: '/dashboard/users/add', icon: UserPlus, matchExact: true },
     { label: 'Sovereign Nodes Map', to: '/dashboard/users/map', icon: Globe, matchExact: true },
   ]
 
-  // 3. Admin Portal Navigation items: Provider Management section
+  // 3. Admin Portal Navigation items: Provider Management section (Onboarding accessed directly from Provider Overview)
   const adminProviderManagementItems: NavItem[] = [
     { label: 'Provider Overview', to: '/dashboard/provider', icon: Server, matchExact: true },
-    { label: 'Provider Onboarding', to: '/dashboard/provider/onboarding', icon: Plus, matchExact: true },
     { label: 'GPU Listings', to: '/dashboard/provider/listings', icon: Cpu, matchExact: true },
     { label: 'Capacity & Health', to: '/dashboard/provider/capacity', icon: ActivityIcon, matchExact: true },
     { label: 'Workloads', to: '/dashboard/provider/workloads', icon: Wrench, matchExact: true },
@@ -483,6 +479,12 @@ export function DashboardLayout({
   ]
 
   const isItemActive = (item: NavItem) => {
+    if (item.to === '/dashboard/users') {
+      return location.pathname === '/dashboard/users' || location.pathname === '/dashboard/users/add'
+    }
+    if (item.to === '/dashboard/provider') {
+      return location.pathname === '/dashboard/provider' || location.pathname === '/dashboard/provider/onboarding'
+    }
     return location.pathname === item.to
   }
 
