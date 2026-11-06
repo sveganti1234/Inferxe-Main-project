@@ -396,6 +396,12 @@
 }
 
 /* ── Active Deployments List in Light Theme ───────────────── */
+.dash-shell[data-theme='light'] .dash-deploy-header {
+  background: #f8fafc !important;
+  border: 1px solid #e2e8f0 !important;
+  color: #64748b !important;
+}
+
 .dash-shell[data-theme='light'] .dash-deploy-row {
   background: #ffffff !important;
   border: 1px solid #e2e8f0 !important;
