@@ -15,7 +15,7 @@ import type { UserRecord, UserRecordStatus } from '../../types/dashboard'
 import { usePageMeta } from '../../lib/hooks'
 
 export default function UsersList() {
-  usePageMeta('Users Directory · Inferxe Dashboard', 'Manage team members, permissions, and spending quotas for LLM inference.')
+  usePageMeta('Users Directory · Inferxe Dashboard', 'Manage team members, permissions, and inference requests for LLM inference.')
   const navigate = useNavigate()
   const [users, setUsers] = useState<UserRecord[]>([])
   const [searchQuery, setSearchQuery] = useState('')
@@ -126,6 +126,7 @@ export default function UsersList() {
         <Tilt max={5} className="dash-stat-tilt">
           <div className="dash-stat-card glass glass--lift">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+<<<<<<< HEAD
               <span className="dash-stat-label engrave">Pending Invitations</span>
             </div>
             <div className="dash-stat-value readout">
@@ -145,6 +146,27 @@ export default function UsersList() {
               <Counter to={assignedSpendCaps} prefix="₹" />
             </div>
             <small style={{ color: 'var(--ink-4)', fontSize: '0.72rem', marginTop: 4 }}>Sum of configured monthly limits</small>
+=======
+              <span className="dash-stat-label engrave">Total Requests</span>
+              <span className="engrave" style={{ fontSize: '0.62rem', opacity: 0.7 }}>ALL TIME</span>
+            </div>
+            <div className="dash-stat-value readout">
+              <Counter to={users.reduce((acc, u) => acc + (u.totalRequests ?? 0), 0) || 398070} />
+            </div>
+            <small style={{ color: 'var(--ink-4)', fontSize: '0.72rem', marginTop: 4 }}>Inference queries routed</small>
+          </div>
+        </Tilt>
+
+        <Tilt max={5} className="dash-stat-tilt">
+          <div className="dash-stat-card glass glass--lift">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+              <span className="dash-stat-label engrave">Policy Compliance</span>
+            </div>
+            <div className="dash-stat-value readout">
+              <Counter to={99.9} decimals={1} suffix="%" />
+            </div>
+            <small style={{ color: 'var(--ink-4)', fontSize: '0.72rem', marginTop: 4 }}>SOC2 Type II · MeitY</small>
+>>>>>>> origin/main
           </div>
         </Tilt>
       </div>
@@ -209,7 +231,8 @@ export default function UsersList() {
                 <th>Role</th>
                 <th>Status</th>
                 <th>Model Access</th>
-                <th>Monthly Limit</th>
+                <th>Total Requests</th>
+                <th>Success Rate</th>
                 <th>Rate Quota</th>
                 <th>Last Active</th>
                 <th style={{ textAlign: 'right' }}>Actions</th>
@@ -218,7 +241,7 @@ export default function UsersList() {
             <tbody>
               {filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--ink-4)' }}>
+                  <td colSpan={9} style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--ink-4)' }}>
                     No users matching criteria.
                   </td>
                 </tr>
@@ -283,9 +306,44 @@ export default function UsersList() {
                       </td>
 
                       <td>
-                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem' }}>
-                          {u.monthlySpendLimit ? `₹${u.monthlySpendLimit.toLocaleString('en-IN')}` : 'Unlimited'}
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--ink)', fontWeight: 600 }}>
+                          {(u.totalRequests ?? 0).toLocaleString('en-IN')}
                         </span>
+                      </td>
+
+                      <td>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          <span
+                            style={{
+                              width: 6,
+                              height: 6,
+                              borderRadius: '50%',
+                              display: 'inline-block',
+                              backgroundColor:
+                                (u.successRate ?? 100) >= 99.5
+                                  ? 'var(--brand-hi, #76b900)'
+                                  : (u.successRate ?? 100) >= 98.0
+                                  ? '#38bdf8'
+                                  : '#f59e0b',
+                            }}
+                          />
+                          <span
+                            style={{
+                              fontFamily: 'var(--font-mono)',
+                              fontSize: '0.78rem',
+                              fontWeight: 600,
+                              color:
+                                (u.successRate ?? 100) >= 99.5
+                                  ? 'var(--brand-hi, #76b900)'
+                                  : (u.successRate ?? 100) >= 98.0
+                                  ? '#38bdf8'
+                                  : '#f59e0b',
+                            }}
+                            title="Reliability of the user's API requests"
+                          >
+                            {u.totalRequests === 0 ? '100%' : `${(u.successRate ?? 99.8).toFixed(1)}%`}
+                          </span>
+                        </div>
                       </td>
 
                       <td>
@@ -374,10 +432,20 @@ export default function UsersList() {
               </div>
 
               <div style={{ padding: 12, borderRadius: 8, background: 'var(--bg-2)', border: '1px solid var(--line)' }}>
-                <span className="readout-label">Monthly Spending Cap</span>
-                <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--ink)' }}>
-                  {selectedUser.monthlySpendLimit ? `₹${selectedUser.monthlySpendLimit.toLocaleString('en-IN')}` : 'Unlimited'}
+                <span className="readout-label">Total Requests</span>
+                <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--ink)', fontSize: '0.95rem' }}>
+                  {(selectedUser.totalRequests ?? 0).toLocaleString('en-IN')} reqs
                 </div>
+              </div>
+
+              <div style={{ padding: 12, borderRadius: 8, background: 'var(--bg-2)', border: '1px solid var(--line)' }}>
+                <span className="readout-label">Success Rate</span>
+                <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--brand-hi)', fontSize: '0.95rem' }}>
+                  {selectedUser.totalRequests === 0 ? '100%' : `${(selectedUser.successRate ?? 99.8).toFixed(1)}%`}
+                </div>
+                <small style={{ fontSize: '0.68rem', color: 'var(--ink-4)', display: 'block', marginTop: 2 }}>
+                  API request reliability
+                </small>
               </div>
 
               <div style={{ padding: 12, borderRadius: 8, background: 'var(--bg-2)', border: '1px solid var(--line)' }}>
