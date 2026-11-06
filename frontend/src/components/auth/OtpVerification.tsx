@@ -6,6 +6,7 @@ export interface OtpVerificationProps {
   phoneNumber?: string
   countryCode?: string
   pendingUsername?: string
+  codeDeliveryDestination?: string
   onVerify: (code: string) => Promise<void>
   onResend: () => Promise<void>
   isSubmitting: boolean
@@ -48,6 +49,7 @@ export function OtpVerification({
   phoneNumber,
   countryCode = '+91',
   pendingUsername: _pendingUsername,
+  codeDeliveryDestination,
   onVerify,
   onResend,
   isSubmitting,
@@ -256,7 +258,28 @@ export function OtpVerification({
       setStage('error')
       setEatenIndex(-1)
       setOtp(Array(OTP_LENGTH).fill(''))
-      const msg = (verifyError as Error).message || 'Verification failed. Please check the code and try again.'
+
+      const errName = (verifyError as any)?.name || ''
+      const rawMsg = (verifyError as any)?.message || ''
+      let msg = 'Verification failed. Please check the code and try again.'
+
+      if (errName === 'CodeMismatchException' || rawMsg.includes('CodeMismatch') || rawMsg.toLowerCase().includes('mismatch')) {
+        msg = 'Incorrect verification code. Please check your email and try again.'
+      } else if (errName === 'ExpiredCodeException' || rawMsg.includes('ExpiredCode') || rawMsg.toLowerCase().includes('expired')) {
+        msg = 'The verification code has expired. Please click Resend to receive a new code.'
+      } else if (errName === 'NotAuthorizedException' && rawMsg.toLowerCase().includes('already confirmed')) {
+        msg = 'This account has already been verified in AWS Cognito. Redirecting to Sign In...'
+        window.setTimeout(() => onSuccessRedirect(), 1200)
+      } else if (errName === 'LimitExceededException' || rawMsg.toLowerCase().includes('limit')) {
+        msg = 'Attempt limit exceeded. Please wait a few moments before trying again.'
+      } else if (errName === 'ResourceNotFoundException') {
+        msg = 'AWS Cognito User Pool or Client ID not found (ResourceNotFoundException). Please verify your AWS Cognito configuration in ap-south-1.'
+      } else if (errName === 'UserNotFoundException') {
+        msg = 'User not found in AWS Cognito. Please register again.'
+      } else if (rawMsg && rawMsg !== 'Unknown error') {
+        msg = rawMsg
+      }
+
       setError(msg)
       window.setTimeout(() => {
         setStage('idle')
@@ -278,6 +301,18 @@ export function OtpVerification({
       window.setTimeout(() => {
         inputRefs.current[0]?.focus()
       }, 50)
+    } catch (err: any) {
+      const errName = err?.name || ''
+      const rawMsg = err?.message || ''
+      let msg = 'Failed to resend verification code. Please try again.'
+      if (errName === 'LimitExceededException') {
+        msg = 'Attempt limit exceeded. Please wait a few moments before requesting a new code.'
+      } else if (errName === 'ResourceNotFoundException') {
+        msg = 'AWS Cognito User Pool or Client ID not found (ResourceNotFoundException).'
+      } else if (rawMsg && rawMsg !== 'Unknown error') {
+        msg = rawMsg
+      }
+      setError(msg)
     } finally {
       setIsResending(false)
     }
@@ -291,17 +326,17 @@ export function OtpVerification({
       {/* Verification Card Header */}
       <div className="otp-card-header">
         <h2 className="otp-card-title">
-          {stage === 'success' ? 'Verified Successfully' : "Let's verify your number"}
+          {stage === 'success' ? 'Email Verified Successfully' : 'Verify your email'}
         </h2>
         <p className="otp-card-subtitle">
           {stage === 'success' ? (
-            'Your account has been successfully verified.'
+            'Your email has been verified. Redirecting you to Sign In...'
           ) : (
             <>
-              We&apos;ve sent a {OTP_LENGTH}-digit code to{' '}
-              <span className="otp-target-highlight">{maskedTarget}</span>.
+              We&apos;ve sent a {OTP_LENGTH}-digit verification code to{' '}
+              <span className="otp-target-highlight">{codeDeliveryDestination || (email ? email.trim() : maskedTarget)}</span>.
               <br className="otp-sub-break" />
-              It&apos;ll auto-verify once entered.
+              Enter the code below to complete your registration.
             </>
           )}
         </p>
@@ -507,7 +542,7 @@ export function OtpVerification({
             disabled={!isCodeComplete || isSubmitting}
             className="auth-btn-submit otp-submit-btn"
           >
-            <span>Verify Code</span>
+            <span>Verify Email</span>
             <ArrowRight size={15} />
           </button>
 

@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useLocation, Link, useNavigate } from 'react-router-dom'
 import {
-  Activity, ArrowDownToLine, Bell, Check, ChevronDown, ChevronRight,
+  Activity, Archive, ArrowDownToLine, ArrowUpDown, Bell, Check, ChevronDown, ChevronRight,
   CircleDollarSign, Copy, Cpu, Download, Eye, EyeOff, FileText,
-  Heart, KeyRound, Layers, LayoutGrid, List, Lock, MapPin, Play, Plus,
+  Heart, Info, KeyRound, Layers, LayoutGrid, List, Lock, MapPin, Play, Plus,
   Search, Server, Settings2, Share2, ShieldCheck, Sparkles, Terminal,
-  Trash2, TrendingUp, User, Wallet, Wrench, X, Zap,
+  Trash2, TrendingUp, User, Users, Wallet, Wrench, X, Zap,
 } from 'lucide-react'
 import { DashboardLayout } from '../../components/dashboard/DashboardLayout'
 import { AdminGuard } from '../../components/auth/AdminGuard'
@@ -73,6 +73,7 @@ type OrderItem = {
   cost: number
   status: 'Running' | 'Completed' | 'Cancelled' | 'Archived'
   details: string
+  is_archived?: boolean
 }
 
 type TransactionItem = {
@@ -126,15 +127,15 @@ const initialSshKeys: SshKey[] = [
 ]
 
 const initialOrders: OrderItem[] = [
-  { id: 'ORD-8492', modelOrGpu: 'Qwen 2.5 7B · 1x NVIDIA L4', provider: 'Yotta NM1 (Mumbai)', date: '10 Oct 2026', duration: '24 hours', cost: 1440, status: 'Running', details: 'Dedicated endpoint deployment with FP16 weights' },
-  { id: 'ORD-8431', modelOrGpu: 'Llama 3.1 8B · 1x NVIDIA L40S', provider: 'E2E Cloud (Noida)', date: '08 Oct 2026', duration: '12 hours', cost: 1200, status: 'Completed', details: 'Customer support batch fine-tuning pipeline' },
-  { id: 'ORD-8390', modelOrGpu: 'DeepSeek R1 671B · 8x NVIDIA H100', provider: 'CtrlS Datacenters (Hyderabad)', date: '04 Oct 2026', duration: '4 hours', cost: 8800, status: 'Completed', details: 'Frontier MoE reasoning benchmark evaluation' },
-  { id: 'ORD-8312', modelOrGpu: 'Mistral 7B · 1x NVIDIA L4', provider: 'Yotta NM1 (Mumbai)', date: '01 Oct 2026', duration: '8 hours', cost: 480, status: 'Cancelled', details: 'Workload canceled by user before warm-up' },
-  { id: 'ORD-8201', modelOrGpu: 'CodeQwen 7B · 1x NVIDIA L40S', provider: 'Sify Infinit (Chennai)', date: '25 Sep 2026', duration: '72 hours', cost: 7200, status: 'Archived', details: 'Archived monthly sandbox workload' },
+  { id: 'ORD-8492', modelOrGpu: 'Qwen 2.5 7B · 1x NVIDIA L4', provider: 'Yotta NM1 (Mumbai)', date: '10 Oct 2026', duration: '24 hours', cost: 1440, status: 'Running', details: 'Dedicated endpoint deployment with FP16 weights', is_archived: false },
+  { id: 'ORD-8431', modelOrGpu: 'Llama 3.1 8B · 1x NVIDIA L40S', provider: 'E2E Cloud (Noida)', date: '08 Oct 2026', duration: '12 hours', cost: 1200, status: 'Completed', details: 'Customer support batch fine-tuning pipeline', is_archived: false },
+  { id: 'ORD-8390', modelOrGpu: 'DeepSeek R1 671B · 8x NVIDIA H100', provider: 'CtrlS Datacenters (Hyderabad)', date: '04 Oct 2026', duration: '4 hours', cost: 8800, status: 'Completed', details: 'Frontier MoE reasoning benchmark evaluation', is_archived: false },
+  { id: 'ORD-8312', modelOrGpu: 'Mistral 7B · 1x NVIDIA L4', provider: 'Yotta NM1 (Mumbai)', date: '01 Oct 2026', duration: '8 hours', cost: 480, status: 'Cancelled', details: 'Workload canceled by user before warm-up', is_archived: false },
+  { id: 'ORD-8201', modelOrGpu: 'CodeQwen 7B · 1x NVIDIA L40S', provider: 'Sify Infinit (Chennai)', date: '25 Sep 2026', duration: '72 hours', cost: 7200, status: 'Archived', details: 'Archived monthly sandbox workload', is_archived: true },
 ]
 
 const initialTransactions: TransactionItem[] = [
-  { id: 'TX-1048', desc: 'Wallet top-up (Demo)', date: '10 Oct 2026', amount: 5000, isCredit: true, status: 'Completed' },
+  { id: 'TX-1048', desc: 'Wallet top-up (Demo)', date: '10 Oct 2026', amount: 10000, isCredit: true, status: 'Completed' },
   { id: 'TX-1032', desc: 'Inference deployment billing', date: '08 Oct 2026', amount: 1240, isCredit: false, status: 'Completed' },
   { id: 'TX-1011', desc: 'Inference runtime usage', date: '01 Oct 2026', amount: 3580, isCredit: false, status: 'Completed' },
 ]
@@ -240,7 +241,7 @@ const pageInfo: Record<string, { title: string; description: string; group: 'cus
   notifications: { title: 'Notifications & Alerts', description: 'Review marketplace alerts and mark them as read.', group: 'customer' },
   profile: { title: 'User Profile & Organization', description: 'Manage your personal account details, avatar, and role.', group: 'customer' },
   settings: { title: 'Settings & Quotas', description: 'Configure demo preferences, quotas and workspace details.', group: 'customer' },
-  notebooks: { title: 'Notebooks & SSH Access', description: 'Open JupyterLab or SSH into your running GPUs, with optional bot access.', group: 'customer' },
+  notebooks: { title: 'Developer Workspace', description: 'Access your GPU-powered development environment, launch JupyterLab notebooks and manage secure SSH connections.', group: 'customer' },
   reviews: { title: 'Reviews & Notes', description: 'Rate completed orders and keep private notes about GPUs and providers.', group: 'customer' },
   rewards: { title: 'Rewards & Discounts', description: 'Referral discounts, coupon codes and creator trial codes.', group: 'customer' },
   faq: { title: 'FAQ & Support Hub', description: 'Frequently asked questions, architecture guidelines, and support.', group: 'customer' },
@@ -266,7 +267,7 @@ export default function MarketplaceWorkspace() {
   const isProvider = route.startsWith('provider')
 
   useEffect(() => {
-    if (route === 'providers') {
+    if (route === 'providers' || route === 'notebooks') {
       navigate('/dashboard/customer', { replace: true })
     }
   }, [route, navigate])
@@ -315,16 +316,26 @@ export default function MarketplaceWorkspace() {
     flash('1-Hour Free Sandbox Trial started! 3600s compute credits activated.')
   }
 
+type ToastNotice = {
+  title: string
+  description?: string
+  icon?: 'server' | 'bell' | 'wallet' | 'check'
+}
+
   // UI notice state
-  const [notice, setNotice] = useState('')
+  const [notice, setNotice] = useState<ToastNotice | null>(null)
+  const noticeTimerRef = useRef<number | null>(null)
   const [search, setSearch] = useState('')
   const [gpuArchFilter, setGpuArchFilter] = useState<'all' | 'ada' | 'hopper' | 'available' | 'paused'>('all')
   const [gpuSort, setGpuSort] = useState<'rate-asc' | 'rate-desc' | 'vram-desc' | 'qty-desc'>('rate-asc')
   const [comparedGpuIds, setComparedGpuIds] = useState<string[]>([])
   const [showCompareModal, setShowCompareModal] = useState(false)
+  const [comparedModelIds, setComparedModelIds] = useState<string[]>([])
+  const [showModelCompareModal, setShowModelCompareModal] = useState(false)
 
   // Deployments UI State
   const [showDeployModal, setShowDeployModal] = useState(false)
+  const [isDeploying, setIsDeploying] = useState(false)
   const [deployForm, setDeployForm] = useState({ name: '', model: 'Qwen2.5 7B Instruct', gpu: 'L4', region: 'Hyderabad, IN' })
   const [deployToDelete, setDeployToDelete] = useState<Deployment | null>(null)
 
@@ -379,6 +390,9 @@ export default function MarketplaceWorkspace() {
   // Orders UI State
   const [orderTab, setOrderTab] = useState<'All' | 'Running' | 'Completed' | 'Cancelled' | 'Archived'>('All')
   const [selectedOrder, setSelectedOrder] = useState<OrderItem | null>(null)
+  const [orderToArchive, setOrderToArchive] = useState<OrderItem | null>(null)
+  const [isArchiving, setIsArchiving] = useState(false)
+  const [notifToDelete, setNotifToDelete] = useState<NotificationItem | null>(null)
 
   // Checkout UI State
   const [checkoutGpuId, setCheckoutGpuId] = useState('gpu-101')
@@ -484,11 +498,23 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
 
   // Billing UI State
   const [showTopUpModal, setShowTopUpModal] = useState(false)
-  const [topUpAmount, setTopUpAmount] = useState<number>(5000)
+  const [topUpAmount, setTopUpAmount] = useState<string>('10000')
   const [viewInvoiceItem, setViewInvoiceItem] = useState<TransactionItem | null>(null)
 
-  // Notifications Filter
+  const numericTopUp = Math.floor(Number(topUpAmount)) || 0
+
+  const handleOpenTopUpModal = (prefill?: string) => {
+    if (prefill) {
+      setTopUpAmount(prefill)
+    } else if (!topUpAmount || Number(topUpAmount) <= 0) {
+      setTopUpAmount('10000')
+    }
+    setShowTopUpModal(true)
+  }
+
+  // Notifications Filter & Sorting
   const [notifFilter, setNotifFilter] = useState<'all' | 'unread' | 'read'>('all')
+  const [notifSort, setNotifSort] = useState<'newest' | 'oldest'>('newest')
 
   // Analytics UI State
   const [analyticsRange, setAnalyticsRange] = useState<'24h' | '7d' | '30d'>('24h')
@@ -506,7 +532,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
   const session = getSession()
   const sessionUser = session?.user as ({ fullName: string; email: string; organization?: string }) | undefined
   const [profileName, setProfileName] = useState(sessionUser?.fullName || 'Priya Sharma')
-  const [profileEmail, setProfileEmail] = useState(sessionUser?.email || 'priya.s@novatech.ai')
+  const [profileEmail] = useState(sessionUser?.email || 'priya.s@novatech.ai')
   const [profileOrg, setProfileOrg] = useState(sessionUser?.organization || 'NovaTech AI Systems')
   const [profileAvatar, setProfileAvatar] = useState('PS')
 
@@ -537,7 +563,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
       window.dispatchEvent(new CustomEvent('inferxe_notifications_change'))
     } catch {}
   }, [notifications])
-  useEffect(() => { setNotice(''); setSearch('') }, [route])
+  useEffect(() => { setNotice(null); setSearch('') }, [route])
 
   usePageMeta(`${info.title} · Inferxe`, info.description)
 
@@ -556,9 +582,83 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
     } catch {}
   }
 
-  const flash = (msg: string) => {
-    setNotice(msg)
-    window.setTimeout(() => setNotice(''), 3800)
+  const flash = (
+    msg: string | { title: string; description?: string; detail?: string; icon?: 'server' | 'bell' | 'wallet' | 'check' },
+    maybeDesc?: string
+  ) => {
+    if (noticeTimerRef.current) {
+      window.clearTimeout(noticeTimerRef.current)
+    }
+
+    if (typeof msg === 'object' && msg !== null) {
+      setNotice({
+        title: msg.title,
+        description: msg.description || msg.detail || '',
+        icon: msg.icon || 'server',
+      })
+    } else if (maybeDesc) {
+      setNotice({
+        title: msg,
+        description: maybeDesc,
+        icon: 'server',
+      })
+    } else {
+      const trimmed = msg.trim()
+      const colonIdx = trimmed.indexOf(': ')
+      const exclIdx = trimmed.indexOf('! ')
+
+      if (colonIdx > 0 && colonIdx < 35) {
+        setNotice({
+          title: trimmed.substring(0, colonIdx).trim(),
+          description: trimmed.substring(colonIdx + 2).trim(),
+          icon: 'server',
+        })
+      } else if (exclIdx > 0 && exclIdx < 45) {
+        setNotice({
+          title: trimmed.substring(0, exclIdx + 1).trim(),
+          description: trimmed.substring(exclIdx + 2).trim(),
+          icon: 'server',
+        })
+      } else {
+        let title = 'Notification'
+        let icon: 'server' | 'bell' | 'wallet' | 'check' = 'server'
+        if (/copi(ed|y)/i.test(trimmed)) {
+          title = 'Copied to Clipboard'
+        } else if (/deploy/i.test(trimmed)) {
+          title = 'GPU Deployment Initialized'
+          icon = 'server'
+        } else if (/wallet|added to your wallet/i.test(trimmed)) {
+          title = 'Wallet Recharge Successful'
+          icon = 'wallet'
+        } else if (/price/i.test(trimmed)) {
+          title = 'GPU Price Updated'
+          icon = 'bell'
+        } else if (/key/i.test(trimmed)) {
+          title = 'Access Key Generated'
+          icon = 'server'
+        } else if (/payout/i.test(trimmed)) {
+          title = 'Payout Submitted'
+          icon = 'wallet'
+        } else if (/order/i.test(trimmed)) {
+          title = 'Order Provisioned'
+          icon = 'server'
+        } else if (/alert|telemetry|audit|notice/i.test(trimmed)) {
+          title = 'System Alert'
+          icon = 'bell'
+        } else if (/saved|updated|preferences/i.test(trimmed)) {
+          title = 'Settings Saved'
+        }
+        setNotice({
+          title,
+          description: trimmed,
+          icon,
+        })
+      }
+    }
+
+    noticeTimerRef.current = window.setTimeout(() => {
+      setNotice(null)
+    }, 3800)
   }
 
   // Filtered & Sorted GPU Listings
@@ -633,7 +733,11 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
   // Handlers
   const handleCreateDeployment = (e: FormEvent) => {
     e.preventDefault()
-    if (!deployForm.name.trim()) return
+    if (!deployForm.name.trim() || isDeploying) return
+
+    setIsDeploying(true)
+    const matchingListing = listings.find((l) => l.gpu === deployForm.gpu)
+    const rate = matchingListing ? matchingListing.price : (deployForm.gpu.includes('H100') ? 275 : deployForm.gpu.includes('L40S') ? 100 : 60)
 
     const newDep: Deployment = {
       id: `dep-${Date.now().toString().slice(-4)}`,
@@ -642,10 +746,11 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
       gpu: deployForm.gpu,
       region: deployForm.region,
       status: 'Running',
-      hourlyRate: deployForm.gpu.includes('H100') ? 275 : deployForm.gpu.includes('L40S') ? 100 : 60,
+      hourlyRate: rate,
     }
 
     setDeployments((prev) => [newDep, ...prev])
+    setIsDeploying(false)
     setShowDeployModal(false)
     setDeployForm({ name: '', model: 'Qwen2.5 7B Instruct', gpu: 'L4', region: 'Hyderabad, IN' })
     addNotification({
@@ -653,7 +758,11 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
       detail: `${newDep.model} running on ${newDep.gpu} (${newDep.region}) at ₹${newDep.hourlyRate}/hr.`,
       type: 'Deployment',
     })
-    flash(`Deployment "${newDep.name}" initialized and running on ${newDep.gpu}!`)
+    flash({
+      title: 'GPU Deployment Initialized',
+      description: `Deployment '${newDep.name}' (${newDep.id.toUpperCase()}) for ${newDep.model} on NVIDIA ${newDep.gpu} (${newDep.region}) has been requested and is currently provisioning.`,
+      icon: 'server',
+    })
   }
 
   const handleToggleDeployment = (id: string, action: 'start' | 'stop' | 'restart') => {
@@ -733,23 +842,45 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
 
   const handleTopUpWallet = (e: FormEvent) => {
     e.preventDefault()
-    setWalletBalance((prev) => prev + topUpAmount)
+    const amountNum = Math.floor(Number(topUpAmount))
+    if (!amountNum || isNaN(amountNum) || amountNum <= 0) {
+      flash('Please enter a valid amount greater than ₹0')
+      return
+    }
+
+    const newBalance = walletBalance + amountNum
+    setWalletBalance(newBalance)
+    saveStore(STORE.wallet, newBalance)
+
     const newTx: TransactionItem = {
       id: `TX-${Math.floor(1000 + Math.random() * 9000)}`,
       desc: 'Wallet top-up (Demo)',
       date: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
-      amount: topUpAmount,
+      amount: amountNum,
       isCredit: true,
       status: 'Completed',
     }
-    setTransactions((prev) => [newTx, ...prev])
+    const updatedTxs = [newTx, ...transactions]
+    setTransactions(updatedTxs)
+    saveStore(STORE.transactions, updatedTxs)
+
     setShowTopUpModal(false)
     addNotification({
-      title: `Wallet Credited: +₹${topUpAmount.toLocaleString('en-IN')}`,
-      detail: `₹${topUpAmount.toLocaleString('en-IN')} successfully credited to compute wallet. Transaction ${newTx.id} confirmed.`,
+      title: `Wallet Credited: +₹${amountNum.toLocaleString('en-IN')}`,
+      detail: `₹${amountNum.toLocaleString('en-IN')} successfully credited to compute wallet. Transaction ${newTx.id} confirmed.`,
       type: 'Billing',
     })
-    flash(`₹${topUpAmount.toLocaleString('en-IN')} added to your wallet! Transaction completed.`)
+    flash(`₹${amountNum.toLocaleString('en-IN')} added to your wallet! Transaction completed.`)
+
+    try {
+      window.dispatchEvent(new CustomEvent('inferxe_wallet_change', { detail: newBalance }))
+    } catch {
+      /* ignore */
+    }
+
+    if (route !== 'wallet' && route !== 'billing') {
+      navigate('/dashboard/wallet')
+    }
   }
 
   const handleAddSshKey = (e: FormEvent) => {
@@ -860,6 +991,58 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
     }, 1200)
   }
 
+  const handleConfirmDeleteNotification = () => {
+    if (!notifToDelete) return
+    const idToDelete = notifToDelete.id
+    setNotifications((prev) => prev.filter((item) => item.id !== idToDelete))
+    setNotifToDelete(null)
+    flash('Notification deleted.')
+  }
+
+  const handleConfirmArchiveOrder = async () => {
+    if (!orderToArchive || isArchiving) return
+
+    // Eligibility check: Running orders cannot be archived while active
+    if (orderToArchive.status === 'Running') {
+      flash('Running orders cannot be archived while GPU deployment is actively running.', 'error')
+      setOrderToArchive(null)
+      return
+    }
+
+    if (orderToArchive.is_archived || orderToArchive.status === 'Archived') {
+      flash(`Order ${orderToArchive.id} is already archived.`)
+      setOrderToArchive(null)
+      return
+    }
+
+    setIsArchiving(true)
+    try {
+      await new Promise((resolve) => setTimeout(resolve, 200))
+
+      const targetId = orderToArchive.id
+      setOrders((prev) =>
+        prev.map((o) =>
+          o.id === targetId
+            ? { ...o, is_archived: true }
+            : o
+        )
+      )
+
+      addNotification({
+        title: `Order Archived: ${targetId}`,
+        detail: `Moved ${orderToArchive.modelOrGpu} order to Archived section.`,
+        type: 'Marketplace',
+      })
+
+      flash(`Order ${targetId} archived successfully. You can access it anytime from the Archived filter.`)
+      setOrderToArchive(null)
+    } catch {
+      flash(`Failed to archive order ${orderToArchive.id}. Please try again.`, 'error')
+    } finally {
+      setIsArchiving(false)
+    }
+  }
+
   const handleSaveListing = (e: FormEvent) => {
     e.preventDefault()
     if (editingListing) {
@@ -919,14 +1102,37 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
       backButtonLabel="Back to overview"
     >
       <div className="mw-page">
-        {/* Action Toast Feedback */}
+        {/* Action Toast Feedback - Matching Image 2 Reference */}
         {notice && (
-          <div className="mw-toast" role="status">
-            <Check size={16} />
-            <span>{notice}</span>
-            <button onClick={() => setNotice('')} aria-label="Dismiss message">
-              <X size={14} />
+          <div className="mw-toast" role="status" aria-live="polite">
+            <div className="mw-toast-icon-wrap">
+              {notice.icon === 'wallet' ? (
+                <Wallet size={20} strokeWidth={2.2} />
+              ) : notice.icon === 'bell' ? (
+                <Bell size={20} strokeWidth={2.2} />
+              ) : (
+                <Server size={20} strokeWidth={2.2} />
+              )}
+            </div>
+            <div className="mw-toast-content">
+              <div className="mw-toast-title">{notice.title}</div>
+              {notice.description && (
+                <div className="mw-toast-desc">{notice.description}</div>
+              )}
+            </div>
+            <button
+              className="mw-toast-close"
+              onClick={() => {
+                if (noticeTimerRef.current) window.clearTimeout(noticeTimerRef.current)
+                setNotice(null)
+              }}
+              aria-label="Dismiss notification"
+            >
+              <X size={15} />
             </button>
+            <div className="mw-toast-progress">
+              <div className="mw-toast-progress-bar" />
+            </div>
           </div>
         )}
 
@@ -996,8 +1202,19 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                   <strong>{money(walletBalance)}</strong>
                   <small>
                     {hoursLeft === null ? 'Nothing billing right now' : `≈ ${hoursLeft.toFixed(1)} hrs left at current usage`}
-                    {lowWallet && ' · '}
-                    {lowWallet && <Link to="/dashboard/wallet" style={{ color: 'var(--brand-hi)', fontWeight: 600 }}>Top up</Link>}
+                    {' · '}
+                    <button
+                      type="button"
+                      className="mw-link-btn"
+                      onClick={() => handleOpenTopUpModal()}
+                      style={{ color: 'var(--brand-hi)', fontWeight: 600 }}
+                    >
+                      Top up
+                    </button>
+                    {' · '}
+                    <Link to="/dashboard/wallet" style={{ color: 'var(--ink-3)' }}>
+                      History
+                    </Link>
                   </small>
                 </div>
                 <div className="mw-metric">
@@ -1054,10 +1271,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                         <span className="dh-row__rate">{money(d.hourlyRate ?? 0)}/hr</span>
                         <div className="mw-actions">
                           {d.status === 'Running' ? (
-                            <>
-                              <button onClick={() => navigate('/dashboard/notebooks')}>Notebook</button>
-                              <button onClick={() => handleToggleDeployment(d.id, 'stop')}>Stop</button>
-                            </>
+                            <button onClick={() => handleToggleDeployment(d.id, 'stop')}>Stop</button>
                           ) : (
                             <button onClick={() => handleToggleDeployment(d.id, 'start')}>Start</button>
                           )}
@@ -1114,7 +1328,6 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                 {[
                   { to: '/dashboard/gpus', icon: <Cpu size={18} />, label: 'GPU Marketplace' },
                   { to: '/dashboard/compare', icon: <Layers size={18} />, label: 'Compare GPUs' },
-                  { to: '/dashboard/notebooks', icon: <Terminal size={18} />, label: 'Notebooks & SSH' },
                   { to: '/dashboard/api-keys', icon: <KeyRound size={18} />, label: 'API Keys' },
                   { to: '/dashboard/rewards', icon: <Sparkles size={18} />, label: 'Rewards' },
                 ].map((t) => (
@@ -1136,15 +1349,6 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                 <h2>Models & Hardware Compatibility</h2>
                 <p>Calculate VRAM footprints, evaluate KV-cache memory, and verify GPU fit across open-weights models.</p>
               </div>
-              <button
-                className="mw-primary"
-                onClick={() => {
-                  setDeployForm((f) => ({ ...f, model: selectedModel.name }))
-                  setShowDeployModal(true)
-                }}
-              >
-                <Plus size={15} /> Deploy Selected Model
-              </button>
             </div>
 
             {/* Filter Bar */}
@@ -1170,10 +1374,38 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
               ))}
             </div>
 
+            {/* Model Comparison Sticky Prompt */}
+            {comparedModelIds.length > 0 && (
+              <div className="mw-compare-bar">
+                <span style={{ fontSize: '0.8rem', color: 'var(--ink)' }}>
+                  Selected <strong>{comparedModelIds.length}</strong> LLM model{comparedModelIds.length === 1 ? '' : 's'} for side-by-side comparison.
+                </span>
+                <div className="row" style={{ gap: 8 }}>
+                  <button
+                    type="button"
+                    className="mw-secondary"
+                    onClick={() => setComparedModelIds([])}
+                    style={{ minHeight: 32, padding: '4px 10px' }}
+                  >
+                    Clear
+                  </button>
+                  <button
+                    type="button"
+                    className="mw-primary"
+                    onClick={() => setShowModelCompareModal(true)}
+                    style={{ minHeight: 32, padding: '4px 12px' }}
+                  >
+                    View Comparison
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Model Cards Grid */}
             <div className="mw-models-grid">
               {filteredModels.map((m) => {
                 const isSel = m.id === selectedModel.id
+                const isCompared = comparedModelIds.includes(m.id)
                 return (
                   <div
                     key={m.id}
@@ -1195,6 +1427,39 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 4, fontSize: '0.7rem', color: 'var(--ink-4)' }}>
                       <span>FP16: ~{(m.params * 2).toFixed(1)} GB</span>
                       <span>FP8: ~{m.params.toFixed(1)} GB</span>
+                    </div>
+
+                    <div className="row" style={{ gap: 8, marginTop: 'auto', width: '100%' }}>
+                      <button
+                        type="button"
+                        className="mw-primary"
+                        style={{ flex: 1, justifyContent: 'center' }}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setSelectedModelId(m.id)
+                          setDeployForm((f) => ({
+                            ...f,
+                            model: m.name,
+                            gpu: m.params >= 70 ? 'H100' : m.params >= 14 ? 'L40S' : (f.gpu || 'L4'),
+                          }))
+                          setShowDeployModal(true)
+                        }}
+                      >
+                        Select & Deploy <span>→</span>
+                      </button>
+                      <button
+                        type="button"
+                        className={isCompared ? 'mw-primary' : 'mw-secondary'}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setComparedModelIds((prev) =>
+                            prev.includes(m.id) ? prev.filter((id) => id !== m.id) : [...prev, m.id]
+                          )
+                        }}
+                        title={isCompared ? 'Remove from Comparison' : 'Add to Comparison'}
+                      >
+                        {isCompared ? 'Compared' : 'Compare'}
+                      </button>
                     </div>
                   </div>
                 )
@@ -1466,9 +1731,6 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                 <h2>Model Deployments</h2>
                 <p>Deploy serverless and dedicated LLM inference endpoints across sovereign clusters.</p>
               </div>
-              <button className="mw-primary" onClick={() => setShowDeployModal(true)}>
-                <Plus size={16} /> New Deployment
-              </button>
             </div>
 
             <div className="mw-stat-grid">
@@ -1840,7 +2102,8 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
         {route === 'analytics' && (
           <UsageDetail deployments={deployments} walletBalance={walletBalance} trialTimeLeft={trialTimeLeft} />
         )}
-        {route === 'notebooks' && <NotebooksSection deployments={deployments} flash={flash} />}
+        {/* Developer Workspace temporarily disabled (preserved for future reactivation) */}
+        {false && route === 'notebooks' && <NotebooksSection deployments={deployments} flash={flash} addNotification={addNotification} />}
         {route === 'reviews' && <ReviewsSection orders={orders} flash={flash} />}
         {route === 'rewards' && (
           <RewardsSection userName={getSession()?.user.fullName || 'Priya Sharma'} flash={flash} onGrantTrial={startTrial} />
@@ -1856,7 +2119,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                 <h2>Wallet & Billing</h2>
                 <p>Manage prepaid inference credits, monitor consumption, and inspect invoices.</p>
               </div>
-              <button className="mw-primary" onClick={() => setShowTopUpModal(true)}>
+              <button className="mw-primary" onClick={() => handleOpenTopUpModal()}>
                 <Plus size={16} /> Top Up Balance (Demo)
               </button>
             </div>
@@ -1902,27 +2165,35 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                     </tr>
                   </thead>
                   <tbody>
-                    {transactions.map((tx) => (
-                      <tr key={tx.id}>
-                        <td>
-                          <strong>{tx.id}</strong>
-                        </td>
-                        <td>{tx.desc}</td>
-                        <td>{tx.date}</td>
-                        <td style={{ color: tx.isCredit ? 'var(--brand-hi)' : 'var(--ink)' }}>
-                          {tx.isCredit ? `+${money(tx.amount)}` : `−${money(tx.amount)}`}
-                        </td>
-                        <td><StatusBadge>{tx.status}</StatusBadge></td>
-                        <td>
-                          <button
-                            className="mw-link-btn"
-                            onClick={() => setViewInvoiceItem(tx)}
-                          >
-                            View Invoice
-                          </button>
+                    {transactions.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} style={{ textAlign: 'center', color: 'var(--ink-4)', padding: 24 }}>
+                          No transactions recorded yet.
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      transactions.map((tx) => (
+                        <tr key={tx.id}>
+                          <td>
+                            <strong>{tx.id}</strong>
+                          </td>
+                          <td>{tx.desc}</td>
+                          <td>{tx.date}</td>
+                          <td style={{ color: tx.isCredit ? 'var(--brand-hi)' : 'var(--ink)' }}>
+                            {tx.isCredit ? `+${money(tx.amount)}` : `−${money(tx.amount)}`}
+                          </td>
+                          <td><StatusBadge>{tx.status}</StatusBadge></td>
+                          <td>
+                            <button
+                              className="mw-link-btn"
+                              onClick={() => setViewInvoiceItem(tx)}
+                            >
+                              View Invoice
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -1956,64 +2227,98 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
               </div>
             </div>
 
-            {/* Notification Filter Tabs */}
-            <div className="mw-filter-bar">
-              {(['all', 'unread', 'read'] as const).map((tab) => (
-                <button
-                  key={tab}
-                  className={`mw-filter-pill ${notifFilter === tab ? 'is-active' : ''}`}
-                  onClick={() => setNotifFilter(tab)}
-                >
-                  {tab === 'all'
-                    ? `All (${notifications.length})`
-                    : tab === 'unread'
-                      ? `Unread (${notifications.filter((n) => !n.read).length})`
-                      : 'Read'}
-                </button>
-              ))}
+            {/* Notification Filter Tabs & Sorting */}
+            <div className="mw-filter-bar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+              <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+                {(['all', 'unread', 'read'] as const).map((tab) => (
+                  <button
+                    key={tab}
+                    className={`mw-filter-pill ${notifFilter === tab ? 'is-active' : ''}`}
+                    onClick={() => setNotifFilter(tab)}
+                  >
+                    {tab === 'all'
+                      ? `All (${notifications.length})`
+                      : tab === 'unread'
+                        ? `Unread (${notifications.filter((n) => !n.read).length})`
+                        : 'Read'}
+                  </button>
+                ))}
+              </div>
+
+              {/* Sorting Dropdown */}
+              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div className="mw-sort-control">
+                  <ArrowUpDown size={13} style={{ color: 'var(--brand-hi)', flexShrink: 0 }} />
+                  <select
+                    value={notifSort}
+                    onChange={(e) => setNotifSort(e.target.value as 'newest' | 'oldest')}
+                    className="mw-select"
+                    style={{
+                      border: 'none',
+                      background: 'transparent',
+                      padding: '4px 6px 4px 2px',
+                      fontSize: '0.74rem',
+                      color: 'var(--ink)',
+                      cursor: 'pointer',
+                      outline: 'none',
+                      height: '100%'
+                    }}
+                    aria-label="Sort notifications"
+                  >
+                    <option value="newest" style={{ background: 'var(--bg-1)', color: 'var(--ink)' }}>Newest First</option>
+                    <option value="oldest" style={{ background: 'var(--bg-1)', color: 'var(--ink)' }}>Oldest First</option>
+                  </select>
+                </div>
+              </div>
             </div>
 
-            <div className="mw-panel">
-              {notifications.filter((n) => (notifFilter === 'all' ? true : notifFilter === 'unread' ? !n.read : n.read)).length === 0 ? (
-                <div className="mw-empty">
-                  <span className="mw-icon-box"><Bell size={22} /></span>
-                  <h3>No Notifications</h3>
-                  <p>You have reviewed all alerts matching this filter.</p>
-                </div>
-              ) : (
-                notifications
-                  .filter((n) => (notifFilter === 'all' ? true : notifFilter === 'unread' ? !n.read : n.read))
-                  .map((n) => (
-                    <div className={`mw-notification ${n.read ? 'is-read' : ''}`} key={n.id}>
-                      <span className="mw-notification-dot" />
-                      <div>
-                        <strong>{n.title}</strong>
-                        <p>{n.detail}</p>
-                        <small>{n.type} · {n.time}</small>
-                      </div>
-                      <div className="row" style={{ gap: 6 }}>
-                        <button
-                          className="mw-secondary"
-                          onClick={() => {
-                            setNotifications((prev) => prev.map((item) => (item.id === n.id ? { ...item, read: !item.read } : item)))
-                          }}
-                        >
-                          {n.read ? 'Mark Unread' : 'Mark Read'}
-                        </button>
-                        <button
-                          className="mw-icon-btn mw-danger"
-                          onClick={() => {
-                            setNotifications((prev) => prev.filter((item) => item.id !== n.id))
-                          }}
-                          aria-label="Delete Notification"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </div>
+            {(() => {
+              const filtered = notifications.filter((n) => (notifFilter === 'all' ? true : notifFilter === 'unread' ? !n.read : n.read))
+              const sorted = notifSort === 'oldest' ? [...filtered].reverse() : filtered
+
+              return (
+                <div className="mw-panel">
+                  {sorted.length === 0 ? (
+                    <div className="mw-empty">
+                      <span className="mw-icon-box"><Bell size={22} /></span>
+                      <h3>No Notifications</h3>
+                      <p>You have reviewed all alerts matching this filter.</p>
                     </div>
-                  ))
-              )}
-            </div>
+                  ) : (
+                    sorted.map((n) => (
+                      <div className={`mw-notification ${n.read ? 'is-read' : ''}`} key={n.id}>
+                        <span className="mw-notification-dot" />
+                        <div className="mw-notification-body">
+                          <strong>{n.title}</strong>
+                          <p>{n.detail}</p>
+                          <small>{n.type} · {n.time}</small>
+                        </div>
+                        <div className="mw-notification-actions">
+                          <button
+                            type="button"
+                            className="mw-secondary"
+                            onClick={() => {
+                              setNotifications((prev) => prev.map((item) => (item.id === n.id ? { ...item, read: !item.read } : item)))
+                            }}
+                          >
+                            {n.read ? 'Mark Unread' : 'Mark Read'}
+                          </button>
+                          <button
+                            type="button"
+                            className="mw-notif-delete-btn"
+                            onClick={() => setNotifToDelete(n)}
+                            title="Delete Notification"
+                            aria-label={`Delete notification: ${n.title}`}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )
+            })()}
           </>
         )}
 
@@ -2801,51 +3106,55 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
               </div>
             </div>
 
-            <div className="mw-playground-layout">
-              {/* Left Column: Config & Input */}
-              <div className="mw-panel mw-playground-form">
+            <div className="mw-playground-layout" style={{ display: 'flex', flexDirection: 'column', gap: 20, width: '100%' }}>
+              {/* Section 1: Model & Hyperparameters */}
+              <div className="mw-panel mw-playground-form" style={{ width: '100%' }}>
                 <div className="mw-panel-head">
                   <h3>Model & Hyperparameters</h3>
                   <StatusBadge>{playgroundStreaming ? 'Streaming' : 'Ready'}</StatusBadge>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                  <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: '0.76rem', color: 'var(--ink-3)' }}>
-                    Serving Model
-                    <select
-                      value={playgroundModel}
-                      onChange={(e) => setPlaygroundModel(e.target.value)}
-                      className="mw-select"
-                    >
-                      <option>Qwen2.5 7B Instruct</option>
-                      <option>Llama 3.1 8B Instruct</option>
-                      <option>DeepSeek V3 (Reasoning)</option>
-                      <option>Mistral 7B Instruct v0.3</option>
-                    </select>
-                  </label>
+                <div style={{ padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 16 }}>
+                  {/* Row 1: Serving Model & Prompt Templates */}
+                  <div className="grid grid--2" style={{ gap: 18, alignItems: 'start' }}>
+                    <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: '0.76rem', color: 'var(--ink-3)' }}>
+                      Serving Model
+                      <select
+                        value={playgroundModel}
+                        onChange={(e) => setPlaygroundModel(e.target.value)}
+                        className="mw-select"
+                      >
+                        <option>Qwen2.5 7B Instruct</option>
+                        <option>Llama 3.1 8B Instruct</option>
+                        <option>DeepSeek V3 (Reasoning)</option>
+                        <option>Mistral 7B Instruct v0.3</option>
+                      </select>
+                    </label>
 
-                  <div>
-                    <span style={{ fontSize: '0.74rem', color: 'var(--ink-3)', display: 'block', marginBottom: 6 }}>
-                      Prompt Templates
-                    </span>
-                    <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
-                      {[
-                        ['Code Gen', 'Write a Python FastAPI service for streaming Server-Sent Events with vLLM client.'],
-                        ['Math & Logic', 'If 5 GPUs can process 400 requests in 2 minutes, how many GPUs are needed for 2400 requests in 3 minutes?'],
-                        ['Customer AI', 'Draft a polite support response explaining how to rotate API keys without downtime.'],
-                      ].map(([label, promptText]) => (
-                        <button
-                          key={String(label)}
-                          type="button"
-                          className="mw-filter-pill"
-                          onClick={() => setPlaygroundPrompt(String(promptText))}
-                        >
-                          {label}
-                        </button>
-                      ))}
+                    <div>
+                      <span style={{ fontSize: '0.74rem', color: 'var(--ink-3)', display: 'block', marginBottom: 6 }}>
+                        Prompt Templates
+                      </span>
+                      <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+                        {[
+                          ['Code Gen', 'Write a Python FastAPI service for streaming Server-Sent Events with vLLM client.'],
+                          ['Math & Logic', 'If 5 GPUs can process 400 requests in 2 minutes, how many GPUs are needed for 2400 requests in 3 minutes?'],
+                          ['Customer AI', 'Draft a polite support response explaining how to rotate API keys without downtime.'],
+                        ].map(([label, promptText]) => (
+                          <button
+                            key={String(label)}
+                            type="button"
+                            className="mw-filter-pill"
+                            onClick={() => setPlaygroundPrompt(String(promptText))}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   </div>
 
+                  {/* Row 2: Prompt Input Area */}
                   <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: '0.76rem', color: 'var(--ink-3)' }}>
                     Prompt
                     <textarea
@@ -2853,15 +3162,27 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                       value={playgroundPrompt}
                       onChange={(e) => setPlaygroundPrompt(e.target.value)}
                       placeholder="Enter user prompt or system instruction..."
-                      style={{ padding: '10px', background: 'var(--bg-2)', border: '1px solid var(--line-2)', borderRadius: 8, color: 'var(--ink)', resize: 'vertical' }}
+                      style={{
+                        padding: '12px 14px',
+                        background: 'var(--bg-2)',
+                        border: '1px solid var(--line-2)',
+                        borderRadius: 8,
+                        color: 'var(--ink)',
+                        resize: 'vertical',
+                        fontFamily: 'inherit',
+                        fontSize: '0.84rem',
+                        lineHeight: 1.5,
+                        width: '100%'
+                      }}
                     />
                   </label>
 
-                  <div className="grid grid--2" style={{ gap: 12 }}>
-                    <div>
-                      <div className="mw-slider-header" style={{ marginBottom: 4 }}>
-                        <span style={{ fontSize: '0.72rem', color: 'var(--ink-3)' }}>Temperature</span>
-                        <strong style={{ fontSize: '0.72rem', color: 'var(--brand-hi)' }}>{playgroundTemp}</strong>
+                  {/* Row 3: Sliders (Temperature & Max Tokens) */}
+                  <div className="grid grid--2" style={{ gap: 18 }}>
+                    <div style={{ background: 'var(--bg-2)', padding: '12px 14px', borderRadius: 8, border: '1px solid var(--line-2)' }}>
+                      <div className="mw-slider-header" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <span style={{ fontSize: '0.74rem', color: 'var(--ink-3)' }}>Temperature</span>
+                        <strong style={{ fontSize: '0.74rem', color: 'var(--brand-hi)', fontFamily: 'var(--font-mono)' }}>{playgroundTemp}</strong>
                       </div>
                       <input
                         type="range"
@@ -2870,13 +3191,13 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                         step="0.05"
                         value={playgroundTemp}
                         onChange={(e) => setPlaygroundTemp(Number(e.target.value))}
-                        style={{ width: '100%' }}
+                        style={{ width: '100%', accentColor: 'var(--brand)' }}
                       />
                     </div>
-                    <div>
-                      <div className="mw-slider-header" style={{ marginBottom: 4 }}>
-                        <span style={{ fontSize: '0.72rem', color: 'var(--ink-3)' }}>Max Tokens</span>
-                        <strong style={{ fontSize: '0.72rem', color: 'var(--brand-hi)' }}>{playgroundMaxTokens}</strong>
+                    <div style={{ background: 'var(--bg-2)', padding: '12px 14px', borderRadius: 8, border: '1px solid var(--line-2)' }}>
+                      <div className="mw-slider-header" style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <span style={{ fontSize: '0.74rem', color: 'var(--ink-3)' }}>Max Tokens</span>
+                        <strong style={{ fontSize: '0.74rem', color: 'var(--brand-hi)', fontFamily: 'var(--font-mono)' }}>{playgroundMaxTokens}</strong>
                       </div>
                       <input
                         type="range"
@@ -2885,55 +3206,94 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                         step="64"
                         value={playgroundMaxTokens}
                         onChange={(e) => setPlaygroundMaxTokens(Number(e.target.value))}
-                        style={{ width: '100%' }}
+                        style={{ width: '100%', accentColor: 'var(--brand)' }}
                       />
                     </div>
                   </div>
 
-                  <div className="row" style={{ gap: 8, marginTop: 4 }}>
-                    <button className="mw-primary mw-full" onClick={handleRunPlayground} disabled={playgroundStreaming}>
-                      <Play size={14} /> Run Model Inference
+                  {/* Row 4: Action Button */}
+                  <div className="row" style={{ justifyContent: 'flex-end', gap: 10, marginTop: 4, flexWrap: 'wrap' }}>
+                    {playgroundPrompt && (
+                      <button
+                        type="button"
+                        className="mw-secondary"
+                        onClick={() => setPlaygroundPrompt('')}
+                        disabled={playgroundStreaming}
+                      >
+                        Clear Prompt
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="mw-primary"
+                      onClick={handleRunPlayground}
+                      disabled={playgroundStreaming}
+                      style={{ minWidth: 200 }}
+                    >
+                      <Play size={14} /> {playgroundStreaming ? 'Generating...' : 'Run Model Inference'}
                     </button>
                   </div>
                 </div>
               </div>
 
-              {/* Right Column: Output Console */}
-              <div className="mw-panel mw-playground-output">
+              {/* Section 2: Generated Token Stream */}
+              <div className="mw-panel mw-playground-output" style={{ width: '100%' }}>
                 <div className="mw-panel-head">
                   <h3>Generated Token Stream</h3>
                   <div className="row" style={{ gap: 8 }}>
                     {playgroundOutput && (
-                      <button
-                        className="mw-secondary"
-                        onClick={() => {
-                          navigator.clipboard?.writeText(playgroundOutput)
-                          flash('Inference response copied to clipboard!')
-                        }}
-                      >
-                        <Copy size={13} /> Copy Output
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          className="mw-secondary"
+                          onClick={() => setPlaygroundOutput('')}
+                          disabled={playgroundStreaming}
+                        >
+                          Clear Output
+                        </button>
+                        <button
+                          type="button"
+                          className="mw-secondary"
+                          onClick={() => {
+                            navigator.clipboard?.writeText(playgroundOutput)
+                            flash('Inference response copied to clipboard!')
+                          }}
+                        >
+                          <Copy size={13} /> Copy Output
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>
 
                 {/* Metrics Bar */}
-                <div className="row" style={{ gap: 12, padding: '8px 14px', background: 'var(--bg-2)', borderBottom: '1px solid var(--line-2)', fontSize: '0.72rem', color: 'var(--ink-3)' }}>
-                  <span>TTFT: <strong style={{ color: 'var(--brand-hi)' }}>{playgroundMetrics.ttft}s</strong></span>
-                  <span>Throughput: <strong style={{ color: 'var(--brand-hi)' }}>{playgroundMetrics.speed} tok/s</strong></span>
-                  <span>Tokens: <strong style={{ color: 'var(--ink)' }}>{playgroundMetrics.tokens}</strong></span>
+                <div
+                  className="row"
+                  style={{
+                    gap: 16,
+                    padding: '10px 18px',
+                    background: 'var(--bg-2)',
+                    borderBottom: '1px solid var(--line-2)',
+                    fontSize: '0.74rem',
+                    color: 'var(--ink-3)',
+                    flexWrap: 'wrap'
+                  }}
+                >
+                  <span>TTFT: <strong style={{ color: 'var(--brand-hi)', fontFamily: 'var(--font-mono)' }}>{playgroundMetrics.ttft}s</strong></span>
+                  <span>Throughput: <strong style={{ color: 'var(--brand-hi)', fontFamily: 'var(--font-mono)' }}>{playgroundMetrics.speed} tok/s</strong></span>
+                  <span>Tokens: <strong style={{ color: 'var(--ink)', fontFamily: 'var(--font-mono)' }}>{playgroundMetrics.tokens}</strong></span>
                   <span>Model: <strong style={{ color: 'var(--ink)' }}>{playgroundModel}</strong></span>
                 </div>
 
-                <div className="mw-console-box">
+                <div className="mw-console-box" style={{ minHeight: 220, maxHeight: 480, overflowY: 'auto', padding: 18, background: 'var(--bg-0)' }}>
                   {playgroundOutput ? (
-                    <pre style={{ margin: 0, fontFamily: 'var(--font-mono)', fontSize: '0.82rem', whiteSpace: 'pre-wrap', lineHeight: 1.6, color: 'var(--ink)' }}>
+                    <pre style={{ margin: 0, fontFamily: 'var(--font-mono)', fontSize: '0.84rem', whiteSpace: 'pre-wrap', lineHeight: 1.6, color: 'var(--ink)' }}>
                       {playgroundOutput}
                       {playgroundStreaming && <span className="mw-cursor-blink">▌</span>}
                     </pre>
                   ) : (
-                    <div className="mw-empty" style={{ padding: '40px 20px' }}>
-                      <Terminal size={26} />
+                    <div className="mw-empty" style={{ padding: '48px 20px' }}>
+                      <Terminal size={28} />
                       <h3>Playground Output Ready</h3>
                       <p>Type a prompt and click "Run Inference" to stream response tokens.</p>
                     </div>
@@ -2941,14 +3301,16 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                 </div>
 
                 {/* Recent History */}
-                <div style={{ padding: '12px 16px', borderTop: '1px solid var(--line-2)' }}>
-                  <span style={{ fontSize: '0.72rem', color: 'var(--ink-4)', display: 'block', marginBottom: 6 }}>Recent Playground Prompts</span>
-                  <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
+                <div style={{ padding: '14px 18px', borderTop: '1px solid var(--line-2)' }}>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--ink-4)', display: 'block', marginBottom: 8 }}>
+                    Recent Playground Prompts
+                  </span>
+                  <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
                     {playgroundHistory.map((h, i) => (
                       <span
                         key={i}
                         className="chip"
-                        style={{ cursor: 'pointer', maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                        style={{ cursor: 'pointer', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                         onClick={() => setPlaygroundPrompt(h.prompt)}
                         title={h.prompt}
                       >
@@ -3070,15 +3432,25 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
 
             {/* Filter Tabs */}
             <div className="mw-filter-bar">
-              {(['All', 'Running', 'Completed', 'Cancelled', 'Archived'] as const).map((tab) => (
-                <button
-                  key={tab}
-                  className={`mw-filter-pill ${orderTab === tab ? 'is-active' : ''}`}
-                  onClick={() => setOrderTab(tab)}
-                >
-                  {tab} ({orders.filter((o) => (tab === 'All' ? true : o.status === tab)).length})
-                </button>
-              ))}
+              {(['All', 'Running', 'Completed', 'Cancelled', 'Archived'] as const).map((tab) => {
+                const count = orders.filter((o) => {
+                  const isArchived = Boolean(o.is_archived || o.status === 'Archived')
+                  if (tab === 'Archived') return isArchived
+                  if (isArchived) return false
+                  if (tab === 'All') return true
+                  return o.status === tab
+                }).length
+                return (
+                  <button
+                    key={tab}
+                    type="button"
+                    className={`mw-filter-pill ${orderTab === tab ? 'is-active' : ''}`}
+                    onClick={() => setOrderTab(tab)}
+                  >
+                    {tab} ({count})
+                  </button>
+                )
+              })}
             </div>
 
             <div className="mw-panel">
@@ -3098,23 +3470,59 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                   </thead>
                   <tbody>
                     {orders
-                      .filter((o) => (orderTab === 'All' ? true : o.status === orderTab))
-                      .map((ord) => (
-                        <tr key={ord.id}>
-                          <td><strong>{ord.id}</strong></td>
-                          <td>{ord.modelOrGpu}</td>
-                          <td>{ord.provider}</td>
-                          <td>{ord.date}</td>
-                          <td>{ord.duration}</td>
-                          <td><strong style={{ color: 'var(--ink)' }}>{money(ord.cost)}</strong></td>
-                          <td><StatusBadge>{ord.status}</StatusBadge></td>
-                          <td>
-                            <button className="mw-secondary" onClick={() => setSelectedOrder(ord)}>
-                              View Details
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                      .filter((o) => {
+                        const isArchived = Boolean(o.is_archived || o.status === 'Archived')
+                        if (orderTab === 'Archived') return isArchived
+                        if (isArchived) return false
+                        if (orderTab === 'All') return true
+                        return o.status === orderTab
+                      })
+                      .map((ord) => {
+                        const isArchived = Boolean(ord.is_archived || ord.status === 'Archived')
+                        const canArchive = !isArchived && (ord.status === 'Completed' || ord.status === 'Cancelled')
+                        return (
+                          <tr key={ord.id}>
+                            <td><strong>{ord.id}</strong></td>
+                            <td>{ord.modelOrGpu}</td>
+                            <td>{ord.provider}</td>
+                            <td>{ord.date}</td>
+                            <td>{ord.duration}</td>
+                            <td><strong style={{ color: 'var(--ink)' }}>{money(ord.cost)}</strong></td>
+                            <td><StatusBadge>{ord.status}</StatusBadge></td>
+                            <td>
+                              <div className="row" style={{ gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                                <button
+                                  type="button"
+                                  className="mw-secondary"
+                                  onClick={() => setSelectedOrder(ord)}
+                                  style={{ minHeight: 32, padding: '4px 10px', fontSize: '0.74rem' }}
+                                >
+                                  View Details
+                                </button>
+                                {canArchive && (
+                                  <button
+                                    type="button"
+                                    className="mw-secondary"
+                                    onClick={() => setOrderToArchive(ord)}
+                                    title={`Archive order ${ord.id}`}
+                                    style={{
+                                      minHeight: 32,
+                                      padding: '4px 10px',
+                                      fontSize: '0.74rem',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: 6,
+                                    }}
+                                  >
+                                    <Archive size={13} />
+                                    Archive
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        )
+                      })}
                   </tbody>
                 </table>
               </div>
@@ -3137,9 +3545,9 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
               </button>
             </div>
 
-            <div className="mw-two-col">
-              {/* Left Column: Order Configuration */}
-              <div className="mw-panel mw-form-panel">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 18, width: '100%' }}>
+              {/* Section 1: Hardware Configuration */}
+              <div className="mw-panel mw-form-panel" style={{ width: '100%' }}>
                 <div className="mw-panel-head">
                   <h3>Hardware Configuration</h3>
                   <StatusBadge>Demo checkout</StatusBadge>
@@ -3163,7 +3571,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
 
                   <label>
                     Reservation Duration (Hours)
-                    <div className="row" style={{ gap: 6 }}>
+                    <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
                       {[4, 12, 24, 72, 168].map((h) => (
                         <button
                           key={h}
@@ -3245,8 +3653,8 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                 </div>
               </div>
 
-              {/* Right Column: Order Summary & Checkout Action */}
-              <div className="mw-panel">
+              {/* Section 2: Order Cost Summary */}
+              <div className="mw-panel" style={{ width: '100%' }}>
                 <div className="mw-panel-head">
                   <h3>Order Cost Summary</h3>
                   <StatusBadge>INR Breakdown</StatusBadge>
@@ -3337,7 +3745,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                 <h2>Prepaid Wallet & Credit Ledger</h2>
                 <p>Manage prepaid inference credits, monitor consumption, and inspect invoices.</p>
               </div>
-              <button className="mw-primary" onClick={() => setShowTopUpModal(true)}>
+              <button className="mw-primary" onClick={() => handleOpenTopUpModal()}>
                 <Plus size={16} /> Top Up Balance (Demo)
               </button>
             </div>
@@ -3383,22 +3791,30 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                     </tr>
                   </thead>
                   <tbody>
-                    {transactions.map((tx) => (
-                      <tr key={tx.id}>
-                        <td><strong>{tx.id}</strong></td>
-                        <td>{tx.desc}</td>
-                        <td>{tx.date}</td>
-                        <td style={{ color: tx.isCredit ? 'var(--brand-hi)' : 'var(--ink)' }}>
-                          {tx.isCredit ? `+${money(tx.amount)}` : `−${money(tx.amount)}`}
-                        </td>
-                        <td><StatusBadge>{tx.status}</StatusBadge></td>
-                        <td>
-                          <button className="mw-link-btn" onClick={() => setViewInvoiceItem(tx)}>
-                            View Invoice
-                          </button>
+                    {transactions.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} style={{ textAlign: 'center', color: 'var(--ink-4)', padding: 24 }}>
+                          No transactions recorded yet.
                         </td>
                       </tr>
-                    ))}
+                    ) : (
+                      transactions.map((tx) => (
+                        <tr key={tx.id}>
+                          <td><strong>{tx.id}</strong></td>
+                          <td>{tx.desc}</td>
+                          <td>{tx.date}</td>
+                          <td style={{ color: tx.isCredit ? 'var(--brand-hi)' : 'var(--ink)' }}>
+                            {tx.isCredit ? `+${money(tx.amount)}` : `−${money(tx.amount)}`}
+                          </td>
+                          <td><StatusBadge>{tx.status}</StatusBadge></td>
+                          <td>
+                            <button className="mw-link-btn" onClick={() => setViewInvoiceItem(tx)}>
+                              View Invoice
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -3540,13 +3956,22 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                   </label>
 
                   <label>
-                    Work Email
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span>Work Email</span>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--brand-hi)', background: 'rgba(118, 185, 0, 0.1)', padding: '2px 6px', borderRadius: 4, fontWeight: 500 }}>
+                        Managed by SSO
+                      </span>
+                    </div>
                     <input
-                      required
+                      disabled
                       type="email"
                       value={profileEmail}
-                      onChange={(e) => setProfileEmail(e.target.value)}
+                      title="Work email is managed by corporate SSO"
+                      style={{ opacity: 0.75, cursor: 'not-allowed', background: 'var(--bg-3)' }}
                     />
+                    <small style={{ color: 'var(--ink-4)', fontSize: '0.75rem', marginTop: 3, display: 'block' }}>
+                      Primary work email is governed by corporate SSO authentication. Contact administrator to modify.
+                    </small>
                   </label>
 
                   <label>
@@ -3949,11 +4374,11 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
 
       {/* 1. New Deployment Modal */}
       {showDeployModal && (
-        <div className="mw-modal-backdrop" onClick={() => setShowDeployModal(false)}>
+        <div className="mw-modal-backdrop" onClick={() => !isDeploying && setShowDeployModal(false)}>
           <div className="mw-modal" onClick={(e) => e.stopPropagation()}>
             <div className="mw-modal-head">
               <h3>Create Model Deployment</h3>
-              <button onClick={() => setShowDeployModal(false)} aria-label="Close"><X size={16} /></button>
+              <button onClick={() => !isDeploying && setShowDeployModal(false)} aria-label="Close" disabled={isDeploying}><X size={16} /></button>
             </div>
             <form onSubmit={handleCreateDeployment}>
               <div className="mw-modal-body">
@@ -3965,6 +4390,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                     onChange={(e) => setDeployForm({ ...deployForm, name: e.target.value })}
                     placeholder="e.g. qwen-support-bot"
                     style={{ padding: '8px 10px', background: 'var(--bg-2)', border: '1px solid var(--line-2)', borderRadius: 7, color: 'var(--ink)' }}
+                    disabled={isDeploying}
                   />
                 </label>
                 <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: '0.76rem', color: 'var(--ink-3)' }}>
@@ -3973,6 +4399,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                     value={deployForm.model}
                     onChange={(e) => setDeployForm({ ...deployForm, model: e.target.value })}
                     className="mw-select"
+                    disabled={isDeploying}
                   >
                     {MODELS.map((m) => (
                       <option key={m.id} value={m.name}>{m.name} ({m.params}B)</option>
@@ -3985,10 +4412,13 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                     value={deployForm.gpu}
                     onChange={(e) => setDeployForm({ ...deployForm, gpu: e.target.value })}
                     className="mw-select"
+                    disabled={isDeploying}
                   >
-                    <option value="L4">NVIDIA L4 (24 GB) · ₹60/hr</option>
-                    <option value="L40S">NVIDIA L40S (48 GB) · ₹100/hr</option>
-                    <option value="H100">NVIDIA H100 (80 GB) · ₹275/hr</option>
+                    {listings.map((l) => (
+                      <option key={l.id} value={l.gpu}>
+                        {l.name} ({l.vram}) · ₹{l.price}/hr
+                      </option>
+                    ))}
                   </select>
                 </label>
                 <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: '0.76rem', color: 'var(--ink-3)' }}>
@@ -3997,6 +4427,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                     value={deployForm.region}
                     onChange={(e) => setDeployForm({ ...deployForm, region: e.target.value })}
                     className="mw-select"
+                    disabled={isDeploying}
                   >
                     <option value="Hyderabad, IN">Hyderabad (Sovereign Tier IV)</option>
                     <option value="Mumbai, IN">Mumbai (Yotta NM1)</option>
@@ -4005,8 +4436,10 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                 </label>
               </div>
               <div className="mw-modal-foot">
-                <button type="button" className="mw-secondary" onClick={() => setShowDeployModal(false)}>Cancel</button>
-                <button type="submit" className="mw-primary">Deploy Endpoint</button>
+                <button type="button" className="mw-secondary" onClick={() => setShowDeployModal(false)} disabled={isDeploying}>Cancel</button>
+                <button type="submit" className="mw-primary" disabled={isDeploying}>
+                  {isDeploying ? 'Deploying Endpoint...' : 'Deploy Endpoint'}
+                </button>
               </div>
             </form>
           </div>
@@ -4207,6 +4640,96 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
         </div>
       )}
 
+      {/* 5b. Model Comparison Modal */}
+      {showModelCompareModal && (
+        <div className="mw-modal-backdrop" onClick={() => setShowModelCompareModal(false)}>
+          <div className="mw-modal mw-modal--wide" style={{ maxWidth: 'min(980px, 95vw)' }} onClick={(e) => e.stopPropagation()}>
+            <div className="mw-modal-head">
+              <h3>Model Comparison</h3>
+              <button onClick={() => setShowModelCompareModal(false)} aria-label="Close"><X size={16} /></button>
+            </div>
+            <div className="mw-modal-body">
+              {comparedModelIds.length === 1 && (
+                <div className="mw-info-box" style={{ marginBottom: 14 }}>
+                  <Info size={16} />
+                  <span>Select at least 1 additional model from the catalog for side-by-side comparison.</span>
+                </div>
+              )}
+              {comparedModelIds.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '32px 16px', color: 'var(--ink-3)' }}>
+                  <p>No models selected for comparison.</p>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--ink-4)' }}>Select models from the catalog using the Compare button.</p>
+                </div>
+              ) : (
+                <div
+                  className="mw-compare-grid"
+                  style={{
+                    display: 'flex',
+                    flexWrap: 'nowrap',
+                    overflowX: 'auto',
+                    gap: 14,
+                    paddingBottom: 8,
+                  }}
+                >
+                  {comparedModelIds
+                    .map((id) => MODELS.find((m) => m.id === id))
+                    .filter((m): m is (typeof MODELS)[number] => Boolean(m))
+                    .map((model) => (
+                      <div
+                        className="mw-compare-col"
+                        key={model.id}
+                        style={{
+                          minWidth: 260,
+                          maxWidth: 320,
+                          flex: '1 0 260px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                        }}
+                      >
+                        <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                          <span className="tag" style={{ background: 'rgba(118,185,0,0.12)', color: 'var(--brand-hi)', borderColor: 'var(--brand)' }}>
+                            {model.family}
+                          </span>
+                          <small style={{ fontFamily: 'var(--font-mono)', color: 'var(--ink-4)', fontSize: '0.68rem' }}>
+                            {model.params}B params
+                          </small>
+                        </div>
+                        <h4>{model.name}</h4>
+                        <div className="mw-compare-item"><span>Family</span><strong>{model.family}</strong></div>
+                        <div className="mw-compare-item"><span>Parameters</span><strong>{model.params}B</strong></div>
+                        <div className="mw-compare-item"><span>Architecture</span><strong style={{ textAlign: 'right' }}>{model.arch}</strong></div>
+                        <div className="mw-compare-item"><span>FP16 VRAM</span><strong>~{(model.params * 2).toFixed(1)} GB</strong></div>
+                        <div className="mw-compare-item"><span>FP8 VRAM</span><strong>~{model.params.toFixed(1)} GB</strong></div>
+                        <div className="mw-compare-item"><span>KV Cache Footprint</span><strong>{((model.kvBytesPerToken * 1024) / (1024 * 1024)).toFixed(2)} MB / 1k tok</strong></div>
+                        <button
+                          type="button"
+                          className="mw-primary mw-full"
+                          style={{ marginTop: 'auto', paddingTop: 10, paddingBottom: 10, justifyContent: 'center' }}
+                          onClick={() => {
+                            setSelectedModelId(model.id)
+                            setDeployForm((f) => ({
+                              ...f,
+                              model: model.name,
+                              gpu: model.params >= 70 ? 'H100' : model.params >= 14 ? 'L40S' : (f.gpu || 'L4'),
+                            }))
+                            setShowModelCompareModal(false)
+                            setShowDeployModal(true)
+                          }}
+                        >
+                          Select & Deploy <span>→</span>
+                        </button>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+            <div className="mw-modal-foot">
+              <button type="button" className="mw-secondary" onClick={() => setShowModelCompareModal(false)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 6. Wallet Top Up Modal */}
       {showTopUpModal && (
         <div className="mw-modal-backdrop" onClick={() => setShowTopUpModal(false)}>
@@ -4216,30 +4739,117 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
               <button onClick={() => setShowTopUpModal(false)} aria-label="Close"><X size={16} /></button>
             </div>
             <form onSubmit={handleTopUpWallet}>
-              <div className="mw-modal-body">
-                <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--ink-3)' }}>
-                  Select an amount to simulate adding funds to your prepaid inference balance:
+              <div className="mw-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--ink-3)', lineHeight: 1.5 }}>
+                  Enter your desired amount or pick a quick preset to add funds to your prepaid inference wallet:
                 </p>
-                <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-                  {[2000, 5000, 10000, 25000].map((amt) => (
-                    <button
-                      key={amt}
-                      type="button"
-                      className={`mw-filter-pill ${topUpAmount === amt ? 'is-active' : ''}`}
-                      onClick={() => setTopUpAmount(amt)}
+
+                {/* Custom Amount Input Field */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <label htmlFor="wallet-topup-input" style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--ink-2)' }}>
+                    Top-Up Amount (₹)
+                  </label>
+                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                    <span
+                      style={{
+                        position: 'absolute',
+                        left: 14,
+                        color: 'var(--brand-hi, #76b900)',
+                        fontSize: '1.15rem',
+                        fontWeight: 700,
+                        pointerEvents: 'none',
+                        userSelect: 'none',
+                      }}
                     >
-                      {money(amt)}
-                    </button>
-                  ))}
+                      ₹
+                    </span>
+                    <input
+                      id="wallet-topup-input"
+                      type="number"
+                      min="1"
+                      step="1"
+                      placeholder="Enter amount (e.g. 10000)"
+                      value={topUpAmount}
+                      onChange={(e) => {
+                        const sanitized = e.target.value.replace(/[^0-9]/g, '')
+                        setTopUpAmount(sanitized)
+                      }}
+                      style={{
+                        width: '100%',
+                        padding: '10px 14px 10px 34px',
+                        fontSize: '1.05rem',
+                        fontWeight: 600,
+                        fontFamily: 'var(--font-mono, monospace)',
+                        background: 'var(--bg-2, #111a14)',
+                        border: '1px solid var(--line-2, #26382a)',
+                        borderRadius: 8,
+                        color: 'var(--ink, #fff)',
+                        outline: 'none',
+                      }}
+                      autoFocus
+                      required
+                    />
+                  </div>
                 </div>
-                <div className="mw-info-box" style={{ marginTop: 8 }}>
+
+                {/* Quick Presets (Amounts 2000 and 5000 removed) */}
+                <div>
+                  <span style={{ fontSize: '0.74rem', color: 'var(--ink-4)', display: 'block', marginBottom: 8, fontWeight: 500 }}>
+                    Quick Select Presets:
+                  </span>
+                  <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+                    {[10000, 25000, 50000, 100000].map((amt) => (
+                      <button
+                        key={amt}
+                        type="button"
+                        className={`mw-filter-pill ${numericTopUp === amt ? 'is-active' : ''}`}
+                        onClick={() => setTopUpAmount(String(amt))}
+                        style={{ cursor: 'pointer' }}
+                      >
+                        {money(amt)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Live balance preview */}
+                {numericTopUp > 0 && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '10px 14px',
+                      background: 'rgba(118, 185, 0, 0.08)',
+                      borderRadius: 8,
+                      border: '1px solid rgba(118, 185, 0, 0.25)',
+                      fontSize: '0.8rem',
+                    }}
+                  >
+                    <span style={{ color: 'var(--ink-3)' }}>
+                      Current Balance: <strong>{money(walletBalance)}</strong>
+                    </span>
+                    <span style={{ color: 'var(--brand-hi, #76b900)', fontWeight: 600 }}>
+                      New Balance: <strong>{money(walletBalance + numericTopUp)}</strong>
+                    </span>
+                  </div>
+                )}
+
+                <div className="mw-info-box" style={{ marginTop: 0 }}>
                   <ShieldCheck size={16} />
-                  <span>Simulated transaction. No actual credit card or bank account is charged.</span>
+                  <span>Simulated transaction. Funds will instantly reflect in your wallet and show in the transaction history.</span>
                 </div>
               </div>
               <div className="mw-modal-foot">
                 <button type="button" className="mw-secondary" onClick={() => setShowTopUpModal(false)}>Cancel</button>
-                <button type="submit" className="mw-primary">Add {money(topUpAmount)}</button>
+                <button
+                  type="submit"
+                  className="mw-primary"
+                  disabled={numericTopUp <= 0}
+                  style={numericTopUp <= 0 ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
+                >
+                  {numericTopUp > 0 ? `Add ${money(numericTopUp)}` : 'Enter an amount'}
+                </button>
               </div>
             </form>
           </div>
@@ -4538,6 +5148,111 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
               </button>
               <button className="mw-primary" onClick={() => setSelectedOrder(null)}>
                 Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 13b. Archive Order Confirmation Dialog */}
+      {orderToArchive && (
+        <div className="mw-modal-backdrop" onClick={() => !isArchiving && setOrderToArchive(null)}>
+          <div className="mw-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440 }}>
+            <div className="mw-modal-head">
+              <div className="row" style={{ gap: 8, alignItems: 'center' }}>
+                <span className="mw-icon-box" style={{ background: 'rgba(118, 185, 0, 0.12)', color: 'var(--brand-hi)', width: 32, height: 32 }}>
+                  <Archive size={16} />
+                </span>
+                <h3 style={{ margin: 0 }}>Archive Order?</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => !isArchiving && setOrderToArchive(null)}
+                aria-label="Close"
+                disabled={isArchiving}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="mw-modal-body">
+              <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--ink-2)', lineHeight: 1.5 }}>
+                Are you sure you want to archive this order? You can access it later from the Archived section.
+              </p>
+              <div className="mw-info-box" style={{ marginTop: 12, padding: '10px 12px' }}>
+                <div>
+                  <strong style={{ display: 'block', color: 'var(--ink)', fontSize: '0.85rem' }}>{orderToArchive.id} · {orderToArchive.modelOrGpu}</strong>
+                  <span style={{ fontSize: '0.74rem', color: 'var(--ink-4)' }}>{orderToArchive.provider} · {orderToArchive.date} · {money(orderToArchive.cost)}</span>
+                </div>
+              </div>
+            </div>
+            <div className="mw-modal-foot">
+              <button
+                type="button"
+                className="mw-secondary"
+                onClick={() => setOrderToArchive(null)}
+                disabled={isArchiving}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="mw-primary"
+                onClick={handleConfirmArchiveOrder}
+                disabled={isArchiving}
+                style={{ minWidth: 120, justifyContent: 'center' }}
+              >
+                {isArchiving ? 'Archiving...' : 'Archive Order'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 13c. Delete Notification Confirmation Dialog */}
+      {notifToDelete && (
+        <div className="mw-modal-backdrop" onClick={() => setNotifToDelete(null)}>
+          <div className="mw-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440 }}>
+            <div className="mw-modal-head">
+              <div className="row" style={{ gap: 8, alignItems: 'center' }}>
+                <span className="mw-icon-box" style={{ background: 'rgba(239, 68, 68, 0.12)', color: '#ef4444', width: 32, height: 32 }}>
+                  <Trash2 size={16} />
+                </span>
+                <h3 style={{ margin: 0 }}>Delete Notification?</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setNotifToDelete(null)}
+                aria-label="Close"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="mw-modal-body">
+              <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--ink-2)', lineHeight: 1.5 }}>
+                Are you sure you want to delete this notification? This action cannot be undone.
+              </p>
+              <div className="mw-info-box" style={{ marginTop: 12, padding: '10px 12px' }}>
+                <div>
+                  <strong style={{ display: 'block', color: 'var(--ink)', fontSize: '0.85rem' }}>{notifToDelete.title}</strong>
+                  <span style={{ fontSize: '0.74rem', color: 'var(--ink-4)' }}>{notifToDelete.type} · {notifToDelete.time}</span>
+                </div>
+              </div>
+            </div>
+            <div className="mw-modal-foot">
+              <button
+                type="button"
+                className="mw-secondary"
+                onClick={() => setNotifToDelete(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="mw-primary"
+                onClick={handleConfirmDeleteNotification}
+                style={{ minWidth: 140, justifyContent: 'center', background: '#ef4444', borderColor: '#ef4444', color: '#fff' }}
+              >
+                Delete Notification
               </button>
             </div>
           </div>
@@ -4918,92 +5633,345 @@ function ChangePasswordCard({
   )
 }
 
+// Helper to validate comma-separated CORS origins
+function validateCorsOrigins(originsStr: string): { isValid: boolean; error?: string } {
+  const trimmed = originsStr.trim()
+  if (!trimmed) return { isValid: true }
+  const parts = trimmed.split(',').map((s) => s.trim()).filter(Boolean)
+  for (const part of parts) {
+    if (part === '*') continue
+    try {
+      const url = new URL(part)
+      if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+        return { isValid: false, error: `Invalid protocol in "${part}". Origins must use http:// or https://.` }
+      }
+    } catch {
+      return { isValid: false, error: `"${part}" is not a valid URL (e.g. https://app.novatech.ai).` }
+    }
+  }
+  return { isValid: true }
+}
+
 function SettingsSection({ flash }: { flash: (msg: string) => void }) {
   const session = getSession()
   const userEmail = (session?.user as any)?.email || 'priya.s@novatech.ai'
   const [budget, setBudget] = useState(() => readStore('inferxe_demo_budget', '10000'))
   const [emailAlerts, setEmailAlerts] = useState(() => readStore('inferxe_demo_email_alerts', true))
   const [weekly, setWeekly] = useState(() => readStore('inferxe_demo_weekly_report', false))
-  const [corsOrigins, setCorsOrigins] = useState('https://app.novatech.ai, http://localhost:3000')
+  const [corsOrigins, setCorsOrigins] = useState(() =>
+    readStore('inferxe_demo_cors_origins', 'https://app.novatech.ai, http://localhost:3000')
+  )
+  const [corsTouched, setCorsTouched] = useState(false)
+
+  // Real-time calculation of current month spend and utilization
+  const currentMonthSpend = 4820
+  const budgetNum = Math.max(1, Number(budget) || 10000)
+  const usedPct = Math.min(100, Math.max(0, Math.round((currentMonthSpend / budgetNum) * 100)))
+  const softAlertThreshold = Math.round(budgetNum * 0.8)
+
+  const corsValidation = useMemo(() => validateCorsOrigins(corsOrigins), [corsOrigins])
 
   const handleSave = (e: FormEvent) => {
     e.preventDefault()
-    saveStore('inferxe_demo_budget', budget)
+
+    // Validate CORS origins
+    const validation = validateCorsOrigins(corsOrigins)
+    if (!validation.isValid) {
+      flash(`Cannot save settings: ${validation.error}`)
+      return
+    }
+
+    const numericBudget = Math.max(0, Number(budget) || 0)
+    saveStore('inferxe_demo_budget', String(numericBudget))
     saveStore('inferxe_demo_email_alerts', emailAlerts)
     saveStore('inferxe_demo_weekly_report', weekly)
-    flash('Settings & preferences saved in browser storage.')
+    saveStore('inferxe_demo_cors_origins', corsOrigins)
+
+    // Notify sidebar and rest of dashboard immediately without page refresh
+    window.dispatchEvent(new Event('inferxe_budget_updated'))
+    try {
+      window.dispatchEvent(new CustomEvent('storage', { detail: { key: 'inferxe_demo_budget' } }))
+    } catch {}
+
+    flash('Workspace settings and budget limits updated successfully.')
+  }
+
+  const handleResetDefaults = () => {
+    setBudget('10000')
+    setEmailAlerts(true)
+    setWeekly(false)
+    setCorsOrigins('https://app.novatech.ai, http://localhost:3000')
+    saveStore('inferxe_demo_budget', '10000')
+    saveStore('inferxe_demo_email_alerts', true)
+    saveStore('inferxe_demo_weekly_report', false)
+    saveStore('inferxe_demo_cors_origins', 'https://app.novatech.ai, http://localhost:3000')
+    window.dispatchEvent(new Event('inferxe_budget_updated'))
+    flash('Workspace preferences reset to platform defaults.')
   }
 
   return (
-    <div className="mw-two-col">
-      <div className="mw-panel mw-form-panel">
-        <div className="mw-panel-head">
-          <h3>Workspace Preferences & Security</h3>
-          <StatusBadge>Local settings</StatusBadge>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Workspace Header Toolbar */}
+      <div className="mw-toolbar">
+        <div>
+          <h2>Workspace Settings & Governance</h2>
+          <p>Configure monthly compute budget, automated quota threshold alerts, telemetry reports, and API security for NovaTech AI Systems.</p>
         </div>
-
-        <form className="mw-form" onSubmit={handleSave}>
-          <label>
-            Monthly Spending Limit (₹)
-            <input
-              type="number"
-              min="0"
-              value={budget}
-              onChange={(e) => setBudget(e.target.value)}
-            />
-          </label>
-
-          <label>
-            Allowed API CORS Origins
-            <input
-              value={corsOrigins}
-              onChange={(e) => setCorsOrigins(e.target.value)}
-              placeholder="https://yourdomain.com"
-            />
-          </label>
-
-          <label className="mw-toggle-label">
-            <span>
-              <strong>Spending & Over-quota Notifications</strong>
-              <small>Receive email alerts when usage approaches 80% and 100% of budget.</small>
-            </span>
-            <input
-              type="checkbox"
-              checked={emailAlerts}
-              onChange={(e) => setEmailAlerts(e.target.checked)}
-            />
-          </label>
-
-          <label className="mw-toggle-label">
-            <span>
-              <strong>Weekly Summary Telemetry Report</strong>
-              <small>Aggregated latency, token counts and spend emailed weekly.</small>
-            </span>
-            <input
-              type="checkbox"
-              checked={weekly}
-              onChange={(e) => setWeekly(e.target.checked)}
-            />
-          </label>
-
-          <div className="mw-info-box">
-            <ShieldCheck size={18} />
-            <span>
-              Organization user accounts and role definitions can be managed in the{' '}
-              <Link to="/dashboard/users" style={{ color: 'var(--brand-hi)', fontWeight: 600 }}>Users Directory</Link>.
-            </span>
-          </div>
-
-          <div className="row" style={{ gap: 10, gridColumn: '1 / -1' }}>
-            <button className="mw-primary" type="submit">
-              Save Preferences
-            </button>
-          </div>
-        </form>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <StatusBadge>Active Workspace</StatusBadge>
+          <span style={{ fontSize: '0.78rem', color: 'var(--ink-4)', fontFamily: 'var(--font-mono, monospace)', background: 'var(--bg-2)', padding: '3px 8px', borderRadius: 4, border: '1px solid var(--line)' }}>
+            TENANT: novatech-ai
+          </span>
+        </div>
       </div>
 
-      <ChangePasswordCard userEmail={userEmail} flash={flash} />
+      <form className="mw-form" onSubmit={handleSave} style={{ display: 'contents' }}>
+        {/* Row 1: Budget & Quotas + Notification Preferences */}
+        <div className="mw-two-col">
+          {/* Section A: Workspace Budget & Quotas */}
+          <div className="mw-panel mw-form-panel">
+            <div className="mw-panel-head">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <CircleDollarSign size={16} style={{ color: 'var(--brand-hi)' }} />
+                <h3>Workspace Budget & Quotas</h3>
+              </div>
+              <StatusBadge>{usedPct >= 100 ? 'Cap Exceeded' : usedPct >= 80 ? 'Threshold Alert' : 'Healthy Quota'}</StatusBadge>
+            </div>
+
+            <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <label style={{ margin: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <span>Monthly Spending Limit (₹)</span>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--ink-4)' }}>Authoritative cap</span>
+                </div>
+                <input
+                  type="number"
+                  min="0"
+                  step="500"
+                  required
+                  value={budget}
+                  onChange={(e) => setBudget(e.target.value)}
+                  placeholder="10000"
+                />
+              </label>
+
+              {/* Dynamic Budget Utilization Indicator */}
+              <div style={{ background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: 8, padding: '12px 14px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.82rem', marginBottom: 6 }}>
+                  <span style={{ color: 'var(--ink-3)', fontWeight: 500 }}>Budget Utilization</span>
+                  <span style={{ color: usedPct >= 100 ? '#ef4444' : usedPct >= 80 ? '#f59e0b' : 'var(--brand-hi)', fontWeight: 700 }}>
+                    {usedPct}% Utilized
+                  </span>
+                </div>
+
+                <div style={{ background: 'rgba(255, 255, 255, 0.08)', borderRadius: 6, height: 8, overflow: 'hidden', margin: '6px 0' }}>
+                  <div
+                    style={{
+                      width: `${usedPct}%`,
+                      height: '100%',
+                      background: usedPct >= 100 ? '#ef4444' : usedPct >= 80 ? '#f59e0b' : 'var(--brand-hi)',
+                      borderRadius: 6,
+                      transition: 'width 0.3s cubic-bezier(0.25, 1, 0.5, 1)',
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: 'var(--ink-4)', marginTop: 4 }}>
+                  <span>Current Month Spend: <strong style={{ color: 'var(--ink)' }}>₹{currentMonthSpend.toLocaleString('en-IN')}</strong></span>
+                  <span>Limit: <strong style={{ color: 'var(--ink)' }}>₹{budgetNum.toLocaleString('en-IN')}</strong></span>
+                </div>
+              </div>
+
+              {/* Threshold Alerts Info */}
+              <div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--ink-4)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: 600 }}>
+                  Automated Quota Thresholds
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '6px 10px',
+                    borderRadius: 6,
+                    fontSize: '0.76rem',
+                    background: usedPct >= 80 ? 'rgba(245, 158, 11, 0.12)' : 'var(--bg-2)',
+                    border: `1px solid ${usedPct >= 80 ? 'rgba(245, 158, 11, 0.35)' : 'var(--line)'}`,
+                    color: usedPct >= 80 ? '#f59e0b' : 'var(--ink-3)',
+                  }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#f59e0b' }} />
+                    <span>80% Soft Alert: ₹{softAlertThreshold.toLocaleString('en-IN')}</span>
+                  </div>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '6px 10px',
+                    borderRadius: 6,
+                    fontSize: '0.76rem',
+                    background: usedPct >= 100 ? 'rgba(239, 68, 68, 0.12)' : 'var(--bg-2)',
+                    border: `1px solid ${usedPct >= 100 ? 'rgba(239, 68, 68, 0.35)' : 'var(--line)'}`,
+                    color: usedPct >= 100 ? '#ef4444' : 'var(--ink-3)',
+                  }}>
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#ef4444' }} />
+                    <span>100% Hard Cap: ₹{budgetNum.toLocaleString('en-IN')}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Section B: Notification Preferences */}
+          <div className="mw-panel mw-form-panel">
+            <div className="mw-panel-head">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Bell size={16} style={{ color: 'var(--brand-hi)' }} />
+                <h3>Notification Preferences</h3>
+              </div>
+              <StatusBadge>Operational Alerts</StatusBadge>
+            </div>
+
+            <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <label className="mw-toggle-label" style={{ margin: 0, padding: '12px 14px', background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: 8 }}>
+                <span>
+                  <strong>Spending & Over-quota Notifications</strong>
+                  <small style={{ display: 'block', color: 'var(--ink-4)', marginTop: 3 }}>
+                    Receive automated email alerts when monthly GPU compute spend approaches 80% and 100% of your configured limit.
+                  </small>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={emailAlerts}
+                  onChange={(e) => setEmailAlerts(e.target.checked)}
+                />
+              </label>
+
+              <label className="mw-toggle-label" style={{ margin: 0, padding: '12px 14px', background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: 8 }}>
+                <span>
+                  <strong>Weekly Summary Telemetry Report</strong>
+                  <small style={{ display: 'block', color: 'var(--ink-4)', marginTop: 3 }}>
+                    Aggregated inference latency (TTFT), token volume, active GPU node hours, and compute spend emailed every Monday.
+                  </small>
+                </span>
+                <input
+                  type="checkbox"
+                  checked={weekly}
+                  onChange={(e) => setWeekly(e.target.checked)}
+                />
+              </label>
+
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', background: 'var(--bg-3)', borderRadius: 6, fontSize: '0.78rem', color: 'var(--ink-4)' }}>
+                <span>Alerts delivered to:</span>
+                <strong style={{ color: 'var(--brand-hi)', fontFamily: 'var(--font-mono, monospace)' }}>{userEmail}</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Row 2: API Security & Configuration + Team & Workspace Management */}
+        <div className="mw-two-col">
+          {/* Section C: API Security & Configuration */}
+          <div className="mw-panel mw-form-panel">
+            <div className="mw-panel-head">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <ShieldCheck size={16} style={{ color: 'var(--brand-hi)' }} />
+                <h3>API Security & CORS Configuration</h3>
+              </div>
+              {corsValidation.isValid ? (
+                <StatusBadge>Valid Origins</StatusBadge>
+              ) : (
+                <span style={{ fontSize: '0.72rem', color: '#ef4444', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '2px 8px', borderRadius: 4, fontWeight: 600 }}>
+                  Invalid URL Format
+                </span>
+              )}
+            </div>
+
+            <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <label style={{ margin: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <span>Allowed API CORS Origins</span>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--ink-4)' }}>Comma-separated URLs</span>
+                </div>
+                <input
+                  value={corsOrigins}
+                  onChange={(e) => {
+                    setCorsOrigins(e.target.value)
+                    setCorsTouched(true)
+                  }}
+                  placeholder="https://app.novatech.ai, http://localhost:3000"
+                  style={{
+                    borderColor: corsTouched && !corsValidation.isValid ? '#ef4444' : undefined,
+                  }}
+                />
+                {corsTouched && !corsValidation.isValid && (
+                  <small style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: 4, display: 'block' }}>
+                    {corsValidation.error}
+                  </small>
+                )}
+                <small style={{ color: 'var(--ink-4)', fontSize: '0.75rem', marginTop: 4, display: 'block' }}>
+                  Only requests originating from these whitelisted domains can access your Inference and Developer Workspace APIs.
+                </small>
+              </label>
+
+              <div className="mw-info-box" style={{ margin: 0 }}>
+                <Lock size={16} />
+                <span>
+                  <strong>Strict Enclave Policy:</strong> Production endpoints require signed authorization tokens and validate origin headers against this whitelist.
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Section D: Team & Workspace Management */}
+          <div className="mw-panel mw-form-panel">
+            <div className="mw-panel-head">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Users size={16} style={{ color: 'var(--brand-hi)' }} />
+                <h3>Team & Workspace Management</h3>
+              </div>
+              <StatusBadge>Tenant Boundary</StatusBadge>
+            </div>
+
+            <div style={{ padding: 18, display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div className="mw-info-box" style={{ margin: 0 }}>
+                <ShieldCheck size={18} />
+                <span>
+                  <strong>Organization Tenant Isolation:</strong> NovaTech AI Systems operates under dedicated MeitY sovereign tenant isolation. Multi-user accounts, role definitions, and team permissions are governed in the Users Directory.
+                </span>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-2)', padding: '12px 14px', borderRadius: 8, border: '1px solid var(--line)' }}>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: '0.86rem', color: 'var(--ink)' }}>Team Directory & Role Assignment</div>
+                  <div style={{ fontSize: '0.78rem', color: 'var(--ink-4)' }}>14 Active Users · Enterprise RBAC Enforced</div>
+                </div>
+                <Link
+                  to="/dashboard/users"
+                  className="mw-secondary"
+                  style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', whiteSpace: 'nowrap' }}
+                >
+                  <Users size={14} /> Open Directory
+                </Link>
+              </div>
+
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: '0.76rem', color: 'var(--ink-4)' }}>
+                <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--brand-hi)' }} />
+                <span>Role changes require Enterprise Administrator credentials.</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Unified Form Actions Bar */}
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginTop: 4 }}>
+          <button className="mw-primary" type="submit" disabled={!corsValidation.isValid}>
+            Save Workspace Settings
+          </button>
+          <button type="button" className="mw-secondary" onClick={handleResetDefaults}>
+            Reset Defaults
+          </button>
+        </div>
+      </form>
     </div>
   )
 }
-

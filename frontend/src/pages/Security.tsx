@@ -10,7 +10,7 @@ import { PRIVACY_POINTS, SECURITY_CONTROLS } from '../data/content'
 import { usePageMeta } from '../lib/hooks'
 
 export default function Security() {
-  usePageMeta('Security & trust', 'Security, privacy and reliability by design: managed secrets, Cognito with TOTP, private inference endpoints, audit trails and a scored risk framework.')
+  usePageMeta('Security & trust', 'Security, privacy and reliability by design: managed secrets, demo-only browser authentication, private inference endpoints, audit trails and a scored risk framework.')
   return (
     <>
       <PageHero

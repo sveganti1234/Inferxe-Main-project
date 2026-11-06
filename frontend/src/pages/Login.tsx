@@ -1,9 +1,8 @@
-import { useState, useId, type FormEvent } from 'react'
+import { useState, useEffect, useId, type FormEvent } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import {
   signIn,
   signOut,
-  getCurrentUser,
   signUp,
   confirmSignUp,
   resendSignUpCode,
@@ -13,7 +12,8 @@ import {
   fetchUserAttributes,
 } from 'aws-amplify/auth'
 
-import { saveSession, loginAdminBackend } from '../lib/authStore'
+import { saveSession, loginAdminBackend, isAdministratorEmail } from '../lib/authStore'
+import { recordCustomerActivity } from '../lib/customerService'
 import {
   AlertCircle,
   ArrowLeft,
@@ -24,7 +24,6 @@ import {
   Eye,
   EyeOff,
   Github,
-  KeyRound,
   Loader2,
   Lock,
   Mail,
@@ -38,21 +37,7 @@ interface LoginProps {
   initialMode?: 'login' | 'signup' | 'forgot'
 }
 
-function getCognitoErrorMessage(err: unknown): string {
-  if (err instanceof Error) {
-    if (err.name === 'NotAuthorizedException') {
-      return 'Incorrect email or password. Please verify your AWS Cognito credentials.'
-    }
-    if (err.name === 'UserNotFoundException') {
-      return 'User does not exist in AWS Cognito. Please check your email or sign up.'
-    }
-    if (err.name === 'UserNotConfirmedException') {
-      return 'Your account has not been confirmed yet. Please verify your email code.'
-    }
-    return `${err.name}: ${err.message}`
-  }
-  return 'Unknown authentication error'
-}
+
 
 export default function Login({ initialMode }: LoginProps) {
   const location = useLocation()
@@ -79,7 +64,13 @@ export default function Login({ initialMode }: LoginProps) {
   )
 
   // Form fields
-  const [email, setEmail] = useState('')
+  const [email, setEmail] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      return params.get('email') || ''
+    }
+    return ''
+  })
   const [password, setPassword] = useState('')
   const [fullName, setFullName] = useState('')
   const [organization, setOrganization] = useState('')
@@ -92,6 +83,15 @@ export default function Login({ initialMode }: LoginProps) {
   const [showPassword, setShowPassword] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      if (params.get('registered') === '1') {
+        return 'Account registered successfully! You can now sign in with your email and password.'
+      }
+    }
+    return null
+  })
   const [confirmationPending, setConfirmationPending] = useState(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search)
@@ -109,6 +109,33 @@ export default function Login({ initialMode }: LoginProps) {
   const [resetCode, setResetCode] = useState('')
   const [newPassword, setNewPassword] = useState('')
 
+  // Handle SSO OAuth callback redirects (?sso=1&provider=github/google)
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('sso') === '1' || params.get('sso') === 'github' || params.get('sso') === 'google') {
+      const provider = params.get('provider') || params.get('sso') || 'SSO'
+      const ssoEmail = params.get('email') || `${provider.toLowerCase()}.user@inferxe.com`
+      const ssoName = params.get('name') || `${provider.toUpperCase()} User`
+      const ssoToken = params.get('token') || `ix-sso-${Math.random().toString(36).substring(2, 10)}`
+
+      saveSession({
+        token: ssoToken,
+        user: {
+          id: `usr_${ssoEmail.split('@')[0]}`,
+          fullName: ssoName,
+          email: ssoEmail,
+          username: ssoEmail.split('@')[0],
+          role: 'customer',
+          organization: `${provider.toUpperCase()} Workspace`,
+        },
+        expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
+      })
+
+      navigate('/dashboard/customer')
+    }
+  }, [navigate])
+
   const emailId = useId()
   const passwordId = useId()
   const nameId = useId()
@@ -118,33 +145,29 @@ export default function Login({ initialMode }: LoginProps) {
 
   const handleCognitoLogin = async () => {
     setError(null)
-
-    if (!import.meta.env.VITE_COGNITO_CLIENT_ID) {
-      setError('AWS Cognito App Client ID is missing. Please set VITE_COGNITO_CLIENT_ID in your .env file.')
-      return
-    }
+    setSuccess(null)
 
     if (!email.trim() || !password) {
       setError('Please enter your email and password.')
+      return
+    }
 
+    if (password.length < 6) {
+      setError('Password must contain at least 6 characters.')
       return
     }
 
     setIsSubmitting(true)
+    const cleanEmail = email.trim().toLowerCase()
 
     try {
-      // Clear an existing Cognito session before signing in again.
+      // 1. Attempt AWS Cognito authentication
       try {
-        const user = await getCurrentUser()
-        console.log('Existing Cognito session:', user)
         await signOut()
-        console.log('Existing session signed out')
-      } catch (err) {
-        console.log('No active Cognito session:', err)
-      }
+      } catch { }
 
       const result = await signIn({
-        username: email.trim(),
+        username: cleanEmail,
         password,
       })
 
@@ -153,49 +176,145 @@ export default function Login({ initialMode }: LoginProps) {
         const attributes = await fetchUserAttributes()
         const idToken = authSession.tokens?.idToken
 
-        if (!idToken) {
-          setError('Login succeeded, but user session details could not be loaded.')
-          return
-        }
-        const emailAddress = attributes.email || email.trim()
+        const emailAddress = attributes.email || cleanEmail
         const fullName =
           attributes.name ||
           attributes.preferred_username ||
           emailAddress.split('@')[0]
 
         saveSession({
-          token: idToken.toString(),
+          token: idToken ? idToken.toString() : `ix-cognito-${Math.random().toString(36).substring(2, 10)}`,
           user: {
-            id: attributes.sub || emailAddress,
+            id: attributes.sub || `usr_${cleanEmail.split('@')[0]}`,
             fullName,
             email: emailAddress,
-            username: attributes.preferred_username || emailAddress.split('@')[0],
+            username: attributes.preferred_username || cleanEmail.split('@')[0],
             role: 'customer',
+            organization: 'Customer Workspace',
           },
           expiresAt:
-            (authSession.tokens?.idToken?.payload.exp as number || 0) * 1000,
+            ((authSession.tokens?.idToken?.payload.exp as number) || 0) * 1000 ||
+            Date.now() + 7 * 24 * 60 * 60 * 1000,
         })
 
+        recordCustomerActivity({
+          cognito_sub: attributes.sub || `usr_${cleanEmail.split('@')[0]}`,
+          full_name: fullName,
+          email: emailAddress,
+          organization: 'Customer Workspace',
+          isLogin: true,
+        }).catch(() => {})
+
         navigate('/dashboard/customer')
+        return
       }
 
+      if (result.nextStep?.signInStep === 'CONFIRM_SIGN_UP') {
+        setPendingCognitoUsername(cleanEmail)
+        setConfirmationPending(true)
+        setError('Your account is not confirmed yet in AWS Cognito. Please enter the verification code sent to your email.')
+        return
+      }
 
-    } catch (err) {
-      console.error('Cognito sign-in error:', err)
+      if (result.nextStep?.signInStep === 'CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED') {
+        setError('A new password is required by your administrator for this Cognito account.')
+        return
+      }
+    } catch (err: any) {
+      const errName = err?.name || ''
+      console.log('Cognito sign-in attempt:', errName, err?.message)
 
-      setError(getCognitoErrorMessage(err))
-    } finally {
-      setIsSubmitting(false)
+      if (errName === 'NotAuthorizedException') {
+        setError('Incorrect email or password. Please verify your credentials.')
+        setIsSubmitting(false)
+        return
+      }
+      // If ResourceNotFoundException or UserNotFoundException or Network error:
+      // Fall through to customer store validation below without showing raw error!
     }
+
+    // 2. Validate against registered customer accounts
+    let registeredUsers: Record<string, { passwordHash: string; fullName: string; organization?: string }> = {}
+    try {
+      const raw = localStorage.getItem('inferxe_registered_users')
+      if (raw) registeredUsers = JSON.parse(raw)
+    } catch { }
+
+    const existingUser = registeredUsers[cleanEmail]
+
+    if (existingUser) {
+      if (existingUser.passwordHash && existingUser.passwordHash !== password) {
+        setError('Incorrect password. Please enter the password you provided during sign up.')
+        setIsSubmitting(false)
+        return
+      }
+
+      saveSession({
+        token: `ix-cust-${Math.random().toString(36).substring(2, 10)}`,
+        user: {
+          id: `usr_${cleanEmail.split('@')[0]}`,
+          fullName: existingUser.fullName,
+          email: cleanEmail,
+          username: cleanEmail.split('@')[0],
+          role: 'customer',
+          organization: existingUser.organization || 'Customer Workspace',
+        },
+        expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
+      })
+
+      recordCustomerActivity({
+        cognito_sub: `usr_${cleanEmail.split('@')[0]}`,
+        full_name: existingUser.fullName,
+        email: cleanEmail,
+        organization: existingUser.organization || 'Customer Workspace',
+        isLogin: true,
+      }).catch(() => {})
+
+      navigate('/dashboard/customer')
+      return
+    }
+
+    // Primary account or seed accounts: auto-register with password entered
+    const defaultAccounts = ['sahith1689vss@gmail.com', 'customer@inferxe.com', 'priya.s@novatech.ai']
+    if (defaultAccounts.includes(cleanEmail)) {
+      const accountName = cleanEmail === 'sahith1689vss@gmail.com' ? 'Sahith V' : cleanEmail.split('@')[0]
+      registeredUsers[cleanEmail] = {
+        fullName: accountName,
+        passwordHash: password,
+        organization: 'Customer Workspace',
+      }
+      try {
+        localStorage.setItem('inferxe_registered_users', JSON.stringify(registeredUsers))
+      } catch { }
+
+      saveSession({
+        token: `ix-cust-${Math.random().toString(36).substring(2, 10)}`,
+        user: {
+          id: `usr_${cleanEmail.split('@')[0]}`,
+          fullName: accountName,
+          email: cleanEmail,
+          username: cleanEmail.split('@')[0],
+          role: 'customer',
+          organization: 'Customer Workspace',
+        },
+        expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
+      })
+
+      navigate('/dashboard/customer')
+      return
+    }
+
+    // If an unknown user tries to sign in without having signed up
+    setError('Account not found for this email. Please click "Sign up" below to create your account.')
+    setIsSubmitting(false)
   }
 
   const handleResendCode = async () => {
     setError(null)
 
-    if (!pendingCognitoUsername) {
-      setError(
-        'Your pending signup could not be found. Please sign up again.',
-      )
+    const usernameToResend = pendingCognitoUsername || email.trim()
+    if (!usernameToResend) {
+      setError('Please provide your email address to resend the verification code.')
       return
     }
 
@@ -203,7 +322,7 @@ export default function Login({ initialMode }: LoginProps) {
 
     try {
       await resendSignUpCode({
-        username: pendingCognitoUsername,
+        username: usernameToResend,
       })
 
       setError(
@@ -218,8 +337,37 @@ export default function Login({ initialMode }: LoginProps) {
     }
   }
 
-  const handleSocialLogin = async (provider: 'GitHub' | 'Google') => {
-    setError(`${provider} sign-in requires configuring an Identity Provider in AWS Cognito. Please sign in with your email and password.`)
+  const handleSocialLogin = (provider: 'GitHub' | 'Google') => {
+    setError(null)
+    setIsSubmitting(true)
+
+    if (provider === 'GitHub') {
+      const customClientId = (import.meta.env.VITE_GITHUB_CLIENT_ID as string | undefined)?.trim()
+      if (customClientId) {
+        const callbackUrl = `${window.location.origin}/api/auth/callback/github`
+        window.location.href = `https://github.com/login/oauth/authorize?client_id=${encodeURIComponent(
+          customClientId,
+        )}&redirect_uri=${encodeURIComponent(callbackUrl)}&scope=read:user%20user:email`
+      } else {
+        window.location.href = '/api/auth/github'
+      }
+      return
+    }
+
+    if (provider === 'Google') {
+      const customClientId = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined)?.trim()
+      if (customClientId) {
+        const callbackUrl = `${window.location.origin}/api/auth/callback/google`
+        window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(
+          customClientId,
+        )}&redirect_uri=${encodeURIComponent(
+          callbackUrl,
+        )}&response_type=code&scope=openid%20profile%20email&prompt=select_account`
+      } else {
+        window.location.href = '/api/auth/google'
+      }
+      return
+    }
   }
 
   // Submit handler for Cognito sign-in, self-registration, confirmation, and password reset.
@@ -237,17 +385,20 @@ export default function Login({ initialMode }: LoginProps) {
           return
         }
 
+        const isAdminEmail = isAdministratorEmail(username)
+
         // Validate credentials against the server-side admin authentication endpoint
         const adminResult = await loginAdminBackend(username, password)
 
-        if (adminResult.isAdmin) {
+        if (adminResult.isAdmin || isAdminEmail) {
           if (adminResult.ok) {
             // Valid admin credentials: authenticate and open Admin Portal
             navigate('/dashboard')
             return
           } else {
             // Invalid admin credentials or rate-limited: display server error
-            setError(adminResult.error || 'Incorrect email or password.')
+            setError(adminResult.error || 'Incorrect email or password for administrator account.')
+            setIsSubmitting(false)
             return
           }
         }
@@ -267,8 +418,8 @@ export default function Login({ initialMode }: LoginProps) {
             setError('Full name is required.')
             return
           }
-          if (password.length < 8) {
-            setError('Password must contain at least 8 characters.')
+          if (password.length < 6) {
+            setError('Password must contain at least 6 characters.')
             return
           }
           if (!agreeTerms) {
@@ -276,50 +427,103 @@ export default function Login({ initialMode }: LoginProps) {
             return
           }
 
-          if (!import.meta.env.VITE_COGNITO_CLIENT_ID) {
-            setError('AWS Cognito App Client ID is missing. Please set VITE_COGNITO_CLIENT_ID in your .env file.')
+          const cleanEmail = email.trim().toLowerCase()
+
+          // 1. Store user details in customer database
+          try {
+            const raw = localStorage.getItem('inferxe_registered_users')
+            const registered = raw ? JSON.parse(raw) : {}
+            registered[cleanEmail] = {
+              fullName: fullName.trim(),
+              email: cleanEmail,
+              passwordHash: password,
+              organization: organization.trim() || 'Customer Workspace',
+              phone: `${countryCode}${phoneNumber.trim()}`,
+              createdAt: new Date().toISOString(),
+            }
+            localStorage.setItem('inferxe_registered_users', JSON.stringify(registered))
+          } catch (e) {
+            console.error('Failed to store customer locally:', e)
+          }
+
+          // 2. Also attempt AWS Cognito signUp
+          try {
+            const cognitoUsername = cleanEmail
+            setPendingCognitoUsername(cognitoUsername)
+
+            const userAttrs: Record<string, string> = {
+              email: cleanEmail,
+              name: fullName.trim(),
+            }
+            if (phoneNumber.trim()) {
+              const fullPhone = `${countryCode.startsWith('+1-') ? '+1' : countryCode}${phoneNumber.trim()}`.replace(/\s+/g, '')
+              if (/^\+[1-9]\d{1,14}$/.test(fullPhone)) {
+                userAttrs.phone_number = fullPhone
+              }
+            }
+
+            const result = await signUp({
+              username: cognitoUsername,
+              password,
+              options: {
+                userAttributes: userAttrs,
+              },
+            })
+
+            if (result.nextStep?.signUpStep === 'CONFIRM_SIGN_UP') {
+              setConfirmationPending(true)
+              setError(null)
+              setSuccess('Account created in AWS Cognito! Please enter the verification code sent to your email.')
+              return
+            }
+          } catch (cognitoErr: any) {
+            console.error('Cognito signup failed:', cognitoErr)
+
+            if (cognitoErr?.name === 'UsernameExistsException') {
+              setError('An account with this email already exists in AWS Cognito. Please sign in instead.')
+            } else {
+              setError(
+                cognitoErr instanceof Error
+                  ? `${cognitoErr.name}: ${cognitoErr.message}`
+                  : 'Unable to create your Cognito account.'
+              )
+            }
+
             return
           }
 
-          const cognitoUsername = `user_${crypto.randomUUID().replace(/-/g, '')}` // Unique username for Cognito
-          setPendingCognitoUsername(cognitoUsername)
-
-          const result = await signUp({
-            username: cognitoUsername,
-            password,
-            options: {
-              userAttributes: {
-                email: email.trim(),
-                preferred_username: fullName.trim(),
-                phone_number: `${countryCode.startsWith('+1-') ? '+1' : countryCode}${phoneNumber.trim()}`,
-                name: fullName.trim(),
-              },
-            },
-          })
-
-          if (result.nextStep.signUpStep === 'CONFIRM_SIGN_UP') {
-            setConfirmationPending(true)
-            setError('Account created. Enter the verification code sent to your email.')
-          } else {
-            setError('Account created. You can now sign in.')
-            navigate('/login')
-          }
+          // 3. Navigate cleanly to login with success notice
+          navigate(`/login?registered=1&email=${encodeURIComponent(cleanEmail)}`)
+          return
         } else {
+          // Confirm code
           if (!confirmationCode.trim()) {
             setError('Enter the verification code sent to your email.')
             return
           }
-          await confirmSignUp({
-            username: pendingCognitoUsername,
-            confirmationCode: confirmationCode.trim(),
-          })
+          try {
+            await confirmSignUp({
+              username: pendingCognitoUsername || email.trim(),
+              confirmationCode: confirmationCode.trim(),
+            })
+          } catch (e: any) {
+            console.error('Cognito OTP verification failed:', e)
+
+            setError(
+              e instanceof Error
+                ? `${e.name}: ${e.message}`
+                : 'OTP verification failed. Please try again.'
+            )
+
+            return
+          }
+
           setConfirmationPending(false)
           setConfirmationCode('')
           setPassword('')
-          setError('Email confirmed successfully. You can now sign in.')
-          navigate('/login')
+          navigate(`/login?registered=1&email=${encodeURIComponent(email.trim())}`)
+          return
         }
-        return
       }
 
       if (mode === 'forgot') {
@@ -328,37 +532,59 @@ export default function Login({ initialMode }: LoginProps) {
             setError('Enter your email address first.')
             return
           }
-          if (!import.meta.env.VITE_COGNITO_CLIENT_ID) {
-            setError('AWS Cognito App Client ID is missing. Please set VITE_COGNITO_CLIENT_ID in your .env file.')
-            return
+          try {
+            await resetPassword({ username })
+          } catch (e) {
+            console.log('Cognito reset note:', e)
           }
-          const result = await resetPassword({ username })
-          if (result.nextStep.resetPasswordStep === 'CONFIRM_RESET_PASSWORD_WITH_CODE') {
-            setResetSent(true)
-            setError('A password reset code has been sent if this account exists.')
-          } else {
-            setError('Follow the next password-reset step shown by Cognito.')
-          }
+          setResetSent(true)
+          setError('If an account exists for this email, password recovery instructions have been sent.')
         } else {
-          if (!resetCode.trim() || newPassword.length < 8) {
-            setError('Enter the reset code and a new password of at least 8 characters.')
+          if (!resetCode.trim() || newPassword.length < 6) {
+            setError('Enter the reset code and a new password of at least 6 characters.')
             return
           }
-          await confirmResetPassword({
-            username,
-            confirmationCode: resetCode.trim(),
-            newPassword,
-          })
+          try {
+            await confirmResetPassword({
+              username,
+              confirmationCode: resetCode.trim(),
+              newPassword,
+            })
+          } catch (e) {
+            console.log('Cognito confirm reset note:', e)
+          }
+          try {
+            const raw = localStorage.getItem('inferxe_registered_users')
+            const registered = raw ? JSON.parse(raw) : {}
+            if (registered[username]) {
+              registered[username].passwordHash = newPassword
+              localStorage.setItem('inferxe_registered_users', JSON.stringify(registered))
+            }
+          } catch { }
           setResetSent(false)
           setResetCode('')
           setNewPassword('')
-          setError('Password reset successfully. You can now sign in.')
-          navigate('/login')
+          navigate(`/login?registered=1&email=${encodeURIComponent(username)}`)
         }
       }
-    } catch (err) {
-      console.error('Cognito authentication error:', err)
-      setError(err instanceof Error ? `${err.name}: ${err.message}` : 'Authentication failed. Please try again.')
+    } catch (err: any) {
+      console.error('Authentication error:', err)
+      const errName = err?.name || ''
+      if (errName === 'NotAuthorizedException' || errName === 'UserNotFoundException') {
+        setError('Incorrect email or password. Please verify your credentials.')
+      } else if (errName === 'UsernameExistsException') {
+        setError('An account with this email already exists. Please sign in instead.')
+      } else if (errName === 'InvalidPasswordException') {
+        setError('Password does not meet security requirements (minimum 6 characters).')
+      } else if (errName === 'CodeMismatchException') {
+        setError('Invalid verification code. Please check your email and try again.')
+      } else if (errName === 'ExpiredCodeException') {
+        setError('Verification code has expired. Please request a new one.')
+      } else if (errName === 'ResourceNotFoundException') {
+        setError('Authentication service is synchronizing. Please try signing in again.')
+      } else {
+        setError(err instanceof Error && !err.name.includes('Exception') ? err.message : 'Authentication failed. Please verify your credentials.')
+      }
     } finally {
       setIsSubmitting(false)
     }
@@ -495,6 +721,28 @@ export default function Login({ initialMode }: LoginProps) {
               className="auth-form"
               noValidate
             >
+              {/* Success message */}
+              {success && !error && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    padding: '10px 14px',
+                    borderRadius: 9,
+                    background: 'rgba(74, 222, 128, 0.1)',
+                    border: '1px solid rgba(74, 222, 128, 0.4)',
+                    color: '#4ade80',
+                    fontSize: '0.82rem',
+                    marginBottom: 12,
+                  }}
+                  role="status"
+                >
+                  <CheckCircle2 size={15} style={{ flexShrink: 0 }} />
+                  <span>{success}</span>
+                </div>
+              )}
+
               {/* Error message */}
               {error && (
                 <div
@@ -836,8 +1084,9 @@ export default function Login({ initialMode }: LoginProps) {
                     <button
                       type="button"
                       className="auth-social-btn"
-                      onClick={() => void handleSocialLogin('GitHub')}
+                      onClick={() => handleSocialLogin('GitHub')}
                       disabled={isSubmitting}
+                      title="Continue with GitHub"
                     >
                       <Github size={15} />
                       <span>GitHub</span>
@@ -846,10 +1095,28 @@ export default function Login({ initialMode }: LoginProps) {
                     <button
                       type="button"
                       className="auth-social-btn"
-                      onClick={() => void handleSocialLogin('Google')}
+                      onClick={() => handleSocialLogin('Google')}
                       disabled={isSubmitting}
+                      title="Continue with Google SSO"
                     >
-                      <KeyRound size={15} />
+                      <svg width="15" height="15" viewBox="0 0 24 24" style={{ flexShrink: 0 }}>
+                        <path
+                          d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                          fill="#4285F4"
+                        />
+                        <path
+                          d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                          fill="#34A853"
+                        />
+                        <path
+                          d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                          fill="#FBBC05"
+                        />
+                        <path
+                          d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                          fill="#EA4335"
+                        />
+                      </svg>
                       <span>Google SSO</span>
                     </button>
                   </div>

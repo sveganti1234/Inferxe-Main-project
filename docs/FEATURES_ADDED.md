@@ -55,7 +55,7 @@ This update introduces user authentication (Sign In, Sign Up, and Forgot Passwor
 
 | # | Feature | Where |
 | :-- | :-- | :-- |
-| 1/2/3 | **AWS Cognito sign-in / sign-up + JWT**. Set `VITE_COGNITO_REGION` and `VITE_COGNITO_CLIENT_ID` in `.env`; the Cognito ID token (JWT) becomes the session token and its `exp` claim is enforced (`src/lib/authStore.ts`). Without these variables the demo logins still work. | `authStore.ts`, `.env.example` |
+| 1/2/3 | **Local demo sign-in / sign-up**. Customer demo accounts and sessions are stored in the current browser; this is for demos only and is not production authentication. Admin credentials remain validated by the backend. | `src/pages/Login.tsx`, `src/lib/authStore.ts` |
 | 3 | **JupyterLab + SSH access**, with an optional "Inferxe bot" read-only access toggle | `/dashboard/notebooks` |
 | 9 | **One API, many providers**: provider comparison + single request example | `/dashboard/providers` |
 | 10 | **"Request access" removed from the top of the Home page**; replaced by "Log in to try free for 1 hour" | `Home.tsx` |

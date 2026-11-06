@@ -2462,33 +2462,192 @@
 /* ── Marketplace customer/provider workspace additions ────── */
 .mw-page { display: flex; flex-direction: column; gap: 18px; padding-bottom: 36px; min-width: 0; }
 .mw-demo-note, .dh-demo { display: none !important; }
+/* ── INFERXE Notification Popup (Toast Card) ────────────────────────── */
 .mw-toast {
   position: fixed;
-  bottom: 24px;
-  right: 24px;
-  z-index: 9999;
+  bottom: 28px;
+  right: 28px;
+  z-index: 99999;
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  min-width: 480px;
+  max-width: 580px;
+  width: min(560px, calc(100vw - 48px));
+  min-height: 94px;
+  padding: 18px 46px 20px 20px;
+  background: linear-gradient(145deg, #060b05 0%, #0d170a 55%, #060b05 100%);
+  background-color: #070e06;
+  border: 1px solid rgba(118, 185, 0, 0.42);
+  border-radius: 14px;
+  box-shadow:
+    0 18px 48px -8px rgba(0, 0, 0, 0.8),
+    0 0 28px -2px rgba(118, 185, 0, 0.22),
+    inset 0 1px 0 rgba(118, 185, 0, 0.25);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  overflow: hidden;
+  box-sizing: border-box;
+  animation: mwToastSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes mwToastSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* 1. Left side – Circular neon-green outlined container */
+.mw-toast-icon-wrap {
+  width: 46px;
+  height: 46px;
+  min-width: 46px;
+  border-radius: 50%;
+  border: 2px solid #76b900;
+  background: rgba(118, 185, 0, 0.12);
+  color: #76b900;
   display: flex;
   align-items: center;
-  gap: 12px;
-  border: 1px solid rgba(118, 185, 0, 0.45);
-  background: rgba(15, 23, 42, 0.94);
-  backdrop-filter: blur(14px);
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45), 0 0 20px rgba(118, 185, 0, 0.2);
-  border-radius: 10px;
-  padding: 13px 18px;
-  color: var(--ink);
-  font-size: 0.88rem;
-  font-weight: 500;
-  max-width: 440px;
-  animation: mwToastPop 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+  box-shadow:
+    0 0 16px rgba(118, 185, 0, 0.35),
+    inset 0 0 10px rgba(118, 185, 0, 0.15);
 }
-@keyframes mwToastPop {
-  from { opacity: 0; transform: translateY(16px) scale(0.96); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
+
+.mw-toast-icon-wrap svg {
+  color: #76b900 !important;
+  stroke: #76b900 !important;
 }
-.mw-toast svg { color: var(--brand-hi); flex-shrink: 0; }
-.mw-toast button { margin-left: auto; color: var(--ink-3); background: none; border: 0; cursor: pointer; display: flex; padding: 4px; }
-.mw-toast button:hover { color: var(--ink); }
+
+/* 2. Center – Notification title and description */
+.mw-toast-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-right: 8px;
+}
+
+/* Clear, bold white notification heading */
+.mw-toast-title {
+  color: #ffffff;
+  font-family: var(--font-body, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+  font-size: 1.02rem;
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+/* Complete notification description underneath the title */
+.mw-toast-desc {
+  color: #94a3b8;
+  font-family: var(--font-body, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+  font-size: 0.84rem;
+  font-weight: 400;
+  line-height: 1.55;
+  margin: 0;
+  word-break: break-word;
+}
+
+/* 3. Top-right – Close button with small X icon */
+.mw-toast-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: transparent;
+  border: 0;
+  color: rgba(255, 255, 255, 0.45);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  transition: color 0.15s ease, background-color 0.15s ease;
+  line-height: 1;
+  z-index: 2;
+}
+
+.mw-toast-close:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.mw-toast-close svg {
+  color: inherit !important;
+  stroke: currentColor !important;
+}
+
+/* 4. Bottom – Thin neon-green horizontal progress bar */
+.mw-toast-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(118, 185, 0, 0.15);
+  overflow: hidden;
+  border-bottom-left-radius: 14px;
+  border-bottom-right-radius: 14px;
+}
+
+.mw-toast-progress-bar {
+  height: 100%;
+  width: 100%;
+  background: #76b900;
+  box-shadow: 0 0 10px #76b900, 0 0 4px #76b900;
+  transform-origin: left;
+  animation: mwToastProgress 3800ms linear forwards;
+}
+
+@keyframes mwToastProgress {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+
+/* Responsive mobile adjustments */
+@media (max-width: 640px) {
+  .mw-toast {
+    bottom: 16px;
+    right: 16px;
+    left: 16px;
+    min-width: 0;
+    max-width: none;
+    width: auto;
+    padding: 16px 40px 18px 16px;
+    gap: 12px;
+  }
+  .mw-toast-icon-wrap {
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+  }
+  .mw-toast-icon-wrap svg {
+    width: 18px;
+    height: 18px;
+  }
+  .mw-toast-title {
+    font-size: 0.95rem;
+  }
+  .mw-toast-desc {
+    font-size: 0.79rem;
+    line-height: 1.45;
+  }
+}
 .mw-toolbar { display:flex; align-items:center; justify-content:space-between; gap:14px; }
 .mw-toolbar h2 { margin:0 0 5px; font-size:1.15rem; color:var(--ink); }
 .mw-toolbar p { margin:0; color:var(--ink-3); font-size:.82rem; }
@@ -2573,15 +2732,67 @@
 .mw-empty { display:flex; flex-direction:column; align-items:center; text-align:center; gap:10px; padding:38px 20px; }
 .mw-empty h3 { margin:0; color:var(--ink); font-size:.95rem; }
 .mw-empty p { max-width:380px; margin:0 0 6px; color:var(--ink-3); font-size:.78rem; line-height:1.55; }
-.mw-notification { display:flex; align-items:center; gap:12px; padding:16px 18px; border-bottom:1px solid var(--line); }
-.mw-notification:last-child { border-bottom:0; }
-.mw-notification.is-read { opacity:.58; }
-.mw-notification-dot { width:8px; height:8px; flex-shrink:0; border-radius:50%; background:var(--brand-hi); }
-.mw-notification.is-read .mw-notification-dot { background:var(--ink-4); }
-.mw-notification>div { flex:1; min-width:0; }
-.mw-notification strong { color:var(--ink); font-size:.79rem; }
-.mw-notification p { margin:5px 0; color:var(--ink-3); font-size:.72rem; }
-.mw-notification small { color:var(--ink-4); font-size:.66rem; }
+.mw-notification {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--line);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.mw-notification:last-child {
+  border-bottom: 0;
+}
+
+.mw-notification.is-read {
+  opacity: .58;
+}
+
+.mw-notification-dot {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--brand-hi);
+}
+
+.mw-notification.is-read .mw-notification-dot {
+  background: var(--ink-4);
+}
+
+.mw-notification-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.mw-notification strong {
+  display: block;
+  color: var(--ink);
+  font-size: .82rem;
+}
+
+.mw-notification p {
+  margin: 5px 0;
+  color: var(--ink-3);
+  font-size: .74rem;
+  line-height: 1.45;
+}
+
+.mw-notification small {
+  color: var(--ink-4);
+  font-size: .68rem;
+}
+
+.mw-notification-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-left: auto;
+  flex-shrink: 0;
+}
 .mw-form-panel { padding-bottom:18px; }
 .mw-form { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:15px; padding:18px; }
 .mw-form label { display:flex; flex-direction:column; gap:7px; color:var(--ink-3); font-size:.75rem; }
@@ -2776,6 +2987,47 @@
 
 .mw-select:focus {
   border-color: var(--brand);
+}
+
+.mw-sort-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 8px 0 10px;
+  height: 32px;
+  transition: border-color 0.18s ease;
+}
+
+.mw-sort-control:hover,
+.mw-sort-control:focus-within {
+  border-color: rgba(118, 185, 0, 0.4);
+}
+
+/* ── Notification Delete Action Button ────────────────────── */
+.mw-notif-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 7px;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  color: var(--ink-3);
+  cursor: pointer;
+  transition: all 0.18s ease;
+  flex-shrink: 0;
+}
+
+.mw-notif-delete-btn:hover {
+  color: #ef4444;
+  border-color: rgba(239, 68, 68, 0.45);
+  background: rgba(239, 68, 68, 0.1);
+  transform: translateY(-1px);
 }
 
 /* ── Comparison Drawer & Table ─────────────────────────────── */
@@ -3011,16 +3263,18 @@
 
 /* ── Playground Styles ─────────────────────────────────────── */
 .mw-playground-layout {
-  display: grid;
-  grid-template-columns: 320px 1fr;
+  display: flex;
+  flex-direction: column;
   gap: 20px;
-  align-items: start;
+  width: 100%;
 }
 
-@media (max-width: 960px) {
-  .mw-playground-layout {
-    grid-template-columns: 1fr;
-  }
+.mw-playground-form {
+  width: 100%;
+}
+
+.mw-playground-output {
+  width: 100%;
 }
 
 .mw-playground-console {
@@ -3030,18 +3284,6 @@
   border: 1px solid var(--line);
   border-radius: 10px;
   min-height: 480px;
-}
-
-.mw-playground-output {
-  flex: 1;
-  padding: 16px;
-  font-family: var(--font-mono);
-  font-size: 0.8rem;
-  color: var(--ink-2);
-  line-height: 1.6;
-  white-space: pre-wrap;
-  overflow-y: auto;
-  border-bottom: 1px solid var(--line);
 }
 
 .mw-playground-telemetry {

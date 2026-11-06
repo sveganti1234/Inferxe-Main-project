@@ -7,7 +7,6 @@ import {
   Bell,
   Gift,
   Moon,
-  NotebookPen,
   Star,
   Sun,
   Bookmark,
@@ -20,7 +19,6 @@ import {
   Globe,
   HelpCircle,
   KeyRound,
-  Layers,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -40,7 +38,7 @@ import {
 } from 'lucide-react'
 import { LogoMark } from '../Logo'
 import { Ambient } from '../layout/Ambient'
-import { getSession, clearSession, getPortalRole, switchRole, type AuthSession, type PortalRole } from '../../lib/authStore'
+import { getSession, clearSession, getPortalRole, type AuthSession, type PortalRole } from '../../lib/authStore'
 interface BreadcrumbItem {
   label: string
   to?: string
@@ -139,6 +137,50 @@ export function DashboardLayout({
   }, [])
 
   const unreadNotifCount = liveNotifs.filter((n) => !n.read).length
+
+  // Synchronized Monthly Spend Limit & Quota state (shared with Workspace Settings)
+  const [monthlyBudget, setMonthlyBudget] = useState<number>(() => {
+    try {
+      const raw = localStorage.getItem('inferxe_demo_budget')
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        const num = Number(parsed)
+        if (!isNaN(num) && num > 0) return num
+      }
+    } catch {
+      /* fallback to default */
+    }
+    return 10000
+  })
+
+  useEffect(() => {
+    const syncBudget = () => {
+      try {
+        const raw = localStorage.getItem('inferxe_demo_budget')
+        if (raw) {
+          const parsed = JSON.parse(raw)
+          const num = Number(parsed)
+          if (!isNaN(num) && num > 0) {
+            setMonthlyBudget(num)
+            return
+          }
+        }
+      } catch {
+        /* fallback to default */
+      }
+      setMonthlyBudget(10000)
+    }
+
+    window.addEventListener('inferxe_budget_updated', syncBudget)
+    window.addEventListener('storage', syncBudget)
+    return () => {
+      window.removeEventListener('inferxe_budget_updated', syncBudget)
+      window.removeEventListener('storage', syncBudget)
+    }
+  }, [])
+
+  const currentMonthSpend = 4820
+  const budgetUsedPct = Math.min(100, Math.max(0, Math.round((currentMonthSpend / (monthlyBudget || 1)) * 100)))
 
   // Responsive mobile screen tracking
   const [isMobile, setIsMobile] = useState<boolean>(() => {
@@ -383,28 +425,7 @@ export function DashboardLayout({
   }
 
   const user = currentSession?.user ?? defaultCustomerUser
-  const isAdminRoute = location.pathname === '/dashboard' || location.pathname.startsWith('/dashboard/users')
-  const isCustomerRoute = location.pathname.startsWith('/dashboard/customer') ||
-    location.pathname.startsWith('/dashboard/gpus') ||
-    location.pathname.startsWith('/dashboard/models') ||
-    location.pathname.startsWith('/dashboard/compare') ||
-    location.pathname.startsWith('/dashboard/orders') ||
-    location.pathname.startsWith('/dashboard/wallet') ||
-    location.pathname.startsWith('/dashboard/checkout') ||
-    location.pathname.startsWith('/dashboard/analytics') ||
-    location.pathname.startsWith('/dashboard/playground') ||
-    location.pathname.startsWith('/dashboard/api-keys') ||
-    location.pathname.startsWith('/dashboard/ssh-keys') ||
-    location.pathname.startsWith('/dashboard/profile') ||
-    location.pathname.startsWith('/dashboard/rewards') ||
-    location.pathname.startsWith('/dashboard/notebooks') ||
-    location.pathname.startsWith('/dashboard/reviews') ||
-    location.pathname.startsWith('/dashboard/nodes') ||
-    location.pathname.startsWith('/dashboard/gpu-studio')
-
-  const portalRole: PortalRole = isAdminRoute
-    ? 'admin'
-    : (isCustomerRoute ? 'customer' : getPortalRole(user.role))
+  const portalRole: PortalRole = getPortalRole(user.role)
 
   const initials = (user.fullName || 'User')
     .split(' ')
@@ -420,8 +441,7 @@ export function DashboardLayout({
   const customerNavItems: NavItem[] = [
     { label: 'Customer Dashboard', to: '/dashboard/customer', icon: LayoutDashboard, matchExact: true },
     { label: 'GPU Marketplace', to: '/dashboard/gpus', icon: Cpu, matchExact: true },
-    { label: 'GPU Recommendations', to: '/dashboard/models', icon: Sparkles, matchExact: true },
-    { label: 'GPU Comparison', to: '/dashboard/compare', icon: Layers, matchExact: true },
+    { label: 'LLM Catalog', to: '/dashboard/models', icon: Sparkles, matchExact: true },
     { label: 'Orders and Purchase History', to: '/dashboard/orders', icon: FileText, matchExact: true },
     { label: 'Wallet, Payments and Billing', to: '/dashboard/wallet', icon: Wallet, matchExact: true },
     { label: 'Checkout & Payments', to: '/dashboard/checkout', icon: CreditCard, matchExact: true },
@@ -434,7 +454,6 @@ export function DashboardLayout({
     { label: 'Spot Price History', to: '/dashboard/price-history', icon: TrendingUp, matchExact: true },
     { label: 'Notifications', to: '/dashboard/notifications', icon: Bell, matchExact: true },
     { label: 'Profile and Settings', to: '/dashboard/profile', icon: User, matchExact: true },
-    { label: 'Notebooks and SSH', to: '/dashboard/notebooks', icon: NotebookPen, matchExact: true },
     { label: 'Reviews and Notes', to: '/dashboard/reviews', icon: Star, matchExact: true },
     { label: 'Rewards and Discounts', to: '/dashboard/rewards', icon: Gift, matchExact: true },
     { label: 'Chatbot and Help', to: '/dashboard/faq', icon: HelpCircle, matchExact: true },
@@ -444,6 +463,7 @@ export function DashboardLayout({
   // 2. Admin Portal Navigation items: Administration section
   const adminAdministrationItems: NavItem[] = [
     { label: 'Admin Console', to: '/dashboard', icon: LayoutDashboard, matchExact: true },
+    { label: 'Customer Management', to: '/dashboard/customers', icon: Users, matchExact: true },
     { label: 'Users Directory', to: '/dashboard/users', icon: Users, matchExact: true },
     { label: 'Add User', to: '/dashboard/users/add', icon: UserPlus, matchExact: true },
     { label: 'Sovereign Nodes Map', to: '/dashboard/users/map', icon: Globe, matchExact: true },
@@ -520,32 +540,7 @@ export function DashboardLayout({
           >
             {portalRole === 'admin' ? 'Admin Portal' : 'Customer Portal'}
           </span>
-          <button
-            type="button"
-            onClick={() => {
-              if (portalRole === 'admin') {
-                switchRole('customer')
-                navigate('/dashboard/customer')
-              } else {
-                switchRole('admin')
-                navigate('/dashboard')
-              }
-            }}
-            style={{
-              background: 'rgba(255, 255, 255, 0.05)',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              color: 'var(--ink-muted)',
-              borderRadius: 4,
-              fontSize: '0.68rem',
-              padding: '2px 8px',
-              cursor: 'pointer',
-              marginLeft: 8,
-              transition: 'all 0.15s ease',
-            }}
-            title={portalRole === 'admin' ? 'Switch to Customer Portal' : 'Switch to Admin Portal'}
-          >
-            {portalRole === 'admin' ? 'Customer View ↗' : 'Admin View ↗'}
-          </button>
+
         </div>
 
         {/* Center: Cluster status & Free Trial Countdown Telemetry */}
@@ -829,55 +824,13 @@ export function DashboardLayout({
             
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 2, paddingTop: 4 }}>
-                  {portalRole === 'admin' ? (
-                    <button
-                      type="button"
-                      className="dash-nav-item"
-                      style={{ color: '#06b6d4', width: '100%', textAlign: 'left', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
-                      onClick={() => {
-                        setAdminMenuOpen(false)
-                        switchRole('customer')
-                        navigate('/dashboard/customer')
-                      }}
-                    >
-                      <LayoutDashboard size={15} /> Switch to Customer Portal
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      className="dash-nav-item"
-                      style={{ color: 'var(--brand-hi)', width: '100%', textAlign: 'left', border: 'none', background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
-                      onClick={() => {
-                        setAdminMenuOpen(false)
-                        switchRole('admin')
-                        navigate('/dashboard')
-                      }}
-                    >
-                      <ShieldCheck size={15} /> Switch to Admin Portal
-                    </button>
-                  )}
-                  <Link
-                    to="/dashboard/profile"
-                    className="dash-nav-item"
-                    onClick={() => setAdminMenuOpen(false)}
-                  >
-                    <User size={15} /> Profile & Account
-                  </Link>
-                  <Link
-                    to="/"
-                    className="dash-nav-item"
-                    style={{ color: 'var(--brand-hi)' }}
-                    onClick={() => setAdminMenuOpen(false)}
-                  >
-                    <ExternalLink size={15} /> Exit to Public Site
-                  </Link>
                   <button
                     type="button"
                     className="dash-nav-item dash-nav-item--danger"
                     onClick={() => {
                       setAdminMenuOpen(false)
                       clearSession()
-                      navigate('/login')
+                      navigate('/')
                     }}
                   >
                     <LogOut size={15} /> Sign Out
@@ -1135,13 +1088,16 @@ export function DashboardLayout({
           {/* Quota & Organization Footer */}
           <div className="dash-sidebar__footer">
             {portalRole === 'customer' ? (
-              <div className="dash-quota-card" title="Monthly Spend Limit: ₹75,000 (42% used)">
+              <div
+                className="dash-quota-card"
+                title={`Monthly Spend Limit: ₹${monthlyBudget.toLocaleString('en-IN')} (${budgetUsedPct}% used)`}
+              >
                 <div className="dash-quota-card__header">
                   <span className="dash-quota-card__label">Monthly Spend Limit</span>
-                  <span className="dash-quota-card__val">₹75,000</span>
+                  <span className="dash-quota-card__val">₹{monthlyBudget.toLocaleString('en-IN')}</span>
                 </div>
                 <div className="dash-quota-progress">
-                  <div className="dash-quota-bar" style={{ width: '42%' }} />
+                  <div className="dash-quota-bar" style={{ width: `${budgetUsedPct}%` }} />
                 </div>
                 <div className="dash-quota-card__sub">
                   NovaTech AI Systems · Sovereign Active Tier
