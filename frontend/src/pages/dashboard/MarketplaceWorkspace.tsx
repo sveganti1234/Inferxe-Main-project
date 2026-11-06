@@ -18,6 +18,11 @@ import {
   createBackendApiKey,
   revokeBackendApiKey,
 } from '../../lib/apiKeyService'
+import {
+  fetchBackendSshKeys,
+  createBackendSshKey,
+  deleteBackendSshKey,
+} from '../../lib/sshKeyService'
 import { NotebooksSection, ReviewsSection, RewardsSection, UsageDetail } from './ExtraSections'
 import { SovereignNodesMap } from '../../components/dashboard/SovereignNodesMap'
 import { InteractivePriceHistoryChart, type PriceHistoryRange, type GpuModel } from '../../components/dashboard/InteractivePriceHistoryChart'
@@ -61,6 +66,7 @@ type SshKey = {
   name: string
   key: string
   fingerprint: string
+  keyType?: string
   addedDate: string
 }
 
@@ -119,11 +125,6 @@ const initialDeployments: Deployment[] = [
   { id: 'dep-1042', name: 'qwen-chat-staging', model: 'Qwen2.5 7B Instruct', gpu: 'L4', region: 'Hyderabad, IN', status: 'Running', hourlyRate: 60 },
   { id: 'dep-1038', name: 'llama-support-api', model: 'Llama 3.1 8B Instruct', gpu: 'L40S', region: 'Mumbai, IN', status: 'Running', hourlyRate: 100 },
   { id: 'dep-1027', name: 'mistral-evaluation', model: 'Mistral 7B Instruct v0.3', gpu: 'L40S', region: 'Mumbai, IN', status: 'Provisioning', hourlyRate: 100 },
-]
-
-const initialSshKeys: SshKey[] = [
-  { id: 'ssh-1', name: 'Workstation ed25519', key: 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOm5KqB1+7Lq/9+Xk9P+aJ dev@novatech.ai', fingerprint: 'SHA256:7mP4e2x9...yK9', addedDate: '02 Oct 2026' },
-  { id: 'ssh-2', name: 'CI/CD Deployer key', key: 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC8vF0w1e9K8p... ci@novatech.ai', fingerprint: 'SHA256:3aF8x11q...9wQ', addedDate: '08 Oct 2026' },
 ]
 
 const initialOrders: OrderItem[] = [
@@ -279,7 +280,7 @@ export default function MarketplaceWorkspace() {
     { id: 'key-1', name: 'Production Backend API', key: 'inf_demo_live_pk_93a74b12c8e0', created: '01 Oct 2026', revoked: false },
     { id: 'key-2', name: 'Staging Evaluation Key', key: 'inf_demo_test_sk_44f12d88e7a1', created: '06 Oct 2026', revoked: false },
   ]))
-  const [sshKeys, setSshKeys] = useState<SshKey[]>(() => readStore(STORE.sshKeys, initialSshKeys))
+  const [sshKeys, setSshKeys] = useState<SshKey[]>([])
   const [orders, setOrders] = useState<OrderItem[]>(() => readStore(STORE.orders, initialOrders))
   const [wishlist, setWishlist] = useState<string[]>(() => readStore(STORE.wishlist, ['gpu-101', 'gpu-104']))
   const [walletBalance, setWalletBalance] = useState<number>(() => readStore(STORE.wallet, 10000))
@@ -384,8 +385,44 @@ type ToastNotice = {
   const [showAddSshModal, setShowAddSshModal] = useState(false)
   const [newSshName, setNewSshName] = useState('')
   const [newSshKey, setNewSshKey] = useState('')
-  const [sshError, setSshError] = useState('')
+  const [sshModalError, setSshModalError] = useState('')
+  const [sshError, setSshError] = useState<string | null>(null)
+  const [sshLoading, setSshLoading] = useState(false)
+  const [sshSubmitting, setSshSubmitting] = useState(false)
   const [sshKeyToDelete, setSshKeyToDelete] = useState<SshKey | null>(null)
+
+  const loadSshKeys = async () => {
+    const session = getSession()
+    if (!session?.token) {
+      setSshKeys([])
+      return
+    }
+    setSshLoading(true)
+    setSshError(null)
+    const res = await fetchBackendSshKeys()
+    if (res.ok && res.keys) {
+      const mapped: SshKey[] = res.keys.map((k) => ({
+        id: k.id,
+        name: k.name,
+        key: k.public_key,
+        fingerprint: k.fingerprint,
+        keyType: k.key_type,
+        addedDate: k.created_at
+          ? new Date(k.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })
+          : 'Recently',
+      }))
+      setSshKeys(mapped)
+    } else if (res.error) {
+      setSshError(res.error)
+    }
+    setSshLoading(false)
+  }
+
+  useEffect(() => {
+    if (route === 'ssh-keys') {
+      void loadSshKeys()
+    }
+  }, [route])
 
   // Orders UI State
   const [orderTab, setOrderTab] = useState<'All' | 'Running' | 'Completed' | 'Cancelled' | 'Archived'>('All')
@@ -552,7 +589,6 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
   useEffect(() => { saveStore(STORE.listings, listings) }, [listings])
   useEffect(() => { saveStore(STORE.deployments, deployments) }, [deployments])
   useEffect(() => { saveStore(STORE.keys, keys) }, [keys])
-  useEffect(() => { saveStore(STORE.sshKeys, sshKeys) }, [sshKeys])
   useEffect(() => { saveStore(STORE.orders, orders) }, [orders])
   useEffect(() => { saveStore(STORE.wishlist, wishlist) }, [wishlist])
   useEffect(() => { saveStore(STORE.wallet, walletBalance) }, [walletBalance])
@@ -883,32 +919,53 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
     }
   }
 
-  const handleAddSshKey = (e: FormEvent) => {
+  const handleAddSshKey = async (e: FormEvent) => {
     e.preventDefault()
-    if (!newSshKey.trim().startsWith('ssh-') && !newSshKey.trim().startsWith('ecdsa-')) {
-      setSshError('Public key must begin with ssh-rsa, ssh-ed25519, or ecdsa-sha2-nistp256')
+    setSshModalError('')
+
+    const trimmedKey = newSshKey.trim()
+    const trimmedName = newSshName.trim()
+
+    if (trimmedKey.includes('PRIVATE KEY')) {
+      setSshModalError('Private keys are strictly forbidden. Please provide your OpenSSH public key (e.g. id_ed25519.pub).')
       return
     }
-    const keyObj: SshKey = {
-      id: `ssh-${Date.now()}`,
-      name: newSshName.trim() || 'Workstation Key',
-      key: newSshKey.trim(),
-      fingerprint: `SHA256:${Math.random().toString(36).slice(2, 10)}...${Math.random().toString(36).slice(2, 6)}`,
-      addedDate: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
+
+    if (!trimmedKey.startsWith('ssh-') && !trimmedKey.startsWith('ecdsa-')) {
+      setSshModalError('Public key must begin with ssh-ed25519, ssh-rsa, or ecdsa-sha2-nistp256')
+      return
     }
-    setSshKeys((prev) => [keyObj, ...prev])
-    setShowAddSshModal(false)
-    setNewSshName('')
-    setNewSshKey('')
-    setSshError('')
-    flash(`SSH Public Key "${keyObj.name}" added for compute cluster pairing (demo).`)
+
+    setSshSubmitting(true)
+    const res = await createBackendSshKey(trimmedName || 'Workstation Key', trimmedKey)
+    setSshSubmitting(false)
+
+    if (res.ok && res.data) {
+      flash(`SSH Public Key "${res.data.name}" registered in PostgreSQL.`)
+      setShowAddSshModal(false)
+      setNewSshName('')
+      setNewSshKey('')
+      setSshModalError('')
+      void loadSshKeys()
+    } else {
+      setSshModalError(res.error || 'Failed to register SSH key.')
+    }
   }
 
-  const handleConfirmDeleteSshKey = () => {
+  const handleConfirmDeleteSshKey = async () => {
     if (!sshKeyToDelete) return
-    setSshKeys((prev) => prev.filter((k) => k.id !== sshKeyToDelete.id))
-    flash(`SSH key "${sshKeyToDelete.name}" removed from local store.`)
-    setSshKeyToDelete(null)
+    setSshSubmitting(true)
+    const res = await deleteBackendSshKey(sshKeyToDelete.id)
+    setSshSubmitting(false)
+
+    if (res.ok) {
+      flash(`SSH key "${sshKeyToDelete.name}" removed from PostgreSQL.`)
+      setSshKeyToDelete(null)
+      void loadSshKeys()
+    } else {
+      flash(res.error || 'Failed to delete SSH key.')
+      setSshKeyToDelete(null)
+    }
   }
 
   const handleApplyCoupon = (e: FormEvent) => {
@@ -3334,30 +3391,49 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                 <h2>SSH Public Keys Vault</h2>
                 <p>Register public keys to enable secure terminal and container shell pairing with dedicated GPU nodes.</p>
               </div>
-              <button className="mw-primary" onClick={() => setShowAddSshModal(true)}>
-                <Plus size={16} /> Add Public SSH Key
-              </button>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                {sshLoading && <span className="mw-muted" style={{ display: 'flex', alignItems: 'center', fontSize: '0.8rem' }}>Syncing...</span>}
+                <button className="mw-primary" onClick={() => { setSshModalError(''); setShowAddSshModal(true) }}>
+                  <Plus size={16} /> Add Public SSH Key
+                </button>
+              </div>
             </div>
+
+            {!getSession()?.token && (
+              <div style={{ padding: '12px 16px', background: 'rgba(234, 179, 8, 0.1)', border: '1px solid rgba(234, 179, 8, 0.3)', borderRadius: 8, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.82rem', color: '#eab308' }}>
+                  <strong>Authentication Notice:</strong> Please sign in with your account to register and manage persistent SSH keys.
+                </span>
+                <Link to="/login" style={{ fontSize: '0.8rem', color: 'var(--brand-hi)', textDecoration: 'underline' }}>Sign In</Link>
+              </div>
+            )}
+
+            {sshError && (
+              <div style={{ padding: '12px 16px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 8, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.82rem', color: '#ef4444' }}>{sshError}</span>
+                <button className="mw-secondary" style={{ padding: '4px 10px', fontSize: '0.76rem' }} onClick={() => void loadSshKeys()}>Retry</button>
+              </div>
+            )}
 
             <div className="mw-info-box" style={{ marginBottom: 16 }}>
               <ShieldCheck size={18} />
               <span>
-                <strong>Sovereign Security Notice:</strong> Never upload private keys. Only public key pairs (e.g., id_ed25519.pub) are accepted. Public keys are stored locally in your browser demo session.
+                <strong>Sovereign Security Notice:</strong> Never upload private keys. Only OpenSSH public keys (e.g., id_ed25519.pub, id_rsa.pub) are accepted. Stored securely in PostgreSQL and cryptographically verified.
               </span>
             </div>
 
             <div className="mw-panel">
               <div className="mw-panel-head">
                 <h3>Registered Public Keys</h3>
-                <span className="mw-muted">{sshKeys.length} keys</span>
+                <span className="mw-muted">{sshKeys.length} {sshKeys.length === 1 ? 'key' : 'keys'}</span>
               </div>
 
-              {sshKeys.length === 0 ? (
+              {sshKeys.length === 0 && !sshLoading ? (
                 <div className="mw-empty">
                   <span className="mw-icon-box"><KeyRound size={22} /></span>
                   <h3>No SSH Keys Configured</h3>
-                  <p>Add a public key to pair with GPU container shells.</p>
-                  <button className="mw-primary" onClick={() => setShowAddSshModal(true)}>
+                  <p>Add an OpenSSH public key to pair with GPU container shells.</p>
+                  <button className="mw-primary" onClick={() => { setSshModalError(''); setShowAddSshModal(true) }}>
                     Add Public Key
                   </button>
                 </div>
@@ -3367,6 +3443,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                     <thead>
                       <tr>
                         <th>Key Label</th>
+                        <th>Type</th>
                         <th>Fingerprint</th>
                         <th>Public Key Snippet</th>
                         <th>Added Date</th>
@@ -3379,6 +3456,18 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                           <td>
                             <strong>{k.name}</strong>
                             <small>{k.id}</small>
+                          </td>
+                          <td>
+                            <span style={{
+                              fontSize: '0.72rem',
+                              padding: '2px 7px',
+                              borderRadius: 4,
+                              background: 'rgba(255, 255, 255, 0.06)',
+                              border: '1px solid rgba(255, 255, 255, 0.1)',
+                              fontFamily: 'var(--font-mono)'
+                            }}>
+                              {k.keyType || 'ssh'}
+                            </span>
                           </td>
                           <td style={{ fontFamily: 'var(--font-mono)', fontSize: '0.74rem', color: 'var(--brand-hi)' }}>
                             {k.fingerprint}
@@ -5033,11 +5122,11 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
 
       {/* 11. Add SSH Public Key Modal */}
       {showAddSshModal && (
-        <div className="mw-modal-backdrop" onClick={() => setShowAddSshModal(false)}>
+        <div className="mw-modal-backdrop" onClick={() => !sshSubmitting && setShowAddSshModal(false)}>
           <div className="mw-modal" onClick={(e) => e.stopPropagation()}>
             <div className="mw-modal-head">
               <h3>Add Public SSH Key</h3>
-              <button onClick={() => setShowAddSshModal(false)} aria-label="Close"><X size={16} /></button>
+              <button disabled={sshSubmitting} onClick={() => setShowAddSshModal(false)} aria-label="Close"><X size={16} /></button>
             </div>
             <form onSubmit={handleAddSshKey}>
               <div className="mw-modal-body">
@@ -5045,6 +5134,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                   Key Name / Machine Label
                   <input
                     required
+                    disabled={sshSubmitting}
                     value={newSshName}
                     onChange={(e) => setNewSshName(e.target.value)}
                     placeholder="e.g. Workstation id_ed25519"
@@ -5052,28 +5142,31 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                   />
                 </label>
                 <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: '0.76rem', color: 'var(--ink-3)' }}>
-                  Public Key (ssh-rsa, ssh-ed25519, or ecdsa-*)
+                  Public Key (.pub file content)
                   <textarea
                     required
+                    disabled={sshSubmitting}
                     rows={4}
                     value={newSshKey}
                     onChange={(e) => {
                       setNewSshKey(e.target.value)
-                      setSshError('')
+                      setSshModalError('')
                     }}
                     placeholder="ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... user@machine"
                     style={{ padding: '8px 10px', background: 'var(--bg-2)', border: '1px solid var(--line-2)', borderRadius: 7, color: 'var(--ink)', fontFamily: 'var(--font-mono)', fontSize: '0.74rem' }}
                   />
                 </label>
-                {sshError && <small style={{ color: '#ef4444', display: 'block' }}>{sshError}</small>}
+                {sshModalError && <small style={{ color: '#ef4444', display: 'block', lineHeight: 1.4 }}>{sshModalError}</small>}
                 <div className="mw-info-box" style={{ marginTop: 4 }}>
                   <ShieldCheck size={16} />
-                  <span>Never upload private keys (.id_rsa). Only public (.pub) keys are accepted. Stored locally in browser session for demonstration.</span>
+                  <span>Never upload private keys (.id_rsa). Only OpenSSH public (.pub) keys are accepted. Cryptographically validated and saved to PostgreSQL.</span>
                 </div>
               </div>
               <div className="mw-modal-foot">
-                <button type="button" className="mw-secondary" onClick={() => setShowAddSshModal(false)}>Cancel</button>
-                <button type="submit" className="mw-primary">Add Public Key</button>
+                <button type="button" disabled={sshSubmitting} className="mw-secondary" onClick={() => setShowAddSshModal(false)}>Cancel</button>
+                <button type="submit" disabled={sshSubmitting} className="mw-primary">
+                  {sshSubmitting ? 'Registering Key...' : 'Add Public Key'}
+                </button>
               </div>
             </form>
           </div>
@@ -5082,11 +5175,11 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
 
       {/* 12. Delete SSH Key Confirmation Dialog */}
       {sshKeyToDelete && (
-        <div className="mw-modal-backdrop" onClick={() => setSshKeyToDelete(null)}>
+        <div className="mw-modal-backdrop" onClick={() => !sshSubmitting && setSshKeyToDelete(null)}>
           <div className="mw-modal" onClick={(e) => e.stopPropagation()}>
             <div className="mw-modal-head">
               <h3>Remove SSH Key</h3>
-              <button onClick={() => setSshKeyToDelete(null)} aria-label="Close"><X size={16} /></button>
+              <button disabled={sshSubmitting} onClick={() => setSshKeyToDelete(null)} aria-label="Close"><X size={16} /></button>
             </div>
             <div className="mw-modal-body">
               <p style={{ margin: 0, fontSize: '0.84rem', color: 'var(--ink-2)', lineHeight: 1.5 }}>
@@ -5095,9 +5188,14 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
               </p>
             </div>
             <div className="mw-modal-foot">
-              <button className="mw-secondary" onClick={() => setSshKeyToDelete(null)}>Cancel</button>
-              <button className="mw-primary" style={{ background: '#ef4444', borderColor: '#ef4444', color: '#fff' }} onClick={handleConfirmDeleteSshKey}>
-                Remove Key
+              <button disabled={sshSubmitting} className="mw-secondary" onClick={() => setSshKeyToDelete(null)}>Cancel</button>
+              <button
+                disabled={sshSubmitting}
+                className="mw-primary"
+                style={{ background: '#ef4444', borderColor: '#ef4444', color: '#fff' }}
+                onClick={handleConfirmDeleteSshKey}
+              >
+                {sshSubmitting ? 'Removing...' : 'Remove Key'}
               </button>
             </div>
           </div>

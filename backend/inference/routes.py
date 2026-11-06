@@ -25,6 +25,34 @@ from inference.schemas import (
     APIKeyItem,
     APIKeyListResponse,
     APIKeyRevokeResponse,
+    SSHKeyCreateRequest,
+    SSHKeyResponse,
+    SSHKeyItem,
+    SSHKeyListResponse,
+    SSHKeyDeleteResponse,
+    NotebookCreateRequest,
+    NotebookResponse,
+    NotebookListResponse,
+    NotebookActionResponse,
+)
+from inference.ssh_key_service import (
+    create_ssh_key,
+    list_user_ssh_keys,
+    delete_ssh_key,
+    SSHKeyValidationError,
+    DuplicateSSHKeyError,
+)
+from inference.notebook_service import (
+    create_notebook,
+    list_user_notebooks,
+    get_notebook,
+    start_notebook,
+    stop_notebook,
+    terminate_notebook,
+    serialize_notebook,
+    NotebookNotFoundError,
+    NotebookValidationError,
+    InvalidStateTransitionError,
 )
 from inference.auth import (
     verify_customer_api_key,
@@ -238,3 +266,394 @@ async def revoke_api_key(
         message="API key revoked successfully.",
         id=str(key.id)
     )
+
+
+@router.post(
+    "/ssh-keys",
+    response_model=SSHKeyResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Register Customer SSH Public Key",
+    description="Registers and cryptographically validates an OpenSSH public key for compute pairing. Never accepts private keys."
+)
+async def register_ssh_key(
+    req: SSHKeyCreateRequest,
+    user_id: str = Depends(require_cognito_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Register a new OpenSSH public key for the authenticated customer.
+    Validates algorithm, RSA >= 2048-bit, computes OpenSSH SHA-256 fingerprint,
+    and strictly rejects private keys.
+    """
+    try:
+        new_key = create_ssh_key(
+            db=db,
+            user_id=user_id,
+            name=req.name or "Default SSH Key",
+            raw_public_key=req.public_key,
+        )
+    except SSHKeyValidationError as ve:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(ve)
+        )
+    except DuplicateSSHKeyError as de:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(de)
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to register SSH key in database."
+        )
+
+    return SSHKeyResponse(
+        id=str(new_key.id),
+        name=new_key.name,
+        public_key=new_key.public_key,
+        fingerprint=new_key.fingerprint,
+        key_type=new_key.key_type,
+        created_at=new_key.created_at.isoformat() if new_key.created_at else "",
+    )
+
+
+@router.get(
+    "/ssh-keys",
+    response_model=SSHKeyListResponse,
+    summary="List Customer SSH Public Keys",
+    description="Returns all OpenSSH public keys registered by the authenticated customer. Enforces tenant isolation."
+)
+async def get_customer_ssh_keys(
+    user_id: str = Depends(require_cognito_user),
+    db: Session = Depends(get_db)
+):
+    """
+    List all SSH keys belonging exclusively to the authenticated customer.
+    """
+    try:
+        keys = list_user_ssh_keys(db=db, user_id=user_id)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve SSH keys from database."
+        )
+
+    return SSHKeyListResponse(
+        success=True,
+        keys=[
+            SSHKeyItem(
+                id=str(k.id),
+                name=k.name,
+                public_key=k.public_key,
+                fingerprint=k.fingerprint,
+                key_type=k.key_type,
+                created_at=k.created_at.isoformat() if k.created_at else "",
+            )
+            for k in keys
+        ]
+    )
+
+
+@router.delete(
+    "/ssh-keys/{key_id}",
+    response_model=SSHKeyDeleteResponse,
+    summary="Delete Customer SSH Key",
+    description="Deletes a registered SSH key owned by the authenticated customer. Returns 404 if not found or unauthorized."
+)
+async def remove_ssh_key(
+    key_id: str,
+    user_id: str = Depends(require_cognito_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Delete a customer SSH key.
+    Enforces tenant isolation: returns HTTP 404 if the key does not exist
+    or belongs to another customer to prevent customer enumeration.
+    """
+    try:
+        key_uuid = uuid.UUID(key_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid key ID format. Expected UUID."
+        )
+
+    try:
+        deleted = delete_ssh_key(db=db, user_id=user_id, key_id=key_uuid)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete SSH key from database."
+        )
+
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="SSH key not found."
+        )
+
+    return SSHKeyDeleteResponse(
+        success=True,
+        message="SSH key deleted successfully.",
+        id=str(key_uuid)
+    )
+
+# --- Notebook Management Endpoints ---
+
+@router.post(
+    "/notebooks",
+    response_model=NotebookResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="Create & Provision Notebook Instance",
+    description="Provisions a new notebook session for the authenticated customer. Derives user_id exclusively from Cognito token.",
+)
+async def create_notebook_instance(
+    req: NotebookCreateRequest,
+    user_id: str = Depends(require_cognito_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Create a new notebook session.
+    Returns the one-time raw Jupyter session token in access_token.
+    """
+    ssh_key_uuid = None
+    if req.selected_ssh_key_id:
+        try:
+            ssh_key_uuid = uuid.UUID(req.selected_ssh_key_id)
+        except ValueError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid selected_ssh_key_id format. Expected UUID.",
+            )
+
+    try:
+        notebook, raw_token = create_notebook(
+            db=db,
+            user_id=user_id,
+            name=req.name or "Untitled Notebook",
+            gpu_profile=req.gpu_profile or "NVIDIA L4",
+            selected_ssh_key_id=ssh_key_uuid,
+        )
+    except NotebookValidationError as ve:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(ve),
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create notebook instance.",
+        )
+
+    return serialize_notebook(notebook, raw_token=raw_token)
+
+
+@router.get(
+    "/notebooks",
+    response_model=NotebookListResponse,
+    summary="List Customer Notebooks",
+    description="Returns all active or stopped notebook sessions belonging to the authenticated customer.",
+)
+async def list_notebooks(
+    user_id: str = Depends(require_cognito_user),
+    db: Session = Depends(get_db),
+):
+    """
+    List customer notebooks with tenant isolation.
+    """
+    try:
+        notebooks = list_user_notebooks(db=db, user_id=user_id)
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve notebooks from database.",
+        )
+
+    return NotebookListResponse(
+        success=True,
+        notebooks=[serialize_notebook(nb) for nb in notebooks],
+    )
+
+
+@router.get(
+    "/notebooks/{id}",
+    response_model=NotebookResponse,
+    summary="Get Notebook Details",
+    description="Retrieves notebook instance details. Returns 404 if not found or unauthorized.",
+)
+async def get_notebook_instance(
+    id: str,
+    user_id: str = Depends(require_cognito_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Get single notebook instance by ID.
+    Enforces tenant ownership.
+    """
+    try:
+        nb_uuid = uuid.UUID(id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid notebook ID format. Expected UUID.",
+        )
+
+    try:
+        notebook = get_notebook(db=db, user_id=user_id, notebook_id=nb_uuid)
+    except NotebookNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Notebook not found.",
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to retrieve notebook.",
+        )
+
+    return serialize_notebook(notebook)
+
+
+@router.post(
+    "/notebooks/{id}/start",
+    response_model=NotebookActionResponse,
+    summary="Start Notebook Session",
+    description="Starts a paused or provisioning notebook session.",
+)
+async def start_notebook_instance(
+    id: str,
+    user_id: str = Depends(require_cognito_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Start notebook session.
+    """
+    try:
+        nb_uuid = uuid.UUID(id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid notebook ID format. Expected UUID.",
+        )
+
+    try:
+        notebook = start_notebook(db=db, user_id=user_id, notebook_id=nb_uuid)
+    except NotebookNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Notebook not found.",
+        )
+    except InvalidStateTransitionError as se:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(se),
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to start notebook.",
+        )
+
+    return NotebookActionResponse(
+        success=True,
+        message="Notebook started successfully.",
+        notebook=serialize_notebook(notebook),
+    )
+
+
+@router.post(
+    "/notebooks/{id}/stop",
+    response_model=NotebookActionResponse,
+    summary="Stop Notebook Session",
+    description="Stops a running notebook session.",
+)
+async def stop_notebook_instance(
+    id: str,
+    user_id: str = Depends(require_cognito_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Stop notebook session.
+    """
+    try:
+        nb_uuid = uuid.UUID(id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid notebook ID format. Expected UUID.",
+        )
+
+    try:
+        notebook = stop_notebook(db=db, user_id=user_id, notebook_id=nb_uuid)
+    except NotebookNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Notebook not found.",
+        )
+    except InvalidStateTransitionError as se:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(se),
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to stop notebook.",
+        )
+
+    return NotebookActionResponse(
+        success=True,
+        message="Notebook stopped successfully.",
+        notebook=serialize_notebook(notebook),
+    )
+
+
+@router.delete(
+    "/notebooks/{id}",
+    response_model=NotebookActionResponse,
+    summary="Terminate Notebook Instance",
+    description="Permanently terminates a notebook session.",
+)
+async def delete_notebook_instance(
+    id: str,
+    user_id: str = Depends(require_cognito_user),
+    db: Session = Depends(get_db),
+):
+    """
+    Terminate notebook session.
+    """
+    try:
+        nb_uuid = uuid.UUID(id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid notebook ID format. Expected UUID.",
+        )
+
+    try:
+        notebook = terminate_notebook(db=db, user_id=user_id, notebook_id=nb_uuid)
+    except NotebookNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Notebook not found.",
+        )
+    except InvalidStateTransitionError as se:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(se),
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to terminate notebook.",
+        )
+
+    return NotebookActionResponse(
+        success=True,
+        message="Notebook terminated successfully.",
+        notebook=serialize_notebook(notebook),
+    )
+

@@ -15,6 +15,7 @@ from sqlalchemy import (
     Text,
     ForeignKey,
     Index,
+    UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.types import TypeDecorator, CHAR
@@ -133,4 +134,82 @@ class InferenceRequest(Base):
 
     def __repr__(self):
         return f"<InferenceRequest id={self.id} model={self.model} tokens={self.total_tokens} status={self.status}>"
+
+
+class SSHKey(Base):
+    """
+    Customer SSH Public Key entity.
+    Stores cryptographically validated public keys for pairing with GPU workloads and notebooks.
+    Private keys are strictly rejected and never stored.
+    """
+    __tablename__ = "ssh_keys"
+
+    id = Column(GUID, primary_key=True, default=uuid.uuid4)
+    user_id = Column(String(255), nullable=False, index=True)  # Cognito sub
+    name = Column(String(255), nullable=False, default="Default SSH Key")
+    public_key = Column(Text, nullable=False)                  # Raw validated OpenSSH public key
+    fingerprint = Column(String(128), nullable=False, index=True)  # SHA256:...
+    key_type = Column(String(32), nullable=False)              # ssh-ed25519, ssh-rsa, etc.
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc)
+    )
+
+    __table_args__ = (
+        Index("idx_ssh_keys_user_created", "user_id", "created_at"),
+        UniqueConstraint("user_id", "fingerprint", name="uq_ssh_keys_user_fingerprint"),
+    )
+
+    def __repr__(self):
+        return f"<SSHKey id={self.id} user_id={self.user_id} fingerprint={self.fingerprint}>"
+
+
+class NotebookInstance(Base):
+    """
+    Customer Notebook Instance entity.
+    Tracks lifecycle, GPU profile, status, runtime driver reference, and SSH key association.
+    Raw Jupyter access tokens are never persisted in plaintext; only cryptographically
+    hashed tokens (SHA-256) are stored.
+    """
+    __tablename__ = "notebook_instances"
+
+    id = Column(GUID, primary_key=True, default=uuid.uuid4)
+    user_id = Column(String(255), nullable=False, index=True)  # Cognito sub
+    name = Column(String(255), nullable=False, default="Untitled Notebook")
+    gpu_profile = Column(String(128), nullable=False, default="NVIDIA L4")  # e.g., 'NVIDIA L4', 'NVIDIA L40S', 'CPU Standard'
+    status = Column(String(32), nullable=False, default="provisioning", index=True)  # provisioning, running, stopped, failed, terminated
+    runtime_type = Column(String(64), nullable=False, default="simulated")  # simulated, docker, kubernetes
+    runtime_reference = Column(String(255), nullable=True)  # worker / container / pod ID
+    selected_ssh_key_id = Column(
+        GUID,
+        ForeignKey("ssh_keys.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True
+    )
+    token_hash = Column(String(64), nullable=True)  # SHA-256 hex digest of session token (never plaintext)
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc)
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc)
+    )
+    last_active_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationship to SSHKey
+    ssh_key = relationship("SSHKey", lazy="joined")
+
+    __table_args__ = (
+        Index("idx_notebooks_user_created", "user_id", "created_at"),
+        Index("idx_notebooks_user_status", "user_id", "status"),
+    )
+
+    def __repr__(self):
+        return f"<NotebookInstance id={self.id} user_id={self.user_id} name={self.name} status={self.status}>"
+
 

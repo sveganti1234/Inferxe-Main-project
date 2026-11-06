@@ -107,9 +107,106 @@ class APIKeyListResponse(BaseModel):
     keys: List[APIKeyItem]
 
 
+class SSHKeyCreateRequest(BaseModel):
+    """Request payload to register a new customer SSH public key."""
+    name: Optional[str] = Field(default="Default SSH Key", max_length=100, description="User-friendly label or machine name")
+    public_key: str = Field(..., description="OpenSSH public key string")
+
+    @field_validator("public_key")
+    @classmethod
+    def validate_public_key_not_empty(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("Public key cannot be empty or solely whitespace.")
+        return v.strip()
+
+
+class SSHKeyResponse(BaseModel):
+    """Metadata response for a registered SSH public key."""
+    id: str
+    name: str
+    public_key: str
+    fingerprint: str
+    key_type: str
+    created_at: str
+
+
+class SSHKeyItem(BaseModel):
+    """SSH key metadata in list view."""
+    id: str
+    name: str
+    public_key: str
+    fingerprint: str
+    key_type: str
+    created_at: str
+
+
+class SSHKeyListResponse(BaseModel):
+    """List response of customer's registered SSH public keys."""
+    success: bool = True
+    keys: List[SSHKeyItem]
+
+
+class SSHKeyDeleteResponse(BaseModel):
+    """Response payload for SSH key deletion."""
+    success: bool = True
+    message: str
+    id: str
+
+
 class APIKeyRevokeResponse(BaseModel):
     """Response for key revocation."""
     success: bool = True
     message: str
     id: str
+
+class NotebookCreateRequest(BaseModel):
+    """Payload to create and provision a new notebook instance."""
+    name: Optional[str] = Field(default="Untitled Notebook", max_length=255, description="Notebook session name")
+    gpu_profile: Optional[str] = Field(default="NVIDIA L4", max_length=128, description="Target GPU model / tier")
+    selected_ssh_key_id: Optional[str] = Field(default=None, description="UUID of registered customer SSH key")
+
+    @field_validator("name")
+    @classmethod
+    def validate_name_not_empty(cls, v: Optional[str]) -> str:
+        if v is not None and not v.strip():
+            raise ValueError("Notebook name cannot be solely whitespace.")
+        return (v or "Untitled Notebook").strip()
+
+
+class NotebookResponse(BaseModel):
+    """Detailed notebook instance metadata."""
+    id: str
+    user_id: str
+    name: str
+    gpu_profile: str
+    status: str
+    runtime_type: str
+    runtime_reference: Optional[str] = None
+    selected_ssh_key_id: Optional[str] = None
+    ssh_command: Optional[str] = None
+    jupyter_url: Optional[str] = None
+    access_token: Optional[str] = Field(
+        default=None,
+        description="One-time raw session token returned only upon creation"
+    )
+    is_simulated: bool = Field(default=True, description="True when running in simulated runtime mode")
+    simulation_notice: str = Field(
+        default="Simulated runtime environment: no physical GPU or Jupyter container is running."
+    )
+    created_at: str
+    updated_at: str
+    last_active_at: Optional[str] = None
+
+
+class NotebookListResponse(BaseModel):
+    """List response of customer's notebook instances."""
+    success: bool = True
+    notebooks: List[NotebookResponse]
+
+
+class NotebookActionResponse(BaseModel):
+    """Action response for notebook lifecycle events (start, stop, terminate)."""
+    success: bool = True
+    message: str
+    notebook: NotebookResponse
 
