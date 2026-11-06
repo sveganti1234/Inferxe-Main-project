@@ -11,7 +11,7 @@ import { DashboardLayout } from '../../components/dashboard/DashboardLayout'
 import { Tilt } from '../../components/ui/Tilt'
 import { Counter } from '../../components/ui/Counter'
 import { loadUsers, deleteUser, ROLE_DEFINITIONS } from '../../lib/userStore'
-import type { UserRecord } from '../../types/dashboard'
+import type { UserRecord, UserRecordStatus } from '../../types/dashboard'
 import { usePageMeta } from '../../lib/hooks'
 
 export default function UsersList() {
@@ -21,17 +21,40 @@ export default function UsersList() {
   const [searchQuery, setSearchQuery] = useState('')
   const [roleFilter, setRoleFilter] = useState<string>('all')
   const [selectedUser, setSelectedUser] = useState<UserRecord | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
+  const statusLabels: Record<UserRecordStatus, string> = {
+    active: 'Active',
+    inactive: 'Inactive',
+    pending: 'Pending',
+    suspended: 'Suspended',
+  }
 
   useEffect(() => {
-    setUsers(loadUsers())
+    let active = true
+    void loadUsers()
+      .then((records) => {
+        if (active) setUsers(records)
+      })
+      .catch((error: unknown) => {
+        if (active) setLoadError(error instanceof Error ? error.message : 'Unable to load users.')
+      })
+    return () => {
+      active = false
+    }
   }, [])
 
-  const handleDelete = (id: string, name: string) => {
+  const handleDelete = async (id: string, name: string) => {
     if (window.confirm(`Are you sure you want to revoke marketplace access for ${name}?`)) {
-      deleteUser(id)
-      setUsers(loadUsers())
-      if (selectedUser?.id === id) {
-        setSelectedUser(null)
+      try {
+        await deleteUser(id)
+        const records = await loadUsers()
+        setUsers(records)
+        setLoadError(null)
+        if (selectedUser?.id === id) setSelectedUser(null)
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Unable to revoke customer access.'
+        setLoadError(message)
+        window.alert(message)
       }
     }
   }
@@ -46,9 +69,13 @@ export default function UsersList() {
 
     if (roleFilter === 'all') return true
     if (roleFilter === 'active') return u.status === 'active'
-    if (roleFilter === 'inactive') return u.status === 'inactive'
+    if (roleFilter === 'inactive') return u.status === 'inactive' || u.status === 'suspended'
+    if (roleFilter === 'pending') return u.status === 'pending'
     return u.role === roleFilter
   })
+  const activeUsers = users.filter((user) => user.status === 'active').length
+  const pendingUsers = users.filter((user) => user.status === 'pending').length
+  const assignedSpendCaps = users.reduce((total, user) => total + (user.monthlySpendLimit ?? 0), 0)
 
   return (
     <DashboardLayout
@@ -62,54 +89,62 @@ export default function UsersList() {
       backButtonTo="/dashboard"
       backButtonLabel="Back to Dashboard"
     >
-      {/* ── Bento Metrics Row (Glassmorphic + Claymorphic + LCD Readouts) ── */}
+      {loadError && (
+        <div className="dash-success-banner" role="alert" style={{ background: 'rgba(255, 107, 94, 0.1)', borderColor: 'rgba(255, 107, 94, 0.4)' }}>
+          <div className="dash-success-body">
+            <div className="dash-success-title" style={{ color: 'var(--red)' }}>Unable to load customer data</div>
+            <p className="dash-success-text">{loadError}</p>
+          </div>
+        </div>
+      )}
+      {/* ── Live metrics from customer profiles and access policies ── */}
       <div className="dash-stats-row" style={{ marginBottom: 24 }}>
         <Tilt max={5} className="dash-stat-tilt">
           <div className="dash-stat-card glass glass--lift">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-              <span className="dash-stat-label engrave">Team Members</span>
+              <span className="dash-stat-label engrave">Customer Profiles</span>
             </div>
             <div className="dash-stat-value readout">
-              <Counter to={users.length || 14} />
+              <Counter to={users.length} />
             </div>
-            <small style={{ color: 'var(--ink-4)', fontSize: '0.72rem', marginTop: 4 }}>Active Seats Provisioned</small>
+            <small style={{ color: 'var(--ink-4)', fontSize: '0.72rem', marginTop: 4 }}>Cognito-backed accounts</small>
           </div>
         </Tilt>
 
         <Tilt max={5} className="dash-stat-tilt">
           <div className="dash-stat-card glass glass--lift">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-              <span className="dash-stat-label engrave">Privileged Admins</span>
+              <span className="dash-stat-label engrave">Active Accounts</span>
             </div>
             <div className="dash-stat-value readout">
-              <Counter to={users.filter((u) => u.role === 'admin').length || 2} />
+              <Counter to={activeUsers} />
             </div>
-            <small style={{ color: 'var(--ink-4)', fontSize: '0.72rem', marginTop: 4 }}>Super Admin RBAC</small>
+            <small style={{ color: 'var(--ink-4)', fontSize: '0.72rem', marginTop: 4 }}>Enabled customer profiles</small>
           </div>
         </Tilt>
 
         <Tilt max={5} className="dash-stat-tilt">
           <div className="dash-stat-card glass glass--lift">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-              <span className="dash-stat-label engrave">Monthly Quota Pool</span>
+              <span className="dash-stat-label engrave">Pending Invitations</span>
+            </div>
+            <div className="dash-stat-value readout">
+              <Counter to={pendingUsers} />
+            </div>
+            <small style={{ color: 'var(--ink-4)', fontSize: '0.72rem', marginTop: 4 }}>Awaiting Cognito first sign-in</small>
+          </div>
+        </Tilt>
+
+        <Tilt max={5} className="dash-stat-tilt">
+          <div className="dash-stat-card glass glass--lift">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+              <span className="dash-stat-label engrave">Assigned Spend Caps</span>
               <span className="engrave" style={{ fontSize: '0.62rem', opacity: 0.7 }}>INR</span>
             </div>
             <div className="dash-stat-value readout">
-              <Counter to={150000} prefix="₹" />
+              <Counter to={assignedSpendCaps} prefix="₹" />
             </div>
-            <small style={{ color: 'var(--ink-4)', fontSize: '0.72rem', marginTop: 4 }}>Automated spend caps</small>
-          </div>
-        </Tilt>
-
-        <Tilt max={5} className="dash-stat-tilt">
-          <div className="dash-stat-card glass glass--lift">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-              <span className="dash-stat-label engrave">Policy Compliance</span>
-            </div>
-            <div className="dash-stat-value readout">
-              <Counter to={99.9} decimals={1} suffix="%" />
-            </div>
-            <small style={{ color: 'var(--ink-4)', fontSize: '0.72rem', marginTop: 4 }}>SOC2 Type II · MeitY</small>
+            <small style={{ color: 'var(--ink-4)', fontSize: '0.72rem', marginTop: 4 }}>Sum of configured monthly limits</small>
           </div>
         </Tilt>
       </div>
@@ -143,7 +178,7 @@ export default function UsersList() {
 
           {/* Filter Chips */}
           <div className="dash-presets-row" style={{ marginTop: 0 }}>
-            {['all', 'admin', 'developer', 'viewer', 'active'].map((f) => (
+            {['all', 'customer', 'provider', 'developer', 'viewer', 'active', 'pending', 'inactive'].map((f) => (
               <button
                 key={f}
                 type="button"
@@ -190,11 +225,6 @@ export default function UsersList() {
               ) : (
                 filteredUsers.map((u) => {
                   const roleDef = ROLE_DEFINITIONS[u.role]
-                  const roleTitle =
-                    roleDef?.title ??
-                    (typeof u.role === 'string' && u.role.trim()
-                      ? u.role.replace(/[_-]+/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
-                      : 'Unknown')
                   return (
                     <tr key={u.id}>
                       <td>
@@ -232,13 +262,13 @@ export default function UsersList() {
                             textTransform: 'uppercase',
                           }}
                         >
-                          {roleTitle}
+                          {roleDef.title}
                         </span>
                       </td>
 
                       <td>
                         <span className={`dash-status-dot dash-status-dot--${u.status}`}>
-                          {u.status === 'active' ? 'Active' : 'Inactive'}
+                          {statusLabels[u.status]}
                         </span>
                       </td>
 
@@ -339,7 +369,7 @@ export default function UsersList() {
               <div style={{ padding: 12, borderRadius: 8, background: 'var(--bg-2)', border: '1px solid var(--line)' }}>
                 <span className="readout-label">Status</span>
                 <div className={`dash-status-dot dash-status-dot--${selectedUser.status}`} style={{ fontWeight: 600, marginTop: 2 }}>
-                  {selectedUser.status === 'active' ? 'Active' : 'Inactive'}
+                  {statusLabels[selectedUser.status]}
                 </div>
               </div>
 

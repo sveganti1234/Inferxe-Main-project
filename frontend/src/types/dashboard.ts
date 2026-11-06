@@ -1,8 +1,7 @@
-export type UserRole = 'admin' | 'developer' | 'viewer'
+export type UserRole = 'admin' | 'customer' | 'provider' | 'developer' | 'viewer'
 
 export type AccountStatus = 'active' | 'inactive'
-
-export type AuthMethod = 'invite' | 'password'
+export type UserRecordStatus = AccountStatus | 'pending' | 'suspended'
 
 export type ModelAccessType = 'all' | 'selected'
 
@@ -15,10 +14,6 @@ export interface UserFormData {
   avatarUrl: string
   role: UserRole
   status: AccountStatus
-  authMethod: AuthMethod
-  temporaryPassword: string
-  sendInviteEmail: boolean
-  requirePasswordChange: boolean
   modelAccess: ModelAccessType
   selectedModels: string[]
   providerAccess: ProviderAccessType
@@ -37,8 +32,8 @@ export interface UserRecord {
   username: string
   avatarUrl: string
   role: UserRole
-  status: AccountStatus
-  authMethod: AuthMethod
+  status: UserRecordStatus
+  authMethod: 'cognito'
   modelAccess: ModelAccessType
   selectedModels: string[]
   providerAccess: ProviderAccessType
