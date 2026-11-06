@@ -179,7 +179,8 @@ export async function loginAdminBackend(
 
   // Resilient fallback for local development only (strictly disabled in production builds)
   if (isKnownAdmin && import.meta.env.DEV) {
-    if (password === 'admin123' || password === 'admin') {
+    const allowedAdminPasswords = ['admin123', 'admin@123', 'Admin@123', 'admin', 'Admin123', 'Inferxe@2026']
+    if (allowedAdminPasswords.includes(password)) {
       const session: AuthSession = {
         token: 'ix-tok-' + Math.random().toString(36).substring(2, 12),
         user: {
@@ -198,7 +199,7 @@ export async function loginAdminBackend(
       return {
         ok: false,
         isAdmin: true,
-        error: 'Incorrect password for administrator account.',
+        error: 'Incorrect email or password. Please verify your credentials and try again.',
       }
     }
   }
