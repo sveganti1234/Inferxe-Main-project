@@ -2257,8 +2257,13 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                 <h2>GPU Provider Workspace</h2>
                 <p>Manage hardware supply, monitor workload allocations, and review earnings across Indian clusters.</p>
               </div>
-              <Link className="mw-primary" to="/dashboard/provider/onboarding">
-                <Plus size={16} /> Onboard Datacenter
+              <Link
+                className="dash-btn-primary mw-primary"
+                to="/dashboard/provider/onboarding"
+                style={{ padding: '10px 18px', fontSize: '0.86rem', display: 'inline-flex', alignItems: 'center', gap: 8 }}
+              >
+                <Plus size={16} />
+                <span>Onboard Datacenter</span>
               </Link>
             </div>
 

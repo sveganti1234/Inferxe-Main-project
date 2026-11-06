@@ -232,6 +232,15 @@ export default function DashboardOverview() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
         >
+          {/* Table Header Row matching reference design */}
+          <div className="dash-deploy-header" role="row">
+            <span>Deployment</span>
+            <span>Model</span>
+            <span>GPU</span>
+            <span>Status</span>
+            <span style={{ textAlign: 'right' }}>Cost / Hour</span>
+          </div>
+
           {DEPLOYMENTS.map((dep) => (
             <div key={dep.id} className="dash-deploy-row glass glass--lift" style={{ position: 'relative' }}>
               {/* Col 1: Status Dot & Deployment Name */}
@@ -252,14 +261,21 @@ export default function DashboardOverview() {
 
               {/* Col 3: GPU Pill Badge */}
               <div>
-                <span className="dash-deploy-gpu-badge tag--clay">
+                <span className="dash-deploy-gpu-badge" style={{ borderRadius: '9999px', padding: '3px 14px' }}>
                   {dep.gpu}
                 </span>
               </div>
 
               {/* Col 4: Status Text */}
               <div className="dash-deploy-status">
-                <span className="tag" style={{ background: dep.status === 'Running' ? 'rgba(118, 185, 0, 0.12)' : 'rgba(245, 158, 11, 0.12)', color: dep.status === 'Running' ? 'var(--brand-hi)' : 'var(--amber)' }}>
+                <span className="tag" style={{
+                  borderRadius: '9999px',
+                  padding: '3px 14px',
+                  background: dep.status === 'Running' ? 'rgba(118, 185, 0, 0.14)' : 'rgba(245, 158, 11, 0.14)',
+                  color: dep.status === 'Running' ? 'var(--brand-hi)' : 'var(--amber)',
+                  fontWeight: 500,
+                  fontSize: '0.78rem'
+                }}>
                   {dep.status}
                 </span>
               </div>
