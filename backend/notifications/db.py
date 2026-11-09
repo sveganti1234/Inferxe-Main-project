@@ -6,32 +6,49 @@ Handles connection pooling, queries with RealDictCursor, and idempotent migratio
 import os
 import json
 import logging
+from pathlib import Path
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
+from urllib.parse import unquote, urlsplit
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from psycopg2.pool import ThreadedConnectionPool
 from dotenv import load_dotenv
 
-load_dotenv()
+ROOT_DIR = Path(__file__).resolve().parents[2]
+load_dotenv(ROOT_DIR / ".env", override=False)
 
 logger = logging.getLogger("inferxe.notifications.db")
 
-PG_HOST = os.environ.get("POSTGRES_HOST", os.environ.get("DB_HOST", "localhost"))
-PG_PORT = int(os.environ.get("POSTGRES_PORT", os.environ.get("DB_PORT", "5432")))
-PG_DB = os.environ.get("POSTGRES_DB", os.environ.get("DB_NAME", "inferxe_local"))
-PG_USER = os.environ.get("POSTGRES_USER", os.environ.get("DB_USER", "postgres"))
-PG_PASSWORD = os.environ.get("POSTGRES_PASSWORD", os.environ.get("DB_PASSWORD", "Manya@8686"))
+DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
+
+try:
+    _database_url = urlsplit(DATABASE_URL)
+    PG_HOST = _database_url.hostname or "not configured"
+    PG_PORT = _database_url.port or 5432
+    PG_DB = unquote(_database_url.path.lstrip("/")) or "not configured"
+except ValueError:
+    PG_HOST = "not configured"
+    PG_PORT = 5432
+    PG_DB = "not configured"
 
 _pool: Optional[ThreadedConnectionPool] = None
 
 def get_connection_params() -> Dict[str, Any]:
+    if not DATABASE_URL:
+        raise RuntimeError(
+            "DATABASE_URL is required. Set it in the repository root .env to the "
+            "Supabase PostgreSQL connection string."
+        )
+
+    parsed_url = urlsplit(DATABASE_URL)
+    if parsed_url.scheme not in {"postgres", "postgresql"} or not parsed_url.hostname or not parsed_url.path.strip("/"):
+        raise RuntimeError(
+            "DATABASE_URL must be a PostgreSQL connection string for the existing Supabase database."
+        )
+
     return {
-        "host": PG_HOST,
-        "port": PG_PORT,
-        "dbname": PG_DB,
-        "user": PG_USER,
-        "password": PG_PASSWORD,
+        "dsn": DATABASE_URL,
         "connect_timeout": 3,
     }
 
@@ -42,7 +59,7 @@ def get_pool() -> ThreadedConnectionPool:
         try:
             _pool = ThreadedConnectionPool(minconn=1, maxconn=10, **params)
         except Exception as e:
-            logger.error(f"Failed to initialize PostgreSQL pool: {e}")
+            logger.error("Failed to initialize PostgreSQL pool (%s).", type(e).__name__)
             raise
     return _pool
 
@@ -71,7 +88,7 @@ def init_db():
     """
     Idempotent, non-destructive migration ensuring all tables and required columns exist.
     """
-    logger.info(f"Running safe database migrations on {PG_DB} at {PG_HOST}:{PG_PORT}...")
+    logger.info("Running safe database migrations on the configured PostgreSQL database.")
     with DBConnection(autocommit=True) as conn:
         cur = conn.cursor()
 
@@ -220,4 +237,3 @@ def init_db():
 if __name__ == "__main__":
     init_db()
     print("Database initialization and migration verified successfully!")
-

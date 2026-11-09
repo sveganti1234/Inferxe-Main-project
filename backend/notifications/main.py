@@ -21,7 +21,7 @@ async def lifespan(app: FastAPI):
         init_db()
         logger.info("Database initialized successfully.")
     except Exception as e:
-        logger.error(f"Failed to initialize database during startup: {e}")
+        logger.error("Failed to initialize database during startup (%s).", type(e).__name__)
     yield
 
 app = FastAPI(
