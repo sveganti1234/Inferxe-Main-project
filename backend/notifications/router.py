@@ -84,13 +84,13 @@ def get_db_status():
                 "connected": True,
             }
     except Exception as e:
-        logger.error(f"PostgreSQL health check failed: {e}")
+        logger.error("PostgreSQL health check failed (%s).", type(e).__name__)
         return {
             "status": "degraded",
             "database_engine": "PostgreSQL",
             "database_name": PG_DB,
             "connected": False,
-            "error": str(e),
+            "error": "PostgreSQL connection failed.",
         }
 
 # ── Customer Endpoints ──

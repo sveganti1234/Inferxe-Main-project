@@ -2,6 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { Amplify } from 'aws-amplify'
+import { initializeCognitoContext } from './lib/cognitoContext'
 
 import '@fontsource-variable/rubik'
 import '@fontsource-variable/jetbrains-mono'
@@ -29,19 +30,23 @@ import './styles/bot.css'
 import './styles/dashboard-extra.css'
 import './styles/index.css'
 
-import App from './App'
-
-// AWS Cognito configuration
+const authority = import.meta.env.VITE_COGNITO_AUTHORITY?.trim()
 const userPoolId =
-  (import.meta.env.VITE_COGNITO_USER_POOL_ID as string | undefined) ||
-  ((import.meta.env.VITE_COGNITO_AUTHORITY as string | undefined)?.split('/').pop()) ||
-  'ap-south-1_cYw1QjgbQ'
+  import.meta.env.VITE_COGNITO_USER_POOL_ID?.trim() ||
+  authority?.split('/').filter(Boolean).pop()
+const userPoolClientId = import.meta.env.VITE_COGNITO_CLIENT_ID?.trim()
+const awsRegion = import.meta.env.VITE_COGNITO_REGION?.trim() || userPoolId?.split('_')[0]
 
-const userPoolClientId =
-  (import.meta.env.VITE_COGNITO_CLIENT_ID as string | undefined) ||
-  '334trhnhmim8v42gq4bgk7umst'
+if (!userPoolId || !userPoolClientId || !awsRegion) {
+  throw new Error(
+    'AWS Cognito configuration is incomplete. Set VITE_COGNITO_USER_POOL_ID, VITE_COGNITO_CLIENT_ID, and VITE_COGNITO_REGION.',
+  )
+}
+if (userPoolId.split('_')[0] !== awsRegion) {
+  throw new Error('VITE_COGNITO_REGION does not match the region encoded in VITE_COGNITO_USER_POOL_ID.')
+}
 
-Amplify.configure({
+const cognitoConfig = {
   Auth: {
     Cognito: {
       userPoolId,
@@ -51,7 +56,17 @@ Amplify.configure({
       },
     },
   },
+} as const
+
+Amplify.configure(cognitoConfig)
+initializeCognitoContext(cognitoConfig)
+console.info('[amplify-init] Cognito configured.', {
+  hasUserPoolId: Boolean(userPoolId),
+  hasUserPoolClientId: Boolean(userPoolClientId),
+  regionMatchesUserPool: userPoolId.startsWith(`${awsRegion}_`),
 })
+
+const { default: App } = await import('./App')
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

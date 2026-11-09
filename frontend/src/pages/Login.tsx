@@ -13,7 +13,8 @@ import {
 } from 'aws-amplify/auth'
 
 import { saveSession, loginAdminBackend, isAdministratorEmail } from '../lib/authStore'
-import { recordCustomerActivity } from '../lib/customerService'
+import { getCognitoContext } from '../lib/cognitoContext'
+import { recordCustomerActivity, syncCognitoProfile } from '../lib/customerService'
 import {
   AlertCircle,
   ArrowLeft,
@@ -37,7 +38,66 @@ interface LoginProps {
   initialMode?: 'login' | 'signup' | 'forgot'
 }
 
+const PENDING_COGNITO_USERNAME_PREFIX = 'inferxe_pending_cognito_username:'
 
+function getPendingCognitoUsername(email: string): string {
+  try {
+    return window.localStorage.getItem(
+      `${PENDING_COGNITO_USERNAME_PREFIX}${email.trim().toLowerCase()}`,
+    ) || ''
+  } catch {
+    console.warn('[customer-auth] Could not read the pending Cognito username from browser storage.')
+    return ''
+  }
+}
+
+function storePendingCognitoUsername(email: string, username: string): boolean {
+  try {
+    window.localStorage.setItem(
+      `${PENDING_COGNITO_USERNAME_PREFIX}${email.trim().toLowerCase()}`,
+      username,
+    )
+    return true
+  } catch {
+    console.warn('[customer-auth] Could not persist the pending Cognito username; keep this signup open to verify it.')
+    return false
+  }
+}
+
+function clearPendingCognitoUsername(email: string): void {
+  try {
+    window.localStorage.removeItem(
+      `${PENDING_COGNITO_USERNAME_PREFIX}${email.trim().toLowerCase()}`,
+    )
+  } catch {
+    console.warn('[customer-auth] Could not clear the pending Cognito username from browser storage.')
+  }
+}
+
+function formatPhoneNumberE164(countryCode: string, phoneNumber: string): string {
+  const trimmedPhone = phoneNumber.trim()
+  const digits = trimmedPhone.replace(/\D/g, '')
+  const callingCode = countryCode.replace(/\D/g, '')
+  const phone = trimmedPhone.startsWith('+') ? `+${digits}` : `+${callingCode}${digits}`
+  if (!/^\+[1-9]\d{1,14}$/.test(phone)) {
+    throw new Error('Enter a valid phone number in international format.')
+  }
+  return phone
+}
+
+async function runCognitoOperation<T>(operation: string, action: () => Promise<T>): Promise<T> {
+  try {
+    return await action()
+  } catch (error) {
+    console.error('[cognito-auth] Operation failed.', {
+      operation,
+      name: error instanceof Error ? error.name : 'UnknownError',
+      message: error instanceof Error ? error.message : 'Unknown Cognito authentication error.',
+      stack: error instanceof Error ? error.stack : undefined,
+    })
+    throw error
+  }
+}
 
 export default function Login({ initialMode }: LoginProps) {
   const location = useLocation()
@@ -103,7 +163,9 @@ export default function Login({ initialMode }: LoginProps) {
     }
     return false
   })
-  const [pendingCognitoUsername, setPendingCognitoUsername] = useState('')
+  const [pendingCognitoUsername, setPendingCognitoUsername] = useState(
+    () => getPendingCognitoUsername(email),
+  )
   const [confirmationCode, setConfirmationCode] = useState('')
   const [resetSent, setResetSent] = useState(false)
   const [resetCode, setResetCode] = useState('')
@@ -163,17 +225,23 @@ export default function Login({ initialMode }: LoginProps) {
     try {
       // 1. Attempt AWS Cognito authentication
       try {
-        await signOut()
+        await signOut(getCognitoContext())
       } catch { }
 
-      const result = await signIn({
-        username: cleanEmail,
-        password,
-      })
+      const result = await runCognitoOperation('signIn', () =>
+        signIn(getCognitoContext(), {
+          username: cleanEmail,
+          password,
+        }),
+      )
 
       if (result.isSignedIn) {
-        const authSession = await fetchAuthSession()
-        const attributes = await fetchUserAttributes()
+        const authSession = await runCognitoOperation('fetchAuthSession', () =>
+          fetchAuthSession(getCognitoContext()),
+        )
+        const attributes = await runCognitoOperation('fetchUserAttributes', () =>
+          fetchUserAttributes(getCognitoContext()),
+        )
         const idToken = authSession.tokens?.idToken
 
         const emailAddress = attributes.email || cleanEmail
@@ -182,8 +250,13 @@ export default function Login({ initialMode }: LoginProps) {
           attributes.preferred_username ||
           emailAddress.split('@')[0]
 
+        if (!idToken) {
+          throw new Error('Cognito did not return an ID token. Please sign in again.')
+        }
+        await syncCognitoProfile(idToken.toString())
+
         saveSession({
-          token: idToken ? idToken.toString() : `ix-cognito-${Math.random().toString(36).substring(2, 10)}`,
+          token: idToken.toString(),
           user: {
             id: attributes.sub || `usr_${cleanEmail.split('@')[0]}`,
             fullName,
@@ -210,7 +283,12 @@ export default function Login({ initialMode }: LoginProps) {
       }
 
       if (result.nextStep?.signInStep === 'CONFIRM_SIGN_UP') {
-        setPendingCognitoUsername(cleanEmail)
+        const pendingUsername = getPendingCognitoUsername(cleanEmail)
+        if (!pendingUsername) {
+          setError('This account still needs email verification. Please restart signup in the browser used to register so its Cognito verification username can be recovered.')
+          return
+        }
+        setPendingCognitoUsername(pendingUsername)
         setConfirmationPending(true)
         setError('Your account is not confirmed yet in AWS Cognito. Please enter the verification code sent to your email.')
         return
@@ -223,6 +301,12 @@ export default function Login({ initialMode }: LoginProps) {
     } catch (err: any) {
       const errName = err?.name || ''
       console.log('Cognito sign-in attempt:', errName, err?.message)
+
+      if (errName === 'ProfileSyncError') {
+        setError(err.message)
+        setIsSubmitting(false)
+        return
+      }
 
       if (errName === 'NotAuthorizedException') {
         setError('Incorrect email or password. Please verify your credentials.')
@@ -312,18 +396,20 @@ export default function Login({ initialMode }: LoginProps) {
   const handleResendCode = async () => {
     setError(null)
 
-    const usernameToResend = pendingCognitoUsername || email.trim()
+    const usernameToResend = pendingCognitoUsername || getPendingCognitoUsername(email)
     if (!usernameToResend) {
-      setError('Please provide your email address to resend the verification code.')
-      return
+      throw new Error('The pending Cognito username could not be found. Please restart signup in this browser.')
     }
+    if (!pendingCognitoUsername) setPendingCognitoUsername(usernameToResend)
 
     setIsSubmitting(true)
 
     try {
-      await resendSignUpCode({
-        username: usernameToResend,
-      })
+      await runCognitoOperation('resendSignUpCode', () =>
+        resendSignUpCode(getCognitoContext(), {
+          username: usernameToResend,
+        }),
+      )
 
       setError(
         'A new verification code has been requested. Check your email and spam folder.',
@@ -428,6 +514,14 @@ export default function Login({ initialMode }: LoginProps) {
           }
 
           const cleanEmail = email.trim().toLowerCase()
+          const cognitoUsername = `inferxe_${window.crypto.randomUUID()}`
+          let fullPhone: string
+          try {
+            fullPhone = formatPhoneNumberE164(countryCode, phoneNumber)
+          } catch (phoneError) {
+            setError(phoneError instanceof Error ? phoneError.message : 'Enter a valid phone number in international format.')
+            return
+          }
 
           // 1. Store user details in customer database
           try {
@@ -438,7 +532,7 @@ export default function Login({ initialMode }: LoginProps) {
               email: cleanEmail,
               passwordHash: password,
               organization: organization.trim() || 'Customer Workspace',
-              phone: `${countryCode}${phoneNumber.trim()}`,
+              phone: fullPhone,
               createdAt: new Date().toISOString(),
             }
             localStorage.setItem('inferxe_registered_users', JSON.stringify(registered))
@@ -448,29 +542,26 @@ export default function Login({ initialMode }: LoginProps) {
 
           // 2. Also attempt AWS Cognito signUp
           try {
-            const cognitoUsername = cleanEmail
-            setPendingCognitoUsername(cognitoUsername)
-
             const userAttrs: Record<string, string> = {
               email: cleanEmail,
               name: fullName.trim(),
-            }
-            if (phoneNumber.trim()) {
-              const fullPhone = `${countryCode.startsWith('+1-') ? '+1' : countryCode}${phoneNumber.trim()}`.replace(/\s+/g, '')
-              if (/^\+[1-9]\d{1,14}$/.test(fullPhone)) {
-                userAttrs.phone_number = fullPhone
-              }
+              preferred_username: cleanEmail.split('@')[0],
+              phone_number: fullPhone,
             }
 
-            const result = await signUp({
-              username: cognitoUsername,
-              password,
-              options: {
-                userAttributes: userAttrs,
-              },
-            })
+            const result = await runCognitoOperation('signUp', () =>
+              signUp(getCognitoContext(), {
+                username: cognitoUsername,
+                password,
+                options: {
+                  userAttributes: userAttrs,
+                },
+              }),
+            )
 
             if (result.nextStep?.signUpStep === 'CONFIRM_SIGN_UP') {
+              setPendingCognitoUsername(cognitoUsername)
+              storePendingCognitoUsername(cleanEmail, cognitoUsername)
               setConfirmationPending(true)
               setError(null)
               setSuccess('Account created in AWS Cognito! Please enter the verification code sent to your email.')
@@ -502,10 +593,16 @@ export default function Login({ initialMode }: LoginProps) {
             return
           }
           try {
-            await confirmSignUp({
-              username: pendingCognitoUsername || email.trim(),
-              confirmationCode: confirmationCode.trim(),
-            })
+            const usernameToConfirm = pendingCognitoUsername || getPendingCognitoUsername(email)
+            if (!usernameToConfirm) {
+              throw new Error('The pending Cognito username could not be found. Please restart signup in this browser.')
+            }
+            await runCognitoOperation('confirmSignUp', () =>
+              confirmSignUp(getCognitoContext(), {
+                username: usernameToConfirm,
+                confirmationCode: confirmationCode.trim(),
+              }),
+            )
           } catch (e: any) {
             console.error('Cognito OTP verification failed:', e)
 
@@ -521,6 +618,8 @@ export default function Login({ initialMode }: LoginProps) {
           setConfirmationPending(false)
           setConfirmationCode('')
           setPassword('')
+          clearPendingCognitoUsername(email)
+          setPendingCognitoUsername('')
           navigate(`/login?registered=1&email=${encodeURIComponent(email.trim())}`)
           return
         }
@@ -533,7 +632,9 @@ export default function Login({ initialMode }: LoginProps) {
             return
           }
           try {
-            await resetPassword({ username })
+            await runCognitoOperation('resetPassword', () =>
+              resetPassword(getCognitoContext(), { username }),
+            )
           } catch (e) {
             console.log('Cognito reset note:', e)
           }
@@ -545,11 +646,13 @@ export default function Login({ initialMode }: LoginProps) {
             return
           }
           try {
-            await confirmResetPassword({
-              username,
-              confirmationCode: resetCode.trim(),
-              newPassword,
-            })
+            await runCognitoOperation('confirmResetPassword', () =>
+              confirmResetPassword(getCognitoContext(), {
+                username,
+                confirmationCode: resetCode.trim(),
+                newPassword,
+              }),
+            )
           } catch (e) {
             console.log('Cognito confirm reset note:', e)
           }
@@ -642,13 +745,17 @@ export default function Login({ initialMode }: LoginProps) {
               countryCode={countryCode}
               pendingUsername={pendingCognitoUsername}
               onVerify={async (code) => {
-                if (!pendingCognitoUsername) {
+                const usernameToConfirm = pendingCognitoUsername || getPendingCognitoUsername(email)
+                if (!usernameToConfirm) {
                   throw new Error('Pending signup not found. Please complete the registration form first.')
                 }
-                await confirmSignUp({
-                  username: pendingCognitoUsername,
-                  confirmationCode: code.trim(),
-                })
+                if (!pendingCognitoUsername) setPendingCognitoUsername(usernameToConfirm)
+                await runCognitoOperation('confirmSignUp', () =>
+                  confirmSignUp(getCognitoContext(), {
+                    username: usernameToConfirm,
+                    confirmationCode: code.trim(),
+                  }),
+                )
               }}
               onResend={handleResendCode}
               isSubmitting={isSubmitting}
@@ -658,6 +765,8 @@ export default function Login({ initialMode }: LoginProps) {
                 setConfirmationPending(false)
                 setConfirmationCode('')
                 setPassword('')
+                clearPendingCognitoUsername(email)
+                setPendingCognitoUsername('')
                 setError('Email confirmed successfully. You can now sign in.')
                 navigate('/login')
               }}

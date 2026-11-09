@@ -13,6 +13,8 @@ import {
   syncCustomersBatch,
   computeActivityStatus,
 } from '../database/customerDatabase.js'
+import { verifyCognitoIdToken } from './cognitoIdToken.js'
+import { upsertCognitoProfile } from '../database/supabaseProfiles.js'
 
 // In-memory failed attempt tracker (cleared and disabled - no temporary lockouts)
 const failedAttempts = new Map()
@@ -196,6 +198,8 @@ function sendJson(res, statusCode, data) {
  * Creates connect/http middleware to handle `/api/admin/*` and `/api/customer/*` endpoints.
  */
 export function createAdminAuthMiddleware(config = {}) {
+  const verifyProfileToken = config.verifyCognitoIdToken || verifyCognitoIdToken
+  const saveCognitoProfile = config.upsertCognitoProfile || upsertCognitoProfile
   const getAdminEmail = () =>
     (process.env.ADMIN_EMAIL || config.adminEmail || 'admin@inferxe.com').trim().toLowerCase()
   const getAdminPassword = () =>
@@ -248,6 +252,32 @@ export function createAdminAuthMiddleware(config = {}) {
     // ─────────────────────────────────────────────────────────
     // CUSTOMER ACTIVITY & HEARTBEAT ENDPOINTS
     // ─────────────────────────────────────────────────────────
+
+    // 0. POST /api/customer/profile/sync (Create or update the authenticated Cognito profile)
+    if (parsedPath === '/api/customer/profile/sync' && req.method === 'POST') {
+      try {
+        const claims = await verifyProfileToken(req.headers['authorization'])
+        if (!claims) {
+          return sendJson(res, 401, { ok: false, error: 'A valid Cognito ID token is required.' })
+        }
+        if (claims.email_verified !== true && claims.email_verified !== 'true') {
+          return sendJson(res, 403, { ok: false, error: 'A verified customer email is required.' })
+        }
+
+        await saveCognitoProfile(claims)
+        return sendJson(res, 200, { ok: true })
+      } catch (err) {
+        console.error('[profile-sync] Cognito profile synchronization failed.', {
+          status: Number.isInteger(err.status) ? err.status : undefined,
+          code: typeof err.code === 'string' ? err.code : undefined,
+          message: err.message || 'Unknown profile synchronization error.',
+        })
+        return sendJson(res, 502, {
+          ok: false,
+          error: 'Profile synchronization failed. Please try signing in again.',
+        })
+      }
+    }
 
     // 1. POST /api/customer/activity (Registration / Login activity update)
     if (parsedPath === '/api/customer/activity' && req.method === 'POST') {
