@@ -36,6 +36,17 @@ const userPoolId =
   authority?.split('/').filter(Boolean).pop()
 const userPoolClientId = import.meta.env.VITE_COGNITO_CLIENT_ID?.trim()
 const awsRegion = import.meta.env.VITE_COGNITO_REGION?.trim() || userPoolId?.split('_')[0]
+const cognitoDomain = import.meta.env.VITE_COGNITO_DOMAIN?.trim()
+  .replace(/^https?:\/\//, '')
+  .replace(/\/+$/, '')
+const redirectSignIn = import.meta.env.VITE_COGNITO_REDIRECT_SIGN_IN
+  ?.split(',')
+  .map((url: string) => url.trim())
+  .filter(Boolean)
+const redirectSignOut = import.meta.env.VITE_COGNITO_REDIRECT_SIGN_OUT
+  ?.split(',')
+  .map((url: string) => url.trim())
+  .filter(Boolean)
 
 if (!userPoolId || !userPoolClientId || !awsRegion) {
   throw new Error(
@@ -53,6 +64,17 @@ const cognitoConfig = {
       userPoolClientId,
       loginWith: {
         email: true,
+        ...(cognitoDomain && redirectSignIn?.length && redirectSignOut?.length
+          ? {
+              oauth: {
+                domain: cognitoDomain,
+                scopes: ['openid', 'email', 'profile'],
+                redirectSignIn,
+                redirectSignOut,
+                responseType: 'code' as const,
+              },
+            }
+          : {}),
       },
     },
   },

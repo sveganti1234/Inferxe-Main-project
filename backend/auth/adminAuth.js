@@ -183,7 +183,13 @@ async function parseJsonBody(req) {
   })
 }
 
-function sendJson(res, statusCode, data) {
+function sendJson(req, res, statusCode, data) {
+  if (data === undefined) {
+    data = statusCode
+    statusCode = res
+    res = req
+  }
+
   res.statusCode = statusCode
   if (typeof res.setHeader === 'function') {
     res.setHeader('Content-Type', 'application/json; charset=utf-8')
@@ -258,21 +264,21 @@ export function createAdminAuthMiddleware(config = {}) {
       try {
         const claims = await verifyProfileToken(req.headers['authorization'])
         if (!claims) {
-          return sendJson(res, 401, { ok: false, error: 'A valid Cognito ID token is required.' })
+          return sendJson(req, res, 401, { ok: false, error: 'A valid Cognito ID token is required.' })
         }
         if (claims.email_verified !== true && claims.email_verified !== 'true') {
-          return sendJson(res, 403, { ok: false, error: 'A verified customer email is required.' })
+          return sendJson(req, res, 403, { ok: false, error: 'A verified customer email is required.' })
         }
 
         await saveCognitoProfile(claims)
-        return sendJson(res, 200, { ok: true })
+        return sendJson(req, res, 200, { ok: true })
       } catch (err) {
         console.error('[profile-sync] Cognito profile synchronization failed.', {
           status: Number.isInteger(err.status) ? err.status : undefined,
           code: typeof err.code === 'string' ? err.code : undefined,
           message: err.message || 'Unknown profile synchronization error.',
         })
-        return sendJson(res, 502, {
+        return sendJson(req, res, 502, {
           ok: false,
           error: 'Profile synchronization failed. Please try signing in again.',
         })
