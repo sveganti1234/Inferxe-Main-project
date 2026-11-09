@@ -284,7 +284,7 @@ export default function MarketplaceWorkspace() {
   const isProvider = route.startsWith('provider')
 
   useEffect(() => {
-    if (route === 'providers' || route === 'notebooks') {
+    if (route === 'providers') {
       navigate('/dashboard/customer', { replace: true })
     }
   }, [route, navigate])
@@ -2237,8 +2237,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
         {route === 'analytics' && (
           <UsageDetail deployments={deployments} walletBalance={walletBalance} trialTimeLeft={trialTimeLeft} />
         )}
-        {/* Developer Workspace temporarily disabled (preserved for future reactivation) */}
-        {false && route === 'notebooks' && <NotebooksSection deployments={deployments} flash={flash} addNotification={addNotification} />}
+        {route === 'notebooks' && <NotebooksSection deployments={deployments} flash={flash} addNotification={addNotification} />}
         {route === 'reviews' && <ReviewsSection orders={orders} flash={flash} />}
         {route === 'rewards' && (
           <RewardsSection userName={getSession()?.user.fullName || 'Priya Sharma'} flash={flash} onGrantTrial={startTrial} />
