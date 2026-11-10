@@ -1,6 +1,4 @@
-"""
-build_inference_datasets.py
-===========================
+﻿"""
 Automated, legally compliant extraction and generation of datasets for the
 Inferxe LLM Inference Marketplace.
 
@@ -108,7 +106,7 @@ nvidia_hardware_data = [
         "mig_support": "Up to 7 MIGs @ 18GB each",
         "transformer_engine": "Yes (4th Gen)",
         "cost_per_1m_tokens_benchmark": "1.9X higher throughput vs H100 on Llama2 70B",
-        "recommended_workloads": "Massive 70B–405B models, long-context reasoning (32k–128k), memory-bound KV-cache scaling",
+        "recommended_workloads": "Massive 70Bâ€“405B models, long-context reasoning (32kâ€“128k), memory-bound KV-cache scaling",
         "source_url": "https://www.nvidia.com/en-us/data-center/h200.md"
     },
     {
@@ -130,7 +128,7 @@ nvidia_hardware_data = [
         "mig_support": "No",
         "transformer_engine": "Yes",
         "cost_per_1m_tokens_benchmark": "Up to 1.7X throughput of A100 for Generative AI",
-        "recommended_workloads": "Medium LLM inference (8B–32B), multimodal vision-language models, fine-tuning with LoRA, Omniverse",
+        "recommended_workloads": "Medium LLM inference (8Bâ€“32B), multimodal vision-language models, fine-tuning with LoRA, Omniverse",
         "source_url": "https://www.nvidia.com/en-us/data-center/l40s.md"
     },
     {
@@ -152,7 +150,7 @@ nvidia_hardware_data = [
         "mig_support": "No",
         "transformer_engine": "Yes",
         "cost_per_1m_tokens_benchmark": "High energy-efficiency; $0.44/hr cost floor",
-        "recommended_workloads": "Cost-effective small LLM inference (7B–8B quantized), text embeddings, real-time video/audio AI pipelines",
+        "recommended_workloads": "Cost-effective small LLM inference (7Bâ€“8B quantized), text embeddings, real-time video/audio AI pipelines",
         "source_url": "https://www.nvidia.com/en-us/data-center/l4.md"
     },
     {
@@ -473,7 +471,7 @@ cloud_pricing_data = [
         "data_center_region": "India (Multi-datacenter)",
         "sovereign_india_hosted": True,
         "api_support": "Inferxe Unified API",
-        "source": "DPR Section 7.7 & 14.3 (Target Listing ₹55–₹65/hr)"
+        "source": "DPR Section 7.7 & 14.3 (Target Listing â‚¹55â€“â‚¹65/hr)"
     },
     {
         "provider": "Inferxe Marketplace (List Rate)",
@@ -492,7 +490,7 @@ cloud_pricing_data = [
         "data_center_region": "India (Multi-datacenter)",
         "sovereign_india_hosted": True,
         "api_support": "Inferxe Unified API",
-        "source": "DPR Section 7.7 & 14.3 (Target Listing ₹90–₹110/hr)"
+        "source": "DPR Section 7.7 & 14.3 (Target Listing â‚¹90â€“â‚¹110/hr)"
     },
     {
         "provider": "Inferxe Marketplace (List Rate)",
@@ -511,7 +509,7 @@ cloud_pricing_data = [
         "data_center_region": "India (Multi-datacenter)",
         "sovereign_india_hosted": True,
         "api_support": "Inferxe Unified API",
-        "source": "DPR Section 7.7 & 14.3 (Target Listing ₹250–₹300/hr)"
+        "source": "DPR Section 7.7 & 14.3 (Target Listing â‚¹250â€“â‚¹300/hr)"
     }
 ]
 
@@ -848,7 +846,7 @@ chatbot_qa_records = [
         "id": "qa-pricing-001",
         "category": "pricing_rates",
         "question": "What are the hourly rates for GPU compute on Inferxe and JarvisLabs?",
-        "answer": "On JarvisLabs.ai (our MVP infrastructure provider), on-demand per-minute billed hourly rates are: NVIDIA L4 (24 GB) is $0.44/hr (~₹37/hr); NVIDIA A100 (80 GB) is $1.49/hr (~₹125/hr); NVIDIA RTX Pro 6000 Blackwell (96 GB) is $2.19/hr (~₹183/hr); NVIDIA H100 SXM (80 GB) is $3.49/hr (~₹291/hr); and NVIDIA H200 SXM (141 GB) is $4.59/hr (~₹383/hr). Spot instances provide up to 56% savings. On Inferxe, suggested sovereign marketplace listing rates are: L4 at ₹55–₹65/hr (~$0.72), L40S at ₹90–₹110/hr (~$1.20), and H100 SXM at ₹250–₹300/hr (~$3.30).",
+        "answer": "On JarvisLabs.ai (our MVP infrastructure provider), on-demand per-minute billed hourly rates are: NVIDIA L4 (24 GB) is $0.44/hr (~â‚¹37/hr); NVIDIA A100 (80 GB) is $1.49/hr (~â‚¹125/hr); NVIDIA RTX Pro 6000 Blackwell (96 GB) is $2.19/hr (~â‚¹183/hr); NVIDIA H100 SXM (80 GB) is $3.49/hr (~â‚¹291/hr); and NVIDIA H200 SXM (141 GB) is $4.59/hr (~â‚¹383/hr). Spot instances provide up to 56% savings. On Inferxe, suggested sovereign marketplace listing rates are: L4 at â‚¹55â€“â‚¹65/hr (~$0.72), L40S at â‚¹90â€“â‚¹110/hr (~$1.20), and H100 SXM at â‚¹250â€“â‚¹300/hr (~$3.30).",
         "verified_sources": ["JarvisLabs.ai Live Pricing", "DPR Section 7.7", "DPR Section 14.3"]
     },
     {
@@ -862,7 +860,7 @@ chatbot_qa_records = [
         "id": "qa-sizing-002",
         "category": "model_sizing",
         "question": "Which GPU is best for running small models like Qwen 2.5 7B or Mistral 7B?",
-        "answer": "For 7B–8B models (such as Qwen 2.5 7B, Mistral 7B, or Llama 3.1 8B in BF16 precision with ~15 GB weights), the NVIDIA L4 (24 GB) is the most cost-effective choice at $0.44/hr (~₹37/hr) for context lengths up to 8k tokens. If you need extended context (32k to 128k tokens) or high concurrent production volume (16+ simultaneous users), the NVIDIA L40S (48 GB) or NVIDIA A100 (80 GB) is recommended to prevent KV-cache memory exhaustion.",
+        "answer": "For 7Bâ€“8B models (such as Qwen 2.5 7B, Mistral 7B, or Llama 3.1 8B in BF16 precision with ~15 GB weights), the NVIDIA L4 (24 GB) is the most cost-effective choice at $0.44/hr (~â‚¹37/hr) for context lengths up to 8k tokens. If you need extended context (32k to 128k tokens) or high concurrent production volume (16+ simultaneous users), the NVIDIA L40S (48 GB) or NVIDIA A100 (80 GB) is recommended to prevent KV-cache memory exhaustion.",
         "verified_sources": ["DPR Section 6.4", "vLLM Memory Footprint Calculations"]
     },
     {
@@ -913,10 +911,10 @@ print(f"-> Generated {qa_jsonl_path} ({len(chatbot_qa_records)} curated Q&A pair
 # ==============================================================================
 # 6. WRITE COMPREHENSIVE DOCUMENTATION & AUDIT REPORT
 # ==============================================================================
-readme_content = f"""# Inferxe LLM Inference Marketplace — Scraped & Curated Datasets
+readme_content = f"""# Inferxe LLM Inference Marketplace â€” Scraped & Curated Datasets
 
 **Generated Date:** {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}  
-**Project:** Inferxe — GPU Infrastructure Marketplace & Intelligent Routing Platform  
+**Project:** Inferxe â€” GPU Infrastructure Marketplace & Intelligent Routing Platform  
 **Compliance Status:** Fully Compliant with `robots.txt`, Terms of Service, and Rate Limiting Protocols  
 
 ---
@@ -947,11 +945,11 @@ To ensure that data gathering does **not** result in IP blacklisting, CAPTCHA ch
 | :--- | :--- | :--- | :--- |
 | **`dataset_1_nvidia_gpu_hardware_specs.csv`** | CSV | Official NVIDIA Data Center GPU specs (VRAM, Bandwidth, FP8/FP16 TFLOPS, TDP, Interconnect, MIG) | 7 GPUs |
 | **`dataset_1_nvidia_gpu_hardware_specs.json`** | JSON | Full structured JSON of hardware specs with recommended workloads and documentation URLs | 7 GPUs |
-| **`dataset_2_gpu_cloud_pricing.csv`** | CSV | Hourly on-demand and spot rates ($ & ₹), vCPU, RAM, storage, and regions across JarvisLabs & Indian clouds | 15 Profiles |
+| **`dataset_2_gpu_cloud_pricing.csv`** | CSV | Hourly on-demand and spot rates ($ & â‚¹), vCPU, RAM, storage, and regions across JarvisLabs & Indian clouds | 15 Profiles |
 | **`dataset_2_gpu_cloud_pricing.json`** | JSON | Structured pricing dataset with sovereign residency flags and API metadata | 15 Profiles |
 | **`dataset_3_llm_model_gpu_compatibility.csv`** | CSV | Model memory requirements (weights, KV-cache at 4k/8k/32k/128k context), GPU recommendations & vLLM launch flags | 10 Models |
 | **`dataset_3_llm_model_gpu_compatibility.json`** | JSON | Model catalog with precision variants (BF16, FP8, AWQ 4-bit) for Qwen, Llama, Mistral | 10 Models |
-| **`dataset_4_inference_benchmarks_and_token_economics.csv`** | CSV | TTFT, decode throughput, and normalized effective cost per 1M tokens ($ & ₹) calculated via DPR Section 7.8 formulas | 6 Profiles |
+| **`dataset_4_inference_benchmarks_and_token_economics.csv`** | CSV | TTFT, decode throughput, and normalized effective cost per 1M tokens ($ & â‚¹) calculated via DPR Section 7.8 formulas | 6 Profiles |
 | **`dataset_4_inference_benchmarks_and_token_economics.json`** | JSON | Detailed token economics comparing dedicated GPU hosting vs serverless token APIs | 6 Profiles |
 | **`dataset_5_chatbot_grounding_qa_knowledge_base.jsonl`** | JSONL | High-quality QA pairs grounded strictly in verified NVIDIA & Inferxe data for AI Assistant training or RAG vector indexing | 10 Core QAs |
 

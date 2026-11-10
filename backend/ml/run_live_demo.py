@@ -1,6 +1,4 @@
-"""
-run_live_demo.py
-================
+﻿"""
 Demonstrates the fine-tuned Inferxe model (inferxe-qwen-ft) running live
 against the 10 core domain and guardrail evaluation queries.
 """
@@ -80,7 +78,7 @@ def query_model(question: str) -> dict:
 
 def main():
     print("=" * 80)
-    print(f"🚀 INFERXE LIVE DEMONSTRATION — MODEL: {MODEL_NAME}")
+    print(f"ðŸš€ INFERXE LIVE DEMONSTRATION â€” MODEL: {MODEL_NAME}")
     print("=" * 80)
     print(f"Testing live against Ollama at {OLLAMA_URL}...\n")
 
@@ -89,12 +87,12 @@ def main():
         print(f"User: \"{question}\"")
         res = query_model(question)
         if res["success"]:
-            print(f"⏱ Response ({res['elapsed']}s):\n{res['content']}\n")
+            print(f"â± Response ({res['elapsed']}s):\n{res['content']}\n")
         else:
-            print(f"❌ Error: {res.get('error')}\n")
+            print(f"âŒ Error: {res.get('error')}\n")
         print("-" * 80)
 
-    print("\n✅ Live demonstration completed successfully!")
+    print("\nâœ… Live demonstration completed successfully!")
 
 if __name__ == "__main__":
     main()

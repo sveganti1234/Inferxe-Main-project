@@ -5,16 +5,12 @@ import {
   ArrowRight,
   Check,
   CheckCircle2,
-  Copy,
-  Eye,
-  EyeOff,
   Globe,
   KeyRound,
   Layers,
   Loader2,
   Lock,
   Plus,
-  RefreshCw,
   Sliders,
   User,
   UserCheck,
@@ -25,11 +21,10 @@ import {
   AVAILABLE_MODELS,
   AVAILABLE_PROVIDERS,
   ROLE_DEFINITIONS,
-  createUserMock,
+  createUser,
 } from '../../lib/userStore'
 import type {
   AccountStatus,
-  AuthMethod,
   ModelAccessType,
   ProviderAccessType,
   UserFormData,
@@ -62,15 +57,6 @@ const RATE_LIMIT_PRESETS = [
   '1,200 RPM (Enterprise Dedicated)',
 ]
 
-function generateSecurePassword(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%&*+'
-  let pwd = 'Inf-'
-  for (let i = 0; i < 12; i++) {
-    pwd += chars.charAt(Math.floor(Math.random() * chars.length))
-  }
-  return pwd
-}
-
 export default function AddUser() {
   usePageMeta('Add New User · Inferxe Dashboard', 'Create an enterprise user account, configure LLM model access, and provision GPU inference marketplace permissions.')
   const navigate = useNavigate()
@@ -83,10 +69,6 @@ export default function AddUser() {
     avatarUrl: '',
     role: 'developer',
     status: 'active',
-    authMethod: 'invite',
-    temporaryPassword: generateSecurePassword(),
-    sendInviteEmail: true,
-    requirePasswordChange: true,
     modelAccess: 'all',
     selectedModels: ['deepseek-r1-671b', 'llama-3.3-70b', 'qwen-2.5-coder-32b'],
     providerAccess: 'all',
@@ -109,10 +91,6 @@ export default function AddUser() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitSuccess, setSubmitSuccess] = useState<UserRecord | null>(null)
   const [apiError, setApiError] = useState<string | null>(null)
-
-  // Password UI
-  const [showPassword, setShowPassword] = useState(false)
-  const [copiedPwd, setCopiedPwd] = useState(false)
 
   // Unsaved changes confirmation dialog
   const [showConfirmLeave, setShowConfirmLeave] = useState(false)
@@ -217,7 +195,7 @@ export default function AddUser() {
     setIsSubmitting(true)
 
     try {
-      const res = await createUserMock(formData)
+      const res = await createUser(formData)
       if (res.ok && res.user) {
         setSubmitSuccess(res.user)
         setIsDirty(false)
@@ -231,10 +209,6 @@ export default function AddUser() {
             avatarUrl: '',
             role: 'developer',
             status: 'active',
-            authMethod: 'invite',
-            temporaryPassword: generateSecurePassword(),
-            sendInviteEmail: true,
-            requirePasswordChange: true,
             modelAccess: 'all',
             selectedModels: ['deepseek-r1-671b', 'llama-3.3-70b', 'qwen-2.5-coder-32b'],
             providerAccess: 'all',
@@ -299,31 +273,6 @@ export default function AddUser() {
     }
   }
 
-  // Copy password to clipboard
-  const handleCopyPassword = () => {
-    navigator.clipboard.writeText(formData.temporaryPassword)
-    setCopiedPwd(true)
-    setTimeout(() => setCopiedPwd(false), 2000)
-  }
-
-  // Calculate password strength
-  const getPasswordStrength = (pwd: string) => {
-    if (!pwd) return { score: 0, label: 'Empty', color: 'transparent' }
-    let score = 0
-    if (pwd.length >= 8) score++
-    if (pwd.length >= 14) score++
-    if (/[A-Z]/.test(pwd) && /[a-z]/.test(pwd)) score++
-    if (/[0-9]/.test(pwd)) score++
-    if (/[^A-Za-z0-9]/.test(pwd)) score++
-
-    if (score <= 2) return { score: 25, label: 'Weak', color: '#ff6b5e' }
-    if (score <= 3) return { score: 60, label: 'Fair', color: '#f2b84b' }
-    if (score <= 4) return { score: 85, label: 'Strong', color: '#9be015' }
-    return { score: 100, label: 'Enterprise Strong', color: '#76b900' }
-  }
-
-  const pwdStrength = getPasswordStrength(formData.temporaryPassword)
-
   // Current active avatar preset styling
   const activeAvatar = PRESET_AVATARS.find((a) => a.id === selectedAvatarPreset) || PRESET_AVATARS[0]
 
@@ -349,17 +298,15 @@ export default function AddUser() {
           </div>
           <div className="dash-success-body">
             <h2 className="dash-success-title">
-              User account successfully created!
+              Invitation created successfully
             </h2>
             <p className="dash-success-text">
-              <strong>{submitSuccess.fullName}</strong> ({submitSuccess.email}) has been provisioned as{' '}
+              <strong>{submitSuccess.fullName}</strong> ({submitSuccess.email}) has been invited as{' '}
               <span className="dash-topbar__badge" style={{ padding: '1px 8px', textTransform: 'capitalize' }}>
                 {submitSuccess.role}
               </span>{' '}
               with User ID <code style={{ fontFamily: 'var(--font-mono)', color: 'var(--brand-hi)' }}>{submitSuccess.id}</code>.
-              {submitSuccess.authMethod === 'invite'
-                ? ' An onboarding invitation email with access tokens has been dispatched.'
-                : ' A temporary password was created.'}
+              {' A Cognito invitation email has been sent; the user sets their password through AWS Cognito.'}
             </p>
             <div className="dash-success-actions">
               <button
@@ -586,7 +533,7 @@ export default function AddUser() {
                 Account Access
               </h2>
               <p className="dash-section-desc">
-                Define security privileges, role boundaries, and login credentials.
+                Choose the role and send a password setup invitation through AWS Cognito.
               </p>
             </div>
           </div>
@@ -601,7 +548,7 @@ export default function AddUser() {
             </label>
 
             <div className="dash-roles-grid" role="radiogroup" aria-label="Role Selection">
-              {(['admin', 'developer', 'viewer'] as UserRole[]).map((role) => {
+              {(['customer', 'provider', 'developer', 'viewer'] as UserRole[]).map((role) => {
                 const def = ROLE_DEFINITIONS[role]
                 const isSelected = formData.role === role
                 return (
@@ -670,125 +617,10 @@ export default function AddUser() {
               </span>
             </div>
 
-            {/* Authentication Method: Email Invitation vs Temporary Password */}
-            <div className="dash-field">
-              <label className="dash-label">
-                <span>Authentication Method</span>
-              </label>
-              <div className="dash-segment" role="group" aria-label="Authentication Method">
-                <button
-                  type="button"
-                  className={`dash-segment-btn ${formData.authMethod === 'invite' ? 'is-active' : ''}`}
-                  onClick={() => handleFieldChange('authMethod', 'invite' as AuthMethod)}
-                >
-                  <span>Email Invitation</span>
-                </button>
-                <button
-                  type="button"
-                  className={`dash-segment-btn ${formData.authMethod === 'password' ? 'is-active' : ''}`}
-                  onClick={() => handleFieldChange('authMethod', 'password' as AuthMethod)}
-                >
-                  <span>Temporary Password</span>
-                </button>
-              </div>
-              <span className="dash-field-hint">
-                {formData.authMethod === 'invite'
-                  ? 'A cryptographic magic link with 48h validity is sent to activate credentials.'
-                  : 'Specify a temporary passphrase for manual delivery or initial machine setup.'}
-              </span>
-            </div>
-
-            {/* Temporary Password Field (if authMethod is password) */}
-            {formData.authMethod === 'password' && (
-              <div className="dash-field dash-form-full">
-                <label className="dash-label">
-                  <span>
-                    Temporary Password <span className="dash-label__req">*</span>
-                  </span>
-                  <button
-                    type="button"
-                    className="dash-btn-ghost"
-                    style={{ padding: '2px 8px', fontSize: '0.7rem', color: 'var(--brand-hi)' }}
-                    onClick={() => handleFieldChange('temporaryPassword', generateSecurePassword())}
-                  >
-                    <RefreshCw size={12} style={{ marginRight: 4 }} /> Generate new
-                  </button>
-                </label>
-                <div className="dash-input-wrap">
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    className="dash-input"
-                    value={formData.temporaryPassword}
-                    onChange={(e) => handleFieldChange('temporaryPassword', e.target.value)}
-                    style={{ paddingRight: '76px', fontFamily: 'var(--font-mono)' }}
-                  />
-                  <div className="dash-pwd-tools">
-                    <button
-                      type="button"
-                      className="dash-icon-btn"
-                      onClick={() => setShowPassword(!showPassword)}
-                      title={showPassword ? 'Hide password' : 'Show password'}
-                      aria-label="Toggle password visibility"
-                    >
-                      {showPassword ? <EyeOff /> : <Eye />}
-                    </button>
-                    <button
-                      type="button"
-                      className="dash-icon-btn"
-                      onClick={handleCopyPassword}
-                      title="Copy temporary password"
-                      aria-label="Copy temporary password"
-                    >
-                      {copiedPwd ? <Check style={{ color: 'var(--brand-hi)' }} /> : <Copy />}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Password Strength Meter */}
-                <div className="dash-pwd-meter">
-                  <div className="dash-pwd-bar-track">
-                    <div
-                      className="dash-pwd-bar-fill"
-                      style={{
-                        width: `${pwdStrength.score}%`,
-                        backgroundColor: pwdStrength.color,
-                      }}
-                    />
-                  </div>
-                  <span className="dash-pwd-strength-label" style={{ color: pwdStrength.color }}>
-                    {pwdStrength.label}
-                  </span>
-                </div>
-
-                <label className="dash-checkbox-label mt-2">
-                  <input
-                    type="checkbox"
-                    className="dash-checkbox-input"
-                    checked={formData.requirePasswordChange}
-                    onChange={(e) => handleFieldChange('requirePasswordChange', e.target.checked)}
-                  />
-                  <span className="dash-checkbox-custom">
-                    {formData.requirePasswordChange && <Check className="dash-checkbox-check" />}
-                  </span>
-                  <span>Require user to set a new password on first login</span>
-                </label>
-              </div>
-            )}
-
-            {/* Send Invitation Email Checkbox */}
             <div className="dash-field dash-form-full">
-              <label className="dash-checkbox-label">
-                <input
-                  type="checkbox"
-                  className="dash-checkbox-input"
-                  checked={formData.sendInviteEmail}
-                  onChange={(e) => handleFieldChange('sendInviteEmail', e.target.checked)}
-                />
-                <span className="dash-checkbox-custom">
-                  {formData.sendInviteEmail && <Check className="dash-checkbox-check" />}
-                </span>
-                <span>Send invitation email with onboarding instructions immediately upon creation</span>
-              </label>
+              <div className="dash-field-hint" role="note">
+                Cognito sends a temporary sign-in credential directly to the invited email address. The platform never receives or stores that password.
+              </div>
             </div>
           </div>
         </section>

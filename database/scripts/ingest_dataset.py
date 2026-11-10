@@ -1,6 +1,4 @@
-"""
-ingest_dataset.py
-=================
+﻿"""
 Comprehensive data ingestion and cleaning pipeline for the Inferxe RAG knowledge base.
 Ingests, validates, normalizes, deduplicates, and chunks all relevant datasets from
 'Dataset for web scrap/' into structured, source-attributed passages.
@@ -136,8 +134,8 @@ class DatasetIngester:
                 f"Provider: {provider}\n"
                 f"GPU Model: {gpu} (Count: {item.get('gpu_count', 1)}x, VRAM per GPU: {vram} GB)\n"
                 f"Host Configuration: {vcpu} vCPU, {ram} GB RAM, Storage: {item.get('storage_included', item.get('storage_cost_per_gb_month_usd', 'N/A'))}\n"
-                f"On-Demand Hourly Rate: ${on_demand_usd}/hr (approx ₹{on_demand_inr}/hr)\n"
-                f"Spot Instance Hourly Rate: ${spot_usd}/hr (approx ₹{spot_inr}/hr) [Discount: {item.get('spot_discount_percent', '0')}%]\n"
+                f"On-Demand Hourly Rate: ${on_demand_usd}/hr (approx â‚¹{on_demand_inr}/hr)\n"
+                f"Spot Instance Hourly Rate: ${spot_usd}/hr (approx â‚¹{spot_inr}/hr) [Discount: {item.get('spot_discount_percent', '0')}%]\n"
                 f"Datacenter Region: {region}\n"
                 f"Billing Cadence: {item.get('billing_unit', item.get('billing_cadence', 'Per-minute billing'))}\n"
                 f"Pricing Distinction: Documented external provider catalog rate for {provider}. Note: Stored historical reference pricing; not a live API quote."
@@ -256,7 +254,7 @@ class DatasetIngester:
                 f"Memory Bandwidth: {gpu.get('memory_bandwidth_gbps', 'N/A')} GB/s\n"
                 f"Compute: {gpu.get('fp8_tflops', 'N/A')} FP8 TFLOPS | {gpu.get('fp16_tflops', 'N/A')} FP16 TFLOPS\n"
                 f"TDP: {gpu.get('tdp_watts', 'N/A')}W | Interconnect: {gpu.get('interconnect', 'N/A')}\n"
-                f"Proposed Inferxe Listing Rate: ₹{gpu.get('inr_per_hour', 'N/A')}/hr (${gpu.get('usd_per_hour', 'N/A')}/hr)\n"
+                f"Proposed Inferxe Listing Rate: â‚¹{gpu.get('inr_per_hour', 'N/A')}/hr (${gpu.get('usd_per_hour', 'N/A')}/hr)\n"
                 f"Optimal Workloads: {gpu.get('optimal_workloads', 'N/A')}\n"
                 f"Key Technologies: {gpu.get('key_technologies', 'N/A')}\n"
                 f"Pricing Distinction: Proposed Inferxe marketplace rate. Verified catalog reference."
@@ -405,8 +403,8 @@ class DatasetIngester:
                 f"VRAM: {item.get('vram_gb', 'N/A')} GB {item.get('memory_type', 'GDDR/HBM')}\n"
                 f"Host Specs: {item.get('vcpu_count', 'N/A')} vCPU, {item.get('system_ram_gb', 'N/A')} GB System RAM\n"
                 f"Supported GPU Counts: {item.get('supported_gpu_counts', '1x')}\n"
-                f"On-Demand Rate: ${on_demand_usd}/hr (₹{on_demand_inr}/hr)\n"
-                f"Spot Rate: ${spot_usd}/hr (₹{spot_inr}/hr) [{item.get('spot_discount_percent', '')} discount]\n"
+                f"On-Demand Rate: ${on_demand_usd}/hr (â‚¹{on_demand_inr}/hr)\n"
+                f"Spot Rate: ${spot_usd}/hr (â‚¹{spot_inr}/hr) [{item.get('spot_discount_percent', '')} discount]\n"
                 f"Form Factor & Interconnect: {item.get('form_factor', 'PCIe/SXM')} | {item.get('interconnect', 'N/A')}\n"
                 f"Datacenter Region: {region}\n"
                 f"Billing & Storage: {item.get('billing_unit', 'Per-minute')}, Storage: ${item.get('storage_rate_usd_gb_month', '0.1')}/GB/mo, Egress: {item.get('egress_fee', 'Free')}\n"
@@ -601,12 +599,12 @@ class DatasetIngester:
         with open(OUTPUT_REPORT_FILE, "w", encoding="utf-8") as f:
             json.dump(self.report, f, indent=2, ensure_ascii=False)
 
-        print(f"✅ Ingestion Complete!")
+        print(f"âœ… Ingestion Complete!")
         print(f"Total Chunks Generated: {len(self.chunks)}")
         print(f"Duplicate / Skipped:   {self.report['skipped_or_duplicate']}")
         print(f"Categories Breakdown:")
         for cat, cnt in sorted(self.report["category_counts"].items()):
-            print(f"  • {cat.ljust(22)}: {cnt} chunks")
+            print(f"  â€¢ {cat.ljust(22)}: {cnt} chunks")
         print(f"\nSaved chunks to: {OUTPUT_CHUNKS_FILE}")
         print(f"Saved audit report to: {OUTPUT_REPORT_FILE}")
         print("=" * 80)

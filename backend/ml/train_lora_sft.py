@@ -1,6 +1,4 @@
-"""
-train_lora_sft.py
-=================
+﻿"""
 Supervised Fine-Tuning (SFT) script using Hugging Face Transformers and PEFT (LoRA).
 Fine-tunes Qwen2.5-0.5B-Instruct on the prepared Inferxe dataset.
 """
@@ -69,7 +67,7 @@ def format_chatml(messages: List[Dict[str, str]], tokenizer) -> str:
 
 def run_fine_tuning(config: TrainingConfig):
     print("=" * 70)
-    print("INFERXE AI ASSISTANT — SUPERVISED FINE-TUNING (SFT) WITH LoRA")
+    print("INFERXE AI ASSISTANT â€” SUPERVISED FINE-TUNING (SFT) WITH LoRA")
     print("=" * 70)
     print(f"Base Model:       {config.base_model_name_or_path}")
     print(f"Train Dataset:    {config.train_data_path}")

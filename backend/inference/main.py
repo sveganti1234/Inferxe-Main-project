@@ -1,6 +1,4 @@
-"""
-main.py
-=======
+﻿"""
 FastAPI application entry point for the Inferxe Inference API service.
 Provides Swagger UI at /docs, CORS middleware, and global error handling.
 

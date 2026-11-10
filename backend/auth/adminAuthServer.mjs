@@ -11,22 +11,32 @@
  */
 
 import http from 'node:http'
-import { loadBackendEnv } from './envLoader.js'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import dotenv from 'dotenv'
+import { createSupabaseApiMiddleware } from '../api/supabaseApi.js'
+import { createCustomerAuthMiddleware } from './customerAuth.js'
 import { createAdminAuthMiddleware } from './adminAuth.js'
 import { createSSOAuthMiddleware } from './ssoAuth.js'
 
-loadBackendEnv()
+dotenv.config({ path: resolve(dirname(fileURLToPath(import.meta.url)), '../../.env') })
 
 const PORT = parseInt(process.env.ADMIN_AUTH_PORT || '5174', 10)
 const adminMiddleware = createAdminAuthMiddleware()
+const customerMiddleware = createCustomerAuthMiddleware()
+const supabaseApiMiddleware = createSupabaseApiMiddleware()
 const ssoMiddleware = createSSOAuthMiddleware()
 
 const server = http.createServer((req, res) => {
   ssoMiddleware(req, res, () => {
-    adminMiddleware(req, res, () => {
-      res.statusCode = 404
-      res.setHeader('Content-Type', 'application/json')
-      res.end(JSON.stringify({ ok: false, error: 'Not found' }))
+    customerMiddleware(req, res, () => {
+      adminMiddleware(req, res, () => {
+        supabaseApiMiddleware(req, res, () => {
+          res.statusCode = 404
+          res.setHeader('Content-Type', 'application/json')
+          res.end(JSON.stringify({ ok: false, error: 'Not found' }))
+        })
+      })
     })
   })
 })

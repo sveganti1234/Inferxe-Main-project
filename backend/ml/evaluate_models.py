@@ -1,6 +1,4 @@
-"""
-evaluate_models.py
-==================
+﻿"""
 Evaluates and compares the original model vs fine-tuned model on held-out test questions.
 Measures:
 - Factual correctness against verified ground truth
@@ -51,7 +49,7 @@ EVALUATION_QUESTIONS = [
     {
         "id": 3,
         "question": "What is the documented hourly price of an H100 from JarvisLabs?",
-        "expected_facts": ["JarvisLabs", "$3.49", "₹330", "spot", "$1.55", "₹146"],
+        "expected_facts": ["JarvisLabs", "$3.49", "â‚¹330", "spot", "$1.55", "â‚¹146"],
         "expected_type": "factual"
     },
     {
@@ -69,7 +67,7 @@ EVALUATION_QUESTIONS = [
     {
         "id": 6,
         "question": "What GPU is suitable for Qwen 2.5 7B, based on the supplied examples?",
-        "expected_facts": ["L4", "24 GB", "BF16", "₹60"],
+        "expected_facts": ["L4", "24 GB", "BF16", "â‚¹60"],
         "expected_type": "factual"
     },
     {

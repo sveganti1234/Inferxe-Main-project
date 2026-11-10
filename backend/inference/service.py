@@ -1,6 +1,4 @@
-"""
-service.py
-==========
+﻿"""
 Inference orchestration service.
 Bridges authenticated customer requests to the existing NVIDIA Nemotron provider
 and persists execution telemetry to Supabase (`inference_requests`).

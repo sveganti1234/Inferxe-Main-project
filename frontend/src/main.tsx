@@ -1,8 +1,8 @@
+
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import { Amplify } from 'aws-amplify'
-import { initializeCognitoContext } from './lib/cognitoContext'
 
 import '@fontsource-variable/rubik'
 import '@fontsource-variable/jetbrains-mono'
@@ -30,66 +30,56 @@ import './styles/bot.css'
 import './styles/dashboard-extra.css'
 import './styles/index.css'
 
-const authority = import.meta.env.VITE_COGNITO_AUTHORITY?.trim()
-const userPoolId =
-  import.meta.env.VITE_COGNITO_USER_POOL_ID?.trim() ||
-  authority?.split('/').filter(Boolean).pop()
-const userPoolClientId = import.meta.env.VITE_COGNITO_CLIENT_ID?.trim()
-const awsRegion = import.meta.env.VITE_COGNITO_REGION?.trim() || userPoolId?.split('_')[0]
-const cognitoDomain = import.meta.env.VITE_COGNITO_DOMAIN?.trim()
-  .replace(/^https?:\/\//, '')
-  .replace(/\/+$/, '')
-const redirectSignIn = import.meta.env.VITE_COGNITO_REDIRECT_SIGN_IN
-  ?.split(',')
-  .map((url: string) => url.trim())
-  .filter(Boolean)
-const redirectSignOut = import.meta.env.VITE_COGNITO_REDIRECT_SIGN_OUT
-  ?.split(',')
-  .map((url: string) => url.trim())
-  .filter(Boolean)
+import App from './App'
 
-if (!userPoolId || !userPoolClientId || !awsRegion) {
-  console.error(
-    '[amplify-init] Cognito is unavailable. Set VITE_COGNITO_USER_POOL_ID, VITE_COGNITO_CLIENT_ID, and VITE_COGNITO_REGION to enable authentication.',
-  )
-} else if (userPoolId.split('_')[0] !== awsRegion) {
-  console.error(
-    '[amplify-init] Cognito is unavailable because VITE_COGNITO_REGION does not match the region encoded in VITE_COGNITO_USER_POOL_ID.',
-  )
-} else {
-  const cognitoConfig = {
-    Auth: {
-      Cognito: {
-        userPoolId,
-        userPoolClientId,
-        loginWith: {
-          email: true,
-          ...(cognitoDomain && redirectSignIn?.length && redirectSignOut?.length
-            ? {
-                oauth: {
-                  domain: cognitoDomain,
-                  scopes: ['openid', 'email', 'profile'],
-                  redirectSignIn,
-                  redirectSignOut,
-                  responseType: 'code' as const,
-                },
-              }
-            : {}),
-        },
-      },
-    },
-  } as const
-
-  Amplify.configure(cognitoConfig)
-  initializeCognitoContext(cognitoConfig)
-  console.info('[amplify-init] Cognito configured.', {
-    hasUserPoolId: Boolean(userPoolId),
-    hasUserPoolClientId: Boolean(userPoolClientId),
-    regionMatchesUserPool: userPoolId.startsWith(`${awsRegion}_`),
-  })
+try {
+  localStorage.removeItem('inferxe_registered_users')
+} catch (error) {
+  console.error('Unable to remove the legacy local customer credential store:', error)
 }
 
-const { default: App } = await import('./App')
+// AWS Cognito configuration
+const userPoolId =
+  (import.meta.env.VITE_COGNITO_USER_POOL_ID as string | undefined) ||
+  ((import.meta.env.VITE_COGNITO_AUTHORITY as string | undefined)?.split('/').pop()) ||
+  'ap-south-1_cYw1QjgbQ'
+
+const userPoolClientId =
+  (import.meta.env.VITE_COGNITO_CLIENT_ID as string | undefined) ||
+  '334trhnhmim8v42gq4bgk7umst'
+
+const cognitoDomain = (import.meta.env.VITE_COGNITO_DOMAIN as string | undefined)?.replace(/^https?:\/\//, '')
+const redirectSignIn = (import.meta.env.VITE_COGNITO_REDIRECT_SIGN_IN as string | undefined)
+  ?.split(',')
+  .map((url) => url.trim())
+  .filter(Boolean)
+const redirectSignOut = (import.meta.env.VITE_COGNITO_REDIRECT_SIGN_OUT as string | undefined)
+  ?.split(',')
+  .map((url) => url.trim())
+  .filter(Boolean)
+
+Amplify.configure({
+  Auth: {
+    Cognito: {
+      userPoolId,
+      userPoolClientId,
+      loginWith: {
+        email: true,
+        ...(cognitoDomain && redirectSignIn?.length && redirectSignOut?.length
+          ? {
+              oauth: {
+                domain: cognitoDomain,
+                scopes: ['openid', 'email', 'profile'],
+                redirectSignIn,
+                redirectSignOut,
+                responseType: 'code' as const,
+              },
+            }
+          : {}),
+      },
+    },
+  },
+})
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

@@ -1,6 +1,4 @@
-"""
-web_search_server.py
-====================
+﻿"""
 Lightweight local HTTP search micro-server for the Inferxe Chatbot.
 Provides live DuckDuckGo web search results via JSON API with CORS enabled.
 Endpoint: http://127.0.0.1:8765/api/search?q=<query>
@@ -116,7 +114,7 @@ class SearchRequestHandler(BaseHTTPRequestHandler):
 def run():
     server_address = ("127.0.0.1", PORT)
     httpd = HTTPServer(server_address, SearchRequestHandler)
-    print(f"📡 Inferxe Web Search Proxy listening on http://127.0.0.1:{PORT}")
+    print(f"ðŸ“¡ Inferxe Web Search Proxy listening on http://127.0.0.1:{PORT}")
     httpd.serve_forever()
 
 if __name__ == "__main__":

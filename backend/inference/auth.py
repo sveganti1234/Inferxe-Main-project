@@ -1,6 +1,4 @@
-"""
-auth.py
-=======
+﻿"""
 Customer API Key Authentication and Key Generation for Inferxe.
 Enforces SHA-256 hashed storage, constant-time comparison, lifecycle verification,
 and Cognito verified identity association.

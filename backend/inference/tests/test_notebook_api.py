@@ -1,6 +1,4 @@
-"""
-test_notebook_api.py
-====================
+﻿"""
 Integration tests for Inferxe Notebook Management REST API endpoints:
   - POST /api/v1/notebooks
   - GET  /api/v1/notebooks
