@@ -569,6 +569,7 @@ class DatasetIngester:
         self.process_inferxe_dpr_document()
         self.process_guardrails_and_policies()
         self.process_inferxe_website_knowledge()
+        self.sync_documents_to_supabase()
 
     def process_inferxe_website_knowledge(self):
         filepath = "rag/data/inferxe_website_complete_knowledge.json"
@@ -608,6 +609,69 @@ class DatasetIngester:
         print(f"\nSaved chunks to: {OUTPUT_CHUNKS_FILE}")
         print(f"Saved audit report to: {OUTPUT_REPORT_FILE}")
         print("=" * 80)
+
+    def sync_documents_to_supabase(self, uploaded_by: str = "system_ingester"):
+        """
+        Synchronize document metadata for all processed dataset files to Supabase `document_metadata`.
+        Uses `document_id` as conflict target to avoid duplicate metadata records.
+        """
+        try:
+            repo_root = os.path.abspath(os.path.join(BASE_DIR, "../.."))
+            if repo_root not in sys.path:
+                sys.path.insert(0, repo_root)
+
+            from backend.database.supabase_client import is_supabase_configured, upsert_document_metadata
+            if not is_supabase_configured():
+                print("\n[Supabase Metadata Sync] Supabase not configured; skipping remote document metadata sync.")
+                return
+
+            print("\n[Supabase Metadata Sync] Storing document metadata in Supabase `document_metadata` table...")
+            synced_count = 0
+            for fname in self.report.get("processed_files", []):
+                candidate_paths = [
+                    os.path.join(self.dataset_dir, fname),
+                    os.path.join(self.dataset_dir, "hardware", fname),
+                    os.path.join(self.dataset_dir, "pricing", fname),
+                    os.path.join(self.dataset_dir, "models", fname),
+                    os.path.join(self.dataset_dir, "knowledge", fname),
+                    os.path.join(CONFIG_DIR, fname),
+                    os.path.join(DB_ROOT, "config", fname),
+                ]
+                fpath = next((p for p in candidate_paths if os.path.exists(p)), None)
+                file_size = os.path.getsize(fpath) if fpath else 0
+                file_hash = ""
+                if fpath:
+                    try:
+                        with open(fpath, "rb") as bf:
+                            file_hash = hashlib.sha256(bf.read()).hexdigest()
+                    except Exception:
+                        pass
+
+                ext = os.path.splitext(fname)[1].lstrip(".") or "json"
+                clean_name = re.sub(r'[^a-zA-Z0-9_-]', '_', os.path.splitext(fname)[0])
+                doc_id = f"doc_{clean_name}"
+                chunk_cnt = sum(1 for c in self.chunks if c.get("metadata", {}).get("source_file") == fname)
+
+                res = upsert_document_metadata(
+                    document_id=doc_id,
+                    filename=fname,
+                    file_type=ext,
+                    uploaded_by=uploaded_by,
+                    file_size_bytes=file_size,
+                    file_hash=file_hash,
+                    status="ingested",
+                    chunk_count=chunk_cnt,
+                    metadata={"source_dir": self.dataset_dir}
+                )
+                if res.get("ok"):
+                    synced_count += 1
+                elif res.get("missing_table"):
+                    print(f"  Notice: Supabase table 'document_metadata' pending migration: {res.get('error')}")
+                    break
+
+            print(f"[PASS] Supabase Document Metadata Sync: {synced_count} documents registered without duplicates.")
+        except Exception as e:
+            print(f"[Supabase Metadata Sync Warning] {e}")
 
 if __name__ == "__main__":
     ingester = DatasetIngester(DATASET_DIR)

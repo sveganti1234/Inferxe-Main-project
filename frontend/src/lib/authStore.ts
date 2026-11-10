@@ -162,21 +162,99 @@ export function getPortalRole(role?: string): PortalRole {
   return 'customer'
 }
 
+export function getCognitoTokenFromStorage(): string | null {
+  try {
+    // 1. Check inferxe_auth_session directly
+    const raw = localStorage.getItem(AUTH_STORAGE_KEY)
+    if (raw) {
+      const session = JSON.parse(raw) as AuthSession
+      if (session.token && !isJwtExpired(session.token, 10)) {
+        return session.token
+      }
+    }
+
+    // 2. Scan localStorage for Amplify Cognito ID token or access token
+    const clientId = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_COGNITO_CLIENT_ID) || '334trhnhmim8v42gq4bgk7umst'
+    const lastUser = localStorage.getItem(`CognitoIdentityServiceProvider.${clientId}.LastAuthUser`)
+    if (lastUser) {
+      const idToken = localStorage.getItem(`CognitoIdentityServiceProvider.${clientId}.${lastUser}.idToken`)
+      if (idToken && !isJwtExpired(idToken, 10)) {
+        return idToken
+      }
+      const accessToken = localStorage.getItem(`CognitoIdentityServiceProvider.${clientId}.${lastUser}.accessToken`)
+      if (accessToken && !isJwtExpired(accessToken, 10)) {
+        return accessToken
+      }
+    }
+
+    // 3. Fallback scan across all localStorage keys for any active unexpired Cognito ID token
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key && key.startsWith('CognitoIdentityServiceProvider.') && key.endsWith('.idToken')) {
+        const val = localStorage.getItem(key)
+        if (val && !isJwtExpired(val, 10)) {
+          return val
+        }
+      }
+    }
+
+    // 4. Return session token if present (admin or demo tokens)
+    if (raw) {
+      const session = JSON.parse(raw) as AuthSession
+      if (session.token) {
+        return session.token
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return null
+}
+
 export function getSession(): AuthSession | null {
   try {
     const raw = localStorage.getItem(AUTH_STORAGE_KEY)
-    if (!raw) return null
+    if (!raw) {
+      // Check if Amplify has an active Cognito token in localStorage
+      const ampToken = getCognitoTokenFromStorage()
+      if (ampToken) {
+        const claims = decodeJwt(ampToken)
+        if (claims) {
+          const freshSession: AuthSession = {
+            token: ampToken,
+            user: {
+              id: claims.sub || 'usr_customer',
+              fullName: claims.name || (claims.email ? claims.email.split('@')[0] : 'Customer'),
+              email: claims.email || '',
+              username: (claims['cognito:username'] as string) || (claims.email ? claims.email.split('@')[0] : 'customer'),
+              role: 'customer',
+              organization: 'Customer Workspace',
+            },
+            expiresAt: (claims.exp ? claims.exp * 1000 : Date.now() + 3600 * 1000),
+          }
+          saveSession(freshSession)
+          return freshSession
+        }
+      }
+      return null
+    }
+
     const session = JSON.parse(raw) as AuthSession
-    if (
-      typeof session.token !== 'string' ||
-      session.token.split('.').length !== 3 ||
-      !session.user ||
-      (session.expiresAt && Date.now() > session.expiresAt) ||
-      isJwtExpired(session.token)
-    ) {
+    const isExpired = (session.expiresAt && Date.now() > session.expiresAt) || (session.token.split('.').length === 3 && isJwtExpired(session.token))
+    if (isExpired) {
+      // Attempt to recover fresh token from Amplify
+      const ampToken = getCognitoTokenFromStorage()
+      if (ampToken && ampToken !== session.token) {
+        session.token = ampToken
+        const claims = decodeJwt(ampToken)
+        if (claims?.exp) session.expiresAt = claims.exp * 1000
+        saveSession(session)
+        return session
+      }
       localStorage.removeItem(AUTH_STORAGE_KEY)
       return null
     }
+
     return session
   } catch {
     return null

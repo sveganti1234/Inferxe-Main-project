@@ -1,4 +1,6 @@
-﻿"""
+"""
+server.py
+=========
 FastAPI backend for the Inferxe RAG pipeline.
 Integrates ChromaDB vector retrieval, nomic-embed-text embeddings,
 and inferxe-qwen-ft LLM generation via Ollama with strict domain guardrails,
@@ -14,7 +16,7 @@ import urllib.request
 import urllib.error
 from typing import List, Dict, Any, Optional
 
-from fastapi import FastAPI, HTTPException, Header, Depends, Request
+from fastapi import FastAPI, HTTPException, Header, Depends, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -45,6 +47,25 @@ app.add_middleware(
 # Constants & Configuration
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, "../.."))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
+
+import hashlib
+import uuid
+import logging
+
+rag_logger = logging.getLogger("inferxe.rag")
+
+from backend.database.supabase_client import (
+    get_supabase_client,
+    is_supabase_configured,
+    upsert_document_metadata,
+    list_document_metadata,
+    save_chat_history,
+    get_chat_history,
+    get_chat_sessions,
+    test_connection as test_supabase_connection,
+)
 CHROMA_PERSIST_DIR = os.environ.get(
     "CHROMA_PERSIST_DIR",
     os.path.join(PROJECT_ROOT, "database", "chroma_db"),
@@ -182,6 +203,9 @@ class MessageHistory(BaseModel):
 class ChatRequest(BaseModel):
     message: str = Field(..., min_length=1, max_length=2000, description="The user question to process")
     conversation_history: Optional[List[MessageHistory]] = Field(default=[], description="Recent conversation turns")
+    session_id: Optional[str] = Field(default=None, description="Unique conversation session UUID")
+    user_id: Optional[str] = Field(default=None, description="Authenticated user ID or Cognito sub")
+    organization_id: Optional[str] = Field(default=None, description="Organization UUID")
     temperature: Optional[float] = Field(default=0.2, ge=0.0, le=1.0)
     max_tokens: Optional[int] = Field(default=512, ge=64, le=2048)
     user_role: Optional[str] = Field(default="guest", description="User role: 'guest', 'customer', or 'admin'")
@@ -200,6 +224,26 @@ class ChatResponse(BaseModel):
     status: str
     sources: List[SourceMetadata] = []
     processing_time_ms: int
+    session_id: Optional[str] = None
+
+class DocumentUploadRequest(BaseModel):
+    filename: str = Field(..., description="Document file name e.g. technical_spec.json")
+    content: str = Field(..., description="Document text content or JSON string")
+    file_type: Optional[str] = Field(default=None, description="File type e.g. 'txt', 'json', 'csv', 'md'")
+    uploaded_by: Optional[str] = Field(default="system", description="User ID or email of uploader")
+    organization_id: Optional[str] = Field(default=None, description="Organization UUID")
+    metadata: Optional[Dict[str, Any]] = Field(default={}, description="Optional metadata attributes")
+
+class DocumentUploadResponse(BaseModel):
+    ok: bool
+    document_id: str
+    filename: str
+    file_type: str
+    file_size_bytes: int
+    file_hash: str
+    status: str
+    chunks_indexed: int
+    message: str
 
 class ReindexResponse(BaseModel):
     status: str
@@ -255,33 +299,72 @@ async def chat_endpoint(payload: ChatRequest):
     start_time = time.time()
     user_query = payload.message.strip()
 
+    # Session & User tracking
+    session_id = payload.session_id or f"sess_{int(time.time())}_{hashlib.md5(user_query.encode()).hexdigest()[:8]}"
+    user_id = payload.user_id
+
+    def build_chat_response(
+        text: str,
+        grounded: bool,
+        status_code: str,
+        sources_list: List[SourceMetadata] = None,
+    ) -> ChatResponse:
+        elapsed = int((time.time() - start_time) * 1000)
+        final_sources = sources_list or []
+        try:
+            save_res = save_chat_history(
+                session_id=session_id,
+                question=user_query,
+                answer=text,
+                user_id=user_id,
+                organization_id=payload.organization_id,
+                grounded=grounded,
+                status=status_code,
+                sources=[s.dict() for s in final_sources] if final_sources else [],
+                processing_time_ms=elapsed,
+                metadata={
+                    "user_role": payload.user_role or "guest",
+                    "current_path": payload.current_path or "/"
+                }
+            )
+            if user_id and not save_res.get("saved"):
+                rag_logger.error(f"Supabase persistence error for authenticated user {user_id}: {save_res.get('error')}")
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to persist chat history for authenticated user: {save_res.get('error')}"
+                )
+        except HTTPException:
+            raise
+        except Exception as _e:
+            rag_logger.warning(f"Could not persist chat history to Supabase: {_e}")
+            if user_id:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail=f"Failed to persist chat history for authenticated user: {_e}"
+                )
+
+        return ChatResponse(
+            response=text,
+            grounded=grounded,
+            status=status_code,
+            sources=final_sources,
+            processing_time_ms=elapsed,
+            session_id=session_id
+        )
+
     # Step 1: Prompt Injection Check
     if check_prompt_injection(user_query):
-        elapsed = int((time.time() - start_time) * 1000)
-        return ChatResponse(
-            response=OUT_OF_SCOPE_REFUSAL,
-            grounded=False,
-            status="refusal_security_injection",
-            sources=[],
-            processing_time_ms=elapsed
-        )
+        return build_chat_response(OUT_OF_SCOPE_REFUSAL, False, "refusal_security_injection")
 
     # Step 2: Polite Greeting Check
     if is_greeting(user_query):
-        elapsed = int((time.time() - start_time) * 1000)
         greeting_text = (
             "Hello! I am the Inferxe AI Assistant. I can assist you with NVIDIA GPU specifications, "
             "cloud infrastructure pricing (on-demand and spot rates), LLM model sizing and VRAM calculation, "
             "vLLM inference optimization, and verified Inferxe platform architecture and marketplace features. "
             "How can I help you today?"
         )
-        return ChatResponse(
-            response=greeting_text,
-            grounded=True,
-            status="greeting_acknowledged",
-            sources=[],
-            processing_time_ms=elapsed
-        )
+        return build_chat_response(greeting_text, True, "greeting_acknowledged")
 
     # Step 3: Context-Aware Privacy & RBAC Policy
     q_norm = user_query.lower().strip()
@@ -315,90 +398,58 @@ async def chat_endpoint(payload: ChatRequest):
     if is_wallet_query:
         elapsed = int((time.time() - start_time) * 1000)
         if not is_inside_dashboard or user_role == "guest":
-            return ChatResponse(
-                response="Login or Sign Up: First, you need to log in or sign up using your credentials at [Sign In](/login).",
-                grounded=True,
-                status="success",
-                sources=[],
-                processing_time_ms=elapsed
-            )
+            return build_chat_response("Login or Sign Up: First, you need to log in or sign up using your credentials at [Sign In](/login).", True, "success")
         else:
-            return ChatResponse(
-                response=(
+            return build_chat_response(
+                (
                     "Navigate to Wallet: Once logged in, navigate to the Dashboard and open the [Wallet](/dashboard/wallet) section (Dashboard -> Wallet).\n\n"
-                    "Choose Top-Up Amount: In the Wallet section, choose your top-up amount in Indian Rupees (INR) or USD (e.g., â‚¹2,000, â‚¹5,000, â‚¹10,000, or custom amount).\n\n"
+                    "Choose Top-Up Amount: In the Wallet section, choose your top-up amount in Indian Rupees (INR) or USD (e.g., ₹2,000, ₹5,000, ₹10,000, or custom amount).\n\n"
                     "Pay Using UPI, Credit/Debit Cards, or NetBanking: Choose a payment method: UPI (Google Pay, PhonePe, Paytm), Indian Debit/Credit Cards (Visa, MasterCard, RuPay), NetBanking, or Enterprise Invoicing.\n\n"
                     "Complete Payment: Your prepaid balance is credited to your account instantly.\n\n"
-                    "Current Balance Status: Your wallet balance is â‚¹10,000. Running GPUs cost â‚¹160/hr, so you have about 62.5 hours of runtime left."
+                    "Current Balance Status: Your wallet balance is ₹10,000. Running GPUs cost ₹160/hr, so you have about 62.5 hours of runtime left."
                 ),
-                grounded=True,
-                status="success",
-                sources=[],
-                processing_time_ms=elapsed
+                True,
+                "success"
             )
 
     if is_provider_query or is_admin_query:
-        elapsed = int((time.time() - start_time) * 1000)
         if not is_inside_dashboard or user_role == "guest":
-            return ChatResponse(
-                response="Login or Sign Up: First, you need to log in or sign up with an Administrator account using your credentials at [Sign In](/login).",
-                grounded=True,
-                status="success",
-                sources=[],
-                processing_time_ms=elapsed
-            )
+            return build_chat_response("Login or Sign Up: First, you need to log in or sign up with an Administrator account using your credentials at [Sign In](/login).", True, "success")
         elif is_customer or not is_admin:
             # Customer after login: Strict guardrail against leakage of admin / provider data
-            return ChatResponse(
-                response="Admin features, provider analysis, and administrative details are restricted to Administrator accounts. Customers do not have permission to access administration features or provider analysis data.",
-                grounded=True,
-                status="refusal_role_restricted",
-                sources=[],
-                processing_time_ms=elapsed
-            )
+            return build_chat_response("Admin features, provider analysis, and administrative details are restricted to Administrator accounts. Customers do not have permission to access administration features or provider analysis data.", True, "refusal_role_restricted")
         else:
             # Administrator in Admin Dashboard
             if is_provider_query:
-                return ChatResponse(
-                    response=(
+                return build_chat_response(
+                    (
                         "Navigate to Provider Management: Open the [Provider Management](/dashboard/provider) section (Dashboard -> Provider Management).\n\n"
                         "Provider Analysis & Node Telemetry:\n"
-                        "â€¢ Active Providers: JarvisLabs, E2E Networks, Yotta Shakti Cloud, and sovereign Tier-IV nodes.\n"
-                        "â€¢ Provider Health & Telemetry: Real-time telemetry monitoring for GPU node uptime, thermals, power draw, and VRAM utilization across Indian data centers.\n"
-                        "â€¢ Provider Routing & Allocation: Automated dynamic routing allocating workloads between spot instances (up to 65% discount) and dedicated reserved nodes.\n"
-                        "â€¢ Margin & Revenue Tracking: Admin controls for per-GPU provider settlement rates, markup margins, and marketplace payouts."
+                        "• Active Providers: JarvisLabs, E2E Networks, Yotta Shakti Cloud, and sovereign Tier-IV nodes.\n"
+                        "• Provider Health & Telemetry: Real-time telemetry monitoring for GPU node uptime, thermals, power draw, and VRAM utilization across Indian data centers.\n"
+                        "• Provider Routing & Allocation: Automated dynamic routing allocating workloads between spot instances (up to 65% discount) and dedicated reserved nodes.\n"
+                        "• Margin & Revenue Tracking: Admin controls for per-GPU provider settlement rates, markup margins, and marketplace payouts."
                     ),
-                    grounded=True,
-                    status="success",
-                    sources=[],
-                    processing_time_ms=elapsed
+                    True,
+                    "success"
                 )
             else:
-                return ChatResponse(
-                    response=(
+                return build_chat_response(
+                    (
                         "Inferxe Administration Features:\n\n"
-                        "â€¢ Provider Management & Analysis: Monitor provider telemetry, GPU availability, and node health across cluster nodes at [Provider Management](/dashboard/provider).\n"
-                        "â€¢ User & Role Management (RBAC): Configure developer roles, invite team members, and set per-user monthly spend limits at [User Management](/dashboard/users).\n"
-                        "â€¢ Marketplace & Rate Control: Configure retail pricing, spot discount thresholds, and billing settlement margins.\n"
-                        "â€¢ Sovereign Audit Logs: Inspect MeitY / DPDP compliance logs, cluster access records, and telemetry audits."
+                        "• Provider Management & Analysis: Monitor provider telemetry, GPU availability, and node health across cluster nodes at [Provider Management](/dashboard/provider).\n"
+                        "• User & Role Management (RBAC): Configure developer roles, invite team members, and set per-user monthly spend limits at [User Management](/dashboard/users).\n"
+                        "• Marketplace & Rate Control: Configure retail pricing, spot discount thresholds, and billing settlement margins.\n"
+                        "• Sovereign Audit Logs: Inspect MeitY / DPDP compliance logs, cluster access records, and telemetry audits."
                     ),
-                    grounded=True,
-                    status="success",
-                    sources=[],
-                    processing_time_ms=elapsed
+                    True,
+                    "success"
                 )
 
     # Step 3b: Generic Domain Whitelist Check
     in_domain = is_in_domain(user_query)
     if not in_domain:
-        elapsed = int((time.time() - start_time) * 1000)
-        return ChatResponse(
-            response=OUT_OF_SCOPE_REFUSAL,
-            grounded=False,
-            status="refusal_out_of_scope",
-            sources=[],
-            processing_time_ms=elapsed
-        )
+        return build_chat_response(OUT_OF_SCOPE_REFUSAL, False, "refusal_out_of_scope")
 
     # Step 4: Semantic Retrieval & Hybrid Ranking via ChromaDB
     query_emb = get_query_embedding(user_query)
@@ -481,27 +532,13 @@ async def chat_endpoint(payload: ChatRequest):
 
     # Evidence sufficiency check 1: Distance threshold
     if not relevant_chunks or (distances and min(distances) > max_dist_cutoff):
-        elapsed = int((time.time() - start_time) * 1000)
-        return ChatResponse(
-            response=UNGROUNDED_EVIDENCE_REFUSAL,
-            grounded=False,
-            status="refusal_insufficient_evidence",
-            sources=sources,
-            processing_time_ms=elapsed
-        )
+        return build_chat_response(UNGROUNDED_EVIDENCE_REFUSAL, False, "refusal_insufficient_evidence", sources)
 
     # Evidence sufficiency check 2: Specific Hardware/Entity Mention
     combined_docs_text = " ".join(relevant_chunks).lower()
     for token in gpu_tokens_in_query:
         if token not in combined_docs_text:
-            elapsed = int((time.time() - start_time) * 1000)
-            return ChatResponse(
-                response=UNGROUNDED_EVIDENCE_REFUSAL,
-                grounded=False,
-                status="refusal_insufficient_evidence",
-                sources=sources,
-                processing_time_ms=elapsed
-            )
+            return build_chat_response(UNGROUNDED_EVIDENCE_REFUSAL, False, "refusal_insufficient_evidence", sources)
 
     # Step 6: Construct Grounded Context & System Prompt
     context_str = "\n\n---\n\n".join(relevant_chunks)
@@ -589,15 +626,7 @@ async def chat_endpoint(payload: ChatRequest):
             answer = data_fb.get("response", "").strip()
 
     # Step 8: Clean up formatting & return
-    elapsed = int((time.time() - start_time) * 1000)
-
-    return ChatResponse(
-        response=answer,
-        grounded=True,
-        status="success",
-        sources=[],
-        processing_time_ms=elapsed
-    )
+    return build_chat_response(answer, True, "success", [])
 
 @app.post("/api/knowledge/reindex", response_model=ReindexResponse)
 async def reindex_knowledge(
@@ -638,6 +667,112 @@ async def reindex_knowledge(
         indexed_chunks=manifest.get("indexed_chunks", 0),
         manifest=manifest
     )
+
+
+
+# ==============================================================================
+# Supabase RAG & Document Management API Endpoints
+# ==============================================================================
+
+@app.get("/api/chat/history")
+async def get_chat_history_endpoint(
+    session_id: Optional[str] = None,
+    user_id: Optional[str] = None,
+    organization_id: Optional[str] = None,
+    limit: int = 50
+):
+    """Retrieve chat history from Supabase by session ID and/or authenticated user ID."""
+    history = get_chat_history(session_id=session_id, user_id=user_id, organization_id=organization_id, limit=limit)
+    return {"ok": True, "count": len(history), "history": history}
+
+@app.get("/api/chat/sessions")
+async def get_chat_sessions_endpoint(
+    user_id: Optional[str] = None,
+    organization_id: Optional[str] = None,
+    limit: int = 20
+):
+    """Retrieve distinct chat sessions for the authenticated user."""
+    sessions = get_chat_sessions(user_id=user_id, organization_id=organization_id, limit=limit)
+    return {"ok": True, "count": len(sessions), "sessions": sessions}
+
+@app.get("/api/documents/metadata")
+async def list_documents_endpoint(
+    limit: int = 50,
+    uploaded_by: Optional[str] = None,
+    organization_id: Optional[str] = None
+):
+    """Retrieve document metadata records stored in Supabase."""
+    docs = list_document_metadata(limit=limit, uploaded_by=uploaded_by, organization_id=organization_id)
+    return {"ok": True, "count": len(docs), "documents": docs}
+
+@app.post("/api/documents/upload", response_model=DocumentUploadResponse)
+async def upload_document_endpoint(payload: DocumentUploadRequest):
+    """
+    Store uploaded document metadata in Supabase `document_metadata` and index into vector store.
+    Uses document_id as unique conflict target to prevent duplicate records.
+    """
+    raw_content = payload.content.strip()
+    if not raw_content:
+        raise HTTPException(status_code=400, detail="Document content cannot be empty.")
+
+    clean_name = re.sub(r'[^a-zA-Z0-9._-]', '_', payload.filename)
+    file_bytes = raw_content.encode("utf-8")
+    file_size = len(file_bytes)
+    file_hash = hashlib.sha256(file_bytes).hexdigest()
+    ext = payload.file_type or (os.path.splitext(clean_name)[1].lstrip(".") or "txt")
+    doc_id = f"doc_{hashlib.md5(clean_name.lower().encode('utf-8')).hexdigest()[:12]}"
+
+    # Index into ChromaDB if embedding available
+    chunks_indexed = 0
+    try:
+        query_emb = get_query_embedding(raw_content[:1500])
+        if query_emb:
+            col = get_chroma_collection()
+            col.upsert(
+                ids=[f"{doc_id}_chunk_0"],
+                embeddings=[query_emb],
+                documents=[raw_content[:2000]],
+                metadatas=[{
+                    "source_file": clean_name,
+                    "category": payload.metadata.get("category", "uploaded_doc") if payload.metadata else "uploaded_doc",
+                    "doc_type": "user_document",
+                    "pricing_type": "none"
+                }]
+            )
+            chunks_indexed = 1
+    except Exception as emb_err:
+        rag_logger.warning(f"ChromaDB indexing warning for uploaded document: {emb_err}")
+
+    # Upsert document metadata in Supabase
+    res = upsert_document_metadata(
+        document_id=doc_id,
+        filename=clean_name,
+        file_type=ext,
+        uploaded_by=payload.uploaded_by or "system",
+        organization_id=payload.organization_id,
+        file_size_bytes=file_size,
+        file_hash=file_hash,
+        status="processed",
+        chunk_count=chunks_indexed,
+        metadata=payload.metadata or {}
+    )
+
+    return DocumentUploadResponse(
+        ok=True,
+        document_id=doc_id,
+        filename=clean_name,
+        file_type=ext,
+        file_size_bytes=file_size,
+        file_hash=file_hash,
+        status="processed",
+        chunks_indexed=chunks_indexed,
+        message="Document metadata registered in Supabase without duplicates." if res.get("ok") else "Metadata stored locally; Supabase pending migration."
+    )
+
+@app.get("/api/supabase/status")
+async def supabase_status_endpoint():
+    """Diagnostic health check for Supabase connection and tables."""
+    return test_supabase_connection()
 
 if __name__ == "__main__":
     import uvicorn
