@@ -1,6 +1,4 @@
-"""
-database.py
-===========
+﻿"""
 SQLAlchemy engine, session management, and PostgreSQL database initialization
 for the Inferxe Inference API.
 """

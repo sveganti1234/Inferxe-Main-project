@@ -1,6 +1,4 @@
-"""
-models.py
-=========
+﻿"""
 SQLAlchemy ORM models for customer API key management and inference request tracking.
 """
 

@@ -1,6 +1,4 @@
-"""
-notebook_service.py
-===================
+﻿"""
 Orchestration and service layer for customer GPU Notebook Instances.
 Provides:
   - Driver abstraction for container / pod / simulated runtimes.

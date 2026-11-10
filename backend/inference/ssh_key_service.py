@@ -1,6 +1,4 @@
-"""
-ssh_key_service.py
-==================
+﻿"""
 Enterprise SSH Public Key Management Service for Inferxe.
 Provides cryptographic validation for OpenSSH public keys (RSA >= 2048-bit,
 Ed25519, ECDSA), standard OpenSSH SHA-256 fingerprint calculation, strict

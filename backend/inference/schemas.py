@@ -1,6 +1,4 @@
-"""
-schemas.py
-==========
+﻿"""
 Pydantic data validation schemas for the Inferxe Inference API.
 """
 

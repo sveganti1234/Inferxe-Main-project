@@ -1,6 +1,4 @@
-"""
-extract_website_data.py
-=======================
+﻿"""
 Reads and extracts comprehensive factual knowledge from the Inferxe website source code
 (pages, navigation, features, pricing, architecture, dashboard, security, developers, company).
 Outputs structured, high-signal knowledge chunks ready for RAG ingestion.
@@ -88,12 +86,12 @@ WEBSITE_KNOWLEDGE = [
             "INFERXE PRICING PAGE DETAILS:\n"
             "- Billing Model: Per-minute granular billing with zero hidden egress fees and no lock-in commitments.\n"
             "- Documented Listing Rates (INR & USD):\n"
-            "  * NVIDIA L4 (24 GB GDDR6): ₹60/hour ($0.72/hr) — Best for 7B-8B models, audio/video AI, and embeddings.\n"
-            "  * NVIDIA L40S (48 GB GDDR6 ECC): ₹100/hour ($1.20/hr) — Best for 14B-32B models and LoRA fine-tuning.\n"
-            "  * NVIDIA A100 80GB (80 GB HBM2e): ₹141/hour ($1.49/hr) — Proven foundation model serving and distributed training.\n"
-            "  * NVIDIA H100 SXM5 (80 GB HBM3): ₹275/hour ($3.30/hr) — Frontier 70B+ inference with FP8 Transformer Engine.\n"
-            "  * NVIDIA H200 SXM (141 GB HBM3e): ₹435/hour ($4.59/hr) — Extreme 128k long-context reasoning without out-of-memory errors.\n"
-            "  * NVIDIA Blackwell B200 (192 GB HBM3e): ₹650/hour ($7.80/hr) — Massive Mixture-of-Experts (DeepSeek-V3, Llama 405B).\n"
+            "  * NVIDIA L4 (24 GB GDDR6): â‚¹60/hour ($0.72/hr) â€” Best for 7B-8B models, audio/video AI, and embeddings.\n"
+            "  * NVIDIA L40S (48 GB GDDR6 ECC): â‚¹100/hour ($1.20/hr) â€” Best for 14B-32B models and LoRA fine-tuning.\n"
+            "  * NVIDIA A100 80GB (80 GB HBM2e): â‚¹141/hour ($1.49/hr) â€” Proven foundation model serving and distributed training.\n"
+            "  * NVIDIA H100 SXM5 (80 GB HBM3): â‚¹275/hour ($3.30/hr) â€” Frontier 70B+ inference with FP8 Transformer Engine.\n"
+            "  * NVIDIA H200 SXM (141 GB HBM3e): â‚¹435/hour ($4.59/hr) â€” Extreme 128k long-context reasoning without out-of-memory errors.\n"
+            "  * NVIDIA Blackwell B200 (192 GB HBM3e): â‚¹650/hour ($7.80/hr) â€” Massive Mixture-of-Experts (DeepSeek-V3, Llama 405B).\n"
             "- Spot Instance Discounts: Up to 50%-56% savings on interruptible batch workloads.\n"
             "- Prepaid Wallet System: Users top up their balance in INR. The platform displays real-time hourly burn rates and estimates remaining runtime."
         )
@@ -118,13 +116,13 @@ WEBSITE_KNOWLEDGE = [
         "page": "How It Works Page",
         "route": "/how-it-works",
         "category": "website_page",
-        "title": "How Inferxe Works — 4 Step Deployment Workflow",
+        "title": "How Inferxe Works â€” 4 Step Deployment Workflow",
         "content": (
             "HOW INFERXE WORKS (4-STEP WORKFLOW):\n"
-            "1. Step 1: Select Workload & Model — Choose your open-source model (Llama 3.1, Qwen 2.5, DeepSeek, Mistral) or custom PyTorch container.\n"
-            "2. Step 2: Automated GPU Sizing — Inferxe automatically calculates required VRAM (Weights + KV-Cache + 2.5GB overhead) and recommends the most cost-effective GPU.\n"
-            "3. Step 3: One-Click Instant Provisioning — The platform provisions the GPU through JarvisLabs.ai infrastructure and deploys Docker with vLLM in under 60 seconds.\n"
-            "4. Step 4: Connect & Scale — Receive a production-ready, OpenAI-compatible API endpoint with API key and monitoring telemetry."
+            "1. Step 1: Select Workload & Model â€” Choose your open-source model (Llama 3.1, Qwen 2.5, DeepSeek, Mistral) or custom PyTorch container.\n"
+            "2. Step 2: Automated GPU Sizing â€” Inferxe automatically calculates required VRAM (Weights + KV-Cache + 2.5GB overhead) and recommends the most cost-effective GPU.\n"
+            "3. Step 3: One-Click Instant Provisioning â€” The platform provisions the GPU through JarvisLabs.ai infrastructure and deploys Docker with vLLM in under 60 seconds.\n"
+            "4. Step 4: Connect & Scale â€” Receive a production-ready, OpenAI-compatible API endpoint with API key and monitoring telemetry."
         )
     },
     {
@@ -168,7 +166,7 @@ WEBSITE_KNOWLEDGE = [
         "title": "Inferxe Dashboard, Workspace & Wallet Management",
         "content": (
             "INFERXE DASHBOARD & WORKSPACE FEATURES:\n"
-            "- Dashboard Overview: Shows total active GPU instances, current hourly burn rate (e.g. ₹160/hr), available wallet balance, and cluster uptime.\n"
+            "- Dashboard Overview: Shows total active GPU instances, current hourly burn rate (e.g. â‚¹160/hr), available wallet balance, and cluster uptime.\n"
             "- Marketplace Workspace (/dashboard/marketplace): Search and provision GPUs, select OS templates (Ubuntu, PyTorch, vLLM, Ollama), configure SSH public keys, and attach NVMe volume storage.\n"
             "- Instance Lifecycle Control: One-click Start, Stop, Restart, and Terminate instance controls to manage infrastructure spending.\n"
             "- Integrated Web Terminal & JupyterLab: Access running GPU instances directly from your browser without third-party SSH clients.\n"
@@ -193,7 +191,7 @@ WEBSITE_KNOWLEDGE = [
         "page": "Company & About Page",
         "route": "/company",
         "category": "website_page",
-        "title": "About Inferxe — Mission, Leadership & Location",
+        "title": "About Inferxe â€” Mission, Leadership & Location",
         "content": (
             "ABOUT INFERXE (COMPANY PAGE):\n"
             "- Mission: Democratize high-performance AI compute for India and global emerging markets by providing friction-free, sovereign GPU access.\n"

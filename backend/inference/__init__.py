@@ -1,6 +1,5 @@
-"""
+﻿"""
 Inferxe Inference Package
-=========================
 Core inference service providing authenticated access to NVIDIA Nemotron
 and other LLM providers with PostgreSQL token usage tracking.
 """
