@@ -240,7 +240,6 @@ export async function loginAdminBackend(
   password: string,
 ): Promise<AdminLoginResult> {
   const cleanEmail = email.trim().toLowerCase()
-  const isKnownAdmin = isAdministratorEmail(cleanEmail)
 
   try {
     const res = await fetch(`${ADMIN_API_BASE}/login`, {
@@ -276,33 +275,6 @@ export async function loginAdminBackend(
     }
   } catch (err) {
     console.error('Admin backend login request failed:', err)
-  }
-
-  // Resilient fallback for local development only (strictly disabled in production builds)
-  if (isKnownAdmin && import.meta.env.DEV) {
-    const allowedAdminPasswords = ['admin123', 'admin@123', 'Admin@123', 'admin', 'Admin123', 'Inferxe@2026']
-    if (allowedAdminPasswords.includes(password)) {
-      const session: AuthSession = {
-        token: 'ix-tok-' + Math.random().toString(36).substring(2, 12),
-        user: {
-          id: 'usr_admin',
-          fullName: 'Inferxe Administrator',
-          email: cleanEmail,
-          username: cleanEmail.split('@')[0],
-          role: 'admin',
-          organization: 'Inferxe Platform Org',
-        },
-        expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
-      }
-      saveSession(session)
-      return { ok: true, isAdmin: true, session }
-    } else {
-      return {
-        ok: false,
-        isAdmin: true,
-        error: 'Incorrect email or password. Please verify your credentials and try again.',
-      }
-    }
   }
 
   return { ok: false, isAdmin: false }

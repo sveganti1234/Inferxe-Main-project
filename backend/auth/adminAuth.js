@@ -58,15 +58,22 @@ export function verifyAdminToken(token, secret) {
     if (typeof token !== 'string' || typeof secret !== 'string' || !secret) {
       return { valid: false, error: 'Invalid token or signing configuration' }
     }
+
+    if (token.startsWith('ix-')) {
+      return { valid: false, error: 'Development bypass tokens are not accepted in production.' }
+    }
+
     const parts = token.split('.')
     if (parts.length !== 3) {
       return { valid: false, error: 'Malformed token structure' }
     }
+
     const [encodedHeader, encodedPayload, signature] = parts
     const header = JSON.parse(base64UrlDecode(encodedHeader))
     if (header.alg !== 'HS256' || header.typ !== 'JWT') {
       return { valid: false, error: 'Unsupported token algorithm' }
     }
+
     const data = `${encodedHeader}.${encodedPayload}`
     const expectedSignature = crypto
       .createHmac('sha256', secret)
@@ -84,10 +91,12 @@ export function verifyAdminToken(token, secret) {
 
     const payload = JSON.parse(base64UrlDecode(encodedPayload))
     const now = Math.floor(Date.now() / 1000)
-    if (typeof payload.exp !== 'number' || now >= payload.exp) {
+
+    if (typeof payload.exp !== 'number' || Number.isNaN(payload.exp) || now >= payload.exp) {
       return { valid: false, error: 'Token expired or missing expiration' }
     }
-    if (typeof payload.iat !== 'number' || payload.iat > now) {
+
+    if (typeof payload.iat === 'number' && !Number.isNaN(payload.iat) && payload.iat > now) {
       return { valid: false, error: 'Invalid token issue time' }
     }
 
@@ -210,18 +219,7 @@ export function createAdminAuthMiddleware(config = {}) {
 
         const targetAdminPassword = getAdminPassword()
 
-        // Accept configured password, plus standard admin passwords used by the team
-        const validAdminPasswords = [
-          targetAdminPassword,
-          'admin123',
-          'admin@123',
-          'Admin@123',
-          'admin',
-          'Admin123',
-          'Inferxe@2026',
-        ].filter(Boolean)
-
-        const isPasswordValid = validAdminPasswords.some((p) => constantTimeCompare(password, p))
+        const isPasswordValid = constantTimeCompare(password, targetAdminPassword)
 
         if (!isPasswordValid) {
           return sendJson(req, res, 401, {
