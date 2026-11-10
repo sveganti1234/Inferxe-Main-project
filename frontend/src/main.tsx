@@ -49,44 +49,45 @@ const redirectSignOut = import.meta.env.VITE_COGNITO_REDIRECT_SIGN_OUT
   .filter(Boolean)
 
 if (!userPoolId || !userPoolClientId || !awsRegion) {
-  throw new Error(
-    'AWS Cognito configuration is incomplete. Set VITE_COGNITO_USER_POOL_ID, VITE_COGNITO_CLIENT_ID, and VITE_COGNITO_REGION.',
+  console.error(
+    '[amplify-init] Cognito is unavailable. Set VITE_COGNITO_USER_POOL_ID, VITE_COGNITO_CLIENT_ID, and VITE_COGNITO_REGION to enable authentication.',
   )
-}
-if (userPoolId.split('_')[0] !== awsRegion) {
-  throw new Error('VITE_COGNITO_REGION does not match the region encoded in VITE_COGNITO_USER_POOL_ID.')
-}
-
-const cognitoConfig = {
-  Auth: {
-    Cognito: {
-      userPoolId,
-      userPoolClientId,
-      loginWith: {
-        email: true,
-        ...(cognitoDomain && redirectSignIn?.length && redirectSignOut?.length
-          ? {
-              oauth: {
-                domain: cognitoDomain,
-                scopes: ['openid', 'email', 'profile'],
-                redirectSignIn,
-                redirectSignOut,
-                responseType: 'code' as const,
-              },
-            }
-          : {}),
+} else if (userPoolId.split('_')[0] !== awsRegion) {
+  console.error(
+    '[amplify-init] Cognito is unavailable because VITE_COGNITO_REGION does not match the region encoded in VITE_COGNITO_USER_POOL_ID.',
+  )
+} else {
+  const cognitoConfig = {
+    Auth: {
+      Cognito: {
+        userPoolId,
+        userPoolClientId,
+        loginWith: {
+          email: true,
+          ...(cognitoDomain && redirectSignIn?.length && redirectSignOut?.length
+            ? {
+                oauth: {
+                  domain: cognitoDomain,
+                  scopes: ['openid', 'email', 'profile'],
+                  redirectSignIn,
+                  redirectSignOut,
+                  responseType: 'code' as const,
+                },
+              }
+            : {}),
+        },
       },
     },
-  },
-} as const
+  } as const
 
-Amplify.configure(cognitoConfig)
-initializeCognitoContext(cognitoConfig)
-console.info('[amplify-init] Cognito configured.', {
-  hasUserPoolId: Boolean(userPoolId),
-  hasUserPoolClientId: Boolean(userPoolClientId),
-  regionMatchesUserPool: userPoolId.startsWith(`${awsRegion}_`),
-})
+  Amplify.configure(cognitoConfig)
+  initializeCognitoContext(cognitoConfig)
+  console.info('[amplify-init] Cognito configured.', {
+    hasUserPoolId: Boolean(userPoolId),
+    hasUserPoolClientId: Boolean(userPoolClientId),
+    regionMatchesUserPool: userPoolId.startsWith(`${awsRegion}_`),
+  })
+}
 
 const { default: App } = await import('./App')
 

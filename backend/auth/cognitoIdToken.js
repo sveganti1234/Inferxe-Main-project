@@ -27,9 +27,18 @@ async function getJwks(jwksUrl, fetchImpl) {
 export async function verifyCognitoIdToken(
   authorizationHeader,
   {
-    userPoolId = process.env.AWS_COGNITO_USER_POOL_ID,
-    clientId = process.env.AWS_COGNITO_CLIENT_ID,
-    region = process.env.AWS_REGION,
+    userPoolId =
+      process.env.AWS_COGNITO_USER_POOL_ID ||
+      process.env.COGNITO_USER_POOL_ID ||
+      process.env.VITE_COGNITO_USER_POOL_ID,
+    clientId =
+      process.env.AWS_COGNITO_CLIENT_ID ||
+      process.env.COGNITO_CLIENT_ID ||
+      process.env.VITE_COGNITO_CLIENT_ID,
+    region =
+      process.env.AWS_REGION ||
+      process.env.COGNITO_REGION ||
+      process.env.VITE_COGNITO_REGION,
     fetchImpl = globalThis.fetch,
     nowSeconds = Math.floor(Date.now() / 1000),
   } = {},

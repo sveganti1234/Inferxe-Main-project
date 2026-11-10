@@ -69,6 +69,57 @@ test('verifies a Cognito ID token signature, issuer, client and expiration', asy
   assert.equal(invalidSignature, null)
 })
 
+test('loads Cognito verification settings from the frontend Vite environment names', async () => {
+  const vitePoolId = 'ap-south-1_viteconfigpool'
+  const viteIssuer = `https://cognito-idp.ap-south-1.amazonaws.com/${vitePoolId}`
+  const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 })
+  const jwk = publicKey.export({ format: 'jwk' })
+  const nowSeconds = Math.floor(Date.now() / 1000)
+  const claims = {
+    iss: viteIssuer,
+    aud: clientId,
+    token_use: 'id',
+    sub: 'cognito-sub-vite-config',
+    exp: nowSeconds + 300,
+    iat: nowSeconds,
+  }
+  const token = createSignedToken(privateKey, claims)
+  const fetchImpl = async () => new Response(JSON.stringify({
+    keys: [{ ...jwk, kid: 'test-key', kty: 'RSA' }],
+  }), { status: 200 })
+  const envNames = [
+    'AWS_COGNITO_USER_POOL_ID',
+    'COGNITO_USER_POOL_ID',
+    'VITE_COGNITO_USER_POOL_ID',
+    'AWS_COGNITO_CLIENT_ID',
+    'COGNITO_CLIENT_ID',
+    'VITE_COGNITO_CLIENT_ID',
+    'AWS_REGION',
+    'COGNITO_REGION',
+    'VITE_COGNITO_REGION',
+  ]
+  const previousValues = new Map(envNames.map((name) => [name, process.env[name]]))
+
+  try {
+    for (const name of envNames) delete process.env[name]
+    process.env.VITE_COGNITO_USER_POOL_ID = vitePoolId
+    process.env.VITE_COGNITO_CLIENT_ID = clientId
+    process.env.VITE_COGNITO_REGION = 'ap-south-1'
+
+    const verified = await verifyCognitoIdToken(`Bearer ${token}`, {
+      fetchImpl,
+      nowSeconds,
+    })
+
+    assert.equal(verified.sub, claims.sub)
+  } finally {
+    for (const [name, value] of previousValues) {
+      if (value === undefined) delete process.env[name]
+      else process.env[name] = value
+    }
+  }
+})
+
 test('upserts only profile fields from the verified Cognito subject', async () => {
   let request
   await upsertCognitoProfile({
