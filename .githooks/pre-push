@@ -1,0 +1,77 @@
+#!/bin/sh
+
+set -eu
+
+remote_name=${1:-}
+remote_url=${2:-}
+
+if [ "$remote_name" != origin ]; then
+    echo "Push blocked: only the origin remote is allowed." >&2
+    exit 1
+fi
+
+case "$remote_url" in
+    https://github.com/sveganti1234/Inferxe-Main-project|https://github.com/sveganti1234/Inferxe-Main-project.git|git@github.com:sveganti1234/Inferxe-Main-project|git@github.com:sveganti1234/Inferxe-Main-project.git|ssh://git@github.com/sveganti1234/Inferxe-Main-project|ssh://git@github.com/sveganti1234/Inferxe-Main-project.git)
+        ;;
+    *)
+        echo "Push blocked: only the sveganti1234/Inferxe-Main-project remote is allowed." >&2
+        exit 1
+        ;;
+esac
+
+has_updates=0
+while IFS=' ' read -r local_ref local_sha remote_ref remote_sha; do
+    [ -n "$remote_ref" ] || continue
+    has_updates=1
+    if [ "$remote_ref" != refs/heads/development ]; then
+        echo "Push blocked: only refs/heads/development may be updated." >&2
+        exit 1
+    fi
+    case "$remote_sha" in
+        *[!0]*)
+            ;;
+        *)
+            echo "Push blocked: deleting the development branch is not allowed." >&2
+            exit 1
+            ;;
+    esac
+done
+
+[ "$has_updates" -eq 1 ] || exit 0
+
+if command -v powershell.exe >/dev/null 2>&1; then
+    if ! command -v cygpath >/dev/null 2>&1; then
+        echo "Push blocked: cannot locate the Windows approval dialog." >&2
+        exit 1
+    fi
+
+    script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+    prompt_script=$(cygpath -w "$script_dir/confirm-push.ps1") || {
+        echo "Push blocked: cannot locate the Windows approval dialog." >&2
+        exit 1
+    }
+
+    if powershell.exe -NoProfile -STA -ExecutionPolicy Bypass -File "$prompt_script"; then
+        exit 0
+    fi
+
+    echo "Push cancelled or approval dialog unavailable." >&2
+    exit 1
+fi
+
+if ! { : >/dev/tty; } 2>/dev/null; then
+    echo "Push blocked: interactive approval is unavailable." >&2
+    exit 1
+fi
+
+printf "Approve push to origin/development? [y/N] " >/dev/tty
+IFS= read -r approval </dev/tty || approval=
+
+case "$approval" in
+    y|Y|yes|YES)
+        ;;
+    *)
+        echo "Push cancelled." >&2
+        exit 1
+        ;;
+esac

@@ -1,12 +1,14 @@
 import { useEffect, useState, useRef, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
+import { signOut } from 'aws-amplify/auth'
 import {
   Activity as ActivityIcon,
   BarChart3,
   Bell,
   Gift,
   Moon,
+  NotebookPen,
   Star,
   Sun,
   Bookmark,
@@ -37,6 +39,7 @@ import {
 import { LogoMark } from '../Logo'
 import { Ambient } from '../layout/Ambient'
 import { getSession, clearSession, getPortalRole, type AuthSession, type PortalRole } from '../../lib/authStore'
+import { getCognitoContext } from '../../lib/cognitoContext'
 interface BreadcrumbItem {
   label: string
   to?: string
@@ -447,6 +450,7 @@ export function DashboardLayout({
     { label: 'Inference Playground', to: '/dashboard/playground', icon: Terminal, badge: 'Sandbox', matchExact: true },
     { label: 'API Keys', to: '/dashboard/api-keys', icon: KeyRound, matchExact: true },
     { label: 'SSH Keys', to: '/dashboard/ssh-keys', icon: ShieldCheck, matchExact: true },
+    { label: 'Notebooks and SSH', to: '/dashboard/notebooks', icon: NotebookPen, matchExact: true },
     { label: 'Wishlist', to: '/dashboard/wishlist', icon: Bookmark, matchExact: true },
     { label: 'Deployments', to: '/dashboard/deployments', icon: Server, badge: '3 live', matchExact: true },
     { label: 'Spot Price History', to: '/dashboard/price-history', icon: TrendingUp, matchExact: true },
@@ -829,8 +833,15 @@ export function DashboardLayout({
                   <button
                     type="button"
                     className="dash-nav-item dash-nav-item--danger"
-                    onClick={() => {
+                    onClick={async () => {
                       setAdminMenuOpen(false)
+                      if (currentSession?.user.role === 'customer') {
+                        try {
+                          await signOut(getCognitoContext())
+                        } catch (error) {
+                          console.error('[customer-auth] Cognito sign-out failed.', error)
+                        }
+                      }
                       clearSession()
                       navigate('/')
                     }}

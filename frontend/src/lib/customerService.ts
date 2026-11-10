@@ -298,6 +298,51 @@ export async function recordCustomerActivity(data: {
 }
 
 /**
+ * Persist the authenticated Cognito user in Supabase using the server-side service role.
+ */
+export async function syncCognitoProfile(idToken: string): Promise<void> {
+  let response: Response
+  try {
+    response = await fetch('/api/customer/profile/sync', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+        Accept: 'application/json',
+      },
+    })
+  } catch (error) {
+    console.error('[profile-sync] Backend request failed.', {
+      name: error instanceof Error ? error.name : 'UnknownError',
+      message: error instanceof Error ? error.message : 'Network request failed.',
+    })
+    const syncError = new Error('Profile synchronization failed. Please try signing in again.')
+    syncError.name = 'ProfileSyncError'
+    throw syncError
+  }
+
+  let result: { ok?: boolean; error?: string } = {}
+  try {
+    result = await response.json()
+  } catch {
+    console.error('[profile-sync] Backend returned a non-JSON response.', {
+      status: response.status,
+      contentType: response.headers.get('content-type'),
+    })
+  }
+
+  if (!response.ok || result.ok !== true) {
+    const message = result.error || `Profile synchronization failed (HTTP ${response.status}).`
+    console.error('[profile-sync] Backend rejected profile synchronization.', {
+      status: response.status,
+      message,
+    })
+    const syncError = new Error(message)
+    syncError.name = 'ProfileSyncError'
+    throw syncError
+  }
+}
+
+/**
  * Send periodic heartbeat to keep customer status 'Online'.
  * Runs approximately every 30-60 seconds.
  */
