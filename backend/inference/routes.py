@@ -10,12 +10,24 @@ Endpoints:
 
 import os
 import uuid
-from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlalchemy.orm import Session
 
 from inference.database import get_db, check_database_connection
-from inference.models import APIKey
+from inference.supabase_api_keys import (
+    APIKeyForbiddenError,
+    APIKeyNotFoundError,
+    SupabaseAPIKeyError,
+    SupabaseAPIKeyRecord,
+    SupabaseAPIKeyRepository,
+    SupabaseAPIKeyServiceUnavailableError,
+    SupabaseAPIKeyValidationError,
+    get_api_key_repository,
+)
+from inference.supabase_telemetry import (
+    SupabaseTelemetryRepository,
+    get_telemetry_repository,
+)
 from inference.schemas import (
     InferenceRequest,
     InferenceResponse,
@@ -75,10 +87,10 @@ inference_service = InferenceService()
     summary="Execute Model Inference",
     description="Submits a prompt to NVIDIA Nemotron, returning generated text and exact token telemetry."
 )
-async def run_inference(
+def run_inference(
     request: InferenceRequest,
-    api_key: APIKey = Depends(verify_customer_api_key),
-    db: Session = Depends(get_db)
+    api_key: SupabaseAPIKeyRecord = Depends(verify_customer_api_key),
+    telemetry_repo: SupabaseTelemetryRepository = Depends(get_telemetry_repository),
 ):
     """
     Execute prompt inference using NVIDIA Nemotron.
@@ -87,7 +99,7 @@ async def run_inference(
     return inference_service.execute_inference(
         request=request,
         api_key=api_key,
-        db=db
+        telemetry_repo=telemetry_repo,
     )
 
 
@@ -122,37 +134,38 @@ async def health_check(db: Session = Depends(get_db)):
     summary="Create Customer API Key",
     description="Generates a new secure customer API key for an authenticated Cognito user. Rejects anonymous requests."
 )
-async def create_api_key(
+def create_api_key(
     req: APIKeyCreateRequest,
     user_id: str = Depends(require_cognito_user),
-    db: Session = Depends(get_db)
+    repo: SupabaseAPIKeyRepository = Depends(get_api_key_repository),
 ):
     """
-    Issue a new customer API key.
+    Issue a new customer API key in Supabase.
     Requires verified Cognito JWT authentication. Rejects anonymous calls.
     """
     raw_key, key_prefix, key_hash = generate_api_key(environment=req.environment or "live")
 
-    new_key = APIKey(
-        id=uuid.uuid4(),
-        user_id=user_id,
-        name=req.name or "Default Key",
-        key_prefix=key_prefix,
-        key_hash=key_hash,
-        environment=req.environment or "live",
-        is_active=True,
-        created_at=datetime.now(timezone.utc)
-    )
-
     try:
-        db.add(new_key)
-        db.commit()
-        db.refresh(new_key)
-    except Exception as e:
-        db.rollback()
+        new_key = repo.create_api_key(
+            user_id=user_id,
+            name=req.name or "Default Key",
+            key_prefix=key_prefix,
+            secret_hash=key_hash,
+        )
+    except SupabaseAPIKeyValidationError as ve:
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to persist API key in database: {e}"
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(ve),
+        )
+    except SupabaseAPIKeyServiceUnavailableError as sue:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(sue),
+        )
+    except SupabaseAPIKeyError:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Upstream API key database rejected the request.",
         )
 
     return APIKeyCreateResponse(
@@ -161,7 +174,7 @@ async def create_api_key(
         key_prefix=new_key.key_prefix,
         api_key=raw_key,  # Customer must copy this now!
         environment=new_key.environment,
-        created_at=new_key.created_at.isoformat()
+        created_at=new_key.created_at.isoformat() if new_key.created_at else "",
     )
 
 
@@ -171,20 +184,31 @@ async def create_api_key(
     summary="List Customer API Keys",
     description="Returns all API keys owned by the authenticated Cognito user without exposing secret hashes."
 )
-async def list_api_keys(
+def list_api_keys(
     user_id: str = Depends(require_cognito_user),
-    db: Session = Depends(get_db)
+    repo: SupabaseAPIKeyRepository = Depends(get_api_key_repository),
 ):
     """
-    List API keys for authenticated Cognito user.
+    List API keys for authenticated Cognito user from Supabase.
     Enforces user isolation: customers only receive their own keys.
     """
-    keys = (
-        db.query(APIKey)
-        .filter(APIKey.user_id == user_id)
-        .order_by(APIKey.created_at.desc())
-        .all()
-    )
+    try:
+        keys = repo.list_user_api_keys(user_id=user_id)
+    except SupabaseAPIKeyValidationError as ve:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(ve),
+        )
+    except SupabaseAPIKeyServiceUnavailableError as sue:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(sue),
+        )
+    except SupabaseAPIKeyError:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Upstream API key database rejected the request.",
+        )
 
     return APIKeyListResponse(
         success=True,
@@ -195,7 +219,7 @@ async def list_api_keys(
                 name=k.name,
                 key_prefix=k.key_prefix,
                 environment=k.environment,
-                is_active=bool(k.is_active and k.revoked_at is None),
+                is_active=k.is_active,
                 created_at=k.created_at.isoformat() if k.created_at else "",
                 last_used_at=k.last_used_at.isoformat() if k.last_used_at else None,
                 revoked_at=k.revoked_at.isoformat() if k.revoked_at else None,
@@ -209,15 +233,15 @@ async def list_api_keys(
     "/api-keys/{key_id}",
     response_model=APIKeyRevokeResponse,
     summary="Revoke Customer API Key",
-    description="Revokes an API key owned by the authenticated user. Sets is_active=False and revoked_at."
+    description="Revokes an API key owned by the authenticated user. Sets status='revoked' and revoked_at."
 )
-async def revoke_api_key(
+def revoke_api_key(
     key_id: str,
     user_id: str = Depends(require_cognito_user),
-    db: Session = Depends(get_db)
+    repo: SupabaseAPIKeyRepository = Depends(get_api_key_repository),
 ):
     """
-    Revoke a customer API key.
+    Revoke a customer API key in Supabase.
     Enforces tenant ownership: a customer cannot revoke another customer's key.
     """
     try:
@@ -228,37 +252,34 @@ async def revoke_api_key(
             detail="Invalid key ID format. Expected UUID."
         )
 
-    key = db.query(APIKey).filter(APIKey.id == key_uuid).first()
-    if not key:
+    try:
+        key, already_revoked = repo.revoke_api_key(key_id=str(key_uuid), user_id=user_id)
+    except APIKeyNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="API key not found."
         )
-
-    # Enforce ownership
-    if key.user_id != user_id:
+    except APIKeyForbiddenError:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied: You cannot revoke an API key belonging to another user."
         )
+    except SupabaseAPIKeyServiceUnavailableError as sue:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(sue),
+        )
+    except SupabaseAPIKeyError:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Upstream API key database rejected the request.",
+        )
 
-    if not key.is_active or key.revoked_at is not None:
+    if already_revoked:
         return APIKeyRevokeResponse(
             success=True,
             message="API key is already revoked.",
             id=str(key.id)
-        )
-
-    key.is_active = False
-    key.revoked_at = datetime.now(timezone.utc)
-
-    try:
-        db.commit()
-    except Exception as e:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to update key status in database: {e}"
         )
 
     return APIKeyRevokeResponse(

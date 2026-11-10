@@ -16,10 +16,13 @@ from typing import Optional, Tuple, Dict, Any
 import jwt
 from jwt import PyJWKClient, PyJWTError
 from fastapi import Header, HTTPException, Depends, status
-from sqlalchemy.orm import Session
 
-from inference.database import get_db
-from inference.models import APIKey
+from inference.supabase_api_keys import (
+    SupabaseAPIKeyError,
+    SupabaseAPIKeyRecord,
+    SupabaseAPIKeyRepository,
+    get_api_key_repository,
+)
 
 logger = logging.getLogger("inferxe.auth")
 
@@ -55,12 +58,12 @@ def generate_api_key(environment: str = "live") -> Tuple[str, str, str]:
 
 def verify_customer_api_key(
     authorization: Optional[str] = Header(None, alias="Authorization"),
-    db: Session = Depends(get_db)
-) -> APIKey:
+    repo: SupabaseAPIKeyRepository = Depends(get_api_key_repository),
+) -> SupabaseAPIKeyRecord:
     """
-    FastAPI dependency validating the customer's Inferxe API key.
+    FastAPI dependency validating the customer's Inferxe API key against Supabase.
     Reads 'Authorization: Bearer <INFERXE_API_KEY>'.
-    Rejects missing, malformed, inactive, or revoked keys with HTTP 401.
+    Rejects missing, malformed, inactive, expired, or revoked keys with HTTP 401.
     """
     if not authorization:
         raise HTTPException(
@@ -97,17 +100,23 @@ def verify_customer_api_key(
     computed_hash = hash_api_key(raw_key)
 
     try:
-        # Query API key from PostgreSQL
-        key_record = db.query(APIKey).filter(APIKey.key_hash == computed_hash).first()
+        # Query API key from Supabase REST API by SHA-256 secret_hash
+        key_record = repo.get_by_secret_hash(computed_hash)
+    except SupabaseAPIKeyError as sb_err:
+        logger.error("Supabase error during API key verification: %s", sb_err)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Authentication database is currently unavailable."
+        )
     except Exception as db_err:
-        logger.error(f"Database error during API key verification: {db_err}")
+        logger.error("Unexpected error during API key verification: %s", type(db_err).__name__)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Authentication database is currently unavailable."
         )
 
     if not key_record:
-        logger.warning(f"Failed authentication attempt with unknown key hash.")
+        logger.warning("Failed authentication attempt with unknown key hash.")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid Inferxe API key.",
@@ -115,7 +124,7 @@ def verify_customer_api_key(
         )
 
     # Validate active state and revocation
-    if not key_record.is_active or key_record.revoked_at is not None:
+    if key_record.is_revoked_or_inactive:
         logger.warning(f"Authentication rejected for revoked/inactive key: prefix={key_record.key_prefix}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -123,13 +132,20 @@ def verify_customer_api_key(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    # Update last_used_at timestamp
+    # Validate expiration timestamp when present
+    if key_record.is_expired:
+        logger.warning(f"Authentication rejected for expired key: prefix={key_record.key_prefix}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Inferxe API key has expired.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    # Update last_used_at timestamp in Supabase
     try:
-        key_record.last_used_at = datetime.now(timezone.utc)
-        db.commit()
+        repo.update_last_used(key_id=key_record.id, user_id=key_record.user_id)
     except Exception as update_err:
-        logger.warning(f"Could not update last_used_at for key {key_record.key_prefix}: {update_err}")
-        db.rollback()
+        logger.warning(f"Could not update last_used_at for key {key_record.key_prefix}: {type(update_err).__name__}")
 
     return key_record
 

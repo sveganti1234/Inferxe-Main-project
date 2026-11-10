@@ -29,20 +29,29 @@ export async function upsertCognitoProfile(
     throw new Error('Supabase profile synchronization is not configured.')
   }
 
+  const trimmedKey = String(serviceRoleKey).trim()
+  if (trimmedKey.startsWith('sbp_') || trimmedKey.startsWith('sb_publishable_')) {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY must be the server-side Supabase secret/service role key.')
+  }
+
   const baseUrl = new URL(supabaseUrl)
   if (!['http:', 'https:'].includes(baseUrl.protocol)) {
     throw new Error('Supabase URL must use HTTP or HTTPS.')
   }
 
+  const headers = {
+    apikey: trimmedKey,
+    'Content-Type': 'application/json',
+    Prefer: 'resolution=merge-duplicates,return=minimal',
+  }
+  if (!trimmedKey.startsWith('sb_secret_')) {
+    headers.Authorization = `Bearer ${trimmedKey}`
+  }
+
   const endpoint = new URL('/rest/v1/profiles?on_conflict=user_id', baseUrl)
   const response = await fetchImpl(endpoint, {
     method: 'POST',
-    headers: {
-      apikey: serviceRoleKey,
-      Authorization: `Bearer ${serviceRoleKey}`,
-      'Content-Type': 'application/json',
-      Prefer: 'resolution=merge-duplicates,return=minimal',
-    },
+    headers,
     body: JSON.stringify(profileFromCognitoClaims(claims)),
   })
 

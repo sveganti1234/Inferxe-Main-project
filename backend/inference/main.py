@@ -25,8 +25,11 @@ BACKEND_DIR = Path(__file__).resolve().parents[1]
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
+from inference.supabase_config import load_backend_env, get_supabase_settings, SupabaseConfigurationError
 from inference.database import init_db, check_database_connection, get_masked_url, DATABASE_URL
 from inference.routes import router
+
+load_backend_env()
 
 # Configure logging
 logging.basicConfig(
@@ -41,6 +44,15 @@ async def lifespan(app: FastAPI):
     """Application lifespan: verify database and log startup configuration."""
     logger.info("Initializing Inferxe Inference Service...")
     logger.info(f"Target Database: {get_masked_url(DATABASE_URL)}")
+    try:
+        supabase_info = get_supabase_settings(auto_load=False).masked_summary()
+        logger.info(
+            "Supabase REST backend configured (scheme=%s, key_format=%s).",
+            supabase_info["scheme"],
+            supabase_info["key_format"],
+        )
+    except SupabaseConfigurationError as sb_err:
+        logger.warning(f"Supabase REST configuration note: {sb_err}")
 
     # Check database connectivity and create tables if reachable
     if check_database_connection():

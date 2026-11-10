@@ -33,10 +33,15 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from inference.database import Base, get_db
-from inference.models import APIKey, InferenceRequest as InferenceRequestRecord
+from inference.models import InferenceRequest as InferenceRequestRecord
 from inference.auth import generate_api_key, hash_api_key
 from inference.main import app
 from inference.routes import inference_service
+from inference.supabase_api_keys import SupabaseAPIKeyRepository, get_api_key_repository
+from inference.supabase_config import SupabaseSettings
+from inference.supabase_telemetry import SupabaseTelemetryRepository, get_telemetry_repository
+from inference.tests.test_supabase_api_keys import MockSupabaseAPIKeysTransport
+from inference.tests.test_supabase_telemetry import MockSupabaseTelemetryTransport
 
 
 class TestInferenceAPI(unittest.TestCase):
@@ -59,10 +64,24 @@ class TestInferenceAPI(unittest.TestCase):
         cls.client = TestClient(app, raise_server_exceptions=False)
 
     def setUp(self):
-        # Create a fresh database session for each test
+        # Create a fresh database session and mocked Supabase API keys & telemetry transports per test
         self.db = self.TestingSessionLocal()
+        supabase_settings = SupabaseSettings(
+            url="https://mock-inference-test.supabase.co",
+            service_role_key="sb_secret_mock_inference_suite_key",
+        )
+        self.mock_supabase = MockSupabaseAPIKeysTransport()
+        self.supabase_repo = SupabaseAPIKeyRepository(
+            settings=supabase_settings,
+            transport=self.mock_supabase,
+        )
+        self.mock_telemetry = MockSupabaseTelemetryTransport()
+        self.telemetry_repo = SupabaseTelemetryRepository(
+            settings=supabase_settings,
+            transport=self.mock_telemetry,
+        )
 
-        # Override FastAPI dependency to use test database
+        # Override FastAPI dependencies to use test database + mocked Supabase REST transports
         def override_get_db():
             try:
                 yield self.db
@@ -70,54 +89,48 @@ class TestInferenceAPI(unittest.TestCase):
                 pass
 
         app.dependency_overrides[get_db] = override_get_db
+        app.dependency_overrides[get_api_key_repository] = lambda: self.supabase_repo
+        app.dependency_overrides[get_telemetry_repository] = lambda: self.telemetry_repo
 
-        # Generate test API keys
+        # Generate test API keys in mocked Supabase store
         self.valid_raw_key, self.valid_prefix, self.valid_hash = generate_api_key("live")
-        self.valid_key_record = APIKey(
-            id=uuid.uuid4(),
-            user_id="cognito_user_123",
-            name="Valid Test Key",
-            key_prefix=self.valid_prefix,
-            key_hash=self.valid_hash,
-            environment="live",
-            is_active=True,
-            created_at=datetime.now(timezone.utc)
-        )
-        self.db.add(self.valid_key_record)
+        self.valid_key_record = self.mock_supabase.seed_row({
+            "id": str(uuid.uuid4()),
+            "user_id": "cognito_user_123",
+            "name": "Valid Test Key",
+            "key_prefix": self.valid_prefix,
+            "secret_hash": self.valid_hash,
+            "status": "active",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
 
         # Generate revoked key
         self.revoked_raw_key, self.revoked_prefix, self.revoked_hash = generate_api_key("live")
-        self.revoked_key_record = APIKey(
-            id=uuid.uuid4(),
-            user_id="cognito_user_456",
-            name="Revoked Key",
-            key_prefix=self.revoked_prefix,
-            key_hash=self.revoked_hash,
-            environment="live",
-            is_active=True,
-            revoked_at=datetime.now(timezone.utc),
-            created_at=datetime.now(timezone.utc)
-        )
-        self.db.add(self.revoked_key_record)
+        self.revoked_key_record = self.mock_supabase.seed_row({
+            "id": str(uuid.uuid4()),
+            "user_id": "cognito_user_456",
+            "name": "Revoked Key",
+            "key_prefix": self.revoked_prefix,
+            "secret_hash": self.revoked_hash,
+            "status": "revoked",
+            "revoked_at": datetime.now(timezone.utc).isoformat(),
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
 
         # Generate inactive key
         self.inactive_raw_key, self.inactive_prefix, self.inactive_hash = generate_api_key("live")
-        self.inactive_key_record = APIKey(
-            id=uuid.uuid4(),
-            user_id="cognito_user_789",
-            name="Inactive Key",
-            key_prefix=self.inactive_prefix,
-            key_hash=self.inactive_hash,
-            environment="live",
-            is_active=False,
-            created_at=datetime.now(timezone.utc)
-        )
-        self.db.add(self.inactive_key_record)
-        self.db.commit()
+        self.inactive_key_record = self.mock_supabase.seed_row({
+            "id": str(uuid.uuid4()),
+            "user_id": "cognito_user_789",
+            "name": "Inactive Key",
+            "key_prefix": self.inactive_prefix,
+            "secret_hash": self.inactive_hash,
+            "status": "inactive",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
 
     def tearDown(self):
         self.db.query(InferenceRequestRecord).delete()
-        self.db.query(APIKey).delete()
         self.db.commit()
         self.db.close()
         app.dependency_overrides.clear()
@@ -260,20 +273,22 @@ class TestInferenceAPI(unittest.TestCase):
                 temperature=0.2
             )
 
-            # Verify database telemetry record was persisted
-            records = self.db.query(InferenceRequestRecord).all()
-            self.assertEqual(len(records), 1)
-            record = records[0]
-            self.assertEqual(record.status, "success")
-            self.assertEqual(record.prompt_tokens, 12)
-            self.assertEqual(record.completion_tokens, 48)
-            self.assertEqual(record.total_tokens, 60)
-            self.assertEqual(record.user_id, "cognito_user_123")
-            self.assertIsNotNone(record.latency_ms)
+            # Verify telemetry record was persisted to Supabase and NOT local SQLAlchemy
+            self.assertEqual(self.db.query(InferenceRequestRecord).all(), [])
+            self.assertEqual(len(self.mock_telemetry.rows), 1)
+            record = next(iter(self.mock_telemetry.rows.values()))
+            self.assertEqual(record["status"], "success")
+            self.assertEqual(record["provider_name"], "nvidia")
+            self.assertEqual(record["model_name"], "nvidia/nemotron-3.5-bolt-e4b")
+            self.assertEqual(record["input_tokens"], 12)
+            self.assertEqual(record["output_tokens"], 48)
+            self.assertEqual(record["user_id"], "cognito_user_123")
+            self.assertEqual(record["api_key_id"], self.valid_key_record["id"])
+            self.assertIsNotNone(record["latency_ms"])
 
-            # Verify key last_used_at was updated
-            updated_key = self.db.query(APIKey).filter(APIKey.id == self.valid_key_record.id).first()
-            self.assertIsNotNone(updated_key.last_used_at)
+            # Verify key last_used_at was updated in Supabase
+            updated_key = self.mock_supabase.rows[self.valid_key_record["id"]]
+            self.assertIsNotNone(updated_key["last_used_at"])
 
     # 12. Provider Error: Rate limit (HTTP 429)
     def test_provider_rate_limit(self):
@@ -290,9 +305,11 @@ class TestInferenceAPI(unittest.TestCase):
             self.assertEqual(resp.status_code, 429)
             self.assertIn("rate limit", resp.json()["detail"].lower())
 
-            records = self.db.query(InferenceRequestRecord).all()
-            self.assertEqual(len(records), 1)
-            self.assertEqual(records[0].status, "failed")
+            self.assertEqual(self.db.query(InferenceRequestRecord).all(), [])
+            self.assertEqual(len(self.mock_telemetry.rows), 1)
+            record = next(iter(self.mock_telemetry.rows.values()))
+            self.assertEqual(record["status"], "failed")
+            self.assertEqual(record["api_key_id"], self.valid_key_record["id"])
 
     # 13. Provider Error: Timeout (HTTP 504)
     def test_provider_timeout(self):
@@ -309,9 +326,11 @@ class TestInferenceAPI(unittest.TestCase):
             self.assertEqual(resp.status_code, 504)
             self.assertIn("timed out", resp.json()["detail"].lower())
 
-            records = self.db.query(InferenceRequestRecord).all()
-            self.assertEqual(len(records), 1)
-            self.assertEqual(records[0].status, "timeout")
+            self.assertEqual(self.db.query(InferenceRequestRecord).all(), [])
+            self.assertEqual(len(self.mock_telemetry.rows), 1)
+            record = next(iter(self.mock_telemetry.rows.values()))
+            self.assertEqual(record["status"], "timeout")
+            self.assertEqual(record["api_key_id"], self.valid_key_record["id"])
 
     # 14. Key Generation Utility Test
     def test_api_key_generation(self):
@@ -358,11 +377,16 @@ class TestInferenceAPI(unittest.TestCase):
         self.assertTrue(data["api_key"].startswith("inf_live_"))
         self.assertEqual(data["name"], "Alex Prod Key")
 
-        # Verify key was persisted with verified cognito sub
-        persisted_key = self.db.query(APIKey).filter(APIKey.user_id == "cognito_user_alex_chen").first()
-        self.assertIsNotNone(persisted_key)
-        self.assertEqual(persisted_key.name, "Alex Prod Key")
-        self.assertEqual(persisted_key.key_prefix, data["key_prefix"])
+        # Verify key was persisted in Supabase store with verified cognito sub and hashed secret
+        persisted_rows = [
+            row for row in self.mock_supabase.rows.values()
+            if row["user_id"] == "cognito_user_alex_chen"
+        ]
+        self.assertEqual(len(persisted_rows), 1)
+        persisted_key = persisted_rows[0]
+        self.assertEqual(persisted_key["name"], "Alex Prod Key")
+        self.assertEqual(persisted_key["key_prefix"], data["key_prefix"])
+        self.assertEqual(persisted_key["secret_hash"], hash_api_key(data["api_key"]))
 
     # 18. List API Keys & User Isolation
     def test_list_api_keys_and_user_isolation(self):
