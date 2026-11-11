@@ -76,7 +76,10 @@ export async function verifyCognitoIdToken(token) {
   return payload
 }
 
-async function syncProfile(req, res) {
+async function syncProfile(req, res, {
+  verifyToken = verifyCognitoIdToken,
+  getSupabaseClient = getSupabaseAdminClient,
+} = {}) {
   const token = getBearerToken(req)
   if (!token) {
     return sendJson(res, 401, { ok: false, error: 'A Cognito ID token is required.' })
@@ -84,14 +87,14 @@ async function syncProfile(req, res) {
 
   let claims
   try {
-    claims = await verifyCognitoIdToken(token)
+    claims = await verifyToken(token)
   } catch (error) {
     console.warn('[customer-auth] Cognito ID token rejected:', error.message)
     return sendJson(res, 401, { ok: false, error: 'Customer authentication could not be verified.' })
   }
 
   try {
-    const existing = await getSupabaseAdminClient()
+    const existing = await getSupabaseClient()
       .from('profiles')
       .select('user_id, full_name, email, username, role, status, organization_id')
       .eq('user_id', claims.sub)
@@ -112,7 +115,7 @@ async function syncProfile(req, res) {
     const username = (typeof claims['cognito:username'] === 'string' && claims['cognito:username']) ||
       email.split('@')[0]
 
-    const result = await getSupabaseAdminClient()
+    const result = await getSupabaseClient()
       .from('profiles')
       .upsert(
         {
@@ -153,13 +156,13 @@ async function syncProfile(req, res) {
   }
 }
 
-export function createCustomerAuthMiddleware() {
+export function createCustomerAuthMiddleware(dependencies = {}) {
   return async function customerAuthMiddleware(req, res, next) {
     const path = (req.url || '/').split('?')[0]
     if (path !== '/api/customer/profile/sync' || req.method !== 'POST') return next()
 
     try {
-      return await syncProfile(req, res)
+      return await syncProfile(req, res, dependencies)
     } catch (error) {
       console.error('[customer-auth] Request failed:', error.message)
       return sendJson(res, error.statusCode || 500, {

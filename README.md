@@ -755,7 +755,7 @@ There is **no automated test suite committed** — be aware of this. Quality gat
 ## 30. Configuration
 | Setting | Where | Notes |
 | --- | --- | --- |
-| Cognito authentication | `frontend/.env.local` (`VITE_COGNITO_USER_POOL_ID`, `VITE_COGNITO_CLIENT_ID`, `VITE_COGNITO_REGION`) | Use real values from your Cognito user pool. Profile synchronization also requires server-only `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in the Node auth server environment; locally, non-`VITE_` values can be set in `frontend/.env.local`. Never expose the service-role key to the browser. Restart Vite after changing env values. |
+| Cognito authentication | `frontend/.env.local` (`VITE_COGNITO_USER_POOL_ID`, `VITE_COGNITO_CLIENT_ID`, `VITE_COGNITO_REGION`) | Use real values from your Cognito user pool. Profile synchronization also requires server-only `SUPABASE_URL` and `SUPABASE_SECRET_KEY` (or the legacy `SUPABASE_SERVICE_ROLE_KEY`) in the Node auth server environment; locally, keep these values in `backend/.env`, never in a frontend env file. Never expose Supabase credentials to the browser. Restart Vite after changing env values. |
 | Contact email | `src/data/site.ts` → `SITE.contactEmail` | Empty = hidden on Contact page and in form fallback text. |
 | Form endpoint | env `VITE_FORM_ENDPOINT` (e.g. in `.env.local`) | Create `.env.local` with `VITE_FORM_ENDPOINT=https://…`; restart the dev server after changing env. |
 | Brand/stage text | `SITE` (`tagline`, `stage`, `updated`) | Footer chips and Company plate read from it. |
