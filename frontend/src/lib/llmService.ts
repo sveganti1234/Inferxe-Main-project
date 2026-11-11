@@ -11,6 +11,8 @@
  * - Zero exposure of internal paths or credentials
  */
 
+import { getSession, getCognitoTokenFromStorage } from './authStore'
+
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant'
   content: string
@@ -106,7 +108,7 @@ export const RAG_BACKEND_ENDPOINT = 'http://127.0.0.1:8000/api/chat'
 export async function queryFineTunedModel(
   userQuery: string,
   history: ChatMessage[] = [],
-  context: { userRole?: string; currentPath?: string } = {}
+  context: { userRole?: string; currentPath?: string; sessionId?: string } = {}
 ): Promise<{ text: string; modelUsed: string; isFallback: boolean; sources?: SourceReference[] }> {
   // 1. Enforce Domain Gatekeeper (Fast pre-check)
   const domainStatus = checkDomainGatekeeper(userQuery)
@@ -123,17 +125,24 @@ export async function queryFineTunedModel(
     const ragController = new AbortController()
     const ragTimeout = setTimeout(() => ragController.abort(), 15000)
 
+    const token = getCognitoTokenFromStorage() || getSession()?.token
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    }
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
+    }
+
     const ragResponse = await fetch(RAG_BACKEND_ENDPOINT, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers,
       body: JSON.stringify({
         message: userQuery,
         conversation_history: history.slice(-4),
         temperature: 0.2,
         user_role: context.userRole || 'guest',
         current_path: context.currentPath || '/',
+        ...(context.sessionId ? { session_id: context.sessionId } : {}),
       }),
       signal: ragController.signal,
     })
