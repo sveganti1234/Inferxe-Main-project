@@ -152,13 +152,13 @@ class NotificationService:
         related_entity_id: Optional[str] = None
     ) -> str:
         """Inserts a notification record using an active cursor."""
-        notif_id = f"notif_{uuid.uuid4().hex[:12]}"
+        notif_id = str(uuid.uuid4())
         meta_json = json.dumps(metadata or {})
         created_time = now_iso()
 
         cur.execute(
             """
-            INSERT INTO notifications (id, user_id, title, message, notification_type, is_read, metadata, related_entity_id, created_at)
+            INSERT INTO notifications (id, user_id, title, detail, notification_type, is_read, metadata, related_entity_id, created_at)
             VALUES (%s, %s, %s, %s, %s, FALSE, %s, %s, %s)
             RETURNING id;
             """,
@@ -390,11 +390,11 @@ class NotificationService:
                     (new_balance, new_alert_level, now_iso(), user_id)
                 )
 
-            tx_id = f"tx_{uuid.uuid4().hex[:10]}"
+            tx_id = str(uuid.uuid4())
             cur.execute(
                 """
-                INSERT INTO wallet_transactions (id, user_id, amount, balance_after, currency, status, idempotency_key, description, created_at, updated_at)
-                VALUES (%s, %s, %s, %s, 'INR', 'completed', %s, %s, %s, %s);
+                INSERT INTO wallet_transactions (id, user_id, amount, balance_after, currency, status, idempotency_key, description, transaction_type, direction, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, 'INR', 'completed', %s, %s, 'top_up', 'credit', %s, %s);
                 """,
                 (tx_id, user_id, amount, new_balance, idem_key, "Wallet recharge top-up", now_iso(), now_iso())
             )
@@ -491,13 +491,13 @@ class NotificationService:
                 (new_balance, new_alert_level, now_iso(), user_id)
             )
 
-            tx_id = f"tx_{uuid.uuid4().hex[:10]}"
+            tx_id = str(uuid.uuid4())
             cur.execute(
                 """
-                INSERT INTO wallet_transactions (id, user_id, amount, balance_after, currency, status, idempotency_key, description, created_at, updated_at)
-                VALUES (%s, %s, %s, %s, 'INR', 'completed', %s, %s, %s, %s);
+                INSERT INTO wallet_transactions (id, user_id, amount, balance_after, currency, status, idempotency_key, description, transaction_type, direction, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, 'INR', 'completed', %s, %s, 'usage_charge', 'debit', %s, %s);
                 """,
-                (tx_id, user_id, -amount, new_balance, idem_key, description, now_iso(), now_iso())
+                (tx_id, user_id, abs(amount), new_balance, idem_key, description, now_iso(), now_iso())
             )
 
             # Standard Debit notification
@@ -531,6 +531,32 @@ class NotificationService:
                 "amount": amount,
                 "remaining_balance": new_balance,
                 "low_balance_alert": threshold_alert_needed,
+            }
+
+    @staticmethod
+    def get_wallet_balance(user_id: str) -> Dict[str, Any]:
+        """Returns the wallet balance for the authenticated user. Zero if no wallet record exists."""
+        with DBConnection(autocommit=True) as conn:
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+            cur.execute(
+                "SELECT balance, currency, low_balance_alert_level, updated_at FROM wallets WHERE user_id = %s;",
+                (user_id,),
+            )
+            row = cur.fetchone()
+            if not row:
+                return {
+                    "user_id": user_id,
+                    "balance": 0.0,
+                    "currency": "INR",
+                    "low_balance_alert_level": "NORMAL",
+                    "updated_at": None,
+                }
+            return {
+                "user_id": user_id,
+                "balance": float(row["balance"]),
+                "currency": row["currency"],
+                "low_balance_alert_level": row["low_balance_alert_level"],
+                "updated_at": row["updated_at"],
             }
 
     @classmethod

@@ -1,17 +1,30 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import { ChevronDown, Menu, Search, X } from 'lucide-react'
+import { ChevronDown, LogOut, Menu, Search, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { Link, NavLink, useLocation } from 'react-router-dom'
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { NAV } from '../../data/site'
 import { Logo } from '../Logo'
 import { LinkButton } from '../ui/Button'
+import { getSession, clearSession } from '../../lib/authStore'
 
 export function Navbar() {
   const [scrolled, setScrolled] = useState(false)
   const [open, setOpen] = useState<string | null>(null)
   const [mobile, setMobile] = useState(false)
+  const [session, setSession] = useState(() => getSession())
   const { pathname } = useLocation()
+  const navigate = useNavigate()
   const closeTimer = useRef<number>(0)
+
+  useEffect(() => {
+    const handleAuthChange = () => setSession(getSession())
+    window.addEventListener('inferxe_auth_change', handleAuthChange)
+    window.addEventListener('storage', handleAuthChange)
+    return () => {
+      window.removeEventListener('inferxe_auth_change', handleAuthChange)
+      window.removeEventListener('storage', handleAuthChange)
+    }
+  }, [])
 
   useEffect(() => {
     const on = () => setScrolled(window.scrollY > 24)
@@ -118,12 +131,26 @@ export function Navbar() {
             <span>Search</span>
             <kbd>Ctrl K</kbd>
           </button>
-          <Link to="/login" className="nav__signin">
-            Sign in
-          </Link>
-          <LinkButton to="/signup" size="sm" arrow className="nav__cta">
-            Sign up
-          </LinkButton>
+          {session ? (
+            <>
+              <Link to="/dashboard/customer" className="nav__profile">
+                <span className="nav__profile-avatar">{session.user.fullName.charAt(0).toUpperCase()}</span>
+                <span className="nav__profile-name">{session.user.fullName}</span>
+              </Link>
+              <button className="nav__signout" onClick={() => { clearSession(); navigate('/') }}>
+                <LogOut size={14} /> Sign out
+              </button>
+            </>
+          ) : (
+            <>
+              <Link to="/login" className="nav__signin">
+                Sign in
+              </Link>
+              <LinkButton to="/signup" size="sm" arrow className="nav__cta">
+                Sign up
+              </LinkButton>
+            </>
+          )}
           <button className="nav__burger" aria-label={mobile ? 'Close menu' : 'Open menu'} aria-expanded={mobile} onClick={() => setMobile((v) => !v)}>
             {mobile ? <X /> : <Menu />}
           </button>
@@ -152,16 +179,31 @@ export function Navbar() {
                   )}
                 </motion.div>
               ))}
-              <Link
-                to="/login"
-                className="btn btn--glass btn--block mt-2"
-                onClick={() => setMobile(false)}
-              >
-                Sign in
-              </Link>
-              <LinkButton to="/signup" block size="lg" arrow className="mt-2" onClick={() => setMobile(false)}>
-                Sign up
-              </LinkButton>
+              {session ? (
+                <>
+                  <div className="mnav__profile">
+                    <span className="nav__profile-avatar">{session.user.fullName.charAt(0).toUpperCase()}</span>
+                    <span>{session.user.fullName}</span>
+                    <small>{session.user.email}</small>
+                  </div>
+                  <button className="btn btn--glass btn--block mt-2" onClick={() => { clearSession(); navigate('/'); setMobile(false) }}>
+                    <LogOut size={16} /> Sign out
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link
+                    to="/login"
+                    className="btn btn--glass btn--block mt-2"
+                    onClick={() => setMobile(false)}
+                  >
+                    Sign in
+                  </Link>
+                  <LinkButton to="/signup" block size="lg" arrow className="mt-2" onClick={() => setMobile(false)}>
+                    Sign up
+                  </LinkButton>
+                </>
+              )}
             </div>
           </motion.div>
         )}
