@@ -47,6 +47,7 @@ export default defineConfig(({ command, mode }) => {
       proxy: {
         '/api/notifications': { target: 'http://127.0.0.1:8000', changeOrigin: true },
         '/api/wallet': { target: 'http://127.0.0.1:8000', changeOrigin: true },
+        '/api/customer': { target: 'http://127.0.0.1:5174', changeOrigin: true },
         '/api/deployments': { target: 'http://127.0.0.1:8000', changeOrigin: true },
         '/api/gpu': { target: 'http://127.0.0.1:8000', changeOrigin: true },
         '/api/chat': { target: 'http://127.0.0.1:8000', changeOrigin: true },
@@ -58,6 +59,7 @@ export default defineConfig(({ command, mode }) => {
       proxy: {
         '/api/notifications': { target: 'http://127.0.0.1:8000', changeOrigin: true },
         '/api/wallet': { target: 'http://127.0.0.1:8000', changeOrigin: true },
+        '/api/customer': { target: 'http://127.0.0.1:5174', changeOrigin: true },
         '/api/deployments': { target: 'http://127.0.0.1:8000', changeOrigin: true },
         '/api/gpu': { target: 'http://127.0.0.1:8000', changeOrigin: true },
         '/api/chat': { target: 'http://127.0.0.1:8000', changeOrigin: true },

@@ -353,7 +353,6 @@ def init_db():
         cur.execute("ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS updated_at TEXT NOT NULL DEFAULT '';")
         cur.execute("ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS transaction_type VARCHAR(32) NOT NULL DEFAULT 'top_up';")
         cur.execute("ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS direction VARCHAR(16) NOT NULL DEFAULT 'credit';")
-        cur.execute("ALTER TABLE wallet_transactions ALTER COLUMN wallet_id DROP NOT NULL;")
 
         # 6. gpu_inventory table
         cur.execute("""
