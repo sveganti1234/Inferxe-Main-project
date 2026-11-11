@@ -29,14 +29,17 @@ export interface WalletTransactionResult {
 }
 
 /**
- * Validates that the token looks like a real JWT (three base64url parts).
- * Demo tokens (e.g. 'ix-demo-...', 'ix-tok-...') are rejected before any
- * request reaches the backend, preventing unnecessary 401 errors.
+ * Validates that the token looks like a real JWT (three base64url parts)
+ * and is not a demo bypass token. Demo tokens (e.g. 'ix-demo-...',
+ * 'ix-tok-...') are rejected before any request reaches the backend,
+ * preventing unnecessary 401 errors and silent localStorage fallback.
  */
 function isValidJwtFormat(token: string): boolean {
   if (!token || typeof token !== 'string') return false
   const parts = token.split('.')
-  return parts.length === 3 && parts.every((p) => p.length > 0)
+  if (parts.length !== 3 || !parts.every((p) => p.length > 0)) return false
+  const firstPart = parts[0]
+  return !firstPart.startsWith('ix-demo') && !firstPart.startsWith('ix-tok')
 }
 
 function getAuthHeaders(): HeadersInit {

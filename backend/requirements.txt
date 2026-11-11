@@ -18,3 +18,13 @@ psycopg2-binary>=2.9.0
 pyjwt>=2.8.0
 cryptography>=41.0.0
 
+# ------------------------------------------------------------------------------
+# Notifications & Wallet Service (backend/notifications/)
+# These dependencies are already listed above:
+#   - fastapi>=0.109.0       # FastAPI application framework
+#   - uvicorn>=0.27.0        # ASGI server (port 8000)
+#   - python-dotenv>=1.0.0   # Loads .env at startup (DATABASE_URL, etc.)
+#   - psycopg2-binary>=2.9.0 # PostgreSQL driver for Supabase connection
+# Run: pip install -r requirements.txt
+# ------------------------------------------------------------------------------
+
