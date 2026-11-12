@@ -6,9 +6,13 @@ import {
   Activity as ActivityIcon,
   BarChart3,
   Bell,
+  Eye,
+  EyeOff,
   Gift,
   Moon,
   NotebookPen,
+  Plus,
+  Search,
   Star,
   Sun,
   Bookmark,
@@ -448,6 +452,45 @@ export function DashboardLayout({
     }
   }, [])
 
+  const [dashWalletBalance, setDashWalletBalance] = useState<number>(() => {
+    try {
+      const sub = currentSession?.user?.id || ''
+      const key = sub ? `inferxe_demo_wallet_balance_v1_${sub}` : 'inferxe_demo_wallet_balance_v1'
+      const val = localStorage.getItem(key)
+      return val ? JSON.parse(val) : 29053
+    } catch {
+      return 29053
+    }
+  })
+
+  const [hideBalance, setHideBalance] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('inferxe_hide_balance') === 'true'
+    } catch {
+      return false
+    }
+  })
+
+  useEffect(() => {
+    const handleSync = () => {
+      try {
+        const sub = currentSession?.user?.id || ''
+        const key = sub ? `inferxe_demo_wallet_balance_v1_${sub}` : 'inferxe_demo_wallet_balance_v1'
+        const val = localStorage.getItem(key)
+        if (val) setDashWalletBalance(JSON.parse(val))
+        setHideBalance(localStorage.getItem('inferxe_hide_balance') === 'true')
+      } catch {}
+    }
+    window.addEventListener('storage', handleSync)
+    window.addEventListener('inferxe_balance_visibility', handleSync)
+    window.addEventListener('inferxe_auth_change', handleSync)
+    return () => {
+      window.removeEventListener('storage', handleSync)
+      window.removeEventListener('inferxe_balance_visibility', handleSync)
+      window.removeEventListener('inferxe_auth_change', handleSync)
+    }
+  }, [currentSession?.user?.id])
+
   const defaultCustomerUser = {
     id: 'usr_demo_customer',
     fullName: 'Priya Sharma',
@@ -782,6 +825,34 @@ export function DashboardLayout({
 
         {/* Right: Notifications & Admin Profile Section */}
         <div className="dash-topbar__right">
+          {/* Customer Portal Topbar Balance Pill & Eye Toggle (Photos 1, 2, 4, 7) */}
+          {portalRole === 'customer' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div className="zesto-topbar-balance" title="Available Compute & Wallet Balance">
+                <span className="zesto-pulse-dot" />
+                <span>
+                  {hideBalance ? '••••••••' : `₹${dashWalletBalance.toLocaleString('en-IN')}`}
+                </span>
+              </div>
+              <button
+                type="button"
+                className="zesto-topbar-eye-btn"
+                onClick={() => {
+                  setHideBalance((prev) => {
+                    const next = !prev
+                    try { localStorage.setItem('inferxe_hide_balance', String(next)) } catch {}
+                    window.dispatchEvent(new Event('inferxe_balance_visibility'))
+                    return next
+                  })
+                }}
+                title={hideBalance ? "Show balance" : "Hide balance"}
+                aria-label="Toggle balance visibility"
+              >
+                {hideBalance ? <EyeOff size={15} /> : <Eye size={15} />}
+              </button>
+            </div>
+          )}
+
           <button
             id="dash-header-theme-toggle"
             className={`dash-theme-toggle dash-theme-toggle--${dashTheme}`}
@@ -969,6 +1040,13 @@ export function DashboardLayout({
             )}
           </div>
 
+          {/* Primary Action Button (Photo 1, 2, 4, 7) */}
+          {portalRole === 'customer' && (
+            <Link to="/dashboard/gpus" className="zesto-btn-lime-pill" style={{ textDecoration: 'none' }}>
+              <Plus size={14} /> Deploy GPU
+            </Link>
+          )}
+
           {/* User Profile & Demo Role Switcher */}
           <div ref={profileMenuRef} style={{ position: 'relative' }}>
             <div
@@ -1099,6 +1177,54 @@ export function DashboardLayout({
               />
             </button>
           </div>
+
+          {/* Quick Search Shortcut Pill (matching Zesto sidebar search) */}
+          {portalRole === 'customer' && !isSidebarCollapsed && (
+            <div style={{ padding: '4px 12px 10px' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '7px 11px',
+                  background: 'rgba(255, 255, 255, 0.04)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  borderRadius: 10,
+                  color: '#9ca3af',
+                  fontSize: '0.8rem',
+                  cursor: 'pointer',
+                  transition: 'background 0.2s ease, border-color 0.2s ease',
+                }}
+                onClick={() => {
+                  const searchModalTrigger = document.querySelector('.dash-search-btn') as HTMLButtonElement | null
+                  if (searchModalTrigger) searchModalTrigger.click()
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.07)'
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.14)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)'
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)'
+                }}
+                role="button"
+                tabIndex={0}
+                aria-label="Quick Search"
+              >
+                <Search size={14} />
+                <span style={{ flex: 1 }}>Search...</span>
+                <kbd style={{
+                  fontSize: '0.68rem',
+                  padding: '1px 5px',
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  borderRadius: 4,
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  color: '#d1d5db',
+                  fontFamily: 'inherit'
+                }}>⌘K</kbd>
+              </div>
+            </div>
+          )}
 
           <div ref={sidebarScrollRef} className="dash-sidebar__scroll">
             {/* ── 1A. CUSTOMER PORTAL MAIN NAVIGATION (Scrollable Upper Section) ── */}

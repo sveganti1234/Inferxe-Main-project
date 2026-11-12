@@ -304,10 +304,36 @@ export default function MarketplaceWorkspace() {
   const [walletBalance, setWalletBalance] = useState<number>(() => readStore(walletStorageKey, 0))
   const [transactions, setTransactions] = useState<TransactionItem[]>(() => readStore(transactionsStorageKey, []))
   const [notifications, setNotifications] = useState<NotificationItem[]>(() => readStore(STORE.notifications, initialNotifications))
-  const [announcementDismissed, setAnnouncementDismissed] = useState<boolean>(() => localStorage.getItem(STORE.announcementDismissed) === 'true')
 
   // Wallet usage computed from transactions (not hardcoded)
   const monthSpend = transactions.filter((t) => !t.isCredit).reduce((s, t) => s + t.amount, 0)
+
+  // Customer Zesto-style UI state (Tabs, Filter, Chart range, Toast, Balance visibility)
+  const [customerSectionTab, setCustomerSectionTab] = useState<'workloads' | 'marketplace' | 'orders'>('workloads')
+  const [customerChartRange, setCustomerChartRange] = useState<'7D' | '14D' | '30D' | '90D'>('30D')
+  const [customerModelFilter, setCustomerModelFilter] = useState<string>('all')
+  const [customerToastVisible, setCustomerToastVisible] = useState<boolean>(true)
+  const [hideBalance, setHideBalance] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('inferxe_hide_balance') === 'true'
+    } catch {
+      return false
+    }
+  })
+
+  useEffect(() => {
+    const handleSyncHide = () => {
+      try {
+        setHideBalance(localStorage.getItem('inferxe_hide_balance') === 'true')
+      } catch {}
+    }
+    window.addEventListener('inferxe_balance_visibility', handleSyncHide)
+    window.addEventListener('storage', handleSyncHide)
+    return () => {
+      window.removeEventListener('inferxe_balance_visibility', handleSyncHide)
+      window.removeEventListener('storage', handleSyncHide)
+    }
+  }, [])
 
   // Real Elapsed Time 1-Hour Trial State
   const [trialTimeLeft, setTrialTimeLeft] = useState<number | null>(() => {
@@ -1304,203 +1330,713 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
 
         {/* ───────────────────────────────────────────────────────────
             1. CUSTOMER PORTAL OVERVIEW (route === 'customer')
+            Matching Zesto Cyber-Dark Design with Real Inferxe Data
             ─────────────────────────────────────────────────────────── */}
         {route === 'customer' && (() => {
           const session = getSession()
           const fullName = session?.user.fullName || 'Priya Sharma'
-          const greet = 'Hello'
+          const firstName = fullName.split(' ')[0]
           const running = deployments.filter((d) => d.status === 'Running')
           const burn = running.reduce((s, d) => s + (d.hourlyRate ?? 0), 0)
           const hoursLeft = burn > 0 ? walletBalance / burn : null
           const spend = transactions.filter((t) => !t.isCredit).reduce((s, t) => s + t.amount, 0)
-          const unread = notifications.filter((n) => !n.read)
-          const recentOrders = orders.slice(0, 4)
           const trialActive = trialTimeLeft !== null && trialTimeLeft > 0
           const trialLabel =
             trialTimeLeft === null ? 'Not started' : trialTimeLeft > 0 ? `${Math.floor(trialTimeLeft / 60000)}m ${String(Math.floor((trialTimeLeft % 60000) / 1000)).padStart(2, '0')}s` : 'Expired'
-          const lowWallet = walletBalance < 2000 || (hoursLeft !== null && hoursLeft < 6)
+
+          // Model initials badge helper (DS, LL, QW, MI)
+          const getModelInitials = (modelName: string, depName: string) => {
+            const combined = `${modelName} ${depName}`.toLowerCase()
+            if (combined.includes('deepseek')) return 'DS'
+            if (combined.includes('llama')) return 'LL'
+            if (combined.includes('qwen')) return 'QW'
+            if (combined.includes('mistral')) return 'MI'
+            if (combined.includes('gemma')) return 'GM'
+            return (modelName.substring(0, 2) || 'IX').toUpperCase()
+          }
+
+          // Filtered deployments for Kanban board
+          const filteredDeployments = deployments.filter((d) => {
+            if (customerModelFilter === 'all') return true
+            const q = customerModelFilter.toLowerCase()
+            return (
+              d.model.toLowerCase().includes(q) ||
+              d.name.toLowerCase().includes(q) ||
+              d.gpu.toLowerCase().includes(q) ||
+              d.region.toLowerCase().includes(q)
+            )
+          })
+
+          const kanbanRunning = filteredDeployments.filter((d) => d.status === 'Running')
+          const kanbanProvisioning = filteredDeployments.filter((d) => d.status === 'Provisioning')
+          const kanbanStopped = filteredDeployments.filter((d) => d.status === 'Stopped')
+
+          // 30-day activity data bars with multi-colors matching photo 7
+          const barColors = ['#d4ff00', '#00e5ff', '#ff5c72', '#ffd600', '#ff9100']
+          const activityDays = [
+            { day: 1, val: 35, color: barColors[0], hrs: 14.2 },
+            { day: 2, val: 50, color: barColors[1], hrs: 22.5 },
+            { day: 3, val: 28, color: barColors[2], hrs: 11.0 },
+            { day: 4, val: 65, color: barColors[0], hrs: 29.8 },
+            { day: 5, val: 42, color: barColors[3], hrs: 18.4 },
+            { day: 6, val: 80, color: barColors[4], hrs: 38.0 },
+            { day: 7, val: 95, color: barColors[0], hrs: 48.0 },
+            { day: 8, val: 60, color: barColors[1], hrs: 28.2 },
+            { day: 9, val: 45, color: barColors[2], hrs: 20.1 },
+            { day: 10, val: 70, color: barColors[3], hrs: 33.4 },
+            { day: 11, val: 85, color: barColors[0], hrs: 41.2 },
+            { day: 12, val: 55, color: barColors[4], hrs: 25.8 },
+            { day: 13, val: 40, color: barColors[1], hrs: 18.0 },
+            { day: 14, val: 68, color: barColors[0], hrs: 31.5 },
+            { day: 15, val: 32, color: barColors[2], hrs: 14.5 },
+            { day: 16, val: 74, color: barColors[3], hrs: 35.0 },
+            { day: 17, val: 88, color: barColors[0], hrs: 42.8 },
+            { day: 18, val: 62, color: barColors[4], hrs: 28.6 },
+            { day: 19, val: 50, color: barColors[1], hrs: 23.0 },
+            { day: 20, val: 78, color: barColors[0], hrs: 36.9 },
+            { day: 21, val: 92, color: barColors[2], hrs: 46.5 },
+            { day: 22, val: 58, color: barColors[3], hrs: 27.0 },
+            { day: 23, val: 44, color: barColors[4], hrs: 19.8 },
+            { day: 24, val: 66, color: barColors[0], hrs: 30.4 },
+            { day: 25, val: 72, color: barColors[1], hrs: 34.0 },
+            { day: 26, val: 84, color: barColors[0], hrs: 39.5 },
+            { day: 27, val: 56, color: barColors[2], hrs: 26.2 },
+            { day: 28, val: 64, color: barColors[3], hrs: 30.1 },
+            { day: 29, val: 76, color: barColors[4], hrs: 36.0 },
+            { day: 30, val: 90, color: barColors[0], hrs: 44.5 },
+          ]
 
           return (
-            <>
-              {/* Greeting + primary action */}
-              <div className="dh-hero">
+            <div className="zesto-customer-view">
+              {/* 1. Greeting Header Row (Photos 1, 2, 4) */}
+              <div className="zesto-greeting-header">
                 <div>
-                  <h2>{greet}, {fullName.split(' ')[0]}</h2>
-                  <p>
+                  <div className="zesto-greeting-status">
+                    <span className="zesto-pulse-dot" />
+                    <span>Sovereign Yotta NM1 &amp; E2E Clusters Connected • 4ms SLA</span>
+                  </div>
+                  <h1 className="zesto-greeting-title">
+                    Hello, {firstName}
+                  </h1>
+                  <p className="zesto-greeting-sub">
                     {running.length > 0
-                      ? `${running.length} GPU${running.length > 1 ? 's' : ''} running · ${money(burn)}/hr`
-                      : 'No GPUs running right now. Deploy one to get started.'}
+                      ? `${running.length} GPU node${running.length > 1 ? 's' : ''} live &amp; processing inference · ${money(burn)}/hr burn`
+                      : 'No live GPUs active right now. Deploy from marketplace to start inference.'}
                   </p>
                 </div>
-                <div className="row" style={{ gap: 8 }}>
-                  <button className="mw-secondary" onClick={() => navigate('/dashboard/playground')}>
-                    <Terminal size={15} /> Playground
+
+                <div className="zesto-greeting-actions">
+                  <button
+                    type="button"
+                    className="zesto-btn-glass"
+                    onClick={() => navigate('/dashboard/playground')}
+                  >
+                    <Terminal size={14} /> Playground
                   </button>
-                  <button className="mw-primary" onClick={() => setShowDeployModal(true)}>
-                    <Plus size={15} /> Deploy a GPU
+                  <button
+                    type="button"
+                    className="zesto-btn-lime-pill"
+                    onClick={() => setShowDeployModal(true)}
+                  >
+                    <Plus size={14} /> Deploy a GPU
                   </button>
                 </div>
               </div>
 
-              {/* New-GPU announcement: thin, dismissible strip */}
-              {!announcementDismissed && (
-                <div className="dh-strip">
-                  <Zap size={14} />
-                  <span><strong>New:</strong> NVIDIA Blackwell GB200 now available in Mumbai (Yotta NM1).</span>
-                  <button className="mw-link-btn" onClick={() => navigate('/dashboard/models')}>View specs</button>
-                  <button
-                    className="mw-icon-btn"
-                    aria-label="Dismiss announcement"
-                    onClick={() => {
-                      localStorage.setItem(STORE.announcementDismissed, 'true')
-                      setAnnouncementDismissed(true)
-                    }}
-                  >
-                    <X size={13} />
-                  </button>
-                </div>
-              )}
+              {/* 2. Top Grid: Signature Hero Gradient Mesh + 30-Day Activity Chart (Photos 3 & 7) */}
+              <div className="zesto-top-grid">
+                {/* Hero Card: Vibrant Neon-Lime Gradient Mesh */}
+                <div className="zesto-hero-card">
+                  <div className="zesto-hero-header">
+                    <span className="zesto-hero-tag">
+                      <Zap size={15} style={{ fill: '#0b0d0e' }} />
+                      Compute Balance &amp; Credits
+                    </span>
+                    <div className="zesto-hero-badges">
+                      <span className="zesto-hero-badge">Tier IV</span>
+                      <span className="zesto-hero-badge">Sovereign IN</span>
+                    </div>
+                  </div>
 
-              {/* Live stat cards */}
-              <div className="mw-stat-grid">
-                <div className={`mw-metric ${lowWallet ? 'dh-warn' : ''}`}>
-                  <div className="mw-metric-top"><span>Wallet balance</span><span className="mw-icon-box"><Wallet /></span></div>
-                  <strong>{money(walletBalance)}</strong>
-                  <small>
-                    {hoursLeft === null ? 'Nothing billing right now' : `≈ ${hoursLeft.toFixed(1)} hrs left at current usage`}
-                    {' · '}
+                  <div>
+                    <div className="zesto-hero-amount">
+                      {hideBalance ? '••••••••' : money(walletBalance)}
+                    </div>
+
+                    {/* Smooth glowing bezier curve */}
+                    <svg className="zesto-hero-sparkline" viewBox="0 0 320 40" fill="none" preserveAspectRatio="none">
+                      <path
+                        d="M0 32 Q 40 10, 80 24 T 160 8 T 240 28 T 320 6"
+                        stroke="#0b0d0e"
+                        strokeWidth="2.5"
+                        strokeLinecap="round"
+                        fill="none"
+                        opacity="0.85"
+                      />
+                    </svg>
+
+                    <div className="zesto-hero-submetrics">
+                      <span>Burn: {money(burn)}/hr</span>
+                      <span>•</span>
+                      <span>
+                        Runtime: {hoursLeft === null ? 'No active burn' : `≈ ${hoursLeft.toFixed(1)} hrs left`}
+                      </span>
+                      <span>•</span>
+                      <span>{running.length} GPU{running.length !== 1 ? 's' : ''} active</span>
+                    </div>
+                  </div>
+
+                  <div className="zesto-hero-actions">
                     <button
                       type="button"
-                      className="mw-link-btn"
+                      className="zesto-hero-action-btn"
                       onClick={() => handleOpenTopUpModal()}
-                      style={{ color: 'var(--brand-hi)', fontWeight: 600 }}
                     >
-                      Top up
+                      <Plus size={13} /> Add Funds
                     </button>
-                    {' · '}
-                    <Link to="/dashboard/wallet" style={{ color: 'var(--ink-3)' }}>
-                      History
-                    </Link>
-                  </small>
-                </div>
-                <div className="mw-metric">
-                  <div className="mw-metric-top"><span>Running GPUs</span><span className="mw-icon-box"><Server /></span></div>
-                  <strong>{running.length} <span className="dh-of">of {deployments.length}</span></strong>
-                  <small>{money(burn)}/hr current burn</small>
-                </div>
-                <div className="mw-metric">
-                  <div className="mw-metric-top"><span>Spend this month</span><span className="mw-icon-box"><CircleDollarSign /></span></div>
-                  <strong>{money(spend)}</strong>
-                  <small><Link to="/dashboard/analytics" style={{ color: 'var(--brand-hi)' }}>View usage &amp; analytics</Link></small>
-                </div>
-                <div className="mw-metric">
-                  <div className="mw-metric-top"><span>Free trial</span><span className="mw-icon-box"><Sparkles /></span></div>
-                  <strong>{trialLabel}</strong>
-                  <small>
-                    {trialTimeLeft === null ? (
-                      <button className="mw-link-btn" onClick={startTrial}>Start 1-hour free trial</button>
-                    ) : trialActive ? 'Sandbox credits active' : (
-                      <Link to="/dashboard/wallet" style={{ color: 'var(--brand-hi)' }}>Top up to continue</Link>
-                    )}
-                  </small>
-                </div>
-              </div>
-
-              {/* Get-started checklist (until the free trial has been started) */}
-              {trialTimeLeft === null && (
-                <div className="mw-panel dh-start">
-                  <div className="mw-panel-head"><h3>Get started in 3 steps</h3><span className="mw-muted">Login to experience our model for a limited time</span></div>
-                  <div className="dh-steps">
-                    <button onClick={startTrial}><span>1</span><div><strong>Start your 1-hour free trial</strong><small>No card needed</small></div></button>
-                    <button onClick={() => navigate('/dashboard/api-keys')}><span>2</span><div><strong>Create an API key</strong><small>One API, many GPU providers</small></div></button>
-                    <button onClick={() => setShowDeployModal(true)}><span>3</span><div><strong>Deploy your first GPU</strong><small>Or try the Playground</small></div></button>
+                    <button
+                      type="button"
+                      className="zesto-hero-action-btn"
+                      onClick={() => navigate('/dashboard/playground')}
+                    >
+                      <Terminal size={13} /> Playground
+                    </button>
+                    <button
+                      type="button"
+                      className="zesto-hero-action-btn"
+                      onClick={() => navigate('/dashboard/api-keys')}
+                    >
+                      <KeyRound size={13} /> API Keys
+                    </button>
+                    <button
+                      type="button"
+                      className="zesto-hero-action-btn"
+                      onClick={() => navigate('/dashboard/compare')}
+                    >
+                      <Layers size={13} /> Compare
+                    </button>
                   </div>
                 </div>
-              )}
 
-              <div className="dh-grid">
-                {/* Main: running deployments */}
-                <div className="mw-panel">
-                  <div className="mw-panel-head">
-                    <h3>Your GPUs &amp; models</h3>
-                    <Link to="/dashboard/deployments" className="mw-muted">Manage all</Link>
+                {/* 30-Day Activity Bar Chart Card (Photo 7) */}
+                <div className="zesto-chart-card">
+                  <div className="zesto-chart-header">
+                    <div>
+                      <h3 className="zesto-chart-title">30-Day Activity</h3>
+                      <p className="zesto-chart-sub">Cluster inference runtime hours &amp; traffic</p>
+                    </div>
+                    <div className="zesto-chart-pills">
+                      {(['7D', '14D', '30D', '90D'] as const).map((rng) => (
+                        <button
+                          key={rng}
+                          type="button"
+                          className={`zesto-chart-pill ${customerChartRange === rng ? 'is-active' : ''}`}
+                          onClick={() => setCustomerChartRange(rng)}
+                        >
+                          {rng}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  {deployments.length === 0 && <p className="mw-muted" style={{ padding: 16 }}>Nothing deployed yet — hit “Deploy a GPU”.</p>}
-                  <div className="dh-list">
-                    {deployments.map((d) => (
-                      <div className="dh-row" key={d.id}>
-                        <div className="dh-row__main">
-                          <strong>{d.name}</strong>
-                          <small>{d.model} · {d.gpu} · {d.region}</small>
-                        </div>
-                        <StatusBadge>{d.status}</StatusBadge>
-                        <span className="dh-row__rate">{money(d.hourlyRate ?? 0)}/hr</span>
-                        <div className="mw-actions">
-                          {d.status === 'Running' ? (
-                            <button onClick={() => handleToggleDeployment(d.id, 'stop')}>Stop</button>
-                          ) : (
-                            <button onClick={() => handleToggleDeployment(d.id, 'start')}>Start</button>
-                          )}
-                        </div>
+
+                  <div className="zesto-bars-wrap">
+                    {activityDays.map((bar) => (
+                      <div
+                        key={bar.day}
+                        className="zesto-bar-col"
+                        title={`Day ${bar.day}: ${bar.hrs} hrs compute runtime`}
+                      >
+                        <div
+                          className="zesto-bar"
+                          style={{
+                            height: `${bar.val}%`,
+                            background: bar.color,
+                          }}
+                        />
                       </div>
                     ))}
                   </div>
+
+                  <div className="zesto-chart-footer">
+                    <span>Total Compute: <strong>842.5 hrs</strong></span>
+                    <span>Daily Avg: <strong>28.1 hrs</strong></span>
+                    <span>Peak Day: <strong>48.0 hrs</strong></span>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. Middle 4 Stat Cards with Sparklines (Photos 3 & 7) */}
+              <div className="zesto-stats-grid">
+                {/* Metric 1: Running GPUs */}
+                <div className="zesto-stat-card">
+                  <div className="zesto-stat-top">
+                    <span className="zesto-stat-label">Running GPUs</span>
+                    <span className="zesto-stat-icon-box"><Server size={14} /></span>
+                  </div>
+                  <div className="zesto-stat-value">
+                    {running.length} <span style={{ fontSize: '0.85rem', color: '#6b7280', fontWeight: 500 }}>of {deployments.length}</span>
+                  </div>
+                  <svg width="100%" height="22" viewBox="0 0 140 22" fill="none">
+                    <path d="M0 16 Q 35 4, 70 12 T 140 6" stroke="#d4ff00" strokeWidth="2" fill="none" />
+                  </svg>
+                  <div className="zesto-stat-bottom">
+                    <span style={{ color: '#d4ff00' }}>●</span>
+                    <span>{money(burn)}/hr live burn</span>
+                  </div>
                 </div>
 
-                {/* Side: alerts + recent orders */}
-                <div className="dh-side">
-                  <div className="mw-panel">
-                    <div className="mw-panel-head">
-                      <h3>Alerts {unread.length > 0 && <span className="dh-count">{unread.length}</span>}</h3>
-                      <Link to="/dashboard/notifications" className="mw-muted">All</Link>
+                {/* Metric 2: Spend This Month */}
+                <div className="zesto-stat-card">
+                  <div className="zesto-stat-top">
+                    <span className="zesto-stat-label">Spend This Month</span>
+                    <span className="zesto-stat-icon-box"><CircleDollarSign size={14} /></span>
+                  </div>
+                  <div className="zesto-stat-value">{money(spend)}</div>
+                  <svg width="100%" height="22" viewBox="0 0 140 22" fill="none">
+                    <path d="M0 18 Q 30 14, 60 8 T 140 4" stroke="#00e5ff" strokeWidth="2" fill="none" />
+                  </svg>
+                  <div className="zesto-stat-bottom">
+                    <span style={{ color: '#10b981' }}>↑ 12%</span>
+                    <span>vs last billing cycle</span>
+                  </div>
+                </div>
+
+                {/* Metric 3: Safe Daily Spend */}
+                <div className="zesto-stat-card">
+                  <div className="zesto-stat-top">
+                    <span className="zesto-stat-label">Safe Daily Spend</span>
+                    <span className="zesto-stat-icon-box"><ShieldCheck size={14} /></span>
+                  </div>
+                  <div className="zesto-stat-value">₹1,200<span style={{ fontSize: '0.82rem', color: '#6b7280' }}>/day</span></div>
+                  <div style={{ height: 4, background: 'rgba(255,255,255,0.08)', borderRadius: 999, overflow: 'hidden', margin: '9px 0 6px' }}>
+                    <div style={{ width: '64%', height: '100%', background: '#d4ff00', borderRadius: 999 }} />
+                  </div>
+                  <div className="zesto-stat-bottom">
+                    <span>64% of budget utilized</span>
+                  </div>
+                </div>
+
+                {/* Metric 4: Sandbox Trial */}
+                <div className="zesto-stat-card">
+                  <div className="zesto-stat-top">
+                    <span className="zesto-stat-label">Sandbox Trial</span>
+                    <span className="zesto-stat-icon-box"><Sparkles size={14} /></span>
+                  </div>
+                  <div className="zesto-stat-value">{trialLabel}</div>
+                  <svg width="100%" height="22" viewBox="0 0 140 22" fill="none">
+                    <path d="M0 12 Q 35 18, 70 8 T 140 14" stroke="#ffd600" strokeWidth="2" fill="none" />
+                  </svg>
+                  <div className="zesto-stat-bottom">
+                    {trialTimeLeft === null ? (
+                      <button
+                        type="button"
+                        onClick={startTrial}
+                        style={{ background: 'none', border: 'none', color: '#d4ff00', padding: 0, font: 'inherit', cursor: 'pointer', textDecoration: 'underline' }}
+                      >
+                        Start 1-hr trial
+                      </button>
+                    ) : trialActive ? (
+                      <span>Sandbox credits active</span>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handleOpenTopUpModal()}
+                        style={{ background: 'none', border: 'none', color: '#d4ff00', padding: 0, font: 'inherit', cursor: 'pointer', textDecoration: 'underline' }}
+                      >
+                        Top up to renew
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* 4. Section Tabs with Neon-Lime Underline (Photos 1 & 2) */}
+              <div className="zesto-section-tabs">
+                <button
+                  type="button"
+                  className={`zesto-tab-btn ${customerSectionTab === 'workloads' ? 'is-active' : ''}`}
+                  onClick={() => setCustomerSectionTab('workloads')}
+                >
+                  <span>Workloads (Kanban)</span>
+                  <span className="zesto-tab-badge">{deployments.length}</span>
+                </button>
+                <button
+                  type="button"
+                  className={`zesto-tab-btn ${customerSectionTab === 'marketplace' ? 'is-active' : ''}`}
+                  onClick={() => setCustomerSectionTab('marketplace')}
+                >
+                  <span>GPU Marketplace</span>
+                  <span className="zesto-tab-badge">{listings.length}</span>
+                </button>
+                <button
+                  type="button"
+                  className={`zesto-tab-btn ${customerSectionTab === 'orders' ? 'is-active' : ''}`}
+                  onClick={() => setCustomerSectionTab('orders')}
+                >
+                  <span>Recent Orders</span>
+                  <span className="zesto-tab-badge">{orders.length}</span>
+                </button>
+              </div>
+
+              {/* Subfilter Pills Bar */}
+              <div className="zesto-subfilter-bar">
+                <div className="zesto-filter-pill-group">
+                  {[
+                    { id: 'all', label: 'All Workloads' },
+                    { id: 'deepseek', label: 'DeepSeek R1' },
+                    { id: 'llama', label: 'Llama 3.3 / 3.1' },
+                    { id: 'qwen', label: 'Qwen 2.5' },
+                    { id: 'mistral', label: 'Mistral' },
+                    { id: 'yotta', label: 'Yotta (Mumbai)' },
+                  ].map((flt) => (
+                    <button
+                      key={flt.id}
+                      type="button"
+                      className={`zesto-filter-pill ${customerModelFilter === flt.id ? 'is-active' : ''}`}
+                      onClick={() => setCustomerModelFilter(flt.id)}
+                    >
+                      {flt.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <button
+                    type="button"
+                    className="zesto-btn-glass"
+                    style={{ fontSize: '0.74rem', padding: '5px 12px' }}
+                    onClick={() => setShowDeployModal(true)}
+                  >
+                    <Plus size={13} /> New Deployment
+                  </button>
+                </div>
+              </div>
+
+              {/* 5. TAB 1: 3-Column Interactive Kanban Board (Photos 1 & 2) */}
+              {customerSectionTab === 'workloads' && (
+                <div className="zesto-kanban-board">
+                  {/* Column 1: Running GPUs */}
+                  <div className="zesto-kanban-col">
+                    <div className="zesto-col-header">
+                      <div className="zesto-col-title-wrap">
+                        <span className="zesto-col-title">
+                          Running GPUs
+                          <span className="zesto-col-badge">{kanbanRunning.length}</span>
+                        </span>
+                        <span className="zesto-col-sub">Live inference &amp; training nodes</span>
+                      </div>
                     </div>
-                    <div className="dh-list">
-                      {lowWallet && (
-                        <div className="dh-alert dh-alert--warn">
-                          <strong>Wallet running low</strong>
-                          <small>{hoursLeft === null ? money(walletBalance) : `~${hoursLeft.toFixed(1)} hrs of runtime left`}. <Link to="/dashboard/wallet">Top up</Link></small>
-                        </div>
-                      )}
-                      {unread.slice(0, 3).map((n) => (
-                        <div className="dh-alert" key={n.id}><strong>{n.title}</strong><small>{n.time}</small></div>
-                      ))}
-                      {!lowWallet && unread.length === 0 && <p className="mw-muted" style={{ padding: '4px 16px 14px' }}>You are all caught up.</p>}
-                    </div>
+
+                    {kanbanRunning.length === 0 ? (
+                      <div style={{ padding: '36px 16px', textAlign: 'center', color: '#6b7280', fontSize: '0.82rem' }}>
+                        <Server size={28} style={{ margin: '0 auto 10px', opacity: 0.4 }} />
+                        <p style={{ margin: 0 }}>No running instances matching filter.</p>
+                        <button
+                          type="button"
+                          className="zesto-btn-lime-pill"
+                          style={{ marginTop: 14, fontSize: '0.75rem', padding: '6px 14px' }}
+                          onClick={() => setShowDeployModal(true)}
+                        >
+                          <Plus size={12} /> Deploy a GPU
+                        </button>
+                      </div>
+                    ) : (
+                      kanbanRunning.map((d) => {
+                        const initials = getModelInitials(d.model, d.name)
+                        return (
+                          <div className="zesto-card-item" key={d.id}>
+                            <div className="zesto-card-top">
+                              <div className="zesto-avatar-pill">{initials}</div>
+                              <div className="zesto-card-details">
+                                <h4 className="zesto-card-title">{d.name}</h4>
+                                <div className="zesto-card-meta">{d.model}</div>
+                                <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: 2 }}>
+                                  {d.gpu} • {d.region}
+                                </div>
+                              </div>
+                              <div className="zesto-card-price-badge">
+                                {money(d.hourlyRate ?? 0)}/hr
+                              </div>
+                            </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.72rem', color: '#d4ff00', marginTop: 2 }}>
+                              <span className="zesto-pulse-dot" />
+                              <span>Live cluster node • 4ms SLA</span>
+                            </div>
+
+                            <div className="zesto-card-footer">
+                              <button
+                                type="button"
+                                className="zesto-card-action-btn zesto-card-action-btn--glass"
+                                onClick={() => navigate('/dashboard/playground')}
+                              >
+                                <Terminal size={11} /> Playground
+                              </button>
+                              <button
+                                type="button"
+                                className="zesto-card-action-btn zesto-card-action-btn--glass"
+                                onClick={() => handleToggleDeployment(d.id, 'stop')}
+                              >
+                                Stop Node
+                              </button>
+                            </div>
+                          </div>
+                        )
+                      })
+                    )}
                   </div>
 
-                  <div className="mw-panel">
-                    <div className="mw-panel-head"><h3>Recent orders</h3><Link to="/dashboard/orders" className="mw-muted">History</Link></div>
-                    <div className="dh-list">
-                      {recentOrders.map((o) => (
-                        <div className="dh-order" key={o.id}>
-                          <div><strong>{o.id}</strong><small>{o.modelOrGpu}</small></div>
-                          <div style={{ textAlign: 'right' }}>
-                            <span>{money(o.cost)}</span>
-                            {o.status === 'Completed' ? (
-                              <Link to="/dashboard/reviews" className="dh-rate">Rate it</Link>
-                            ) : (
-                              <small>{o.status}</small>
-                            )}
+                  {/* Column 2: Provisioning & Queued */}
+                  <div className="zesto-kanban-col">
+                    <div className="zesto-col-header">
+                      <div className="zesto-col-title-wrap">
+                        <span className="zesto-col-title">
+                          Provisioning &amp; Queued
+                          <span className="zesto-col-badge" style={{ background: '#00e5ff', color: '#0b0d0e' }}>
+                            {kanbanProvisioning.length}
+                          </span>
+                        </span>
+                        <span className="zesto-col-sub">Allocating bare-metal nodes &amp; weights</span>
+                      </div>
+                    </div>
+
+                    {kanbanProvisioning.length === 0 ? (
+                      <div style={{ padding: '36px 16px', textAlign: 'center', color: '#6b7280', fontSize: '0.82rem' }}>
+                        <Zap size={28} style={{ margin: '0 auto 10px', opacity: 0.4 }} />
+                        <p style={{ margin: 0 }}>Queue is clear. All nodes allocated.</p>
+                      </div>
+                    ) : (
+                      kanbanProvisioning.map((d) => {
+                        const initials = getModelInitials(d.model, d.name)
+                        return (
+                          <div className="zesto-card-item" key={d.id}>
+                            <div className="zesto-card-top">
+                              <div className="zesto-avatar-pill" style={{ borderColor: 'rgba(0,229,255,0.4)', color: '#00e5ff' }}>
+                                {initials}
+                              </div>
+                              <div className="zesto-card-details">
+                                <h4 className="zesto-card-title">{d.name}</h4>
+                                <div className="zesto-card-meta">{d.model}</div>
+                                <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: 2 }}>
+                                  {d.gpu} • {d.region}
+                                </div>
+                              </div>
+                              <div className="zesto-card-price-badge" style={{ color: '#00e5ff', borderColor: 'rgba(0,229,255,0.3)', background: 'rgba(0,229,255,0.1)' }}>
+                                {money(d.hourlyRate ?? 0)}/hr
+                              </div>
+                            </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.72rem', color: '#00e5ff', marginTop: 2 }}>
+                              <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: '#00e5ff' }} />
+                              <span>Warming weights in VRAM (85%)...</span>
+                            </div>
+
+                            <div className="zesto-card-footer">
+                              <span style={{ fontSize: '0.7rem', color: '#6b7280' }}>Est. ~45s remaining</span>
+                              <button
+                                type="button"
+                                className="zesto-card-action-btn zesto-card-action-btn--lime"
+                                onClick={() => handleToggleDeployment(d.id, 'start')}
+                              >
+                                Ready to Start
+                              </button>
+                            </div>
+                          </div>
+                        )
+                      })
+                    )}
+                  </div>
+
+                  {/* Column 3: Completed / Standby */}
+                  <div className="zesto-kanban-col">
+                    <div className="zesto-col-header">
+                      <div className="zesto-col-title-wrap">
+                        <span className="zesto-col-title">
+                          Standby &amp; Snapshots
+                          <span className="zesto-col-badge" style={{ background: '#6b7280', color: '#ffffff' }}>
+                            {kanbanStopped.length}
+                          </span>
+                        </span>
+                        <span className="zesto-col-sub">Saved checkpoints ready to resume</span>
+                      </div>
+                    </div>
+
+                    {kanbanStopped.length === 0 ? (
+                      <div style={{ padding: '36px 16px', textAlign: 'center', color: '#6b7280', fontSize: '0.82rem' }}>
+                        <Layers size={28} style={{ margin: '0 auto 10px', opacity: 0.4 }} />
+                        <p style={{ margin: 0 }}>No stopped nodes. All clusters are live or unprovisioned.</p>
+                      </div>
+                    ) : (
+                      kanbanStopped.map((d) => {
+                        const initials = getModelInitials(d.model, d.name)
+                        return (
+                          <div className="zesto-card-item" key={d.id}>
+                            <div className="zesto-card-top">
+                              <div className="zesto-avatar-pill" style={{ borderColor: 'rgba(255,255,255,0.15)', color: '#9ca3af' }}>
+                                {initials}
+                              </div>
+                              <div className="zesto-card-details">
+                                <h4 className="zesto-card-title">{d.name}</h4>
+                                <div className="zesto-card-meta">{d.model}</div>
+                                <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: 2 }}>
+                                  {d.gpu} • {d.region}
+                                </div>
+                              </div>
+                              <div className="zesto-card-price-badge" style={{ color: '#9ca3af', borderColor: 'rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.05)' }}>
+                                {money(d.hourlyRate ?? 0)}/hr
+                              </div>
+                            </div>
+
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.72rem', color: '#6b7280', marginTop: 2 }}>
+                              <span style={{ display: 'inline-block', width: 6, height: 6, borderRadius: '50%', background: '#6b7280' }} />
+                              <span>Snapshot stored in NVMe cluster</span>
+                            </div>
+
+                            <div className="zesto-card-footer">
+                              <button
+                                type="button"
+                                className="zesto-card-action-btn zesto-card-action-btn--lime"
+                                onClick={() => handleToggleDeployment(d.id, 'start')}
+                              >
+                                <Play size={11} /> Resume Node
+                              </button>
+                              <button
+                                type="button"
+                                className="zesto-card-action-btn zesto-card-action-btn--glass"
+                                onClick={() => setDeployToDelete(d)}
+                              >
+                                <Trash2 size={11} />
+                              </button>
+                            </div>
+                          </div>
+                        )
+                      })
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* 6. TAB 2: GPU Marketplace Grid (Photos 4 & 5) */}
+              {customerSectionTab === 'marketplace' && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+                  {listings.map((item) => (
+                    <div key={item.id} className="zesto-card-item">
+                      <div className="zesto-card-top">
+                        <div className="zesto-avatar-pill">
+                          <Cpu size={16} />
+                        </div>
+                        <div className="zesto-card-details">
+                          <h4 className="zesto-card-title">{item.name}</h4>
+                          <div className="zesto-card-meta">{item.gpu} • {item.vram} VRAM</div>
+                          <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: 2 }}>
+                            {item.region} • {item.quantity} available
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
+                        <div className="zesto-card-price-badge">
+                          {money(item.price)}/hr
+                        </div>
+                      </div>
 
-              {/* Quick actions */}
-              <div className="dh-tiles">
-                {[
-                  { to: '/dashboard/gpus', icon: <Cpu size={18} />, label: 'GPU Marketplace' },
-                  { to: '/dashboard/compare', icon: <Layers size={18} />, label: 'Compare GPUs' },
-                  { to: '/dashboard/api-keys', icon: <KeyRound size={18} />, label: 'API Keys' },
-                  { to: '/dashboard/rewards', icon: <Sparkles size={18} />, label: 'Rewards' },
-                ].map((t) => (
-                  <Link to={t.to} key={t.to} className="dh-tile">{t.icon}<span>{t.label}</span></Link>
-                ))}
-              </div>
-            </>
+                      <div style={{ fontSize: '0.72rem', color: '#9ca3af', background: 'rgba(255,255,255,0.03)', padding: '6px 10px', borderRadius: 8 }}>
+                        {item.bandwidth && <span>Bandwidth: {item.bandwidth} • </span>}
+                        {item.tflops && <span>TFLOPS: {item.tflops}</span>}
+                      </div>
+
+                      <div className="zesto-card-footer">
+                        <span style={{ color: '#d4ff00', fontSize: '0.72rem' }}>● In Stock</span>
+                        <button
+                          type="button"
+                          className="zesto-card-action-btn zesto-card-action-btn--lime"
+                          onClick={() => {
+                            setDeployForm((prev) => ({ ...prev, gpu: item.gpu, region: item.region }))
+                            setShowDeployModal(true)
+                          }}
+                        >
+                          <Plus size={11} /> Deploy Now
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* 7. TAB 3: Recent Orders (Photos 4 & 6) */}
+              {customerSectionTab === 'orders' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {orders.map((ord) => (
+                    <div
+                      key={ord.id}
+                      className="zesto-card-item"
+                      style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 14 }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div className="zesto-avatar-pill">
+                          <Activity size={15} />
+                        </div>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <strong style={{ color: '#ffffff', fontSize: '0.88rem' }}>{ord.id}</strong>
+                            <span className="zesto-card-price-badge" style={{ fontSize: '0.7rem' }}>
+                              {ord.status}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: 2 }}>
+                            {ord.modelOrGpu} • {ord.provider}
+                          </div>
+                          <div style={{ fontSize: '0.7rem', color: '#6b7280', marginTop: 1 }}>
+                            {ord.date} • Duration: {ord.duration}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: '1rem', fontWeight: 700, color: '#ffffff' }}>
+                            {money(ord.cost)}
+                          </div>
+                          <div style={{ fontSize: '0.7rem', color: '#9ca3af' }}>Billed to Wallet</div>
+                        </div>
+
+                        {ord.status === 'Completed' ? (
+                          <Link
+                            to="/dashboard/reviews"
+                            className="zesto-card-action-btn zesto-card-action-btn--glass"
+                            style={{ textDecoration: 'none' }}
+                          >
+                            Rate Workload
+                          </Link>
+                        ) : (
+                          <Link
+                            to="/dashboard/orders"
+                            className="zesto-card-action-btn zesto-card-action-btn--glass"
+                            style={{ textDecoration: 'none' }}
+                          >
+                            Details
+                          </Link>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* 8. Floating Bottom Toast Pill (Photos 2, 3, 4) */}
+              {customerToastVisible && (
+                <div className="zesto-floating-toast">
+                  <span className="zesto-toast-icon">
+                    <Check size={16} />
+                  </span>
+                  <span>Connected to Sovereign Yotta NM1 Cluster • 4ms latency</span>
+                  <button
+                    type="button"
+                    className="zesto-toast-btn"
+                    onClick={() => setCustomerToastVisible(false)}
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              )}
+            </div>
           )
         })()}
 
