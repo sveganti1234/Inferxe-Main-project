@@ -6,11 +6,15 @@ let verifier
 let verifierConfig
 
 function getCognitoVerifier() {
-  const userPoolId = process.env.AWS_COGNITO_USER_POOL_ID?.trim()
-  const clientId = process.env.AWS_COGNITO_CLIENT_ID?.trim()
+  const userPoolId =
+    (process.env.COGNITO_USER_POOL_ID || process.env.AWS_COGNITO_USER_POOL_ID)?.trim()
+  const clientId =
+    (process.env.COGNITO_CLIENT_ID || process.env.AWS_COGNITO_CLIENT_ID)?.trim()
 
   if (!userPoolId || !clientId) {
-    throw new Error('AWS_COGNITO_USER_POOL_ID and AWS_COGNITO_CLIENT_ID must be configured on the backend.')
+    throw new Error(
+      'COGNITO_USER_POOL_ID and COGNITO_CLIENT_ID (or AWS_COGNITO_* equivalents) must be configured on the backend.',
+    )
   }
 
   const config = `${userPoolId}:${clientId}`

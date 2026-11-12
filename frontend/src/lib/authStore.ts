@@ -144,8 +144,12 @@ async function cognitoLogin(email: string, password: string): Promise<{ ok: bool
 }
 
 async function cognitoRegister(fullName: string, email: string, password: string): Promise<{ ok: boolean; error?: string }> {
+  // Cognito User Pool is configured with email as a sign-in alias, not the username attribute.
+  // The Username parameter must be a non-email unique identifier; the email is stored as a user attribute.
+  const cognitoUsername = `cust_${crypto.randomUUID().replace(/-/g, '')}`
+
   const r = await cognitoCall('SignUp', {
-    Username: email.trim(),
+    Username: cognitoUsername,
     Password: password,
     UserAttributes: [
       { Name: 'email', Value: email.trim() },

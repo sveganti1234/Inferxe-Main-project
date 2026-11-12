@@ -411,10 +411,12 @@ export default function Login({ initialMode }: LoginProps) {
 
           const cleanEmail = email.trim().toLowerCase()
 
-          try {
-            const cognitoUsername = cleanEmail
-            setPendingCognitoUsername(cognitoUsername)
+          // Cognito User Pool is configured with email as a sign-in alias, not the username attribute.
+          // The Username parameter must be a non-email unique identifier; the email is stored as a user attribute.
+          const cognitoUsername = `cust_${crypto.randomUUID().replace(/-/g, '')}`
+          setPendingCognitoUsername(cognitoUsername)
 
+          try {
             const userAttrs: Record<string, string> = {
               email: cleanEmail,
               name: fullName.trim(),
