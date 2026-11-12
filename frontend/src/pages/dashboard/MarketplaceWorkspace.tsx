@@ -2,10 +2,10 @@ import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useLocation, Link, useNavigate } from 'react-router-dom'
 import {
   Activity, Archive, ArrowDownToLine, ArrowUpDown, Bell, Check, ChevronDown, ChevronRight,
-  CircleDollarSign, Copy, Cpu, Download, Eye, EyeOff, FileText,
+  CircleDollarSign, Copy, Cpu, CreditCard, Download, Eye, EyeOff, FileText,
   Heart, Info, KeyRound, Layers, LayoutGrid, List, Lock, MapPin, Play, Plus,
-  Search, Server, Settings2, Share2, ShieldCheck, Sparkles, Terminal,
-  Trash2, TrendingUp, User, Users, Wallet, Wrench, X, Zap,
+  RotateCw, Search, Server, Settings2, Share2, ShieldCheck, Sparkles, Terminal,
+  Trash2, TrendingUp, Unlock, User, Users, Wallet, Wrench, X, Zap,
 } from 'lucide-react'
 import { DashboardLayout } from '../../components/dashboard/DashboardLayout'
 import { AdminGuard } from '../../components/auth/AdminGuard'
@@ -156,6 +156,113 @@ const initialNotifications: NotificationItem[] = [
   { id: 'n1', title: 'Deployment qwen-chat-staging is healthy', detail: 'Serving tokens at 118 tok/s with 0.42s P95 TTFT.', type: 'Deployment', time: '12 mins ago', read: false },
   { id: 'n2', title: 'Monthly spending alert threshold reached', detail: 'Estimated spend has reached 48% of your monthly cap.', type: 'Billing', time: '2 hours ago', read: false },
   { id: 'n3', title: 'Yotta NM1 sovereign cluster capacity added', detail: 'New NVIDIA H100 nodes provisioned in Mumbai region.', type: 'Marketplace', time: 'Yesterday', read: true },
+]
+
+type ComputeCard = {
+  id: string
+  name: string
+  type: 'Credit' | 'Debit' | 'Virtual'
+  last4: string
+  fullNumber: string
+  cvv: string
+  exp: string
+  color: string
+  gradient: string
+  limit: number
+  spent: number
+  categoryBreakdown: {
+    inference: number
+    gpu: number
+    fineTuning: number
+    storage: number
+  }
+}
+
+const COMPUTE_CARDS: ComputeCard[] = [
+  {
+    id: 'card-1',
+    name: 'Main Compute Credit',
+    type: 'Credit',
+    last4: '1904',
+    fullNumber: '4532 8901 6723 1904',
+    cvv: '842',
+    exp: '06/29',
+    color: '#2a7e8e',
+    gradient: 'linear-gradient(135deg, #449fa8 0%, #2a7e8e 50%, #175e6d 100%)',
+    limit: 50000,
+    spent: 14820,
+    categoryBreakdown: { inference: 6800, gpu: 5200, fineTuning: 1920, storage: 900 },
+  },
+  {
+    id: 'card-2',
+    name: 'Developer GPU Pool',
+    type: 'Debit',
+    last4: '4821',
+    fullNumber: '4112 5590 3341 4821',
+    cvv: '319',
+    exp: '08/28',
+    color: '#10b981',
+    gradient: 'linear-gradient(135deg, #10b981 0%, #059669 50%, #047857 100%)',
+    limit: 25000,
+    spent: 8400,
+    categoryBreakdown: { inference: 3500, gpu: 3900, fineTuning: 600, storage: 400 },
+  },
+  {
+    id: 'card-3',
+    name: 'Batch Training Card',
+    type: 'Debit',
+    last4: '7730',
+    fullNumber: '5243 7810 9942 7730',
+    cvv: '561',
+    exp: '11/27',
+    color: '#6366f1',
+    gradient: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 50%, #3730a3 100%)',
+    limit: 40000,
+    spent: 12100,
+    categoryBreakdown: { inference: 1100, gpu: 8500, fineTuning: 2000, storage: 500 },
+  },
+  {
+    id: 'card-4',
+    name: 'Fine-Tuning Cluster',
+    type: 'Virtual',
+    last4: '5512',
+    fullNumber: '4929 1102 3840 5512',
+    cvv: '702',
+    exp: '03/29',
+    color: '#f59e0b',
+    gradient: 'linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #b45309 100%)',
+    limit: 15000,
+    spent: 3200,
+    categoryBreakdown: { inference: 400, gpu: 1200, fineTuning: 1500, storage: 100 },
+  },
+  {
+    id: 'card-5',
+    name: 'API Sandbox',
+    type: 'Virtual',
+    last4: '0398',
+    fullNumber: '4200 8912 6601 0398',
+    cvv: '448',
+    exp: '09/29',
+    color: '#06b6d4',
+    gradient: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 50%, #0e7490 100%)',
+    limit: 10000,
+    spent: 1450,
+    categoryBreakdown: { inference: 950, gpu: 300, fineTuning: 0, storage: 200 },
+  },
+  {
+    id: 'card-6',
+    name: 'Reserved Instances',
+    type: 'Credit',
+    last4: '6640',
+    fullNumber: '5501 3349 7120 6640',
+    cvv: '915',
+    exp: '12/30',
+    color: '#8b5cf6',
+    gradient: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 50%, #6d28d9 100%)',
+    limit: 100000,
+    spent: 42000,
+    categoryBreakdown: { inference: 14000, gpu: 24000, fineTuning: 2500, storage: 1500 },
+  },
 ]
 
 const FAQS = [
@@ -334,6 +441,41 @@ export default function MarketplaceWorkspace() {
       window.removeEventListener('storage', handleSyncHide)
     }
   }, [])
+
+  // Zesto Cards & Compute Wallet State (Photo 2)
+  const [selectedCardId, setSelectedCardId] = useState<string>('card-1')
+  const [isCardFlipped, setIsCardFlipped] = useState<boolean>(false)
+  const [showCardNumber, setShowCardNumber] = useState<boolean>(false)
+  const [cardsFrozen, setCardsFrozen] = useState<Record<string, boolean>>({
+    'card-1': true, // matches photo 2: "1 frozen", Family credit is frozen
+  })
+  const [cardToast, setCardToast] = useState<{ message: string; visible: boolean }>({
+    message: 'Main Compute Credit is frozen · nothing goes through',
+    visible: true,
+  })
+  const [cardTab, setCardTab] = useState<'wallet' | 'controls'>('wallet')
+
+  const handleToggleFreeze = (cardId: string, cardName: string) => {
+    setCardsFrozen((prev) => {
+      const willFreeze = !prev[cardId]
+      const next = { ...prev, [cardId]: willFreeze }
+      setCardToast({
+        message: willFreeze
+          ? `${cardName} is frozen · nothing goes through`
+          : `${cardName} is active · transactions enabled`,
+        visible: true,
+      })
+      return next
+    })
+  }
+
+  const handleCopyCardNumber = (num: string) => {
+    void navigator.clipboard.writeText(num.replace(/\s+/g, ''))
+    setCardToast({
+      message: 'Card number copied to clipboard',
+      visible: true,
+    })
+  }
 
   // Real Elapsed Time 1-Hour Trial State
   const [trialTimeLeft, setTrialTimeLeft] = useState<number | null>(() => {
@@ -4479,91 +4621,439 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
         )}
 
         {/* ───────────────────────────────────────────────────────────
-            24. WALLET & CREDITS (route === 'wallet')
+            24. WALLET & COMPUTE CARDS (route === 'wallet')
+            Matching Zesto Cards & Compute Wallet UI (Photo 2)
             ─────────────────────────────────────────────────────────── */}
-        {route === 'wallet' && (
-          <>
-            <div className="mw-toolbar">
-              <div>
-                <h2>Prepaid Wallet & Credit Ledger</h2>
-                <p>Manage prepaid inference credits, monitor consumption, and inspect invoices.</p>
-              </div>
-              <button className="mw-primary" onClick={() => handleOpenTopUpModal()}>
-                <Plus size={16} /> Top Up Balance (Demo)
-              </button>
-            </div>
+        {route === 'wallet' && (() => {
+          const session = getSession()
+          const fullName = session?.user.fullName || 'Sahith V'
+          const firstName = fullName.split(' ')[0]
+          const activeCard = COMPUTE_CARDS.find((c) => c.id === selectedCardId) || COMPUTE_CARDS[0]
+          const isFrozen = Boolean(cardsFrozen[activeCard.id])
+          const frozenCount = Object.values(cardsFrozen).filter(Boolean).length
 
-            <div className="mw-stat-grid">
-              <div className="mw-metric">
-                <div className="mw-metric-top"><span>Available Balance</span><span className="mw-icon-box"><Wallet /></span></div>
-                <strong>{money(walletBalance)}</strong>
-                <small style={{ color: 'var(--brand-hi)' }}>Prepaid balance</small>
-              </div>
-              <div className="mw-metric">
-                <div className="mw-metric-top"><span>Current Month Usage</span><span className="mw-icon-box"><CircleDollarSign /></span></div>
-                <strong>{money(monthSpend)}</strong>
-                <small>{monthSpend === 0 ? 'No usage this month' : `${Math.round((monthSpend / 10000) * 100)}% of ₹10,000 monthly limit`}</small>
-              </div>
-              <div className="mw-metric">
-                <div className="mw-metric-top"><span>Pending Invoices</span><span className="mw-icon-box"><ArrowDownToLine /></span></div>
-                <strong>0</strong>
-                <small>No pending invoices</small>
-              </div>
-              <div className="mw-metric">
-                <div className="mw-metric-top"><span>Next Billing Cycle</span><span className="mw-icon-box"><Bell /></span></div>
-                <strong>01 Nov 2026</strong>
-                <small>Auto-invoicing enabled</small>
-              </div>
-            </div>
+          // Compute cycle spend: real monthSpend if present, else activeCard.spent
+          const currentCycleSpend = monthSpend > 0 ? monthSpend : activeCard.spent
+          const cycleLimit = activeCard.limit
+          const cyclePct = Math.min(100, Math.round((currentCycleSpend / cycleLimit) * 100))
 
-            <div className="mw-panel">
-              <div className="mw-panel-head">
-                <h3>Transaction History</h3>
-                <span className="mw-muted">{transactions.length} recorded</span>
-              </div>
-              <div className="mw-table-wrap">
-                <table className="mw-table">
-                  <thead>
-                    <tr>
-                      <th>Reference ID</th>
-                      <th>Description</th>
-                      <th>Date</th>
-                      <th>Amount</th>
-                      <th>Status</th>
-                      <th>Invoice</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {transactions.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} style={{ textAlign: 'center', color: 'var(--ink-4)', padding: 24 }}>
-                          No transactions recorded yet.
-                        </td>
-                      </tr>
+          // Category segments for multi-progress bar
+          const infShare = Math.round((activeCard.categoryBreakdown.inference / activeCard.spent) * cyclePct)
+          const gpuShare = Math.round((activeCard.categoryBreakdown.gpu / activeCard.spent) * cyclePct)
+          const ftShare = Math.round((activeCard.categoryBreakdown.fineTuning / activeCard.spent) * cyclePct)
+          const storageShare = Math.max(0, cyclePct - infShare - gpuShare - ftShare)
+
+          // Fallback transaction list matching Photo 2 style with real or sample data
+          const displayTransactions = transactions.length > 0 ? transactions : [
+            { id: 'tx-101', desc: 'Yotta NM1 H100 Node Lease', date: 'Yesterday, 19:22', amount: 1440, isCredit: false, status: 'Success' },
+            { id: 'tx-102', desc: 'DeepSeek R1 Inference API', date: 'Sun, 14:37', amount: 41, isCredit: false, status: 'Success' },
+            { id: 'tx-103', desc: 'Llama 3.3 Batch Evaluation', date: 'Sat, 18:51', amount: 474, isCredit: false, status: 'Success' },
+            { id: 'tx-104', desc: 'Prepaid Wallet Credit Top Up', date: '12 Nov', amount: 10000, isCredit: true, status: 'Success' },
+            { id: 'tx-105', desc: 'NVMe Shared Storage Snapshot', date: '12 Nov', amount: 5, isCredit: false, status: 'Success' },
+            { id: 'tx-106', desc: 'Mistral 7B Warm-up Cluster', date: '11 Nov', amount: 135, isCredit: false, status: 'Success' },
+          ]
+
+          return (
+            <div className="zesto-cards-view">
+              {/* Header Row (Photo 2) */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
+                <div>
+                  <h1 style={{ fontSize: '1.65rem', fontWeight: 800, color: '#ffffff', margin: 0, letterSpacing: '-0.02em' }}>
+                    Cards
+                  </h1>
+                  <p style={{ fontSize: '0.78rem', color: '#6b7280', margin: '4px 0 0' }}>
+                    {COMPUTE_CARDS.length} cards across the cluster · {frozenCount} frozen
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <button
+                    type="button"
+                    className="zesto-btn-glass"
+                    onClick={() => handleToggleFreeze(activeCard.id, activeCard.name)}
+                    style={{ fontSize: '0.78rem', padding: '7px 14px' }}
+                  >
+                    {isFrozen ? (
+                      <>
+                        <Unlock size={13} style={{ color: '#d4ff00' }} />
+                        <span>Unfreeze this card</span>
+                      </>
                     ) : (
-                      transactions.map((tx) => (
-                        <tr key={tx.id}>
-                          <td><strong>{tx.id}</strong></td>
-                          <td>{tx.desc}</td>
-                          <td>{tx.date}</td>
-                          <td style={{ color: tx.isCredit ? 'var(--brand-hi)' : 'var(--ink)' }}>
-                            {tx.isCredit ? `+${money(tx.amount)}` : `−${money(tx.amount)}`}
-                          </td>
-                          <td><StatusBadge>{tx.status}</StatusBadge></td>
-                          <td>
-                            <button className="mw-link-btn" onClick={() => setViewInvoiceItem(tx)}>
-                              View Invoice
-                            </button>
-                          </td>
-                        </tr>
-                      ))
+                      <>
+                        <Lock size={13} />
+                        <span>Freeze this card</span>
+                      </>
                     )}
-                  </tbody>
-                </table>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="zesto-btn-lime-pill"
+                    onClick={() => handleOpenTopUpModal()}
+                    style={{ fontSize: '0.78rem', padding: '7px 16px' }}
+                  >
+                    <Plus size={13} /> Move money
+                  </button>
+                </div>
               </div>
+
+              {/* Tabs: Wallet | Controls (Photo 2) */}
+              <div className="zesto-section-tabs" style={{ marginTop: 0 }}>
+                <button
+                  type="button"
+                  className={`zesto-tab-btn ${cardTab === 'wallet' ? 'is-active' : ''}`}
+                  onClick={() => setCardTab('wallet')}
+                >
+                  <span>Wallet</span>
+                </button>
+                <button
+                  type="button"
+                  className={`zesto-tab-btn ${cardTab === 'controls' ? 'is-active' : ''}`}
+                  onClick={() => setCardTab('controls')}
+                >
+                  <span>Controls</span>
+                </button>
+              </div>
+
+              {/* Horizontal Card Selector Carousel (Photo 2) */}
+              <div className="zesto-cards-carousel">
+                {COMPUTE_CARDS.map((c) => {
+                  const cardIsFrozen = Boolean(cardsFrozen[c.id])
+                  const isSelected = c.id === selectedCardId
+                  return (
+                    <div
+                      key={c.id}
+                      className={`zesto-card-chip ${isSelected ? 'is-active' : ''}`}
+                      onClick={() => {
+                        setSelectedCardId(c.id)
+                        setIsCardFlipped(false)
+                      }}
+                      role="button"
+                      tabIndex={0}
+                    >
+                      <div
+                        className="zesto-card-chip-thumb"
+                        style={{
+                          background: c.gradient,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <CreditCard size={10} color="#ffffff" />
+                      </div>
+                      <div>
+                        <div className="zesto-card-chip-title">
+                          {c.name}
+                        </div>
+                        <div className="zesto-card-chip-sub">
+                          {c.type} · {c.last4} {cardIsFrozen && '· Frozen'}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* TAB 1: Wallet (Photo 2) */}
+              {cardTab === 'wallet' && (
+                <div className="zesto-cards-layout">
+                  {/* Left Column: Virtual 3D Card Stage */}
+                  <div className="zesto-card-stage">
+                    <div className="zesto-3d-card-wrapper">
+                      <div className={`zesto-3d-card ${isCardFlipped ? 'is-flipped' : ''}`}>
+                        {/* Front Side */}
+                        <div
+                          className="zesto-card-side"
+                          style={{
+                            background: activeCard.gradient,
+                            filter: isFrozen ? 'brightness(0.85) contrast(0.95)' : 'none',
+                          }}
+                        >
+                          <div className="zesto-vcard-top">
+                            <span className="zesto-vcard-logo">
+                              <span style={{ color: '#d4ff00', fontSize: '1.4rem' }}>●</span> inferxe
+                            </span>
+                            <span className="zesto-vcard-type-badge">
+                              {isFrozen ? 'FROZEN' : activeCard.type}
+                            </span>
+                          </div>
+
+                          <div className="zesto-vcard-chip-wrap">
+                            <div className="zesto-emv-chip" />
+                            <svg className="zesto-contactless-wave" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M8.5 16.5a5 5 0 0 1 0-7" />
+                              <path d="M12 19a8.5 8.5 0 0 0 0-14" />
+                              <path d="M15.5 21.5a12 12 0 0 0 0-19" />
+                            </svg>
+                          </div>
+
+                          <div className="zesto-vcard-number">
+                            {showCardNumber ? activeCard.fullNumber : `•••• •••• •••• ${activeCard.last4}`}
+                          </div>
+
+                          <div className="zesto-vcard-bottom">
+                            <div className="zesto-vcard-holder">
+                              {fullName}
+                            </div>
+                            <div className="zesto-vcard-expiry-wrap">
+                              <div className="zesto-vcard-expiry-label">Expires</div>
+                              <div className="zesto-vcard-expiry-val">{activeCard.exp}</div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Back Side */}
+                        <div className="zesto-card-side is-back">
+                          <div className="zesto-vcard-magstripe" />
+                          <div className="zesto-vcard-signature-bar">
+                            <span style={{ fontSize: '0.65rem', color: '#6b7280', textTransform: 'uppercase' }}>Security Code</span>
+                            <span className="zesto-vcard-cvv">{activeCard.cvv}</span>
+                          </div>
+                          <div style={{ padding: '16px 24px', fontSize: '0.68rem', color: '#9ca3af', lineHeight: 1.4 }}>
+                            For authorized compute node allocation only. Encrypted via Tier-IV Sovereign Infrastructure.
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 4 Action Pills below Card (Photo 2) */}
+                    <div className="zesto-card-actions-bar">
+                      <button
+                        type="button"
+                        className="zesto-card-action-pill"
+                        onClick={() => setIsCardFlipped((prev) => !prev)}
+                      >
+                        <RotateCw size={13} /> Back
+                      </button>
+                      <button
+                        type="button"
+                        className="zesto-card-action-pill"
+                        onClick={() => setShowCardNumber((prev) => !prev)}
+                      >
+                        {showCardNumber ? <EyeOff size={13} /> : <Eye size={13} />}
+                        <span>{showCardNumber ? 'Hide number' : 'Show number'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        className="zesto-card-action-pill"
+                        onClick={() => handleCopyCardNumber(activeCard.fullNumber)}
+                      >
+                        <Copy size={13} /> Copy
+                      </button>
+                      <button
+                        type="button"
+                        className={`zesto-card-action-pill ${isFrozen ? 'zesto-card-action-pill--lime' : ''}`}
+                        onClick={() => handleToggleFreeze(activeCard.id, activeCard.name)}
+                      >
+                        {isFrozen ? <Unlock size={13} /> : <Lock size={13} />}
+                        <span>{isFrozen ? 'Unfreeze' : 'Freeze'}</span>
+                      </button>
+                    </div>
+
+                    {/* Owner Pill below buttons (Photo 2) */}
+                    <div className="zesto-card-owner-bar">
+                      <div
+                        style={{
+                          width: 22,
+                          height: 22,
+                          borderRadius: '50%',
+                          background: '#d4ff00',
+                          color: '#0b0d0e',
+                          fontWeight: 700,
+                          fontSize: '0.65rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        {firstName.substring(0, 2).toUpperCase()}
+                      </div>
+                      <span>{fullName}</span>
+                      <span>•</span>
+                      <span>From Primary Balance</span>
+                      <span>•</span>
+                      <span
+                        style={{
+                          fontSize: '0.68rem',
+                          padding: '1px 6px',
+                          borderRadius: 4,
+                          background: isFrozen ? 'rgba(239, 68, 68, 0.15)' : 'rgba(212, 255, 0, 0.15)',
+                          color: isFrozen ? '#ef4444' : '#d4ff00',
+                        }}
+                      >
+                        {isFrozen ? 'Frozen' : 'Active'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Right Column: "This cycle" & "Paid with this card" */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                    {/* Card 1: This cycle (Photo 2) */}
+                    <div className="zesto-cycle-panel">
+                      <div className="zesto-cycle-head">
+                        <div>
+                          <h3 className="zesto-cycle-title">This cycle</h3>
+                          <p className="zesto-cycle-sub">Paid off in full from Everyday on the 1st</p>
+                        </div>
+                        <span className="zesto-cycle-pct-badge">{cyclePct}%</span>
+                      </div>
+
+                      <div>
+                        <div className="zesto-cycle-amount">
+                          {money(currentCycleSpend)}
+                          <span className="zesto-cycle-limit"> of {money(cycleLimit)}</span>
+                        </div>
+                      </div>
+
+                      {/* Multi-colored Progress Bar (Lime, Cyan, Yellow, Coral) */}
+                      <div className="zesto-multi-progress">
+                        <div className="zesto-progress-seg" style={{ width: `${infShare}%`, background: '#d4ff00' }} />
+                        <div className="zesto-progress-seg" style={{ width: `${gpuShare}%`, background: '#00e5ff' }} />
+                        <div className="zesto-progress-seg" style={{ width: `${ftShare}%`, background: '#ffd600' }} />
+                        <div className="zesto-progress-seg" style={{ width: `${storageShare}%`, background: '#ff5c72' }} />
+                      </div>
+
+                      {/* 4-Item Breakdown Legend */}
+                      <div className="zesto-cycle-legend">
+                        <div className="zesto-legend-item">
+                          <span className="zesto-legend-label">
+                            <span className="zesto-legend-dot" style={{ background: '#d4ff00' }} />
+                            <span>LLM Inference</span>
+                          </span>
+                          <span className="zesto-legend-val">{money(activeCard.categoryBreakdown.inference)}</span>
+                        </div>
+                        <div className="zesto-legend-item">
+                          <span className="zesto-legend-label">
+                            <span className="zesto-legend-dot" style={{ background: '#00e5ff' }} />
+                            <span>GPU Instances</span>
+                          </span>
+                          <span className="zesto-legend-val">{money(activeCard.categoryBreakdown.gpu)}</span>
+                        </div>
+                        <div className="zesto-legend-item">
+                          <span className="zesto-legend-label">
+                            <span className="zesto-legend-dot" style={{ background: '#ffd600' }} />
+                            <span>Fine-tuning</span>
+                          </span>
+                          <span className="zesto-legend-val">{money(activeCard.categoryBreakdown.fineTuning)}</span>
+                        </div>
+                        <div className="zesto-legend-item">
+                          <span className="zesto-legend-label">
+                            <span className="zesto-legend-dot" style={{ background: '#ff5c72' }} />
+                            <span>Storage &amp; Net</span>
+                          </span>
+                          <span className="zesto-legend-val">{money(activeCard.categoryBreakdown.storage)}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Card 2: Paid with this card (Photo 2) */}
+                    <div className="zesto-card-tx-panel">
+                      <div className="zesto-cycle-head">
+                        <div>
+                          <h3 className="zesto-cycle-title">Paid with this card</h3>
+                          <p className="zesto-cycle-sub">{displayTransactions.length} payments since May</p>
+                        </div>
+                        <button
+                          type="button"
+                          className="mw-link-btn"
+                          onClick={() => handleOpenTopUpModal()}
+                          style={{ color: '#d4ff00', fontSize: '0.74rem', fontWeight: 600 }}
+                        >
+                          + Top up
+                        </button>
+                      </div>
+
+                      <div className="zesto-tx-list">
+                        {displayTransactions.map((tx) => (
+                          <div key={tx.id} className="zesto-tx-item">
+                            <div className="zesto-tx-left">
+                              <div className="zesto-tx-icon-box">
+                                {tx.isCredit ? <Plus size={14} /> : <Server size={14} />}
+                              </div>
+                              <div>
+                                <p className="zesto-tx-title">{tx.desc}</p>
+                                <p className="zesto-tx-meta">{tx.date}</p>
+                              </div>
+                            </div>
+                            <div
+                              className="zesto-tx-amount"
+                              style={{ color: tx.isCredit ? '#10b981' : '#ffffff' }}
+                            >
+                              {tx.isCredit ? `+${money(tx.amount)}` : `−${money(tx.amount)}`}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 2: Controls */}
+              {cardTab === 'controls' && (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 20 }}>
+                  <div className="zesto-cycle-panel">
+                    <h3 className="zesto-cycle-title">Spend Limits &amp; Quotas</h3>
+                    <p className="zesto-cycle-sub">Manage safety caps for {activeCard.name}</p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 10 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.82rem', color: '#d1d5db' }}>Monthly Spend Cap</span>
+                        <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#ffffff' }}>{money(activeCard.limit)}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.82rem', color: '#d1d5db' }}>Auto-pause on limit breach</span>
+                        <span style={{ fontSize: '0.75rem', color: '#d4ff00', fontWeight: 600 }}>Enabled</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.82rem', color: '#d1d5db' }}>Card Status</span>
+                        <span style={{ fontSize: '0.75rem', color: isFrozen ? '#ef4444' : '#10b981', fontWeight: 600 }}>
+                          {isFrozen ? 'Frozen' : 'Active'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="zesto-cycle-panel">
+                    <h3 className="zesto-cycle-title">Sovereign Cluster Security</h3>
+                    <p className="zesto-cycle-sub">Tier-IV encryption &amp; datacenter bounds</p>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 10 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.82rem', color: '#d1d5db' }}>Datacenter Region</span>
+                        <span style={{ fontSize: '0.82rem', color: '#ffffff' }}>Mumbai &amp; Hyderabad (India)</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.82rem', color: '#d1d5db' }}>Zero Cross-Border Logs</span>
+                        <span style={{ fontSize: '0.75rem', color: '#d4ff00', fontWeight: 600 }}>Enforced</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.82rem', color: '#d1d5db' }}>Two-Factor Spend Auth</span>
+                        <span style={{ fontSize: '0.75rem', color: '#d4ff00', fontWeight: 600 }}>Cognito Active</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Floating Bottom Toast Pill (Photo 2) */}
+              {cardToast.visible && (
+                <div className="zesto-floating-toast">
+                  <span className="zesto-toast-icon">
+                    <Check size={16} />
+                  </span>
+                  <span>{cardToast.message}</span>
+                  <button
+                    type="button"
+                    className="zesto-toast-btn"
+                    onClick={() => setCardToast((prev) => ({ ...prev, visible: false }))}
+                  >
+                    Undo
+                  </button>
+                </div>
+              )}
             </div>
-          </>
-        )}
+          )
+        })()}
 
         {/* ───────────────────────────────────────────────────────────
             25. SAVED HARDWARE WISHLIST (route === 'wishlist')
