@@ -18,7 +18,7 @@ from dotenv import load_dotenv
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 load_dotenv(ROOT_DIR / ".env", override=False)
-
+load_dotenv(ROOT_DIR / "backend" / ".env", override=False)
 logger = logging.getLogger("inferxe.notifications.db")
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()

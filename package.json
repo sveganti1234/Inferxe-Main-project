@@ -16,7 +16,11 @@
     "typecheck": "npm --prefix frontend run typecheck",
     "server:admin": "node backend/auth/adminAuthServer.mjs"
   },
-  "devDependencies": {
-    "concurrently": "^10.0.7"
-  }
+"dependencies": {
+  "@supabase/supabase-js": "^2.119.0",
+  "aws-jwt-verify": "^5.2.1"
+},
+"devDependencies": {
+  "concurrently": "^10.0.7"
 }
+  }

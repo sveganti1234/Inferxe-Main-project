@@ -6,7 +6,8 @@ import { createAdminAuthMiddleware } from '../backend/auth/adminAuth.js'
 import { createSSOAuthMiddleware } from '../backend/auth/ssoAuth.js'
 // @ts-ignore
 import { loadBackendEnv, assertNoFrontendSupabaseSecrets } from '../backend/auth/envLoader.js'
-
+// @ts-ignore
+import { createCustomerAuthMiddleware } from '../backend/auth/customerAuth.js'
 declare const process: any
 
 export default defineConfig(({ command, mode }) => {
@@ -28,13 +29,15 @@ export default defineConfig(({ command, mode }) => {
   const authPlugin = {
     name: 'inferxe-auth-middleware',
     configureServer(server: { middlewares: { use: (fn: any) => void } }) {
-      server.middlewares.use(createSSOAuthMiddleware())
-      server.middlewares.use(createAdminAuthMiddleware())
-    },
+  server.middlewares.use(createCustomerAuthMiddleware())
+  server.middlewares.use(createSSOAuthMiddleware())
+  server.middlewares.use(createAdminAuthMiddleware())
+},
     configurePreviewServer(server: { middlewares: { use: (fn: any) => void } }) {
-      server.middlewares.use(createSSOAuthMiddleware())
-      server.middlewares.use(createAdminAuthMiddleware())
-    },
+  server.middlewares.use(createCustomerAuthMiddleware())
+  server.middlewares.use(createSSOAuthMiddleware())
+  server.middlewares.use(createAdminAuthMiddleware())
+},
   }
 
   return {
