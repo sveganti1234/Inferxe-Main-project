@@ -8,11 +8,15 @@
     "frontend"
   ],
   "scripts": {
-    "dev": "npm --prefix frontend run dev",
+    "dev": "concurrently -n CUSTOMER_AUTH,WALLET_NOTIF,FRONTEND,INFERENCE_API -c cyan,green,yellow,magenta --kill-others-on-fail \"npm run server:admin\" \"npm run dev:backend\" \"npm run dev:frontend\" \"npm --prefix backend run server:inference\"",
+    "dev:frontend": "npm --prefix frontend run dev",
     "dev:backend": "python -m uvicorn backend.notifications.main:app --host 127.0.0.1 --port 8000 --reload",
     "build": "npm --prefix frontend run build",
     "preview": "npm --prefix frontend run preview",
     "typecheck": "npm --prefix frontend run typecheck",
     "server:admin": "node backend/auth/adminAuthServer.mjs"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.7"
   }
 }

@@ -158,7 +158,7 @@ class NotificationService:
 
         cur.execute(
             """
-            INSERT INTO notifications (id, user_id, title, detail, notification_type, is_read, metadata, related_entity_id, created_at)
+            INSERT INTO notifications (id, user_id, title, message, notification_type, is_read, metadata, related_entity_id, created_at)
             VALUES (%s, %s, %s, %s, %s, FALSE, %s, %s, %s)
             RETURNING id;
             """,

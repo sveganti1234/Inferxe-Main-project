@@ -5,7 +5,7 @@
  * Inference API key management endpoints (/api/v1/api-keys).
  */
 
-import { getSession } from './authStore'
+import { getSession, decodeJwt } from './authStore'
 
 export interface BackendApiKey {
   id: string
@@ -32,6 +32,30 @@ const INFERENCE_API_BASE =
   (import.meta.env.VITE_INFERENCE_API_ENDPOINT as string | undefined)?.replace(/\/$/, '') ||
   'http://127.0.0.1:8001'
 
+// Client-side request filter: only Cognito RS256 ID tokens may reach the inference API.
+// Admin HS256 JWTs (from loginAdminBackend) share the same session storage key but are
+// rejected by the backend's Cognito JWKS verification. This check is purely for early
+// request filtering and user-friendly error handling; the backend remains authoritative.
+function isCognitoIdToken(token: string): boolean {
+  const claims = decodeJwt(token)
+  if (!claims) return false
+  const iss = claims.iss as string | undefined
+  if (typeof iss !== 'string' || !iss.includes('cognito-idp')) return false
+  if (claims.token_use !== 'id') return false
+  if (claims.exp && Date.now() / 1000 >= claims.exp - 30) return false
+  return true
+}
+
+function assertCustomerToken(token: string | undefined): { ok: true } | { ok: false; error: string } {
+  if (!token) {
+    return { ok: false, error: 'Please sign in with your customer account to access API keys.' }
+  }
+  if (!isCognitoIdToken(token)) {
+    return { ok: false, error: 'Please sign in with your customer account to access API keys.' }
+  }
+  return { ok: true }
+}
+
 function getAuthHeaders(): HeadersInit {
   const session = getSession()
   const token = session?.token || ''
@@ -55,6 +79,10 @@ export async function fetchBackendApiKeys(): Promise<{
     const session = getSession()
     if (!session?.token) {
       return { ok: false, unauthorized: true, error: 'Please sign in to view your API keys.' }
+    }
+    const tokenCheck = assertCustomerToken(session.token)
+    if (!tokenCheck.ok) {
+      return { ok: false, unauthorized: true, error: tokenCheck.error }
     }
 
     const res = await fetch(`${INFERENCE_API_BASE}/api/v1/api-keys`, {
@@ -98,6 +126,10 @@ export async function createBackendApiKey(
     if (!session?.token) {
       return { ok: false, unauthorized: true, error: 'Please sign in to create an API key.' }
     }
+    const tokenCheck = assertCustomerToken(session.token)
+    if (!tokenCheck.ok) {
+      return { ok: false, unauthorized: true, error: tokenCheck.error }
+    }
 
     const res = await fetch(`${INFERENCE_API_BASE}/api/v1/api-keys`, {
       method: 'POST',
@@ -138,6 +170,10 @@ export async function revokeBackendApiKey(keyId: string): Promise<{
     const session = getSession()
     if (!session?.token) {
       return { ok: false, unauthorized: true, error: 'Please sign in to revoke an API key.' }
+    }
+    const tokenCheck = assertCustomerToken(session.token)
+    if (!tokenCheck.ok) {
+      return { ok: false, unauthorized: true, error: tokenCheck.error }
     }
 
     const res = await fetch(`${INFERENCE_API_BASE}/api/v1/api-keys/${keyId}`, {
