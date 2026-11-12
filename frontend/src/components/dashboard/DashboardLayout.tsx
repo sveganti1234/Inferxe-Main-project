@@ -843,7 +843,7 @@ export function DashboardLayout({
                         }
                       }
                       clearSession()
-                      navigate('/')
+                      window.location.replace('/')
                     }}
                   >
                     <LogOut size={15} /> Sign Out
