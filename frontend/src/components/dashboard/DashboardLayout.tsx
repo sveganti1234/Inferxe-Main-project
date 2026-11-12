@@ -484,10 +484,12 @@ export function DashboardLayout({
     window.addEventListener('storage', handleSync)
     window.addEventListener('inferxe_balance_visibility', handleSync)
     window.addEventListener('inferxe_auth_change', handleSync)
+    window.addEventListener('inferxe_wallet_change', handleSync)
     return () => {
       window.removeEventListener('storage', handleSync)
       window.removeEventListener('inferxe_balance_visibility', handleSync)
       window.removeEventListener('inferxe_auth_change', handleSync)
+      window.removeEventListener('inferxe_wallet_change', handleSync)
     }
   }, [currentSession?.user?.id])
 
