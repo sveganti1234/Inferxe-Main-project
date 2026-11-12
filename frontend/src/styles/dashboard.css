@@ -267,26 +267,25 @@
   min-width: 0;
 }
 
-/* ── Sidebar (Floating Rounded Pill / Card Style from Reference Video) ──── */
+/* ── Sidebar (Floating Enterprise Dark Rail / Pill Style) ──── */
 .dash-sidebar {
-  width: 256px;
-  min-width: 256px;
-  max-width: 256px;
+  width: 286px;
+  min-width: 286px;
+  max-width: 286px;
   flex-shrink: 0;
   background: rgba(10, 16, 12, 0.94);
   border: 1px solid var(--line);
   border-radius: 20px;
   margin: 14px 0 14px 16px;
-  padding: 12px 10px 16px;
+  padding: 10px 10px 12px;
   min-height: calc(100vh - 64px - 28px);
   height: calc(100vh - 64px - 28px);
   position: sticky;
   top: calc(64px + 14px);
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  overflow-y: auto;
-  overflow-x: hidden;
+  justify-content: flex-start;
+  overflow: hidden;
   transition: width 0.32s cubic-bezier(0.25, 1, 0.5, 1),
               min-width 0.32s cubic-bezier(0.25, 1, 0.5, 1),
               max-width 0.32s cubic-bezier(0.25, 1, 0.5, 1),
@@ -296,28 +295,61 @@
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
   -webkit-backdrop-filter: blur(20px);
   backdrop-filter: blur(20px);
-  scrollbar-width: none !important;
-  -ms-overflow-style: none !important;
   will-change: width, min-width, max-width;
 }
 
-.dash-sidebar::-webkit-scrollbar {
-  display: none !important;
-  width: 0 !important;
-  height: 0 !important;
+.dash-sidebar__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 2px 2px 8px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(238, 242, 234, 0.14) transparent;
 }
 
-/* Sidebar Top Row with Chevron Toggle Button */
+.dash-sidebar__scroll::-webkit-scrollbar {
+  width: 4px;
+}
+
+.dash-sidebar__scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.dash-sidebar__scroll::-webkit-scrollbar-thumb {
+  background: rgba(238, 242, 234, 0.14);
+  border-radius: 999px;
+}
+
+.dash-sidebar__scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(118, 185, 0, 0.45);
+}
+
+/* Sidebar Top Row with Workspace Tag & Chevron Toggle Button */
 .dash-sidebar__top {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  padding: 2px 4px 10px;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 2px 6px 10px;
   min-height: 36px;
   border-bottom: 1px solid var(--line);
   margin-bottom: 10px;
+  flex-shrink: 0;
   transition: padding 0.32s cubic-bezier(0.25, 1, 0.5, 1),
               border-color 0.25s ease;
+}
+
+.dash-sidebar__workspace-tag {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .dash-sidebar__toggle-btn {
@@ -336,6 +368,7 @@
               color 0.2s cubic-bezier(0.25, 1, 0.5, 1),
               transform 0.2s cubic-bezier(0.25, 1, 0.5, 1);
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 .dash-sidebar__toggle-btn:hover {
@@ -350,13 +383,42 @@
   width: 70px !important;
   min-width: 70px !important;
   max-width: 70px !important;
-  padding: 12px 6px 16px !important;
+  padding: 10px 6px 12px !important;
   border-radius: 24px;
 }
 
 .dash-sidebar.is-collapsed .dash-sidebar__top {
   justify-content: center;
   padding: 2px 0 10px;
+}
+
+.dash-sidebar.is-collapsed .dash-sidebar__toggle-btn {
+  margin-left: 0;
+}
+
+.dash-sidebar.is-collapsed .dash-nav-group-title,
+.dash-sidebar.is-collapsed .dash-nav-group-btn {
+  height: 0;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  border: none;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.dash-sidebar.is-collapsed .dash-nav-group-btn span,
+.dash-sidebar.is-collapsed .dash-nav-group-btn svg {
+  opacity: 0;
+  max-width: 0;
+  pointer-events: none;
+}
+
+.dash-sidebar.is-collapsed .dash-nav-group + .dash-nav-group {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top-color: rgba(238, 242, 234, 0.08);
 }
 
 .dash-sidebar.is-collapsed .dash-nav-section-title,
@@ -383,15 +445,15 @@
 
 .dash-sidebar.is-collapsed .dash-nav-list {
   align-items: center;
-  gap: 4px;
+  gap: 3px;
 }
 
 .dash-sidebar.is-collapsed .dash-nav-item {
   justify-content: center;
   width: 44px;
-  height: 40px;
+  height: 38px;
   padding: 0;
-  margin: 2px auto;
+  margin: 1px auto;
   border-radius: 10px;
   gap: 0;
 }
@@ -426,6 +488,7 @@
 }
 
 .dash-sidebar.is-collapsed .dash-quota-card__sub,
+.dash-sidebar.is-collapsed .dash-quota-card__meta,
 .dash-sidebar.is-collapsed .dash-quota-card__header {
   opacity: 0;
   max-height: 0;
@@ -540,7 +603,11 @@
     top: 0;
     left: 0;
     bottom: 0;
-    width: min(290px, 86vw);
+    width: min(296px, 86vw);
+    min-width: 0;
+    max-width: min(296px, 86vw);
+    margin: 0;
+    border-radius: 0 20px 20px 0;
     min-height: 100vh;
     height: 100vh;
     padding-top: 68px;
@@ -555,6 +622,94 @@
   .dash-main {
     padding: 16px 14px 44px;
   }
+}
+
+@media (max-height: 660px) {
+  .dash-sidebar {
+    overflow-y: auto;
+  }
+  .dash-sidebar__scroll {
+    flex: 0 0 auto;
+    overflow-y: visible;
+    min-height: 0;
+  }
+}
+
+.dash-nav-groups {
+  display: flex;
+  flex-direction: column;
+}
+
+.dash-nav-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.dash-nav-group + .dash-nav-group {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(238, 242, 234, 0.06);
+}
+
+.dash-nav-group-title {
+  padding: 5px 10px;
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  font-weight: 600;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: rgba(238, 242, 234, 0.48);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  user-select: none;
+  transition: color 0.18s ease, background 0.18s ease, opacity 0.2s ease, height 0.25s ease, padding 0.25s ease, margin 0.25s ease;
+}
+
+.dash-nav-group-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 2px;
+  border-radius: 7px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.dash-nav-group-btn:hover {
+  color: var(--brand-hi);
+  background: rgba(118, 185, 0, 0.08);
+}
+
+.dash-nav-group-btn:focus-visible {
+  outline: 1px solid rgba(118, 185, 0, 0.55);
+  outline-offset: 1px;
+}
+
+.dash-nav-group-btn.is-expanded {
+  color: var(--brand-hi);
+}
+
+.dash-nav-group-btn.is-expanded:hover {
+  color: var(--brand-hi);
+  background: rgba(118, 185, 0, 0.1);
+}
+
+.dash-nav-group-chevron {
+  flex-shrink: 0;
+  color: inherit;
+  opacity: 0.78;
+  transform: rotate(-90deg);
+  transition: transform 0.22s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.18s ease;
+}
+
+.dash-nav-group-chevron.is-expanded {
+  transform: rotate(0deg);
+  opacity: 1;
 }
 
 .dash-nav-section-title {
@@ -608,29 +763,31 @@
 .dash-nav-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .dash-nav-item {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   width: 100%;
-  height: 40px;
-  padding: 0 12px;
-  margin: 2px 0;
+  height: 36px;
+  min-height: 36px;
+  padding: 0 10px;
+  margin: 1px 0;
   border-radius: 9px;
-  font-size: 0.86rem;
+  border: 1px solid transparent;
+  font-size: 0.84rem;
   font-weight: 500;
   color: var(--ink-2);
   transition: width 0.3s cubic-bezier(0.25, 1, 0.5, 1),
               padding 0.3s cubic-bezier(0.25, 1, 0.5, 1),
               margin 0.3s cubic-bezier(0.25, 1, 0.5, 1),
               gap 0.3s cubic-bezier(0.25, 1, 0.5, 1),
-              background 0.2s ease,
-              color 0.2s ease,
-              border-color 0.2s ease;
+              background 0.18s ease,
+              color 0.18s ease,
+              border-color 0.18s ease;
   text-decoration: none;
   overflow: hidden;
   white-space: nowrap;
@@ -638,18 +795,19 @@
 
 .dash-nav-item:hover {
   color: var(--ink);
-  background: rgba(238, 242, 234, 0.04);
+  background: rgba(238, 242, 234, 0.05);
 }
 
 .dash-nav-item svg {
   flex-shrink: 0;
-  width: 18px;
-  height: 18px;
+  width: 17px;
+  height: 17px;
+  stroke-width: 1.75;
   color: var(--ink-3);
-  transition: color 0.2s ease, transform 0.25s cubic-bezier(0.25, 1, 0.5, 1);
+  transition: color 0.18s ease, transform 0.25s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
-.dash-nav-item span {
+.dash-nav-item > span:not(.dash-nav-badge) {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -665,12 +823,13 @@
   color: var(--ink);
 }
 
-/* Neon Green Active State */
+/* Subtle Dark-Green Active Pill + Neon Green Icon */
 .dash-nav-item.is-active {
-  color: var(--brand-hi);
-  background: rgba(118, 185, 0, 0.1);
-  border: 1px solid rgba(118, 185, 0, 0.28);
-  box-shadow: inset 0 0 14px rgba(118, 185, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.4);
+  color: var(--ink);
+  font-weight: 600;
+  background: linear-gradient(90deg, rgba(118, 185, 0, 0.14) 0%, rgba(118, 185, 0, 0.06) 100%);
+  border-color: rgba(118, 185, 0, 0.28);
+  box-shadow: inset 0 1px 0 rgba(182, 242, 58, 0.08), 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
 .dash-nav-item.is-active svg {
@@ -681,8 +840,8 @@
   content: '';
   position: absolute;
   left: 0;
-  top: 18%;
-  bottom: 18%;
+  top: 20%;
+  bottom: 20%;
   width: 3px;
   border-radius: 0 2px 2px 0;
   background: var(--brand-hi);
@@ -692,12 +851,13 @@
 .dash-nav-badge {
   margin-left: auto;
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: 0.63rem;
+  font-weight: 600;
   padding: 2px 7px;
-  border-radius: 4px;
-  background: rgba(118, 185, 0, 0.15);
+  border-radius: 999px;
+  background: rgba(118, 185, 0, 0.14);
   color: var(--brand-hi);
-  border: 1px solid rgba(118, 185, 0, 0.3);
+  border: 1px solid rgba(118, 185, 0, 0.28);
   white-space: nowrap;
   flex-shrink: 0;
   opacity: 1;
@@ -706,18 +866,47 @@
               transform 0.2s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
+.dash-nav-badge--count {
+  min-width: 20px;
+  height: 18px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(118, 185, 0, 0.2);
+  color: #b6f23a;
+  border-color: rgba(118, 185, 0, 0.38);
+  font-weight: 700;
+}
+
+/* Fixed Bottom Customer Navigation (Support & Settings) */
+.dash-sidebar__bottom-nav {
+  flex-shrink: 0;
+  padding: 8px 2px 4px;
+  margin-top: 4px;
+  border-top: 1px solid rgba(238, 242, 234, 0.08);
+}
+
+.dash-sidebar.is-collapsed .dash-sidebar__bottom-nav {
+  padding: 6px 0 4px;
+  margin-top: 4px;
+  border-top-color: rgba(238, 242, 234, 0.08);
+}
+
 /* Sidebar Footer / Quota Card */
 .dash-sidebar__footer {
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding-top: 16px;
+  gap: 8px;
+  padding-top: 10px;
+  margin-top: 2px;
   border-top: 1px solid var(--line);
   transition: border-color 0.25s ease;
 }
 
 .dash-quota-card {
-  padding: 12px;
+  padding: 10px 12px;
   border-radius: 10px;
   background: #0d1510;
   border: 1px solid var(--line);
@@ -772,6 +961,22 @@
   border-radius: 2px;
   background: linear-gradient(90deg, #76b900, #b6f23a);
   box-shadow: 0 0 6px rgba(118, 185, 0, 0.6);
+}
+
+.dash-quota-card__meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 0.64rem;
+  color: var(--ink-3);
+  margin-bottom: 4px;
+  max-height: 24px;
+  opacity: 1;
+  overflow: hidden;
+  transition: opacity 0.22s cubic-bezier(0.25, 1, 0.5, 1),
+              max-height 0.3s cubic-bezier(0.25, 1, 0.5, 1),
+              margin 0.3s cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 .dash-quota-card__sub {

@@ -62,7 +62,13 @@ interface NavItem {
   to: string
   icon: React.ComponentType<{ className?: string }>
   badge?: string
+  badgeType?: 'pill' | 'count'
   matchExact?: boolean
+}
+
+interface NavGroup {
+  title: string
+  items: NavItem[]
 }
 
 export function DashboardLayout({
@@ -84,8 +90,9 @@ export function DashboardLayout({
   const [notifOpen, setNotifOpen] = useState(false)
   const notifRef = useRef<HTMLDivElement>(null)
   const profileMenuRef = useRef<HTMLDivElement>(null)
+  const sidebarScrollRef = useRef<HTMLDivElement>(null)
 
-  // Sidebar collapsed state (desktop: false = expanded 256px, true = collapsed 70px rail)
+  // Sidebar collapsed state (desktop: false = expanded 286px, true = collapsed 70px rail)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem('inferxe_dash_sidebar_collapsed')
@@ -96,10 +103,9 @@ export function DashboardLayout({
     return false
   })
 
-  // Collapsible nav sections
+  // Collapsible nav sections (Admin Portal)
   const [adminSectionOpen, setAdminSectionOpen] = useState(true)
   const [providerSectionOpen, setProviderSectionOpen] = useState(true)
-  const [customerSectionOpen, setCustomerSectionOpen] = useState(true)
 
   // Floating flyout tooltip state for collapsed rail mode (matching video)
   const [hoveredFlyout, setHoveredFlyout] = useState<{
@@ -108,6 +114,21 @@ export function DashboardLayout({
     top: number
     left: number
   } | null>(null)
+
+  // Live Deployments Count State (synced with MarketplaceWorkspace state)
+  const readLiveDeploymentCount = () => {
+    try {
+      const raw = localStorage.getItem('inferxe_demo_deployments_v1')
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (Array.isArray(parsed)) {
+          return parsed.filter((d) => d?.status === 'Running' || d?.status === 'Provisioning').length
+        }
+      }
+    } catch {}
+    return 3
+  }
+  const [liveDeploymentsCount, setLiveDeploymentsCount] = useState<number>(readLiveDeploymentCount)
 
   // Live Notifications State
   const [liveNotifs, setLiveNotifs] = useState<Array<{ id: string; title: string; detail: string; type: string; time: string; read: boolean }>>(() => {
@@ -128,16 +149,27 @@ export function DashboardLayout({
         const raw = localStorage.getItem('inferxe_demo_notifications_v3')
         if (raw) setLiveNotifs(JSON.parse(raw))
       } catch {}
+      setLiveDeploymentsCount(readLiveDeploymentCount())
     }
+    syncNotifs()
     window.addEventListener('inferxe_notifications_change', syncNotifs)
+    window.addEventListener('inferxe_deployments_change', syncNotifs)
     window.addEventListener('storage', syncNotifs)
     return () => {
       window.removeEventListener('inferxe_notifications_change', syncNotifs)
+      window.removeEventListener('inferxe_deployments_change', syncNotifs)
       window.removeEventListener('storage', syncNotifs)
     }
-  }, [])
+  }, [location.pathname])
 
   const unreadNotifCount = liveNotifs.filter((n) => !n.read).length
+
+  useEffect(() => {
+    const activeEl = sidebarScrollRef.current?.querySelector('.dash-nav-item.is-active')
+    if (activeEl && typeof activeEl.scrollIntoView === 'function') {
+      activeEl.scrollIntoView({ block: 'nearest' })
+    }
+  }, [location.pathname])
 
   // Synchronized Monthly Spend Limit & Quota state (shared with Workspace Settings)
   const [monthlyBudget, setMonthlyBudget] = useState<number>(() => {
@@ -438,29 +470,89 @@ export function DashboardLayout({
 
   const roleLabel = portalRole === 'admin' ? 'Super Admin' : 'Customer'
 
-  // 1. Customer Portal Navigation items (Strictly Customer-facing features only)
-  const customerNavItems: NavItem[] = [
-    { label: 'Customer Dashboard', to: '/dashboard/customer', icon: LayoutDashboard, matchExact: true },
-    { label: 'GPU Marketplace', to: '/dashboard/gpus', icon: Cpu, matchExact: true },
-    { label: 'LLM Catalog', to: '/dashboard/models', icon: Sparkles, matchExact: true },
-    { label: 'Orders and Purchase History', to: '/dashboard/orders', icon: FileText, matchExact: true },
-    { label: 'Wallet, Payments and Billing', to: '/dashboard/wallet', icon: Wallet, matchExact: true },
-    { label: 'Checkout & Payments', to: '/dashboard/checkout', icon: CreditCard, matchExact: true },
-    { label: 'Usage and Analytics', to: '/dashboard/analytics', icon: BarChart3, matchExact: true },
-    { label: 'Inference Playground', to: '/dashboard/playground', icon: Terminal, badge: 'Sandbox', matchExact: true },
-    { label: 'API Keys', to: '/dashboard/api-keys', icon: KeyRound, matchExact: true },
-    { label: 'SSH Keys', to: '/dashboard/ssh-keys', icon: ShieldCheck, matchExact: true },
-    { label: 'Notebooks and SSH', to: '/dashboard/notebooks', icon: NotebookPen, matchExact: true },
-    { label: 'Wishlist', to: '/dashboard/wishlist', icon: Bookmark, matchExact: true },
-    { label: 'Deployments', to: '/dashboard/deployments', icon: Server, badge: '3 live', matchExact: true },
-    { label: 'Spot Price History', to: '/dashboard/price-history', icon: TrendingUp, matchExact: true },
-    { label: 'Notifications', to: '/dashboard/notifications', icon: Bell, matchExact: true },
-    { label: 'Profile and Settings', to: '/dashboard/profile', icon: User, matchExact: true },
-    { label: 'Reviews and Notes', to: '/dashboard/reviews', icon: Star, matchExact: true },
-    { label: 'Rewards and Discounts', to: '/dashboard/rewards', icon: Gift, matchExact: true },
-    { label: 'Chatbot and Help', to: '/dashboard/faq', icon: HelpCircle, matchExact: true },
-    { label: 'Workspace Settings', to: '/dashboard/settings', icon: Settings, matchExact: true },
+  // 1A. Customer Portal Main Navigation Groups (Scrollable upper section)
+  const customerMainNavGroups: NavGroup[] = [
+    {
+      title: 'GENERAL',
+      items: [
+        { label: 'Customer Dashboard', to: '/dashboard/customer', icon: LayoutDashboard, matchExact: true },
+      ],
+    },
+    {
+      title: 'COMPUTE & AI',
+      items: [
+        { label: 'GPU Marketplace', to: '/dashboard/gpus', icon: Cpu, matchExact: true },
+        { label: 'LLM Catalog', to: '/dashboard/models', icon: Sparkles, matchExact: true },
+        { label: 'Inference Playground', to: '/dashboard/playground', icon: Terminal, badge: 'Sandbox', badgeType: 'pill', matchExact: true },
+        {
+          label: 'Deployments',
+          to: '/dashboard/deployments',
+          icon: Server,
+          badge: liveDeploymentsCount > 0 ? `${liveDeploymentsCount} live` : undefined,
+          badgeType: 'pill',
+          matchExact: true,
+        },
+        { label: 'Notebooks and SSH', to: '/dashboard/notebooks', icon: NotebookPen, matchExact: true },
+      ],
+    },
+    {
+      title: 'ORDERS & ACTIVITY',
+      items: [
+        { label: 'Orders and Purchase History', to: '/dashboard/orders', icon: FileText, matchExact: true },
+        { label: 'Usage and Analytics', to: '/dashboard/analytics', icon: BarChart3, matchExact: true },
+        { label: 'Spot Price History', to: '/dashboard/price-history', icon: TrendingUp, matchExact: true },
+      ],
+    },
+    {
+      title: 'BILLING & PAYMENTS',
+      items: [
+        { label: 'Wallet, Payments and Billing', to: '/dashboard/wallet', icon: Wallet, matchExact: true },
+        { label: 'Checkout & Payments', to: '/dashboard/checkout', icon: CreditCard, matchExact: true },
+      ],
+    },
+    {
+      title: 'DEVELOPER TOOLS',
+      items: [
+        { label: 'API Keys', to: '/dashboard/api-keys', icon: KeyRound, matchExact: true },
+        { label: 'SSH Keys', to: '/dashboard/ssh-keys', icon: ShieldCheck, matchExact: true },
+      ],
+    },
+    {
+      title: 'PERSONAL',
+      items: [
+        { label: 'Wishlist', to: '/dashboard/wishlist', icon: Bookmark, matchExact: true },
+        { label: 'Reviews and Notes', to: '/dashboard/reviews', icon: Star, matchExact: true },
+        { label: 'Rewards and Discounts', to: '/dashboard/rewards', icon: Gift, matchExact: true },
+      ],
+    },
   ]
+
+  // 1B. Customer Portal Bottom Navigation Groups (Fixed bottom Support & Settings)
+  const customerBottomNavGroups: NavGroup[] = [
+    {
+      title: 'SUPPORT',
+      items: [
+        {
+          label: 'Notifications',
+          to: '/dashboard/notifications',
+          icon: Bell,
+          badge: unreadNotifCount > 0 ? String(unreadNotifCount) : undefined,
+          badgeType: 'count',
+          matchExact: true,
+        },
+        { label: 'Chatbot and Help', to: '/dashboard/faq', icon: HelpCircle, matchExact: true },
+      ],
+    },
+    {
+      title: 'SETTINGS',
+      items: [
+        { label: 'Profile and Settings', to: '/dashboard/profile', icon: User, matchExact: true },
+        { label: 'Workspace Settings', to: '/dashboard/settings', icon: Settings, matchExact: true },
+      ],
+    },
+  ]
+
+  const customerNavGroups: NavGroup[] = [...customerMainNavGroups, ...customerBottomNavGroups]
 
   // 2. Admin Portal Navigation items: Administration section (Add User accessed directly from Users Directory)
   const adminAdministrationItems: NavItem[] = [
@@ -483,13 +575,113 @@ export function DashboardLayout({
   ]
 
   const isItemActive = (item: NavItem) => {
+    const path = location.pathname.replace(/\/+$/, '') || '/'
     if (item.to === '/dashboard/users') {
-      return location.pathname === '/dashboard/users' || location.pathname === '/dashboard/users/add'
+      return path === '/dashboard/users' || path === '/dashboard/users/add'
     }
     if (item.to === '/dashboard/provider') {
-      return location.pathname === '/dashboard/provider' || location.pathname === '/dashboard/provider/onboarding'
+      return path === '/dashboard/provider' || path === '/dashboard/provider/onboarding'
     }
-    return location.pathname === item.to
+    if (item.to === '/dashboard/wallet') {
+      return path === '/dashboard/wallet' || path === '/dashboard/billing' || path.startsWith('/dashboard/wallet/')
+    }
+    if (item.to === '/dashboard') {
+      return path === '/dashboard'
+    }
+    return path === item.to || path.startsWith(`${item.to}/`)
+  }
+
+  const activeCustomerGroupTitle =
+    customerNavGroups.find((grp) => grp.items.some((item) => isItemActive(item)))?.title ?? 'GENERAL'
+
+  const [expandedCustomerGroups, setExpandedCustomerGroups] = useState<Record<string, boolean>>(() => ({
+    [activeCustomerGroupTitle]: true,
+  }))
+
+  useEffect(() => {
+    setExpandedCustomerGroups((prev) =>
+      prev[activeCustomerGroupTitle] ? prev : { ...prev, [activeCustomerGroupTitle]: true },
+    )
+  }, [activeCustomerGroupTitle])
+
+  const toggleCustomerGroup = (title: string) => {
+    setExpandedCustomerGroups((prev) => ({
+      ...prev,
+      [title]: !prev[title],
+    }))
+  }
+
+  const renderCustomerGroup = (group: NavGroup) => {
+    const isExpanded = Boolean(expandedCustomerGroups[group.title])
+    const showItems = (isSidebarCollapsed && !isMobile) || isExpanded
+
+    return (
+      <div key={group.title} className="dash-nav-group">
+        <button
+          type="button"
+          className={`dash-nav-group-title dash-nav-group-btn ${isExpanded ? 'is-expanded' : ''}`}
+          onClick={() => toggleCustomerGroup(group.title)}
+          aria-expanded={isExpanded}
+          title={isExpanded ? `Collapse ${group.title}` : `Expand ${group.title}`}
+        >
+          <span>{group.title}</span>
+          <ChevronDown
+            size={13}
+            className={`dash-nav-group-chevron ${isExpanded ? 'is-expanded' : ''}`}
+            aria-hidden="true"
+          />
+        </button>
+        <AnimatePresence initial={false}>
+          {showItems && (
+            <motion.nav
+              className="dash-nav-list"
+              aria-label={group.title}
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
+              style={{ overflow: 'hidden' }}
+            >
+              {group.items.map((item) => {
+                const active = isItemActive(item)
+                return (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    className={`dash-nav-item ${active ? 'is-active' : ''}`}
+                    aria-current={active ? 'page' : undefined}
+                    onClick={() => {
+                      setHoveredFlyout(null)
+                      setMobileMenuOpen(false)
+                    }}
+                    onMouseEnter={(e) => {
+                      if (isSidebarCollapsed && !isMobile) {
+                        const rect = e.currentTarget.getBoundingClientRect()
+                        setHoveredFlyout({
+                          label: item.label,
+                          badge: item.badge,
+                          top: rect.top + rect.height / 2,
+                          left: rect.right + 12,
+                        })
+                      }
+                    }}
+                    onMouseLeave={() => setHoveredFlyout(null)}
+                  >
+                    <item.icon />
+                    <span>{item.label}</span>
+                    {item.badge && (
+                      <span className={`dash-nav-badge ${item.badgeType === 'count' ? 'dash-nav-badge--count' : ''}`}>
+                        {item.badge}
+                      </span>
+                    )}
+                  </Link>
+                )
+              })}
+            </motion.nav>
+          )}
+        </AnimatePresence>
+      </div>
+    )
   }
 
   const handleBack = () => {
@@ -884,88 +1076,35 @@ export function DashboardLayout({
           }`}
           aria-label="Dashboard Sidebar"
         >
-          <div>
-            {/* Top header row with toggle button (matching video) */}
-            <div className="dash-sidebar__top">
-              <button
-                type="button"
-                className="dash-sidebar__toggle-btn"
-                onClick={toggleSidebarCollapse}
-                title={isSidebarCollapsed ? "Expand sidebar (Ctrl+B)" : "Collapse sidebar (Ctrl+B)"}
-                aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-              >
-                <ChevronLeft
-                  size={14}
-                  style={{
-                    transition: 'transform 0.28s cubic-bezier(0.25, 1, 0.5, 1)',
-                    transform: isSidebarCollapsed ? 'rotate(180deg)' : 'rotate(0deg)',
-                  }}
-                />
-              </button>
-            </div>
+          {/* Top header row with workspace indicator & collapse toggle */}
+          <div className="dash-sidebar__top">
+            {!isSidebarCollapsed && (
+              <span className="dash-sidebar__workspace-tag">
+                {portalRole === 'admin' ? 'Admin Control' : 'Customer Portal'}
+              </span>
+            )}
+            <button
+              type="button"
+              className="dash-sidebar__toggle-btn"
+              onClick={toggleSidebarCollapse}
+              title={isSidebarCollapsed ? "Expand sidebar (Ctrl+B)" : "Collapse sidebar (Ctrl+B)"}
+              aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              <ChevronLeft
+                size={14}
+                style={{
+                  transition: 'transform 0.28s cubic-bezier(0.25, 1, 0.5, 1)',
+                  transform: isSidebarCollapsed ? 'rotate(180deg)' : 'rotate(0deg)',
+                }}
+              />
+            </button>
+          </div>
 
-            {/* ── 1. CUSTOMER PORTAL NAVIGATION (Customer Features Only) ── */}
+          <div ref={sidebarScrollRef} className="dash-sidebar__scroll">
+            {/* ── 1A. CUSTOMER PORTAL MAIN NAVIGATION (Scrollable Upper Section) ── */}
             {portalRole === 'customer' && (
-              <div>
-                <button
-                  type="button"
-                  className="dash-nav-section-title dash-nav-section-btn"
-                  onClick={() => setCustomerSectionOpen(!customerSectionOpen)}
-                  aria-expanded={customerSectionOpen}
-                >
-                  <span>Customer Portal</span>
-                  <ChevronDown
-                    size={13}
-                    style={{
-                      transition: 'transform 0.24s cubic-bezier(0.25, 1, 0.5, 1)',
-                      transform: customerSectionOpen ? 'rotate(0deg)' : 'rotate(-90deg)',
-                    }}
-                  />
-                </button>
-                <AnimatePresence initial={false}>
-                  {customerSectionOpen && (
-                    <motion.nav
-                      className="dash-nav-list"
-                      aria-label="Customer Navigation"
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.24, ease: [0.25, 1, 0.5, 1] }}
-                      style={{ overflow: 'hidden' }}
-                    >
-                      {customerNavItems.map((item) => {
-                        const active = isItemActive(item)
-                        return (
-                          <Link
-                            key={item.label}
-                            to={item.to}
-                            className={`dash-nav-item ${active ? 'is-active' : ''}`}
-                            onClick={() => {
-                              setHoveredFlyout(null)
-                              setMobileMenuOpen(false)
-                            }}
-                            onMouseEnter={(e) => {
-                              if (isSidebarCollapsed && !isMobile) {
-                                const rect = e.currentTarget.getBoundingClientRect()
-                                setHoveredFlyout({
-                                  label: item.label,
-                                  badge: item.badge,
-                                  top: rect.top + rect.height / 2,
-                                  left: rect.right + 12,
-                                })
-                              }
-                            }}
-                            onMouseLeave={() => setHoveredFlyout(null)}
-                          >
-                            <item.icon />
-                            <span>{item.label}</span>
-                            {item.badge && <span className="dash-nav-badge">{item.badge}</span>}
-                          </Link>
-                        )
-                      })}
-                    </motion.nav>
-                  )}
-                </AnimatePresence>
+              <div className="dash-nav-groups">
+                {customerMainNavGroups.map(renderCustomerGroup)}
               </div>
             )}
 
@@ -1098,12 +1237,21 @@ export function DashboardLayout({
             )}
           </div>
 
+          {/* ── 1B. CUSTOMER PORTAL BOTTOM NAVIGATION (Fixed Support & Settings) ── */}
+          {portalRole === 'customer' && (
+            <div className="dash-sidebar__bottom-nav" aria-label="Support and Settings">
+              <div className="dash-nav-groups">
+                {customerBottomNavGroups.map(renderCustomerGroup)}
+              </div>
+            </div>
+          )}
+
           {/* Quota & Organization Footer */}
           <div className="dash-sidebar__footer">
             {portalRole === 'customer' ? (
               <div
                 className="dash-quota-card"
-                title={`Monthly Spend Limit: ₹${monthlyBudget.toLocaleString('en-IN')} (${budgetUsedPct}% used)`}
+                title={`Monthly Spend Limit: ₹${monthlyBudget.toLocaleString('en-IN')} · Current spend: ₹${currentMonthSpend.toLocaleString('en-IN')} (${budgetUsedPct}% used)`}
               >
                 <div className="dash-quota-card__header">
                   <span className="dash-quota-card__label">Monthly Spend Limit</span>
@@ -1112,8 +1260,12 @@ export function DashboardLayout({
                 <div className="dash-quota-progress">
                   <div className="dash-quota-bar" style={{ width: `${budgetUsedPct}%` }} />
                 </div>
+                <div className="dash-quota-card__meta">
+                  <span>₹{currentMonthSpend.toLocaleString('en-IN')} spent</span>
+                  <span>{budgetUsedPct}% used</span>
+                </div>
                 <div className="dash-quota-card__sub">
-                  NovaTech AI Systems · Sovereign Active Tier
+                  {user.organization || 'NovaTech AI Systems'} · Sovereign Active Tier
                 </div>
               </div>
             ) : (
