@@ -214,6 +214,45 @@
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12), 0 0 14px rgba(118, 185, 0, 0.12);
 }
 
+.dash-shell[data-theme='light'] .dash-sidebar__workspace-tag {
+  color: #64748b;
+}
+
+.dash-shell[data-theme='light'] .dash-sidebar__scroll {
+  scrollbar-color: rgba(15, 23, 42, 0.16) transparent;
+}
+
+.dash-shell[data-theme='light'] .dash-sidebar__scroll::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.16);
+}
+
+.dash-shell[data-theme='light'] .dash-nav-group + .dash-nav-group {
+  border-top-color: #e2e8f0;
+}
+
+.dash-shell[data-theme='light'] .dash-sidebar__bottom-nav {
+  border-top-color: #e2e8f0;
+}
+
+.dash-shell[data-theme='light'] .dash-nav-group-title {
+  color: #64748b !important;
+  font-weight: 700 !important;
+}
+
+.dash-shell[data-theme='light'] .dash-nav-group-btn:hover {
+  color: #4d7c0f !important;
+  background: rgba(118, 185, 0, 0.1) !important;
+}
+
+.dash-shell[data-theme='light'] .dash-nav-group-btn.is-expanded {
+  color: #4d7c0f !important;
+}
+
+.dash-shell[data-theme='light'] .dash-nav-group-btn.is-expanded:hover {
+  color: #4d7c0f !important;
+  background: rgba(118, 185, 0, 0.14) !important;
+}
+
 .dash-shell[data-theme='light'] .dash-sidebar.is-collapsed .dash-nav-section-title,
 .dash-shell[data-theme='light'] .dash-sidebar.is-collapsed .dash-nav-section-btn {
   background: #e2e8f0;
@@ -284,6 +323,11 @@
 .dash-shell[data-theme='light'] .dash-quota-card__val {
   color: #65a300 !important;
   font-weight: 700;
+}
+
+.dash-shell[data-theme='light'] .dash-quota-card__meta {
+  color: #475569 !important;
+  font-weight: 600;
 }
 
 .dash-shell[data-theme='light'] .dash-quota-card__sub {
