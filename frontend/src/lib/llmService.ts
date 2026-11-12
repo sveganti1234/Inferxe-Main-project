@@ -29,7 +29,7 @@ export const DEFAULT_LLM_CONFIG: LlmConfig = {
   activeModel: 'inferxe-qwen-ft',
   fallbackModel: 'inferxe-assistant',
   endpoint: 'http://127.0.0.1:11434/api/chat',
-  timeoutMs: 12000,
+  timeoutMs: 1200,
 }
 
 export const INFERXE_SYSTEM_PROMPT = `You are the Inferxe GPU infrastructure assistant. Answer only approved GPU, LLM inference, cloud pricing, and documented Inferxe platform questions. Never invent facts.
@@ -66,16 +66,17 @@ export function checkDomainGatekeeper(query: string): 'allowed' | 'out_of_scope'
 
   // 1. Casual Chat & Greetings
   if (
-    /^(h+i+|h+e+y+|h+e+l+l+o+|greetings|howdy|sup|good\s+(morning|afternoon|evening))(!|\.|\?|\s)*$/i.test(q) ||
-    /\b(how are you|how is it going|who are you|what can you do|what is your name)\b/i.test(q)
+    /^(h+i+|h+e+y+|h+e+l+l+o+|greetings|howdy|sup|good\s+(morning|afternoon|evening)|namaste)(!|\.|\?|\s)*$/i.test(q) ||
+    /\b(how are you|how is it going|who are you|what can you do|what is your name|can you help|help me|need help|assist me)\b/i.test(q) ||
+    /^(help|hello|hi|hey|test)[\s?!.]*$/i.test(q)
   ) {
     return 'greeting'
   }
 
-  // 2. Explicit Out-of-Scope Triggers
+  // 2. Explicit Out-of-Scope Triggers (strict non-tech/non-computing topics)
   if (
     /\b(bake|cake|recipe|cook|cooking|weather|chocolate|pasta|pizza|dinner|sports|cricket|football|movie|song|poem|joke|politician|president|minister|election|history|biology|chemistry|calculus|medical|doctor|sore throat|fever)\b/i.test(q) ||
-    /\b(write (a|an|me|some)?\s*(unrelated|python|java|c\+\+|javascript|typescript|binary search|sorting|linked list|script|code|program))\b/i.test(q)
+    /\b(write (a|an|me|some)?\s*(unrelated|python script about cooking|poem|joke))\b/i.test(q)
   ) {
     return 'out_of_scope'
   }
@@ -84,9 +85,9 @@ export function checkDomainGatekeeper(query: string): 'allowed' | 'out_of_scope'
   const isGpuOrPlatform =
     /\b(gpu|gpus|nvidia|h100|h200|l40s|l40|l4|a100|a30|a6000|b200|rtx|blackwell|hopper|ada|ampere|vram|memory|bandwidth|tensor|cuda|tflops|tops|tdp|nvlink|pcie|sxm)\b/i.test(q) ||
     /\b(llama|qwen|mistral|mixtral|gemma|deepseek|model|models|weights|kv\s*cache|context|vllm|docker|token|tokens|prompt|completion|quantization|quantized|awq|gptq|fp8|fp16|bf16|throughput|latency|ttft)\b/i.test(q) ||
-    /\b(jarvislabs|jarvis|e2e|yotta|cyfuture|runpod|lambda|vast|aws|azure|gcp|price|pricing|rate|rates|cost|hourly|spot|on-demand|inr|usd|rupee|₹|\$|bill|billing|quota|payment|payments|pay|topup|top-up|upi|card|cards)\b/i.test(q) ||
-    /\b(inferxe|platform|website|site|web\s*page|company|about|service|services|feature|features|marketplace|catalog|catalogue|dashboard|workspace|wallet|balance|burn|burn\s*rate|deploy|deployment|instance|instances|reservation|reserve|rent|rental|order|sovereign|india|noida|mumbai|dpdp|compliance|residency|api|sdk|key|auth|login|signup|register|sign-in|sign-up|account|contact|support|solutions?|roadmap|legal|terms|security|team)\b/i.test(q) ||
-    /\b(sizing|calculate|calculator|recommend|recommendation|spec|specs|specification|benchmark|benchmarks|how\s+to|how\s+it\s+works|what\s+does\s+this|tell\s+me\s+about)\b/i.test(q)
+    /\b(jarvislabs|jarvis|e2e|yotta|cyfuture|runpod|lambda|vast|aws|azure|gcp|price|pricing|rate|rates|cost|hourly|spot|on-demand|inr|usd|rupee|₹|\$|bill|billing|quota|payment|payments|pay|topup|top-up|upi|card|cards|money|funds?|credits?|deposit|balance|burn|burn\s*rate)\b/i.test(q) ||
+    /\b(inferxe|platform|website|site|web\s*page|company|about|service|services|feature|features|marketplace|catalog|catalogue|dashboard|workspace|portal|kanban|board|tasks?|todo|deploy|deployment|instance|instances|reservation|reserve|rent|rental|order|sovereign|india|noida|mumbai|dpdp|compliance|residency|api|sdk|key|auth|login|signup|register|sign-in|sign-up|account|contact|support|solutions?|roadmap|legal|terms|security|team)\b/i.test(q) ||
+    /\b(sizing|calculate|calculator|recommend|recommendation|spec|specs|specification|benchmark|benchmarks|how\s+to|how\s+it\s+works|what\s+does\s+this|tell\s+me\s+about|what\s+is|explain|overview|sahith|project|work|done|answer|questions?|chat|chatbot|assistant)\b/i.test(q)
 
   return isGpuOrPlatform ? 'allowed' : 'out_of_scope'
 }
