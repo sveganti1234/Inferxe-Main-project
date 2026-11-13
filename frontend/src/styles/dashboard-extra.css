@@ -6259,3 +6259,484 @@ html[data-theme='dark'],
     grid-template-columns: 1fr !important;
   }
 }
+
+
+/* ══════════════════════════════════════════════════════════════════════
+   VERDELO TEMPLATE REPLICA: EXACT GLASS EFFECT & SCROLL-DOWN SECTIONS
+   - 1:1 match with uploaded reference image
+   - Diagonal specular gloss reflection on glass window
+   - Mint #50e396 active pill with dark green icon & text
+   - Category spending breakdown with mint progress meters
+   - In & Out transaction stream and upcoming bills calendar
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Diagonal specular gloss reflection on top of the master glass window */
+.dash-window-frame::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 220px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.10) 0%, rgba(80, 227, 150, 0.04) 30%, transparent 60%);
+  pointer-events: none;
+  z-index: 10;
+  border-radius: 22px 22px 0 0;
+}
+
+/* Active Insights Navigation Pill: Exact Mint Match */
+.dash-shell[data-role="customer"] .dash-sidebar .dash-nav-item.is-active,
+.dash-window-frame .dash-sidebar .dash-nav-item.is-active {
+  background: #50e396 !important;
+  color: #082417 !important;
+  font-weight: 700 !important;
+  border-radius: 14px !important;
+  box-shadow: 0 4px 20px rgba(80, 227, 150, 0.45) !important;
+  border: none !important;
+}
+
+.dash-shell[data-role="customer"] .dash-sidebar .dash-nav-item.is-active svg,
+.dash-window-frame .dash-sidebar .dash-nav-item.is-active svg {
+  color: #082417 !important;
+}
+
+.dash-window-frame .dash-sidebar .dash-nav-item {
+  color: #8caba0 !important;
+  font-size: 0.93rem !important;
+  font-weight: 500 !important;
+  border-radius: 12px !important;
+  padding: 10px 14px !important;
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+}
+
+.dash-window-frame .dash-sidebar .dash-nav-item:hover {
+  color: #ffffff !important;
+  background: rgba(80, 227, 150, 0.1) !important;
+}
+
+.dash-window-frame .dash-sidebar .dash-nav-item svg {
+  color: #8caba0 !important;
+}
+
+.dash-window-frame .dash-sidebar .dash-nav-item:hover svg {
+  color: #50e396 !important;
+}
+
+/* Nav Badges (1, 2) */
+.dash-window-frame .dash-sidebar .dash-nav-badge {
+  background: rgba(0, 0, 0, 0.4) !important;
+  color: #8caba0 !important;
+  border: 1px solid rgba(80, 227, 150, 0.25) !important;
+  font-size: 0.72rem !important;
+  font-weight: 700 !important;
+  padding: 1px 7px !important;
+  border-radius: 999px !important;
+}
+
+/* Topbar Action Circle Mint Button */
+.dash-window-frame .verdelo-btn-circle--mint {
+  background: #50e396 !important;
+  color: #082417 !important;
+  border: none !important;
+  box-shadow: 0 4px 18px rgba(80, 227, 150, 0.4) !important;
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+.dash-window-frame .verdelo-btn-circle--mint:hover {
+  transform: scale(1.08) !important;
+  box-shadow: 0 6px 24px rgba(80, 227, 150, 0.6) !important;
+}
+
+/* Active subtab indicator */
+.dash-window-frame .verdelo-subtab.is-active {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+.dash-window-frame .verdelo-subtab.is-active::after {
+  background: #50e396 !important;
+  box-shadow: 0 0 12px rgba(80, 227, 150, 0.8) !important;
+}
+
+/* Sparklines & Charts in Mint #50e396 */
+.verdelo-spline-svg path[stroke],
+.verdelo-sparkline path[stroke] {
+  stroke: #50e396 !important;
+}
+.verdelo-bar--in {
+  background: #50e396 !important;
+  box-shadow: 0 0 10px rgba(80, 227, 150, 0.4) !important;
+}
+.verdelo-time-pill.is-active {
+  background: #50e396 !important;
+  color: #082417 !important;
+  font-weight: 700 !important;
+}
+
+/* ── SCROLL DOWN: CATEGORIES BREAKDOWN SECTION ──────────────────────── */
+.verdelo-scroll-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  margin-top: 6px;
+}
+
+.verdelo-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 2px;
+}
+
+.verdelo-section-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.verdelo-section-sub {
+  font-size: 0.84rem;
+  color: #8caba0;
+  margin: 3px 0 0 0;
+}
+
+.verdelo-section-chip {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: #50e396;
+  background: rgba(80, 227, 150, 0.1);
+  border: 1px solid rgba(80, 227, 150, 0.25);
+  padding: 4px 12px;
+  border-radius: 999px;
+}
+
+.verdelo-category-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  width: 100%;
+}
+
+@media (max-width: 1100px) {
+  .verdelo-category-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 650px) {
+  .verdelo-category-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.verdelo-cat-card {
+  background: rgba(10, 26, 21, 0.55) !important;
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(80, 227, 150, 0.18) !important;
+  border-radius: 18px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.12), 0 8px 24px -4px rgba(0, 0, 0, 0.5);
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.verdelo-cat-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(80, 227, 150, 0.45) !important;
+  box-shadow: inset 0 1px 1.5px rgba(255, 255, 255, 0.2), 0 14px 32px -6px rgba(0, 0, 0, 0.7);
+}
+
+.verdelo-cat-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.verdelo-cat-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  background: rgba(80, 227, 150, 0.12);
+  border: 1px solid rgba(80, 227, 150, 0.25);
+}
+
+.verdelo-cat-name {
+  display: block;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.verdelo-cat-sub {
+  display: block;
+  font-size: 0.74rem;
+  color: #8caba0;
+}
+
+.verdelo-cat-amount {
+  font-size: 1.55rem;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+}
+
+.verdelo-cat-progress-wrap {
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.verdelo-cat-progress-bar {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #2dd4bf 0%, #50e396 100%);
+  box-shadow: 0 0 8px rgba(80, 227, 150, 0.5);
+  transition: width 0.4s ease;
+}
+
+.verdelo-cat-foot {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  color: #8caba0;
+  margin-top: 2px;
+}
+
+/* ── SCROLL DOWN: TWO-COLUMN ACTIVITY & BILLS ───────────────────────── */
+.verdelo-lower-two-col {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 18px;
+  width: 100%;
+  margin-top: 6px;
+  margin-bottom: 30px;
+}
+
+@media (max-width: 1024px) {
+  .verdelo-lower-two-col {
+    grid-template-columns: 1fr;
+  }
+}
+
+.verdelo-view-all-btn {
+  background: rgba(80, 227, 150, 0.1);
+  border: 1px solid rgba(80, 227, 150, 0.25);
+  color: #50e396;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.verdelo-view-all-btn:hover {
+  background: #50e396;
+  color: #082417;
+}
+
+.verdelo-activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.verdelo-activity-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(80, 227, 150, 0.1);
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.verdelo-activity-item:hover {
+  background: rgba(80, 227, 150, 0.08);
+  border-color: rgba(80, 227, 150, 0.3);
+}
+
+.verdelo-activity-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.verdelo-activity-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.verdelo-activity-icon--in {
+  background: rgba(80, 227, 150, 0.15);
+  color: #50e396;
+  border: 1px solid rgba(80, 227, 150, 0.3);
+}
+.verdelo-activity-icon--out {
+  background: rgba(255, 255, 255, 0.06);
+  color: #8caba0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.verdelo-activity-title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+.verdelo-activity-sub {
+  font-size: 0.72rem;
+  color: #8caba0;
+  margin-top: 1px;
+}
+
+.verdelo-activity-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.verdelo-activity-amount {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+.verdelo-activity-amount--pos {
+  color: #50e396 !important;
+  text-shadow: 0 0 10px rgba(80, 227, 150, 0.4);
+}
+
+.verdelo-activity-status {
+  font-size: 0.68rem;
+  color: #8caba0;
+}
+
+/* Upcoming Bills List */
+.verdelo-bills-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.verdelo-bill-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(80, 227, 150, 0.1);
+  transition: background 0.18s ease;
+}
+
+.verdelo-bill-row:hover {
+  background: rgba(80, 227, 150, 0.08);
+}
+
+.verdelo-bill-date-box {
+  width: 40px;
+  height: 42px;
+  border-radius: 10px;
+  background: rgba(80, 227, 150, 0.12);
+  border: 1px solid rgba(80, 227, 150, 0.25);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.verdelo-bill-date-day {
+  font-size: 0.98rem;
+  font-weight: 800;
+  color: #50e396;
+  line-height: 1;
+}
+
+.verdelo-bill-date-mon {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: #8caba0;
+  text-transform: uppercase;
+}
+
+.verdelo-bill-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.verdelo-bill-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.verdelo-bill-note {
+  font-size: 0.72rem;
+  color: #8caba0;
+  margin-top: 1px;
+}
+
+.verdelo-bill-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.verdelo-bill-val {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.verdelo-bill-tag {
+  font-size: 0.66rem;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #8caba0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.verdelo-bill-tag--mint {
+  background: rgba(80, 227, 150, 0.15);
+  color: #50e396;
+  border-color: rgba(80, 227, 150, 0.3);
+}
+
+.verdelo-bill-pay-btn {
+  background: #50e396;
+  color: #082417;
+  border: none;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: transform 0.18s ease;
+}
+.verdelo-bill-pay-btn:hover {
+  transform: scale(1.05);
+}

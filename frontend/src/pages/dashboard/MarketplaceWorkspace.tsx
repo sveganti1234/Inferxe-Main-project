@@ -1669,7 +1669,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                       <ArrowDownLeft size={16} className="verdelo-stat-head-icon verdelo-stat-head-icon--mint" />
                       <span className="verdelo-stat-title">Average in a month</span>
                     </div>
-                    <div className="verdelo-stat-value">$10,590</div>
+                    <div className="verdelo-stat-value">$10,919</div>
                     <div className="verdelo-stat-foot">
                       <span className="verdelo-stat-sub">Two salaries and drawings</span>
                       <svg className="verdelo-sparkline" width="60" height="20" viewBox="0 0 60 20">
@@ -1690,7 +1690,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                       <ArrowUpRight size={16} className="verdelo-stat-head-icon verdelo-stat-head-icon--teal" />
                       <span className="verdelo-stat-title">Average out a month</span>
                     </div>
-                    <div className="verdelo-stat-value">$7,431</div>
+                    <div className="verdelo-stat-value">$7,662</div>
                     <div className="verdelo-stat-foot">
                       <span className="verdelo-stat-sub">Bills, cards and transfers</span>
                       <svg className="verdelo-sparkline" width="60" height="20" viewBox="0 0 60 20">
@@ -1711,7 +1711,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                       <Wallet size={16} className="verdelo-stat-head-icon verdelo-stat-head-icon--mint" />
                       <span className="verdelo-stat-title">Kept each month</span>
                     </div>
-                    <div className="verdelo-stat-value">29%</div>
+                    <div className="verdelo-stat-value">30%</div>
                     <div className="verdelo-stat-foot">
                       <span className="verdelo-stat-sub">$3,258 on average</span>
                     </div>
@@ -1725,7 +1725,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                     </div>
                     <div className="verdelo-stat-value">Dec</div>
                     <div className="verdelo-stat-foot">
-                      <span className="verdelo-stat-sub">$6,534 kept</span>
+                      <span className="verdelo-stat-sub">$5,534 kept</span>
                     </div>
                   </div>
                 </div>
@@ -1768,14 +1768,14 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                     <div className="verdelo-chart-legend">
                       <span className="verdelo-legend-item">
                         <span className="verdelo-legend-dot verdelo-legend-dot--in" />
-                        <span>In $119,343</span>
+                        <span>In $123,052</span>
                       </span>
                       <span className="verdelo-legend-item">
                         <span className="verdelo-legend-dot verdelo-legend-dot--out" />
-                        <span>Out $86,540</span>
+                        <span>Out $89,229</span>
                       </span>
                       <span className="verdelo-legend-text">
-                        Kept $32,803
+                        Kept $33,823
                       </span>
                     </div>
 
@@ -1925,6 +1925,298 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                           <span>Oct 1</span>
                           <span>Oct 17</span>
                           <span>Nov 12</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── SCROLL DOWN SECTION 1: SPENDING BY CATEGORY ── */}
+                <div className="verdelo-scroll-section verdelo-categories-section">
+                  <div className="verdelo-section-header">
+                    <div>
+                      <h3 className="verdelo-section-title">Spending by category</h3>
+                      <p className="verdelo-section-sub">Bills left out — the line is Everyday's balance</p>
+                    </div>
+                    <span className="verdelo-section-chip">$6,480.60 spent</span>
+                  </div>
+
+                  <div className="verdelo-category-grid">
+                    <div className="verdelo-cat-card">
+                      <div className="verdelo-cat-head">
+                        <span className="verdelo-cat-icon verdelo-cat-icon--mint">🏠</span>
+                        <div>
+                          <span className="verdelo-cat-name">Housing & Rent</span>
+                          <span className="verdelo-cat-sub">2 transactions · Fixed</span>
+                        </div>
+                      </div>
+                      <div className="verdelo-cat-amount">$2,450.00</div>
+                      <div className="verdelo-cat-progress-wrap">
+                        <div className="verdelo-cat-progress-bar" style={{ width: '85%' }} />
+                      </div>
+                      <div className="verdelo-cat-foot">
+                        <span>85% of budget</span>
+                        <span>$2,800 limit</span>
+                      </div>
+                    </div>
+
+                    <div className="verdelo-cat-card">
+                      <div className="verdelo-cat-head">
+                        <span className="verdelo-cat-icon verdelo-cat-icon--teal">🛒</span>
+                        <div>
+                          <span className="verdelo-cat-name">Groceries & Market</span>
+                          <span className="verdelo-cat-sub">14 transactions</span>
+                        </div>
+                      </div>
+                      <div className="verdelo-cat-amount">$1,120.40</div>
+                      <div className="verdelo-cat-progress-wrap">
+                        <div className="verdelo-cat-progress-bar" style={{ width: '62%' }} />
+                      </div>
+                      <div className="verdelo-cat-foot">
+                        <span>62% of budget</span>
+                        <span>$1,800 limit</span>
+                      </div>
+                    </div>
+
+                    <div className="verdelo-cat-card">
+                      <div className="verdelo-cat-head">
+                        <span className="verdelo-cat-icon verdelo-cat-icon--cyan">⚡</span>
+                        <div>
+                          <span className="verdelo-cat-name">Utilities & Bills</span>
+                          <span className="verdelo-cat-sub">4 recurring</span>
+                        </div>
+                      </div>
+                      <div className="verdelo-cat-amount">$485.00</div>
+                      <div className="verdelo-cat-progress-wrap">
+                        <div className="verdelo-cat-progress-bar" style={{ width: '42%' }} />
+                      </div>
+                      <div className="verdelo-cat-foot">
+                        <span>42% of budget</span>
+                        <span>$1,150 limit</span>
+                      </div>
+                    </div>
+
+                    <div className="verdelo-cat-card">
+                      <div className="verdelo-cat-head">
+                        <span className="verdelo-cat-icon verdelo-cat-icon--emerald">🚗</span>
+                        <div>
+                          <span className="verdelo-cat-name">Transport & Travel</span>
+                          <span className="verdelo-cat-sub">8 transactions</span>
+                        </div>
+                      </div>
+                      <div className="verdelo-cat-amount">$340.20</div>
+                      <div className="verdelo-cat-progress-wrap">
+                        <div className="verdelo-cat-progress-bar" style={{ width: '34%' }} />
+                      </div>
+                      <div className="verdelo-cat-foot">
+                        <span>34% of budget</span>
+                        <span>$1,000 limit</span>
+                      </div>
+                    </div>
+
+                    <div className="verdelo-cat-card">
+                      <div className="verdelo-cat-head">
+                        <span className="verdelo-cat-icon verdelo-cat-icon--mint">🍿</span>
+                        <div>
+                          <span className="verdelo-cat-name">Shopping & Dining</span>
+                          <span className="verdelo-cat-sub">9 transactions</span>
+                        </div>
+                      </div>
+                      <div className="verdelo-cat-amount">$580.00</div>
+                      <div className="verdelo-cat-progress-wrap">
+                        <div className="verdelo-cat-progress-bar" style={{ width: '58%' }} />
+                      </div>
+                      <div className="verdelo-cat-foot">
+                        <span>58% of budget</span>
+                        <span>$1,000 limit</span>
+                      </div>
+                    </div>
+
+                    <div className="verdelo-cat-card">
+                      <div className="verdelo-cat-head">
+                        <span className="verdelo-cat-icon verdelo-cat-icon--teal">💻</span>
+                        <div>
+                          <span className="verdelo-cat-name">Compute & AI Subscriptions</span>
+                          <span className="verdelo-cat-sub">5 cloud workloads</span>
+                        </div>
+                      </div>
+                      <div className="verdelo-cat-amount">$395.50</div>
+                      <div className="verdelo-cat-progress-wrap">
+                        <div className="verdelo-cat-progress-bar" style={{ width: '40%' }} />
+                      </div>
+                      <div className="verdelo-cat-foot">
+                        <span>40% of budget</span>
+                        <span>$1,000 limit</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── SCROLL DOWN SECTION 2: RECENT IN & OUT & UPCOMING BILLS ── */}
+                <div className="verdelo-lower-two-col">
+                  {/* Left: Recent Activity Feed */}
+                  <div className="verdelo-chart-card verdelo-activity-card">
+                    <div className="verdelo-chart-header">
+                      <div>
+                        <h3 className="verdelo-chart-title">Recent In & Out Activity</h3>
+                        <p className="verdelo-chart-sub">Latest household debits and credits</p>
+                      </div>
+                      <button type="button" className="verdelo-view-all-btn">
+                        View all
+                      </button>
+                    </div>
+
+                    <div className="verdelo-activity-list">
+                      <div className="verdelo-activity-item">
+                        <div className="verdelo-activity-left">
+                          <div className="verdelo-activity-icon verdelo-activity-icon--in">
+                            <ArrowDownLeft size={16} />
+                          </div>
+                          <div>
+                            <div className="verdelo-activity-title">Direct Deposit Payroll · Employer</div>
+                            <div className="verdelo-activity-sub">Today at 09:15 · Primary Account</div>
+                          </div>
+                        </div>
+                        <div className="verdelo-activity-right">
+                          <span className="verdelo-activity-amount verdelo-activity-amount--pos">+$5,459.50</span>
+                          <span className="verdelo-activity-status">Completed</span>
+                        </div>
+                      </div>
+
+                      <div className="verdelo-activity-item">
+                        <div className="verdelo-activity-left">
+                          <div className="verdelo-activity-icon verdelo-activity-icon--out">
+                            <ArrowUpRight size={16} />
+                          </div>
+                          <div>
+                            <div className="verdelo-activity-title">Polder Gym Membership</div>
+                            <div className="verdelo-activity-sub">Yesterday · Recurring Debit</div>
+                          </div>
+                        </div>
+                        <div className="verdelo-activity-right">
+                          <span className="verdelo-activity-amount">-$39.00</span>
+                          <span className="verdelo-activity-status">Paid</span>
+                        </div>
+                      </div>
+
+                      <div className="verdelo-activity-item">
+                        <div className="verdelo-activity-left">
+                          <div className="verdelo-activity-icon verdelo-activity-icon--out">
+                            <ArrowUpRight size={16} />
+                          </div>
+                          <div>
+                            <div className="verdelo-activity-title">Maasstad Music Tuition School</div>
+                            <div className="verdelo-activity-sub">11 Nov · Bank Transfer</div>
+                          </div>
+                        </div>
+                        <div className="verdelo-activity-right">
+                          <span className="verdelo-activity-amount">-$45.00</span>
+                          <span className="verdelo-activity-status">Paid</span>
+                        </div>
+                      </div>
+
+                      <div className="verdelo-activity-item">
+                        <div className="verdelo-activity-left">
+                          <div className="verdelo-activity-icon verdelo-activity-icon--out">
+                            <ArrowUpRight size={16} />
+                          </div>
+                          <div>
+                            <div className="verdelo-activity-title">Whole Foods Market Organic</div>
+                            <div className="verdelo-activity-sub">10 Nov · Debit Card ···· 1904</div>
+                          </div>
+                        </div>
+                        <div className="verdelo-activity-right">
+                          <span className="verdelo-activity-amount">-$142.80</span>
+                          <span className="verdelo-activity-status">Settled</span>
+                        </div>
+                      </div>
+
+                      <div className="verdelo-activity-item">
+                        <div className="verdelo-activity-left">
+                          <div className="verdelo-activity-icon verdelo-activity-icon--out">
+                            <ArrowUpRight size={16} />
+                          </div>
+                          <div>
+                            <div className="verdelo-activity-title">Cloud Inference GPU Workload</div>
+                            <div className="verdelo-activity-sub">09 Nov · Cloud Top-up</div>
+                          </div>
+                        </div>
+                        <div className="verdelo-activity-right">
+                          <span className="verdelo-activity-amount">-$250.00</span>
+                          <span className="verdelo-activity-status">Settled</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right: Upcoming Scheduled Bills */}
+                  <div className="verdelo-chart-card verdelo-bills-card">
+                    <div className="verdelo-chart-header">
+                      <div>
+                        <h3 className="verdelo-chart-title">Upcoming Bills</h3>
+                        <p className="verdelo-chart-sub">Due in the rest of November & December</p>
+                      </div>
+                      <span className="verdelo-section-chip">Calendar</span>
+                    </div>
+
+                    <div className="verdelo-bills-list">
+                      <div className="verdelo-bill-row">
+                        <div className="verdelo-bill-date-box">
+                          <span className="verdelo-bill-date-day">20</span>
+                          <span className="verdelo-bill-date-mon">Nov</span>
+                        </div>
+                        <div className="verdelo-bill-info">
+                          <div className="verdelo-bill-name">Polder Gym Premium</div>
+                          <div className="verdelo-bill-note">Auto-debit from Everyday · 7 days left</div>
+                        </div>
+                        <div className="verdelo-bill-meta">
+                          <span className="verdelo-bill-val">-$39.00</span>
+                          <span className="verdelo-bill-tag verdelo-bill-tag--mint">Scheduled</span>
+                        </div>
+                      </div>
+
+                      <div className="verdelo-bill-row">
+                        <div className="verdelo-bill-date-box">
+                          <span className="verdelo-bill-date-day">22</span>
+                          <span className="verdelo-bill-date-mon">Nov</span>
+                        </div>
+                        <div className="verdelo-bill-info">
+                          <div className="verdelo-bill-name">Maasstad Music Tuition School</div>
+                          <div className="verdelo-bill-note">Direct payment · Pending</div>
+                        </div>
+                        <div className="verdelo-bill-meta">
+                          <span className="verdelo-bill-val">-$45.00</span>
+                          <button type="button" className="verdelo-bill-pay-btn">Pay</button>
+                        </div>
+                      </div>
+
+                      <div className="verdelo-bill-row">
+                        <div className="verdelo-bill-date-box">
+                          <span className="verdelo-bill-date-day">28</span>
+                          <span className="verdelo-bill-date-mon">Nov</span>
+                        </div>
+                        <div className="verdelo-bill-info">
+                          <div className="verdelo-bill-name">High-Speed Fiber Internet</div>
+                          <div className="verdelo-bill-note">Telecommunications utility</div>
+                        </div>
+                        <div className="verdelo-bill-meta">
+                          <span className="verdelo-bill-val">-$75.00</span>
+                          <span className="verdelo-bill-tag">Scheduled</span>
+                        </div>
+                      </div>
+
+                      <div className="verdelo-bill-row">
+                        <div className="verdelo-bill-date-box">
+                          <span className="verdelo-bill-date-day">01</span>
+                          <span className="verdelo-bill-date-mon">Dec</span>
+                        </div>
+                        <div className="verdelo-bill-info">
+                          <div className="verdelo-bill-name">Apartment Lease & Building Service</div>
+                          <div className="verdelo-bill-note">Monthly fixed lease payment</div>
+                        </div>
+                        <div className="verdelo-bill-meta">
+                          <span className="verdelo-bill-val">-$2,450.00</span>
+                          <span className="verdelo-bill-tag">Scheduled</span>
                         </div>
                       </div>
                     </div>
