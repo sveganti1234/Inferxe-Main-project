@@ -40,65 +40,72 @@ body:has(.dash-shell[data-theme='dark']) {
 }
 
 html[data-theme='light'],
-body:has(.dash-shell[data-theme='light']) {
-  background-color: #f0f7ff !important;
+body:has(.dash-shell[data-theme='light']),
+.dash-shell[data-theme='light'] {
+  background:
+    radial-gradient(at 0% 0%, rgba(128, 203, 196, 0.45) 0px, transparent 55%),
+    radial-gradient(at 100% 0%, rgba(77, 182, 172, 0.38) 0px, transparent 50%),
+    radial-gradient(at 50% 50%, rgba(178, 223, 219, 0.35) 0px, transparent 60%),
+    radial-gradient(at 100% 100%, rgba(128, 203, 196, 0.45) 0px, transparent 55%),
+    linear-gradient(180deg, #d8f1ee 0%, #e8f7f5 50%, #d4eeea 100%) !important;
+  background-attachment: fixed !important;
 }
 
-/* ── Animated Icon Morphing (Golden Sun #FBBF24 & Sky Blue Moon #0284c7) ── */
+/* ── Animated Icon Morphing (Golden Sun #FBBF24 & Bermuda Moon #00796B) ── */
 .dash-theme-icon--sun {
   color: #FBBF24 !important;
   filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.6));
 }
 
 .dash-theme-icon--moon {
-  color: #0284c7 !important;
-  filter: drop-shadow(0 0 6px rgba(14, 165, 233, 0.6));
+  color: #00796B !important;
+  filter: drop-shadow(0 0 6px rgba(128, 203, 196, 0.7));
 }
 
-/* ── 2. 🎨 Dark Mode: Authentic Inferxe Cosmic Azure & Glassmorphic Surfaces ── */
+/* ── 2. 🎨 Dark Mode: Authentic Inferxe Bermuda Deep & Glassmorphic Surfaces ── */
 
-/* Signature Cosmic Azure Base Palette from tokens.css */
+/* Signature Bermuda Deep Base Palette */
 .dash-shell:not([data-theme='light']),
 .dash-shell[data-theme='dark'] {
   background-color: transparent !important;
-  color: #f0f7ff;
-  --bg-0: #070d18;
-  --bg-1: #0b1526;
-  --bg-2: #0f1d35;
-  --bg-3: #142542;
-  --bg-4: #1a3053;
-  --bg-5: #213c67;
-  --ink: #f0f7ff;
-  --ink-2: #cbd5e1;
-  --ink-3: #94a3b8;
-  --ink-4: #64748b;
-  --line: rgba(240, 247, 255, 0.08);
-  --line-2: rgba(240, 247, 255, 0.15);
-  --line-3: rgba(240, 247, 255, 0.26);
-  --brand: #0ea5e9;
-  --brand-hi: #38bdf8;
-  --brand-hi2: #7dd3fc;
-  --brand-lo: #0284c7;
-  --brand-glow: rgba(56, 189, 248, 0.4);
-  --brand-soft: rgba(56, 189, 248, 0.12);
+  color: #e0f2f1;
+  --bg-0: #061917;
+  --bg-1: #092320;
+  --bg-2: #0d2f2b;
+  --bg-3: #113c37;
+  --bg-4: #164943;
+  --bg-5: #1c5750;
+  --ink: #e0f2f1;
+  --ink-2: #b2dfdb;
+  --ink-3: #80cbc4;
+  --ink-4: #4db6ac;
+  --line: rgba(224, 242, 241, 0.08);
+  --line-2: rgba(224, 242, 241, 0.15);
+  --line-3: rgba(224, 242, 241, 0.26);
+  --brand: #26a69a;
+  --brand-hi: #80cbc4;
+  --brand-hi2: #b2dfdb;
+  --brand-lo: #00796b;
+  --brand-glow: rgba(128, 203, 196, 0.45);
+  --brand-soft: rgba(128, 203, 196, 0.18);
 }
 
-/* Glassmorphic Top Header matching Sky Blue Azure palette */
+/* Glassmorphic Top Header matching Bermuda palette */
 .dash-shell:not([data-theme='light']) .dash-topbar,
 .dash-shell[data-theme='dark'] .dash-topbar {
-  background: rgba(11, 21, 38, 0.88) !important;
+  background: rgba(9, 35, 32, 0.88) !important;
   -webkit-backdrop-filter: blur(20px) saturate(140%) !important;
   backdrop-filter: blur(20px) saturate(140%) !important;
-  border-bottom: 1px solid rgba(56, 189, 248, 0.12) !important;
+  border-bottom: 1px solid rgba(128, 203, 196, 0.18) !important;
 }
 
 /* Dedicated Sidebar Surface with crisp boundary */
 .dash-shell:not([data-theme='light']) .dash-sidebar,
 .dash-shell[data-theme='dark'] .dash-sidebar {
-  background: rgba(11, 21, 38, 0.94) !important;
+  background: rgba(9, 35, 32, 0.94) !important;
   -webkit-backdrop-filter: blur(20px) saturate(140%) !important;
   backdrop-filter: blur(20px) saturate(140%) !important;
-  border: 1px solid rgba(56, 189, 248, 0.12) !important;
+  border: 1px solid rgba(128, 203, 196, 0.18) !important;
 }
 
 /* Glassmorphic Elevated Surfaces with Specular Reflection & Border Highlights */
@@ -130,10 +137,10 @@ body:has(.dash-shell[data-theme='light']) {
 .dash-shell[data-theme='dark'] .mw-model-card,
 .dash-shell[data-theme='dark'] .mw-modal,
 .dash-shell[data-theme='dark'] .xs-card {
-  background: linear-gradient(145deg, rgba(15, 29, 53, 0.72) 0%, rgba(11, 21, 38, 0.82) 100%) !important;
+  background: linear-gradient(145deg, rgba(13, 47, 43, 0.72) 0%, rgba(9, 35, 32, 0.82) 100%) !important;
   -webkit-backdrop-filter: blur(20px) saturate(140%) !important;
   backdrop-filter: blur(20px) saturate(140%) !important;
-  border: 1px solid rgba(56, 189, 248, 0.12) !important;
+  border: 1px solid rgba(128, 203, 196, 0.18) !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
     0 4px 16px rgba(0, 0, 0, 0.45) !important;
@@ -142,12 +149,12 @@ body:has(.dash-shell[data-theme='light']) {
 
 .dash-shell:not([data-theme='light']) .dash-modal,
 .dash-shell[data-theme='dark'] .dash-modal {
-  background: #0b1526 !important;
-  border: 1px solid rgba(56, 189, 248, 0.35) !important;
+  background: #092320 !important;
+  border: 1px solid rgba(128, 203, 196, 0.35) !important;
   box-shadow:
     0 24px 60px rgba(0, 0, 0, 0.95),
     0 0 0 1px rgba(255, 255, 255, 0.08),
-    0 8px 24px rgba(14, 165, 233, 0.12) !important;
+    0 8px 24px rgba(38, 166, 154, 0.15) !important;
 }
 
 .dash-shell:not([data-theme='light']) .dash-stat-card:hover,
@@ -156,8 +163,8 @@ body:has(.dash-shell[data-theme='light']) {
 .dash-shell[data-theme='dark'] .dash-stat-card:hover,
 .dash-shell[data-theme='dark'] .dash-panel-card:hover,
 .dash-shell[data-theme='dark'] .dash-deploy-row:hover {
-  background: linear-gradient(145deg, rgba(20, 37, 66, 0.8) 0%, rgba(15, 29, 53, 0.9) 100%) !important;
-  border-color: rgba(56, 189, 248, 0.35) !important;
+  background: linear-gradient(145deg, rgba(17, 60, 55, 0.8) 0%, rgba(13, 47, 43, 0.9) 100%) !important;
+  border-color: rgba(128, 203, 196, 0.45) !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.14),
     0 16px 36px -12px rgba(0, 0, 0, 0.7),
@@ -179,8 +186,8 @@ body:has(.dash-shell[data-theme='light']) {
 .dash-shell[data-theme='dark'] .dash-admin-profile,
 .dash-shell[data-theme='dark'] .dash-theme-toggle,
 .dash-shell[data-theme='dark'] .dash-topbar__status {
-  background: rgba(11, 21, 38, 0.85) !important;
-  border: 1px solid rgba(56, 189, 248, 0.15) !important;
+  background: rgba(9, 35, 32, 0.85) !important;
+  border: 1px solid rgba(128, 203, 196, 0.2) !important;
 }
 
 /* Typography Hierarchy matching Home.tsx */

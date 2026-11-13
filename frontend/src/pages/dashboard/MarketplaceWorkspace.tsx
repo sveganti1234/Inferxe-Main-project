@@ -187,8 +187,8 @@ const COMPUTE_CARDS: ComputeCard[] = [
     fullNumber: '4532 8901 6723 1904',
     cvv: '842',
     exp: '06/29',
-    color: '#0284c7',
-    gradient: 'linear-gradient(135deg, #0284c7 0%, #0ea5e9 50%, #38bdf8 100%)',
+    color: '#00796b',
+    gradient: 'linear-gradient(135deg, #004d40 0%, #00796b 50%, #80cbc4 100%)',
     limit: 50000,
     spent: 14820,
     categoryBreakdown: { inference: 6800, gpu: 5200, fineTuning: 1920, storage: 900 },
@@ -201,8 +201,8 @@ const COMPUTE_CARDS: ComputeCard[] = [
     fullNumber: '4112 5590 3341 4821',
     cvv: '319',
     exp: '08/28',
-    color: '#0284c7',
-    gradient: 'linear-gradient(135deg, #38bdf8 0%, #0284c7 50%, #0369a1 100%)',
+    color: '#26a69a',
+    gradient: 'linear-gradient(135deg, #00695c 0%, #26a69a 50%, #b2dfdb 100%)',
     limit: 25000,
     spent: 8400,
     categoryBreakdown: { inference: 3500, gpu: 3900, fineTuning: 600, storage: 400 },
@@ -215,8 +215,8 @@ const COMPUTE_CARDS: ComputeCard[] = [
     fullNumber: '5243 7810 9942 7730',
     cvv: '561',
     exp: '11/27',
-    color: '#0284c7',
-    gradient: 'linear-gradient(135deg, #0c4a6e 0%, #0369a1 50%, #38bdf8 100%)',
+    color: '#00796b',
+    gradient: 'linear-gradient(135deg, #00796b 0%, #4db6ac 50%, #80cbc4 100%)',
     limit: 40000,
     spent: 12100,
     categoryBreakdown: { inference: 1100, gpu: 8500, fineTuning: 2000, storage: 500 },
@@ -2055,7 +2055,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
             { day: 'Today', shopping: 8, groceries: 10, health: 0, transport: 4 },
           ]
 
-          // Sahith cards deck for interactive 3D rotation (Sky Blue theme)
+          // Sahith cards deck for interactive 3D rotation (Bermuda theme)
           const cardDeck = [
             {
               id: 'c1',
@@ -2064,7 +2064,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
               pan: '•••• 1904',
               expiry: '06/29',
               holder: 'Sahith',
-              bg: 'linear-gradient(135deg, #0284c7 0%, #0ea5e9 55%, #38bdf8 100%)',
+              bg: 'linear-gradient(135deg, #004d40 0%, #00796b 55%, #80cbc4 100%)',
             },
             {
               id: 'c2',
@@ -2073,7 +2073,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
               pan: '•••• 4821',
               expiry: '11/28',
               holder: 'Sahith',
-              bg: 'linear-gradient(135deg, #0369a1 0%, #0284c7 60%, #0ea5e9 100%)',
+              bg: 'linear-gradient(135deg, #00695c 0%, #26a69a 60%, #b2dfdb 100%)',
             },
             {
               id: 'c3',
@@ -2082,7 +2082,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
               pan: '•••• 7730',
               expiry: '03/30',
               holder: 'Sahith',
-              bg: 'linear-gradient(135deg, #0c4a6e 0%, #0369a1 60%, #38bdf8 100%)',
+              bg: 'linear-gradient(135deg, #00796b 0%, #4db6ac 60%, #80cbc4 100%)',
             },
           ]
 
@@ -2336,7 +2336,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                                   {b.groceries > 0 && (
                                     <div
                                       className="zesto-bar-slice"
-                                      style={{ height: `${b.groceries * scale}px`, background: '#38bdf8' }}
+                                      style={{ height: `${b.groceries * scale}px`, background: '#80cbc4' }}
                                     />
                                   )}
                                   {b.health > 0 && (
@@ -2390,7 +2390,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                         Shopping
                       </span>
                       <span className="zesto-legend-item">
-                        <span className="zesto-legend-dot" style={{ background: '#38bdf8' }} />
+                        <span className="zesto-legend-dot" style={{ background: '#80cbc4' }} />
                         Groceries
                       </span>
                       <span className="zesto-legend-item">
@@ -2421,7 +2421,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                   <div className="zesto-mini-stat-bottom">
                     <span>vs €2,314 by the 19th last month</span>
                     <svg width="42" height="14" viewBox="0 0 42 14" fill="none">
-                      <path d="M1,12 Q10,4 20,8 T41,2" stroke="#0ea5e9" strokeWidth="1.8" fill="none" />
+                      <path d="M1,12 Q10,4 20,8 T41,2" stroke="#00796b" strokeWidth="1.8" fill="none" />
                     </svg>
                   </div>
                 </div>
@@ -2444,7 +2444,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                 <div className="zesto-mini-stat-card">
                   <div className="zesto-mini-stat-top">
                     <span className="zesto-mini-stat-label">
-                      <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: '#38bdf8' }} />
+                      <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: '#80cbc4' }} />
                       Safe to spend a day
                     </span>
                   </div>
@@ -2507,7 +2507,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                         </span>
                       </div>
                       <div className="zesto-budget-track">
-                        <div className="zesto-budget-fill" style={{ width: '48%', background: '#0ea5e9' }} />
+                        <div className="zesto-budget-fill" style={{ width: '48%', background: '#26a69a' }} />
                         <div className="zesto-budget-tick" style={{ left: '63%' }} title="Today (63%)" />
                       </div>
                     </div>
@@ -2521,7 +2521,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                         </span>
                       </div>
                       <div className="zesto-budget-track">
-                        <div className="zesto-budget-fill" style={{ width: '54%', background: '#0ea5e9' }} />
+                        <div className="zesto-budget-fill" style={{ width: '54%', background: '#26a69a' }} />
                         <div className="zesto-budget-tick" style={{ left: '63%' }} title="Today (63%)" />
                       </div>
                     </div>
@@ -2627,7 +2627,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                         <div className="zesto-coming-right">
                           <span className="zesto-coming-amount">-€45.00</span>
                           {zestoPaidBills['bill-music'] ? (
-                            <span style={{ fontSize: '0.72rem', color: '#0ea5e9', fontWeight: 700 }}>Paid ✓</span>
+                            <span style={{ fontSize: '0.72rem', color: '#00796b', fontWeight: 700 }}>Paid ✓</span>
                           ) : (
                             <button
                               type="button"
@@ -3378,9 +3378,9 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                               fontSize: '0.68rem',
                               padding: '2px 7px',
                               borderRadius: 4,
-                              background: k.environment === 'test' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(14, 165, 233, 0.15)',
-                              color: k.environment === 'test' ? '#60a5fa' : '#38bdf8',
-                              border: k.environment === 'test' ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid rgba(56, 189, 248, 0.3)',
+                              background: k.environment === 'test' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(128, 203, 196, 0.18)',
+                              color: k.environment === 'test' ? '#60a5fa' : '#00796b',
+                              border: k.environment === 'test' ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid rgba(128, 203, 196, 0.35)',
                               fontWeight: 600,
                               textTransform: 'uppercase'
                             }}>
@@ -5312,7 +5312,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                   >
                     {isFrozen ? (
                       <>
-                        <Unlock size={13} style={{ color: '#38bdf8' }} />
+                        <Unlock size={13} style={{ color: '#80cbc4' }} />
                         <span>Unfreeze this card</span>
                       </>
                     ) : (
@@ -5409,7 +5409,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                         >
                           <div className="zesto-vcard-top">
                             <span className="zesto-vcard-logo">
-                              <span style={{ color: '#38bdf8', fontSize: '1.4rem' }}>●</span> inferxe
+                              <span style={{ color: '#80cbc4', fontSize: '1.4rem' }}>●</span> inferxe
                             </span>
                             <span className="zesto-vcard-type-badge">
                               {isFrozen ? 'FROZEN' : activeCard.type}
@@ -5480,7 +5480,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                       </button>
                       <button
                         type="button"
-                        className={`zesto-card-action-pill ${isFrozen ? 'zesto-card-action-pill--skyblue' : ''}`}
+                        className={`zesto-card-action-pill ${isFrozen ? 'zesto-card-action-pill--bermuda' : ''}`}
                         onClick={() => handleToggleFreeze(activeCard.id, activeCard.name)}
                       >
                         {isFrozen ? <Unlock size={13} /> : <Lock size={13} />}
@@ -5495,7 +5495,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                           width: 22,
                           height: 22,
                           borderRadius: '50%',
-                          background: 'linear-gradient(135deg, #0284c7 0%, #38bdf8 100%)',
+                          background: 'linear-gradient(135deg, #00796b 0%, #80cbc4 100%)',
                           color: '#ffffff',
                           fontWeight: 700,
                           fontSize: '0.65rem',
@@ -5515,8 +5515,9 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                           fontSize: '0.68rem',
                           padding: '1px 6px',
                           borderRadius: 4,
-                          background: isFrozen ? 'rgba(239, 68, 68, 0.15)' : 'rgba(14, 165, 233, 0.15)',
-                          color: isFrozen ? '#ef4444' : '#0ea5e9',
+                          background: isFrozen ? 'rgba(239, 68, 68, 0.15)' : 'rgba(128, 203, 196, 0.22)',
+                          color: isFrozen ? '#ef4444' : '#00796b',
+                          fontWeight: 600,
                         }}
                       >
                         {isFrozen ? 'Frozen' : 'Active'}
@@ -5543,10 +5544,10 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                         </div>
                       </div>
 
-                      {/* Multi-colored Progress Bar (Sky Blue, Cyan, Amber, Rose) */}
+                      {/* Multi-colored Progress Bar (Bermuda Deep, Bermuda Bright, Amber, Rose) */}
                       <div className="zesto-multi-progress">
-                        <div className="zesto-progress-seg" style={{ width: `${infShare}%`, background: '#0ea5e9' }} />
-                        <div className="zesto-progress-seg" style={{ width: `${gpuShare}%`, background: '#38bdf8' }} />
+                        <div className="zesto-progress-seg" style={{ width: `${infShare}%`, background: '#00796b' }} />
+                        <div className="zesto-progress-seg" style={{ width: `${gpuShare}%`, background: '#80cbc4' }} />
                         <div className="zesto-progress-seg" style={{ width: `${ftShare}%`, background: '#f59e0b' }} />
                         <div className="zesto-progress-seg" style={{ width: `${storageShare}%`, background: '#f43f5e' }} />
                       </div>
@@ -5555,14 +5556,14 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                       <div className="zesto-cycle-legend">
                         <div className="zesto-legend-item">
                           <span className="zesto-legend-label">
-                            <span className="zesto-legend-dot" style={{ background: '#0ea5e9' }} />
+                            <span className="zesto-legend-dot" style={{ background: '#00796b' }} />
                             <span>LLM Inference</span>
                           </span>
                           <span className="zesto-legend-val">{money(activeCard.categoryBreakdown.inference)}</span>
                         </div>
                         <div className="zesto-legend-item">
                           <span className="zesto-legend-label">
-                            <span className="zesto-legend-dot" style={{ background: '#38bdf8' }} />
+                            <span className="zesto-legend-dot" style={{ background: '#80cbc4' }} />
                             <span>GPU Instances</span>
                           </span>
                           <span className="zesto-legend-val">{money(activeCard.categoryBreakdown.gpu)}</span>
@@ -5595,7 +5596,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                           type="button"
                           className="mw-link-btn"
                           onClick={() => handleOpenTopUpModal()}
-                          style={{ color: '#0ea5e9', fontSize: '0.74rem', fontWeight: 600 }}
+                          style={{ color: '#00796b', fontSize: '0.74rem', fontWeight: 700 }}
                         >
                           + Top up
                         </button>
@@ -5615,7 +5616,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                             </div>
                             <div
                               className="zesto-tx-amount"
-                              style={{ color: tx.isCredit ? '#0ea5e9' : '#ffffff' }}
+                              style={{ color: tx.isCredit ? '#00796b' : 'inherit' }}
                             >
                               {tx.isCredit ? `+${money(tx.amount)}` : `−${money(tx.amount)}`}
                             </div>
@@ -5635,16 +5636,16 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                     <p className="zesto-cycle-sub">Manage safety caps for {activeCard.name}</p>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 10 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '0.82rem', color: '#d1d5db' }}>Monthly Spend Cap</span>
-                        <span style={{ fontSize: '0.88rem', fontWeight: 700, color: '#ffffff' }}>{money(activeCard.limit)}</span>
+                        <span style={{ fontSize: '0.82rem', color: 'var(--ink-3)' }}>Monthly Spend Cap</span>
+                        <span style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--ink)' }}>{money(activeCard.limit)}</span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '0.82rem', color: '#d1d5db' }}>Auto-pause on limit breach</span>
-                        <span style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: 600 }}>Enabled</span>
+                        <span style={{ fontSize: '0.82rem', color: 'var(--ink-3)' }}>Auto-pause on limit breach</span>
+                        <span style={{ fontSize: '0.75rem', color: '#00796b', fontWeight: 600 }}>Enabled</span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '0.82rem', color: '#d1d5db' }}>Card Status</span>
-                        <span style={{ fontSize: '0.75rem', color: isFrozen ? '#ef4444' : '#0ea5e9', fontWeight: 600 }}>
+                        <span style={{ fontSize: '0.82rem', color: 'var(--ink-3)' }}>Card Status</span>
+                        <span style={{ fontSize: '0.75rem', color: isFrozen ? '#ef4444' : '#00796b', fontWeight: 600 }}>
                           {isFrozen ? 'Frozen' : 'Active'}
                         </span>
                       </div>
@@ -5656,16 +5657,16 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                     <p className="zesto-cycle-sub">Tier-IV encryption &amp; datacenter bounds</p>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginTop: 10 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '0.82rem', color: '#d1d5db' }}>Datacenter Region</span>
-                        <span style={{ fontSize: '0.82rem', color: '#ffffff' }}>Mumbai &amp; Hyderabad (India)</span>
+                        <span style={{ fontSize: '0.82rem', color: 'var(--ink-3)' }}>Datacenter Region</span>
+                        <span style={{ fontSize: '0.82rem', color: 'var(--ink)' }}>Mumbai &amp; Hyderabad (India)</span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '0.82rem', color: '#d1d5db' }}>Zero Cross-Border Logs</span>
-                        <span style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: 600 }}>Enforced</span>
+                        <span style={{ fontSize: '0.82rem', color: 'var(--ink-3)' }}>Zero Cross-Border Logs</span>
+                        <span style={{ fontSize: '0.75rem', color: '#00796b', fontWeight: 600 }}>Enforced</span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span style={{ fontSize: '0.82rem', color: '#d1d5db' }}>Two-Factor Spend Auth</span>
-                        <span style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: 600 }}>Cognito Active</span>
+                        <span style={{ fontSize: '0.82rem', color: 'var(--ink-3)' }}>Two-Factor Spend Auth</span>
+                        <span style={{ fontSize: '0.75rem', color: '#00796b', fontWeight: 600 }}>Cognito Active</span>
                       </div>
                     </div>
                   </div>
@@ -6390,8 +6391,8 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
       {createdSecretData && (
         <div className="mw-modal-backdrop" onClick={() => setCreatedSecretData(null)}>
           <div className="mw-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
-            <div className="mw-modal-head" style={{ borderBottom: '1px solid rgba(14, 165, 233, 0.2)' }}>
-              <h3 style={{ color: '#38bdf8', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div className="mw-modal-head" style={{ borderBottom: '1px solid rgba(128, 203, 196, 0.25)' }}>
+              <h3 style={{ color: 'var(--brand-hi, #80cbc4)', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Check size={18} /> API Key Created Successfully
               </h3>
               <button onClick={() => setCreatedSecretData(null)} aria-label="Close"><X size={16} /></button>
@@ -6413,9 +6414,9 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                       fontSize: '0.85rem',
                       padding: '10px 12px',
                       background: 'rgba(0, 0, 0, 0.4)',
-                      border: '1px solid var(--brand-line, #38bdf8)',
+                      border: '1px solid var(--brand-line, #80cbc4)',
                       borderRadius: 7,
-                      color: 'var(--brand-hi, #38bdf8)',
+                      color: 'var(--brand-hi, #80cbc4)',
                     }}
                   />
                   <button
@@ -6624,7 +6625,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                       style={{
                         position: 'absolute',
                         left: 14,
-                        color: 'var(--brand-hi, #38bdf8)',
+                        color: 'var(--brand-hi, #80cbc4)',
                         fontSize: '1.15rem',
                         fontWeight: 700,
                         pointerEvents: 'none',
@@ -6699,7 +6700,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                     <span style={{ color: 'var(--ink-3)' }}>
                       Current Balance: <strong>{money(walletBalance)}</strong>
                     </span>
-                    <span style={{ color: 'var(--brand-hi, #38bdf8)', fontWeight: 600 }}>
+                    <span style={{ color: 'var(--brand-hi, #80cbc4)', fontWeight: 600 }}>
                       New Balance: <strong>{money(walletBalance + numericTopUp)}</strong>
                     </span>
                   </div>
@@ -6889,7 +6890,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                       <span style={{ fontSize: '0.72rem', color: 'var(--ink-3)', display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                         Available to Withdraw
                       </span>
-                      <strong style={{ fontSize: '1.25rem', color: 'var(--brand-hi, #38bdf8)' }}>
+                      <strong style={{ fontSize: '1.25rem', color: 'var(--brand-hi, #80cbc4)' }}>
                         {money(pendingPayout)}
                       </strong>
                     </div>
@@ -7017,7 +7018,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                         }}
                       >
                         <span>Net Disbursed to Bank</span>
-                        <span style={{ color: 'var(--brand-hi, #38bdf8)' }}>
+                        <span style={{ color: 'var(--brand-hi, #80cbc4)' }}>
                           {money(Math.round(numericPayout * 0.88))}
                         </span>
                       </div>
@@ -7424,8 +7425,8 @@ function ChangePasswordCard({
 
     if (s <= 1) return { score: 1, label: 'Weak', color: '#ef4444', percent: 25 }
     if (s <= 2) return { score: 2, label: 'Fair', color: '#f59e0b', percent: 50 }
-    if (s <= 3) return { score: 3, label: 'Good', color: '#38bdf8', percent: 75 }
-    return { score: 4, label: 'Strong', color: '#0284c7', percent: 100 }
+    if (s <= 3) return { score: 3, label: 'Good', color: '#80cbc4', percent: 75 }
+    return { score: 4, label: 'Strong', color: '#00796b', percent: 100 }
   }, [newPassword])
 
   // Validation rules checklist

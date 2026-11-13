@@ -25,14 +25,14 @@
   --line-2: rgba(238, 242, 234, 0.15);
   --line-3: rgba(238, 242, 234, 0.26);
 
-  /* Brand (Sky Blue) */
-  --brand: #0ea5e9;
-  --brand-hi: #38bdf8;
-  --brand-hi2: #7dd3fc;
-  --brand-lo: #0284c7;
-  --brand-ink: #082f49;
-  --brand-glow: rgba(56, 189, 248, 0.4);
-  --brand-soft: rgba(56, 189, 248, 0.12);
+  /* Brand (Bermuda #80CBC4) */
+  --brand: #26a69a;
+  --brand-hi: #80cbc4;
+  --brand-hi2: #b2dfdb;
+  --brand-lo: #00796b;
+  --brand-ink: #00332c;
+  --brand-glow: rgba(128, 203, 196, 0.45);
+  --brand-soft: rgba(128, 203, 196, 0.18);
 
   /* Supporting signals (data-viz only) */
   --amber: #f2b84b;
@@ -70,6 +70,6 @@
   /* Elevation */
   --shadow-1: 0 2px 6px rgba(0, 0, 0, 0.35), 0 10px 24px -10px rgba(0, 0, 0, 0.6);
   --shadow-2: 0 4px 10px rgba(0, 0, 0, 0.35), 0 30px 60px -24px rgba(0, 0, 0, 0.75);
-  --shadow-glow: 0 0 0 1px rgba(56, 189, 248, 0.35), 0 0 40px -6px var(--brand-glow);
+  --shadow-glow: 0 0 0 1px rgba(128, 203, 196, 0.45), 0 0 40px -6px var(--brand-glow);
 }
 

@@ -56,27 +56,28 @@
 /* ── Light theme (applies only inside the dashboard shell) ── */
 .dash-shell[data-theme='light'] {
   color-scheme: light;
-  --bg-0: #f4f6f1;
-  --bg-1: #ebf0e6;
-  --bg-2: #ffffff;
-  --bg-3: #f1f5ec;
-  --bg-4: #e2e8db;
-  --bg-5: #d2dcce;
-  --ink: #0f172a;
-  --ink-2: #1e293b;
-  --ink-3: #334155;
-  --ink-4: #475569;
-  --line: rgba(15, 23, 42, 0.08);
-  --line-2: rgba(15, 23, 42, 0.14);
-  --line-3: rgba(15, 23, 42, 0.24);
-  --brand: #0ea5e9;
-  --brand-hi: #38bdf8;
-  --brand-hi2: #7dd3fc;
-  --brand-lo: #0284c7;
-  --brand-glow: rgba(14, 165, 233, 0.35);
-  --brand-soft: rgba(14, 165, 233, 0.14);
-  --shadow-1: 0 1px 3px rgba(15, 23, 42, 0.08), 0 8px 20px -10px rgba(15, 23, 42, 0.12);
-  --shadow-2: 0 4px 12px rgba(15, 23, 42, 0.08), 0 24px 48px -24px rgba(15, 23, 42, 0.15);
+  --bg-0: transparent;
+  --bg-1: rgba(128, 203, 196, 0.12);
+  --bg-2: rgba(255, 255, 255, 0.20);
+  --bg-3: rgba(128, 203, 196, 0.18);
+  --bg-4: rgba(128, 203, 196, 0.26);
+  --bg-5: rgba(128, 203, 196, 0.36);
+  --ink: #00332c;
+  --ink-2: #004d40;
+  --ink-3: #00695c;
+  --ink-4: #00796b;
+  --line: rgba(128, 203, 196, 0.35);
+  --line-2: rgba(128, 203, 196, 0.45);
+  --line-3: rgba(0, 121, 107, 0.45);
+  --brand: #26a69a;
+  --brand-hi: #80cbc4;
+  --brand-hi2: #b2dfdb;
+  --brand-lo: #00796b;
+  --brand-ink: #00332c;
+  --brand-glow: rgba(128, 203, 196, 0.45);
+  --brand-soft: rgba(128, 203, 196, 0.18);
+  --shadow-1: 0 4px 16px rgba(0, 77, 64, 0.08), inset 0 1px 1px rgba(255, 255, 255, 0.8);
+  --shadow-2: 0 12px 36px -6px rgba(0, 77, 64, 0.14), inset 0 1px 2px rgba(255, 255, 255, 0.85);
 }
 
 /* ── Topbar in Light Theme ────────────────────────────────── */
@@ -5417,4 +5418,287 @@
 }
 [data-theme="light"] .zesto-card-chip-sub {
   color: #64748b !important;
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════
+   BERMUDA #80CBC4 — 20% TRANSLUCENT FROSTED GLASS SUITE
+   Decreased White Opacity (20% max) + Bermuda Refraction & Deep Contrast
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Universal Light Glass Surface Rule: 20% White + Bermuda Aqua Translucency */
+.dash-shell[data-theme='light'] .dash-card,
+.dash-shell[data-theme='light'] .dash-stat-card,
+.dash-shell[data-theme='light'] .dash-panel-card,
+.dash-shell[data-theme='light'] .dash-deploy-row,
+.dash-shell[data-theme='light'] .dash-role-card,
+.dash-shell[data-theme='light'] .dash-quota-card,
+.dash-shell[data-theme='light'] .dash-table-wrap,
+.dash-shell[data-theme='light'] .dash-sidebar-flyout,
+.dash-shell[data-theme='light'] .mw-panel,
+.dash-shell[data-theme='light'] .mw-card,
+.dash-shell[data-theme='light'] .mw-metric,
+.dash-shell[data-theme='light'] .mw-gpu-card,
+.dash-shell[data-theme='light'] .mw-model-card,
+.dash-shell[data-theme='light'] .mw-modal,
+.dash-shell[data-theme='light'] .mw-modal-window,
+.dash-shell[data-theme='light'] .xs-card,
+[data-theme="light"] .zesto-card-stage,
+[data-theme="light"] .zesto-cycle-panel,
+[data-theme="light"] .zesto-card-tx-panel,
+[data-theme="light"] .zesto-dark-chart-card,
+[data-theme="light"] .zesto-mini-stat-card,
+[data-theme="light"] .zesto-panel-card,
+[data-theme="light"] .verdelo-stat-card,
+[data-theme="light"] .verdelo-chart-card,
+[data-theme="light"] .verdelo-safe-spend-card,
+[data-theme="light"] .verdelo-search-pill,
+[data-theme="light"] .mw-modal-window {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.20) 0%, rgba(128, 203, 196, 0.16) 100%) !important;
+  backdrop-filter: blur(28px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
+  border: 1.5px solid rgba(128, 203, 196, 0.45) !important;
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.8), 0 12px 36px -6px rgba(0, 77, 64, 0.12), 0 0 20px rgba(128, 203, 196, 0.18) !important;
+}
+
+/* Light Theme Topbar: Translucent Bermuda Frosted Glass Header */
+.dash-shell[data-theme='light'] .dash-topbar {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.22) 0%, rgba(128, 203, 196, 0.18) 100%) !important;
+  backdrop-filter: blur(28px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
+  border-bottom: 1.5px solid rgba(128, 203, 196, 0.40) !important;
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.6), 0 8px 30px rgba(0, 77, 64, 0.08) !important;
+}
+
+/* Light Theme Sidebar: Translucent Bermuda Frosted Glass Navigation */
+.dash-shell[data-theme='light'] .dash-sidebar {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(128, 203, 196, 0.18) 100%) !important;
+  backdrop-filter: blur(32px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(32px) saturate(190%) !important;
+  border: 1.5px solid rgba(128, 203, 196, 0.40) !important;
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.75), 0 12px 40px -10px rgba(0, 77, 64, 0.15) !important;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+/* Hover States for all Light Glass Surfaces */
+.dash-shell[data-theme='light'] .dash-card:hover,
+.dash-shell[data-theme='light'] .dash-stat-card:hover,
+.dash-shell[data-theme='light'] .dash-panel-card:hover,
+.dash-shell[data-theme='light'] .mw-panel:hover,
+.dash-shell[data-theme='light'] .mw-card:hover,
+[data-theme="light"] .zesto-card-stage:hover,
+[data-theme="light"] .zesto-cycle-panel:hover,
+[data-theme="light"] .zesto-card-tx-panel:hover,
+[data-theme="light"] .zesto-dark-chart-card:hover,
+[data-theme="light"] .zesto-mini-stat-card:hover,
+[data-theme="light"] .zesto-panel-card:hover,
+[data-theme="light"] .verdelo-stat-card:hover,
+[data-theme="light"] .verdelo-chart-card:hover {
+  border-color: rgba(128, 203, 196, 0.75) !important;
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.95), 0 18px 46px -8px rgba(0, 77, 64, 0.18), 0 0 28px rgba(128, 203, 196, 0.35) !important;
+}
+
+/* Hero Highlight Card: Authentic Bermuda Gradient Surface */
+.zesto-green-hero-card {
+  position: relative;
+  border-radius: 24px;
+  padding: 24px 26px 22px;
+  background: linear-gradient(135deg, #004d40 0%, #00796b 40%, #26a69a 80%, #80cbc4 100%) !important;
+  backdrop-filter: blur(30px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(190%) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.45) !important;
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.8), 0 20px 48px -12px rgba(0, 77, 64, 0.45), 0 0 24px rgba(128, 203, 196, 0.35) !important;
+  color: #ffffff !important;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 295px;
+  overflow: hidden;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.zesto-green-hero-card:hover {
+  transform: translateY(-2px);
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.95), 0 24px 54px -10px rgba(0, 77, 64, 0.55), 0 0 32px rgba(128, 203, 196, 0.5) !important;
+}
+
+/* Light Theme High-Contrast Deep Pine Teal Text (#004d40 / #00332c) */
+[data-theme="light"] .zesto-exact-title,
+[data-theme="light"] .zesto-cycle-title,
+[data-theme="light"] .zesto-dark-chart-title,
+[data-theme="light"] .zesto-panel-title,
+[data-theme="light"] .verdelo-insights-title,
+[data-theme="light"] .verdelo-chart-title,
+[data-theme="light"] .verdelo-stat-value,
+[data-theme="light"] .zesto-cycle-amount,
+[data-theme="light"] .zesto-mini-stat-val,
+[data-theme="light"] .zesto-coming-amount,
+[data-theme="light"] .zesto-tx-title,
+[data-theme="light"] .zesto-budget-cat,
+[data-theme="light"] .zesto-card-chip-title,
+[data-theme="light"] .verdelo-user-name,
+[data-theme="light"] .verdelo-search-text,
+[data-theme="light"] .verdelo-brand-name,
+[data-theme="light"] .dash-stat-value,
+[data-theme="light"] .dash-panel-title,
+[data-theme="light"] .dash-admin-name,
+.dash-shell[data-theme='light'] .dash-stat-value,
+.dash-shell[data-theme='light'] .dash-panel-title,
+.dash-shell[data-theme='light'] .dash-admin-name {
+  color: #004d40 !important;
+  font-weight: 700;
+}
+
+/* Light Theme Medium Pine Teal Subtitles & Labels (#00695c) */
+[data-theme="light"] .zesto-exact-sub,
+[data-theme="light"] .zesto-cycle-sub,
+[data-theme="light"] .zesto-dark-chart-sub,
+[data-theme="light"] .zesto-panel-sub,
+[data-theme="light"] .verdelo-insights-sub,
+[data-theme="light"] .verdelo-chart-sub,
+[data-theme="light"] .verdelo-stat-title,
+[data-theme="light"] .verdelo-stat-sub,
+[data-theme="light"] .zesto-tx-meta,
+[data-theme="light"] .zesto-coming-sub,
+[data-theme="light"] .zesto-budget-figures,
+[data-theme="light"] .zesto-legend-label,
+[data-theme="light"] .zesto-mini-stat-label,
+[data-theme="light"] .zesto-mini-stat-bottom,
+[data-theme="light"] .zesto-card-chip-sub,
+[data-theme="light"] .zesto-card-owner-bar,
+[data-theme="light"] .verdelo-user-email,
+[data-theme="light"] .verdelo-legend-text,
+[data-theme="light"] .verdelo-brand-sub,
+[data-theme="light"] .verdelo-search-icon,
+[data-theme="light"] .verdelo-safe-spend-label,
+[data-theme="light"] .verdelo-safe-spend-sub,
+[data-theme="light"] .dash-stat-label,
+.dash-shell[data-theme='light'] .dash-stat-label,
+.dash-shell[data-theme='light'] .dash-admin-role {
+  color: #00695c !important;
+}
+
+[data-theme="light"] .zesto-legend-val {
+  color: #004d40 !important;
+  font-weight: 700 !important;
+}
+
+/* Action pills in light mode */
+[data-theme="light"] .zesto-card-action-pill {
+  background: rgba(255, 255, 255, 0.25) !important;
+  border: 1.5px solid rgba(128, 203, 196, 0.5) !important;
+  color: #004d40 !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+}
+[data-theme="light"] .zesto-card-action-pill:hover {
+  background: rgba(128, 203, 196, 0.3) !important;
+  border-color: #26a69a !important;
+  color: #00332c !important;
+}
+
+/* Send money, unfreeze, mint action circles: Bermuda Gradient */
+.zesto-exact-btn-send,
+.zesto-card-action-pill--lime,
+.zesto-card-action-pill--skyblue,
+.zesto-card-action-pill--bermuda,
+.verdelo-btn-circle--mint {
+  background: linear-gradient(135deg, #00796b 0%, #26a69a 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 16px rgba(0, 121, 107, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+}
+.zesto-exact-btn-send:hover,
+.zesto-card-action-pill--lime:hover,
+.zesto-card-action-pill--skyblue:hover,
+.zesto-card-action-pill--bermuda:hover,
+.verdelo-btn-circle--mint:hover {
+  background: linear-gradient(135deg, #00897b 0%, #80cbc4 100%) !important;
+  box-shadow: 0 8px 24px rgba(0, 121, 107, 0.55), inset 0 1px 0 #ffffff !important;
+}
+
+/* Active Nav & Indicator Pills */
+.dash-shell[data-role="customer"] .dash-nav-item.is-active,
+.dash-shell[data-theme='light'] .dash-nav-item.is-active {
+  background: linear-gradient(135deg, #00796b 0%, #26a69a 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 16px rgba(0, 121, 107, 0.35) !important;
+}
+
+[data-theme="light"] .zesto-member-pill.is-active,
+[data-theme="light"] .verdelo-time-pill.is-active {
+  background: #00796b !important;
+  color: #ffffff !important;
+  border-color: #00796b !important;
+}
+
+[data-theme="light"] .zesto-member-pill,
+[data-theme="light"] .verdelo-time-pill {
+  background: rgba(255, 255, 255, 0.25) !important;
+  border: 1px solid rgba(128, 203, 196, 0.4) !important;
+  color: #00695c !important;
+}
+
+/* Transaction List Item in Light Mode */
+[data-theme="light"] .zesto-tx-item {
+  background: rgba(255, 255, 255, 0.20) !important;
+  border: 1px solid rgba(128, 203, 196, 0.4) !important;
+}
+[data-theme="light"] .zesto-tx-icon-box {
+  background: rgba(128, 203, 196, 0.25) !important;
+  color: #00796b !important;
+  border: 1px solid rgba(128, 203, 196, 0.4) !important;
+}
+[data-theme="light"] .zesto-tx-amount {
+  color: #00796b !important;
+  font-weight: 700 !important;
+}
+
+/* Top Up Button in Light Mode */
+[data-theme="light"] .mw-link-btn {
+  color: #00796b !important;
+  font-weight: 700 !important;
+}
+
+/* Card Chip in Light Mode */
+[data-theme="light"] .zesto-card-chip {
+  background: rgba(255, 255, 255, 0.20) !important;
+  border: 1.5px solid rgba(128, 203, 196, 0.4) !important;
+  color: #00695c !important;
+}
+[data-theme="light"] .zesto-card-chip:hover {
+  background: rgba(128, 203, 196, 0.28) !important;
+  border-color: #26a69a !important;
+  color: #004d40 !important;
+}
+[data-theme="light"] .zesto-card-chip.is-active {
+  background: rgba(255, 255, 255, 0.35) !important;
+  border-color: #00796b !important;
+  box-shadow: 0 4px 14px rgba(128, 203, 196, 0.3) !important;
+  color: #004d40 !important;
+}
+
+/* Pay Button in Coming Up Panel */
+.zesto-coming-pay-btn {
+  background: #00796b !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 10px rgba(0, 121, 107, 0.4) !important;
+}
+.zesto-coming-pay-btn:hover {
+  background: #26a69a !important;
+}
+
+/* Sparklines & Charts in Light Mode */
+.dash-shell[data-theme='light'] .dash-sparkline-wrap svg path,
+[data-theme="light"] .verdelo-spline-line {
+  stroke: #00796b !important;
+}
+.verdelo-bar--in {
+  background: #26a69a !important;
+  box-shadow: 0 0 8px rgba(128, 203, 196, 0.5) !important;
+}
+.verdelo-bar--out {
+  background: #80cbc4 !important;
+}
+[data-theme="dark"] .verdelo-bar--out {
+  background: #00796b !important;
 }
