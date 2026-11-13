@@ -14,7 +14,7 @@ import {
 } from 'aws-amplify/auth'
 import { Hub } from 'aws-amplify/utils'
 
-import { saveSession, loginAdminBackend, syncCustomerProfile } from '../lib/authStore'
+import { saveSession, loginAdminBackend, syncCustomerProfile, emailToCognitoUsername } from '../lib/authStore'
 import {
   AlertCircle,
   ArrowLeft,
@@ -229,7 +229,7 @@ export default function Login({ initialMode }: LoginProps) {
       }
 
       if (result.nextStep?.signInStep === 'CONFIRM_SIGN_UP') {
-        setPendingCognitoUsername(cleanEmail)
+        setPendingCognitoUsername(emailToCognitoUsername(cleanEmail))
         setConfirmationPending(true)
         setError('Your account is not confirmed yet in AWS Cognito. Please enter the verification code sent to your email.')
         return
@@ -259,7 +259,8 @@ export default function Login({ initialMode }: LoginProps) {
   const handleResendCode = async () => {
     setError(null)
 
-    const usernameToResend = pendingCognitoUsername || email.trim()
+    const rawTarget = (pendingCognitoUsername || email.trim()).toLowerCase()
+    const usernameToResend = rawTarget.includes('@') ? emailToCognitoUsername(rawTarget) : rawTarget
     if (!usernameToResend) {
       setError('Please provide your email address to resend the verification code.')
       return
@@ -411,16 +412,19 @@ export default function Login({ initialMode }: LoginProps) {
 
           const cleanEmail = email.trim().toLowerCase()
 
-          // Cognito User Pool is configured with email as a sign-in alias, not the username attribute.
-// The Username parameter must be a non-email unique identifier; the email is stored as a user attribute.
-const cognitoUsername = `cust_${crypto.randomUUID().replace(/-/g, '')}`
-setPendingCognitoUsername(cognitoUsername)
-
           try {
+            const cognitoUsername = emailToCognitoUsername(cleanEmail)
+            setPendingCognitoUsername(cognitoUsername)
+
+            const preferredUsername =
+              cleanEmail.split('@')[0].replace(/[^a-zA-Z0-9_.-]/g, '') ||
+              fullName.trim().replace(/\s+/g, '_') ||
+              'user'
+
             const userAttrs: Record<string, string> = {
               email: cleanEmail,
               name: fullName.trim(),
-              preferred_username: cognitoUsername,
+              preferred_username: preferredUsername,
             }
             if (phoneNumber.trim()) {
               const fullPhone = `${countryCode.startsWith('+1-') ? '+1' : countryCode}${phoneNumber.trim()}`.replace(/\s+/g, '')
@@ -463,8 +467,10 @@ setPendingCognitoUsername(cognitoUsername)
             return
           }
           try {
+            const rawTarget = (pendingCognitoUsername || email.trim()).toLowerCase()
+            const usernameToConfirm = rawTarget.includes('@') ? emailToCognitoUsername(rawTarget) : rawTarget
             await confirmSignUp({
-              username: pendingCognitoUsername || email.trim(),
+              username: usernameToConfirm,
               confirmationCode: confirmationCode.trim(),
             })
           } catch (e: any) {
@@ -596,8 +602,10 @@ setPendingCognitoUsername(cognitoUsername)
                 if (!pendingCognitoUsername) {
                   throw new Error('Pending signup not found. Please complete the registration form first.')
                 }
+                const rawTarget = pendingCognitoUsername.toLowerCase()
+                const usernameToConfirm = rawTarget.includes('@') ? emailToCognitoUsername(rawTarget) : rawTarget
                 await confirmSignUp({
-                  username: pendingCognitoUsername,
+                  username: usernameToConfirm,
                   confirmationCode: code.trim(),
                 })
               }}

@@ -104,8 +104,9 @@ export function DashboardLayout({
   })
 
   // Collapsible nav sections (Admin Portal)
-  const [adminSectionOpen, setAdminSectionOpen] = useState(true)
-  const [providerSectionOpen, setProviderSectionOpen] = useState(true)
+  const [adminOverviewOpen, setAdminOverviewOpen] = useState(true)
+  const [adminInfrastructureOpen, setAdminInfrastructureOpen] = useState(true)
+  const [adminFinanceOpen, setAdminFinanceOpen] = useState(true)
 
   // Floating flyout tooltip state for collapsed rail mode (matching video)
   const [hoveredFlyout, setHoveredFlyout] = useState<{
@@ -554,21 +555,26 @@ export function DashboardLayout({
 
   const customerNavGroups: NavGroup[] = [...customerMainNavGroups, ...customerBottomNavGroups]
 
-  // 2. Admin Portal Navigation items: Administration section (Add User accessed directly from Users Directory)
-  const adminAdministrationItems: NavItem[] = [
+  // Admin Portal Navigation items organized into 3 sections:
+  // 1. OVERVIEW
+  const adminOverviewItems: NavItem[] = [
     { label: 'Admin Console', to: '/dashboard', icon: LayoutDashboard, matchExact: true },
     { label: 'Customer Management', to: '/dashboard/customers', icon: Users, matchExact: true },
     { label: 'Users Directory', to: '/dashboard/users', icon: Users, matchExact: true },
     { label: 'Sovereign Nodes Map', to: '/dashboard/users/map', icon: Globe, matchExact: true },
   ]
 
-  // 3. Admin Portal Navigation items: Provider Management section (Onboarding accessed directly from Provider Overview)
-  const adminProviderManagementItems: NavItem[] = [
+  // 2. INFRASTRUCTURE
+  const adminInfrastructureItems: NavItem[] = [
     { label: 'Provider Overview', to: '/dashboard/provider', icon: Server, matchExact: true },
     { label: 'GPU Listings', to: '/dashboard/provider/listings', icon: Cpu, matchExact: true },
     { label: 'Capacity & Health', to: '/dashboard/provider/capacity', icon: ActivityIcon, matchExact: true },
     { label: 'Workloads', to: '/dashboard/provider/workloads', icon: Wrench, matchExact: true },
     { label: 'Provider Analytics', to: '/dashboard/provider/analytics', icon: BarChart3, matchExact: true },
+  ]
+
+  // 3. FINANCE & SETTINGS
+  const adminFinanceItems: NavItem[] = [
     { label: 'Earnings & Payouts', to: '/dashboard/provider/earnings', icon: Wallet, matchExact: true },
     { label: 'Integrations', to: '/dashboard/provider/integrations', icon: Settings, matchExact: true },
     { label: 'Provider Profile', to: '/dashboard/provider/profile', icon: User, matchExact: true },
@@ -1108,131 +1114,197 @@ export function DashboardLayout({
               </div>
             )}
 
-            {/* ── 2. ADMIN PORTAL NAVIGATION (Administration & Provider Management) ── */}
+            {/* ── 2. ADMIN PORTAL NAVIGATION (Overview, Infrastructure, Finance & Settings) ── */}
             {portalRole === 'admin' && (
-              <div>
-                {/* Section A: Administration */}
-                <button
-                  type="button"
-                  className="dash-nav-section-title dash-nav-section-btn"
-                  onClick={() => setAdminSectionOpen(!adminSectionOpen)}
-                  aria-expanded={adminSectionOpen}
-                >
-                  <span>Administration</span>
-                  <ChevronDown
-                    size={13}
-                    style={{
-                      transition: 'transform 0.24s cubic-bezier(0.25, 1, 0.5, 1)',
-                      transform: adminSectionOpen ? 'rotate(0deg)' : 'rotate(-90deg)',
-                    }}
-                  />
-                </button>
-                <AnimatePresence initial={false}>
-                  {adminSectionOpen && (
-                    <motion.nav
-                      className="dash-nav-list"
-                      aria-label="Administration Navigation"
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.24, ease: [0.25, 1, 0.5, 1] }}
-                      style={{ overflow: 'hidden' }}
-                    >
-                      {adminAdministrationItems.map((item) => {
-                        const active = isItemActive(item)
-                        return (
-                          <Link
-                            key={item.label}
-                            to={item.to}
-                            className={`dash-nav-item ${active ? 'is-active' : ''}`}
-                            onClick={() => {
-                              setHoveredFlyout(null)
-                              setMobileMenuOpen(false)
-                            }}
-                            onMouseEnter={(e) => {
-                              if (isSidebarCollapsed && !isMobile) {
-                                const rect = e.currentTarget.getBoundingClientRect()
-                                setHoveredFlyout({
-                                  label: item.label,
-                                  badge: item.badge,
-                                  top: rect.top + rect.height / 2,
-                                  left: rect.right + 12,
-                                })
-                              }
-                            }}
-                            onMouseLeave={() => setHoveredFlyout(null)}
-                          >
-                            <item.icon />
-                            <span>{item.label}</span>
-                            {item.badge && <span className="dash-nav-badge">{item.badge}</span>}
-                          </Link>
-                        )
-                      })}
-                    </motion.nav>
-                  )}
-                </AnimatePresence>
+              <div className="dash-admin-nav-sections">
+                {/* Section 1: OVERVIEW */}
+                <div className="dash-nav-group-section">
+                  <button
+                    type="button"
+                    className="dash-nav-section-title dash-nav-section-btn"
+                    onClick={() => setAdminOverviewOpen(!adminOverviewOpen)}
+                    aria-expanded={adminOverviewOpen}
+                  >
+                    <span>OVERVIEW</span>
+                    <ChevronDown
+                      size={13}
+                      style={{
+                        transition: 'transform 0.24s cubic-bezier(0.25, 1, 0.5, 1)',
+                        transform: adminOverviewOpen ? 'rotate(0deg)' : 'rotate(-90deg)',
+                      }}
+                    />
+                  </button>
+                  <AnimatePresence initial={false}>
+                    {adminOverviewOpen && (
+                      <motion.nav
+                        className="dash-nav-list"
+                        aria-label="Overview Navigation"
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.24, ease: [0.25, 1, 0.5, 1] }}
+                        style={{ overflow: 'hidden' }}
+                      >
+                        {adminOverviewItems.map((item) => {
+                          const active = isItemActive(item)
+                          return (
+                            <Link
+                              key={item.label}
+                              to={item.to}
+                              className={`dash-nav-item ${active ? 'is-active' : ''}`}
+                              onClick={() => {
+                                setHoveredFlyout(null)
+                                setMobileMenuOpen(false)
+                              }}
+                              onMouseEnter={(e) => {
+                                if (isSidebarCollapsed && !isMobile) {
+                                  const rect = e.currentTarget.getBoundingClientRect()
+                                  setHoveredFlyout({
+                                    label: item.label,
+                                    badge: item.badge,
+                                    top: rect.top + rect.height / 2,
+                                    left: rect.right + 12,
+                                  })
+                                }
+                              }}
+                              onMouseLeave={() => setHoveredFlyout(null)}
+                            >
+                              <item.icon />
+                              <span>{item.label}</span>
+                              {item.badge && <span className="dash-nav-badge">{item.badge}</span>}
+                            </Link>
+                          )
+                        })}
+                      </motion.nav>
+                    )}
+                  </AnimatePresence>
+                </div>
 
-                {/* Section B: Provider Management (Moved into Admin Portal) */}
-                <button
-                  type="button"
-                  className="dash-nav-section-title dash-nav-section-btn"
-                  style={{ marginTop: 20 }}
-                  onClick={() => setProviderSectionOpen(!providerSectionOpen)}
-                  aria-expanded={providerSectionOpen}
-                >
-                  <span>Provider Management</span>
-                  <ChevronDown
-                    size={13}
-                    style={{
-                      transition: 'transform 0.24s cubic-bezier(0.25, 1, 0.5, 1)',
-                      transform: providerSectionOpen ? 'rotate(0deg)' : 'rotate(-90deg)',
-                    }}
-                  />
-                </button>
-                <AnimatePresence initial={false}>
-                  {providerSectionOpen && (
-                    <motion.nav
-                      className="dash-nav-list"
-                      aria-label="Provider Management Navigation"
-                      initial={{ height: 0, opacity: 0 }}
-                      animate={{ height: 'auto', opacity: 1 }}
-                      exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.24, ease: [0.25, 1, 0.5, 1] }}
-                      style={{ overflow: 'hidden' }}
-                    >
-                      {adminProviderManagementItems.map((item) => {
-                        const active = isItemActive(item)
-                        return (
-                          <Link
-                            key={item.label}
-                            to={item.to}
-                            className={`dash-nav-item ${active ? 'is-active' : ''}`}
-                            onClick={() => {
-                              setHoveredFlyout(null)
-                              setMobileMenuOpen(false)
-                            }}
-                            onMouseEnter={(e) => {
-                              if (isSidebarCollapsed && !isMobile) {
-                                const rect = e.currentTarget.getBoundingClientRect()
-                                setHoveredFlyout({
-                                  label: item.label,
-                                  badge: item.badge,
-                                  top: rect.top + rect.height / 2,
-                                  left: rect.right + 12,
-                                })
-                              }
-                            }}
-                            onMouseLeave={() => setHoveredFlyout(null)}
-                          >
-                            <item.icon />
-                            <span>{item.label}</span>
-                            {item.badge && <span className="dash-nav-badge">{item.badge}</span>}
-                          </Link>
-                        )
-                      })}
-                    </motion.nav>
-                  )}
-                </AnimatePresence>
+                {/* Section 2: INFRASTRUCTURE */}
+                <div className="dash-nav-group-section" style={{ marginTop: 14 }}>
+                  <button
+                    type="button"
+                    className="dash-nav-section-title dash-nav-section-btn"
+                    onClick={() => setAdminInfrastructureOpen(!adminInfrastructureOpen)}
+                    aria-expanded={adminInfrastructureOpen}
+                  >
+                    <span>INFRASTRUCTURE</span>
+                    <ChevronDown
+                      size={13}
+                      style={{
+                        transition: 'transform 0.24s cubic-bezier(0.25, 1, 0.5, 1)',
+                        transform: adminInfrastructureOpen ? 'rotate(0deg)' : 'rotate(-90deg)',
+                      }}
+                    />
+                  </button>
+                  <AnimatePresence initial={false}>
+                    {adminInfrastructureOpen && (
+                      <motion.nav
+                        className="dash-nav-list"
+                        aria-label="Infrastructure Navigation"
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.24, ease: [0.25, 1, 0.5, 1] }}
+                        style={{ overflow: 'hidden' }}
+                      >
+                        {adminInfrastructureItems.map((item) => {
+                          const active = isItemActive(item)
+                          return (
+                            <Link
+                              key={item.label}
+                              to={item.to}
+                              className={`dash-nav-item ${active ? 'is-active' : ''}`}
+                              onClick={() => {
+                                setHoveredFlyout(null)
+                                setMobileMenuOpen(false)
+                              }}
+                              onMouseEnter={(e) => {
+                                if (isSidebarCollapsed && !isMobile) {
+                                  const rect = e.currentTarget.getBoundingClientRect()
+                                  setHoveredFlyout({
+                                    label: item.label,
+                                    badge: item.badge,
+                                    top: rect.top + rect.height / 2,
+                                    left: rect.right + 12,
+                                  })
+                                }
+                              }}
+                              onMouseLeave={() => setHoveredFlyout(null)}
+                            >
+                              <item.icon />
+                              <span>{item.label}</span>
+                              {item.badge && <span className="dash-nav-badge">{item.badge}</span>}
+                            </Link>
+                          )
+                        })}
+                      </motion.nav>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* Section 3: FINANCE & SETTINGS */}
+                <div className="dash-nav-group-section" style={{ marginTop: 14 }}>
+                  <button
+                    type="button"
+                    className="dash-nav-section-title dash-nav-section-btn"
+                    onClick={() => setAdminFinanceOpen(!adminFinanceOpen)}
+                    aria-expanded={adminFinanceOpen}
+                  >
+                    <span>FINANCE &amp; SETTINGS</span>
+                    <ChevronDown
+                      size={13}
+                      style={{
+                        transition: 'transform 0.24s cubic-bezier(0.25, 1, 0.5, 1)',
+                        transform: adminFinanceOpen ? 'rotate(0deg)' : 'rotate(-90deg)',
+                      }}
+                    />
+                  </button>
+                  <AnimatePresence initial={false}>
+                    {adminFinanceOpen && (
+                      <motion.nav
+                        className="dash-nav-list"
+                        aria-label="Finance and Settings Navigation"
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.24, ease: [0.25, 1, 0.5, 1] }}
+                        style={{ overflow: 'hidden' }}
+                      >
+                        {adminFinanceItems.map((item) => {
+                          const active = isItemActive(item)
+                          return (
+                            <Link
+                              key={item.label}
+                              to={item.to}
+                              className={`dash-nav-item ${active ? 'is-active' : ''}`}
+                              onClick={() => {
+                                setHoveredFlyout(null)
+                                setMobileMenuOpen(false)
+                              }}
+                              onMouseEnter={(e) => {
+                                if (isSidebarCollapsed && !isMobile) {
+                                  const rect = e.currentTarget.getBoundingClientRect()
+                                  setHoveredFlyout({
+                                    label: item.label,
+                                    badge: item.badge,
+                                    top: rect.top + rect.height / 2,
+                                    left: rect.right + 12,
+                                  })
+                                }
+                              }}
+                              onMouseLeave={() => setHoveredFlyout(null)}
+                            >
+                              <item.icon />
+                              <span>{item.label}</span>
+                              {item.badge && <span className="dash-nav-badge">{item.badge}</span>}
+                            </Link>
+                          )
+                        })}
+                      </motion.nav>
+                    )}
+                  </AnimatePresence>
+                </div>
               </div>
             )}
           </div>
