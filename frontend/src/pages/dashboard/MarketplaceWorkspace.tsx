@@ -1881,9 +1881,9 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                           preserveAspectRatio="none"
                         >
                           <path
+                            className="zesto-spline-curve"
                             d="M 10,75 C 60,78 120,72 180,68 C 240,65 300,55 350,22 C 370,23 390,26 400,28"
                             fill="none"
-                            stroke="#ffffff"
                             strokeWidth="1.8"
                             strokeLinecap="round"
                             opacity="0.85"

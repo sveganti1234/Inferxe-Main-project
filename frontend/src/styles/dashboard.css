@@ -4335,3 +4335,124 @@
 }
 
 
+
+
+/* ───────────────────────────────────────────────────────────
+   Dashboard Glassmorphism & Light Theme Controls
+   ─────────────────────────────────────────────────────────── */
+[data-theme="light"] .dash-topbar {
+  background: rgba(255, 255, 255, 0.78);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 4px 30px rgba(15, 23, 42, 0.04);
+}
+
+[data-theme="light"] .dash-sidebar {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  box-shadow: 0 16px 40px -10px rgba(15, 23, 42, 0.08);
+}
+
+[data-theme="light"] .dash-nav-item,
+[data-theme="light"] .dash-nav-link {
+  color: #475569;
+}
+
+[data-theme="light"] .dash-nav-item:hover,
+[data-theme="light"] .dash-nav-link:hover {
+  color: #0f172a;
+  background: rgba(15, 23, 42, 0.05);
+}
+
+[data-theme="light"] .dash-nav-item.is-active,
+[data-theme="light"] .dash-nav-link.active,
+[data-theme="light"] .dash-nav-link.is-active {
+  background: rgba(101, 163, 0, 0.12);
+  border-color: rgba(101, 163, 0, 0.3);
+  color: #2e5008;
+  font-weight: 700;
+}
+
+[data-theme="light"] .dash-sidebar__workspace-tag,
+[data-theme="light"] .dash-sidebar-cat-label {
+  color: #64748b;
+  font-weight: 700;
+}
+
+[data-theme="light"] .zesto-household-pill {
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  color: #0f172a;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+}
+
+[data-theme="light"] .zesto-sidebar-account-pill {
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  color: #0f172a;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+}
+
+[data-theme="light"] .zesto-safe-spend-bar {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  color: #0f172a;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
+}
+
+[data-theme="light"] .zesto-safe-spend-track {
+  background: rgba(15, 23, 42, 0.1);
+}
+
+[data-theme="light"] .zesto-sidebar-owner-card {
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(15, 23, 42, 0.12);
+  color: #0f172a;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+}
+
+[data-theme="light"] .zesto-sidebar-owner-name {
+  color: #0f172a;
+}
+
+[data-theme="light"] .zesto-sidebar-owner-sub {
+  color: #64748b;
+}
+
+[data-theme="light"] .dash-sidebar-search input {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(15, 23, 42, 0.12);
+  color: #0f172a;
+}
+
+[data-theme="light"] .dash-sidebar-search input::placeholder {
+  color: #94a3b8;
+}
+
+[data-theme="light"] .dash-admin-profile {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(15, 23, 42, 0.12);
+}
+
+[data-theme="light"] .dash-admin-name {
+  color: #0f172a;
+}
+
+[data-theme="light"] .dash-admin-role {
+  color: #4d7c0f;
+}
+
+[data-theme="light"] .dash-breadcrumb {
+  color: #475569;
+}
+
+[data-theme="light"] .dash-topbar__btn-icon {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(15, 23, 42, 0.12);
+  color: #475569;
+}
+
+[data-theme="light"] .dash-topbar__btn-icon:hover {
+  background: #ffffff;
+  color: #0f172a;
+  border-color: rgba(15, 23, 42, 0.22);
+}
