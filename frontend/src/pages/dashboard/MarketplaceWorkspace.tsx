@@ -1111,6 +1111,10 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
       flash('Please enter a valid amount greater than ₹0')
       return
     }
+    if (amountNum > 10000000) {
+      flash('Maximum single top-up amount is ₹1,00,00,000')
+      return
+    }
 
     const currentBal = typeof walletBalance === 'number' && !isNaN(walletBalance) ? walletBalance : 0
     let newBalance = currentBal + amountNum
@@ -1244,6 +1248,11 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
     const taxable = Math.max(0, baseCost - discount)
     const tax = Math.round(taxable * 0.18)
     const total = taxable + tax
+
+    if (checkoutPaymentMethod === 'wallet' && walletBalance < total) {
+      flash(`Insufficient wallet balance (${money(walletBalance)}). Order total is ${money(total)}. Please top up your wallet or choose another payment method.`)
+      return
+    }
 
     setCheckoutState('processing')
     setTimeout(() => {
