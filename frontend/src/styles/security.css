@@ -64,7 +64,7 @@
   z-index: -1;
   background:
     linear-gradient(180deg, var(--bg-0), rgba(6, 10, 7, 0.6) 20%, rgba(6, 10, 7, 0.7) 80%, var(--bg-0)),
-    radial-gradient(800px 400px at 90% 50%, rgba(118, 185, 0, 0.15), transparent 65%);
+    radial-gradient(800px 400px at 90% 50%, rgba(14, 165, 233, 0.15), transparent 65%);
 }
 .privacy__claim {
   display: flex;
@@ -169,8 +169,8 @@
   font-family: var(--font-mono);
   font-size: 0.95rem;
   font-weight: 600;
-  color: #0a1200;
-  background: radial-gradient(circle at 35% 30%, #fff, #d4ff6a 40%, #76b900);
+  color: #082f49;
+  background: radial-gradient(circle at 35% 30%, #fff, #bae6fd 40%, #0ea5e9);
   box-shadow: 0 6px 14px -4px rgba(0, 0, 0, 0.8), inset 0 1px 0 rgba(255, 255, 255, 0.8);
 }
 .risk__cell--low { background: rgba(71, 215, 197, 0.07); }

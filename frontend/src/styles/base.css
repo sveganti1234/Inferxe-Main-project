@@ -286,7 +286,7 @@ p {
   height: 7px;
   border-radius: 50%;
   background: var(--brand);
-  box-shadow: 0 0 0 3px rgba(118, 185, 0, 0.18), 0 0 14px 2px var(--brand-glow);
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.18), 0 0 14px 2px var(--brand-glow);
 }
 .eyebrow--plain::before {
   display: none;
@@ -332,7 +332,7 @@ p {
 
 .divider-glow {
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(118, 185, 0, 0.5), transparent);
+  background: linear-gradient(90deg, transparent, rgba(14, 165, 233, 0.5), transparent);
 }
 
 @media (prefers-reduced-motion: reduce) {

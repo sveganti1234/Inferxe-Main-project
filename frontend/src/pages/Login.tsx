@@ -727,9 +727,9 @@ setPendingCognitoUsername(cognitoUsername)
                     gap: 8,
                     padding: '10px 14px',
                     borderRadius: 9,
-                    background: 'rgba(74, 222, 128, 0.1)',
-                    border: '1px solid rgba(74, 222, 128, 0.4)',
-                    color: '#4ade80',
+                    background: 'rgba(14, 165, 233, 0.1)',
+                    border: '1px solid rgba(56, 189, 248, 0.4)',
+                    color: '#38bdf8',
                     fontSize: '0.82rem',
                     marginBottom: 12,
                   }}

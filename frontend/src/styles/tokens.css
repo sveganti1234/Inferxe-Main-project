@@ -1,7 +1,7 @@
 /* ───────────────────────────────────────────────────────────
    Inferxe design tokens
    Palette is lifted from the pitch deck: graphite-green neutrals
-   (#0F1511 / #18211B) + signal green (#76B900).
+   (#0F1511 / #18211B) + signal green (#0ea5e9).
    ─────────────────────────────────────────────────────────── */
 :root {
   color-scheme: dark;
@@ -25,14 +25,14 @@
   --line-2: rgba(238, 242, 234, 0.15);
   --line-3: rgba(238, 242, 234, 0.26);
 
-  /* Brand */
-  --brand: #76b900;
-  --brand-hi: #9be015;
-  --brand-hi2: #b6f23a;
-  --brand-lo: #3e6b00;
-  --brand-ink: #0a1200;
-  --brand-glow: rgba(118, 185, 0, 0.35);
-  --brand-soft: rgba(118, 185, 0, 0.12);
+  /* Brand (Sky Blue) */
+  --brand: #0ea5e9;
+  --brand-hi: #38bdf8;
+  --brand-hi2: #7dd3fc;
+  --brand-lo: #0284c7;
+  --brand-ink: #082f49;
+  --brand-glow: rgba(56, 189, 248, 0.4);
+  --brand-soft: rgba(56, 189, 248, 0.12);
 
   /* Supporting signals (data-viz only) */
   --amber: #f2b84b;
@@ -70,6 +70,6 @@
   /* Elevation */
   --shadow-1: 0 2px 6px rgba(0, 0, 0, 0.35), 0 10px 24px -10px rgba(0, 0, 0, 0.6);
   --shadow-2: 0 4px 10px rgba(0, 0, 0, 0.35), 0 30px 60px -24px rgba(0, 0, 0, 0.75);
-  --shadow-glow: 0 0 0 1px rgba(118, 185, 0, 0.35), 0 0 40px -6px var(--brand-glow);
+  --shadow-glow: 0 0 0 1px rgba(56, 189, 248, 0.35), 0 0 40px -6px var(--brand-glow);
 }
 

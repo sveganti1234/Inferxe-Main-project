@@ -489,11 +489,11 @@ export function DashboardLayout({
 
   const defaultCustomerUser = {
     id: 'usr_demo_customer',
-    fullName: 'Priya Sharma',
-    email: 'priya.s@novatech.ai',
-    username: 'priya.ml',
+    fullName: 'Sahith',
+    email: 'sahith@inferxe.com',
+    username: 'sahith',
     role: 'customer',
-    organization: 'NovaTech AI Systems',
+    organization: 'Sahith Workspace',
   }
 
   const user = currentSession?.user ?? defaultCustomerUser
@@ -733,15 +733,15 @@ export function DashboardLayout({
         <div className="dash-topbar__left">
           {portalRole === 'customer' ? (
             <Link to="/dashboard/customer" className="row" style={{ gap: 10, alignItems: 'center', textDecoration: 'none' }}>
-              <div className="verdelo-brand-logo" style={{ width: 28, height: 28, fontSize: '0.95rem' }}>
-                <span>V</span>
+              <div className="verdelo-brand-logo" style={{ width: 30, height: 30, fontSize: '0.95rem' }}>
+                <span>S</span>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.96rem', color: '#f0faf4', lineHeight: 1.15 }}>
-                  Verdelo
+                <span className="verdelo-brand-name" style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.98rem', lineHeight: 1.15 }}>
+                  Inferxe
                 </span>
-                <span style={{ fontSize: '0.66rem', color: '#7a9a85', lineHeight: 1.15 }}>
-                  Okafor-Lindqvist home
+                <span className="verdelo-brand-sub" style={{ fontSize: '0.66rem', lineHeight: 1.15 }}>
+                  Sahith Workspace
                 </span>
               </div>
             </Link>
@@ -766,14 +766,14 @@ export function DashboardLayout({
               padding: '2px 8px',
               borderRadius: 4,
               background: portalRole === 'admin'
-                ? (dashTheme === 'light' ? 'rgba(118, 185, 0, 0.12)' : 'rgba(118, 185, 0, 0.15)')
-                : 'rgba(80, 227, 150, 0.12)',
+                ? (dashTheme === 'light' ? 'rgba(14, 165, 233, 0.12)' : 'rgba(14, 165, 233, 0.18)')
+                : (dashTheme === 'light' ? 'rgba(14, 165, 233, 0.1)' : 'rgba(14, 165, 233, 0.18)'),
               color: portalRole === 'admin'
-                ? (dashTheme === 'light' ? '#65a300' : '#a3e635')
-                : '#50e396',
+                ? (dashTheme === 'light' ? '#0284c7' : '#38bdf8')
+                : (dashTheme === 'light' ? '#0284c7' : '#38bdf8'),
               border: `1px solid ${portalRole === 'admin'
-                ? (dashTheme === 'light' ? 'rgba(118, 185, 0, 0.35)' : 'rgba(118, 185, 0, 0.3)')
-                : 'rgba(80, 227, 150, 0.28)'
+                ? (dashTheme === 'light' ? 'rgba(14, 165, 233, 0.35)' : 'rgba(56, 189, 248, 0.3)')
+                : (dashTheme === 'light' ? 'rgba(14, 165, 233, 0.25)' : 'rgba(56, 189, 248, 0.3)')
                 }`,
               marginLeft: 4,
               fontWeight: 600,
@@ -878,19 +878,19 @@ export function DashboardLayout({
                   rotate: dashTheme === 'light' ? 90 : -90,
                   scale: 0.25,
                   opacity: 0,
-                  color: dashTheme === 'light' ? '#FBBF24' : '#6366F1',
+                  color: dashTheme === 'light' ? '#FBBF24' : '#0284c7',
                 }}
                 animate={{
                   rotate: 0,
                   scale: 1,
                   opacity: 1,
-                  color: dashTheme === 'light' ? '#6366F1' : '#FBBF24',
+                  color: dashTheme === 'light' ? '#0284c7' : '#FBBF24',
                 }}
                 exit={{
                   rotate: dashTheme === 'light' ? -90 : 90,
                   scale: 0.25,
                   opacity: 0,
-                  color: dashTheme === 'light' ? '#6366F1' : '#FBBF24',
+                  color: dashTheme === 'light' ? '#0284c7' : '#FBBF24',
                 }}
                 transition={{
                   duration: 0.45,
@@ -1063,9 +1063,9 @@ export function DashboardLayout({
                 }}
                 role="button"
                 tabIndex={0}
-                title="Ines Okafor"
+                title="Sahith"
               >
-                IO
+                S
               </div>
             ) : (
               <div
@@ -1174,15 +1174,15 @@ export function DashboardLayout({
           }`}
           aria-label="Dashboard Sidebar"
         >
-          {/* Top header row: Verdelo brand for customer / Admin tag */}
+          {/* Top header row: Sahith brand for customer / Admin tag */}
           {portalRole === 'customer' && !isSidebarCollapsed ? (
             <div className="verdelo-sidebar-brand">
               <div className="verdelo-brand-logo">
-                <span>V</span>
+                <span>S</span>
               </div>
               <div className="verdelo-brand-text">
-                <span className="verdelo-brand-name">Verdelo</span>
-                <span className="verdelo-brand-sub">Okafor-Lindqvist home</span>
+                <span className="verdelo-brand-name">Inferxe</span>
+                <span className="verdelo-brand-sub">Sahith Workspace</span>
               </div>
               <button
                 type="button"
@@ -1377,17 +1377,17 @@ export function DashboardLayout({
                     <div className="verdelo-safe-spend-sub">$269 of bills still due · 19 days left</div>
                   </div>
 
-                  {/* Account Owner Card (Exact Ines Okafor replica) */}
+                  {/* Account Owner Card (Sahith) */}
                   <div
                     className="verdelo-user-pill"
                     onClick={() => setAdminMenuOpen(!adminMenuOpen)}
                     role="button"
                     tabIndex={0}
                   >
-                    <div className="verdelo-user-avatar">IO</div>
+                    <div className="verdelo-user-avatar">S</div>
                     <div className="verdelo-user-info">
-                      <span className="verdelo-user-name">Ines Okafor</span>
-                      <span className="verdelo-user-email">ines@okafor-lindqvist.fa...</span>
+                      <span className="verdelo-user-name">Sahith</span>
+                      <span className="verdelo-user-email">sahith@inferxe.com</span>
                     </div>
                     <span className="verdelo-user-dots">•••</span>
                   </div>

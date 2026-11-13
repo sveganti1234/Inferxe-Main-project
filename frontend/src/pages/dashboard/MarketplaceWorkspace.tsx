@@ -201,8 +201,8 @@ const COMPUTE_CARDS: ComputeCard[] = [
     fullNumber: '4112 5590 3341 4821',
     cvv: '319',
     exp: '08/28',
-    color: '#10b981',
-    gradient: 'linear-gradient(135deg, #10b981 0%, #059669 50%, #047857 100%)',
+    color: '#0284c7',
+    gradient: 'linear-gradient(135deg, #38bdf8 0%, #0284c7 50%, #0369a1 100%)',
     limit: 25000,
     spent: 8400,
     categoryBreakdown: { inference: 3500, gpu: 3900, fineTuning: 600, storage: 400 },
@@ -429,11 +429,11 @@ export default function MarketplaceWorkspace() {
   })
 
   // Exact Zesto Dashboard Replica UI State (Photo 8)
-  const [zestoMember, setZestoMember] = useState<'All' | 'Amara' | 'Tomasz' | 'Ines' | 'Kai'>('All')
+  const [zestoMember, setZestoMember] = useState<'All' | 'Sahith' | 'Personal' | 'Savings' | 'Vault'>('All')
   const [zestoCardDeckIndex, setZestoCardDeckIndex] = useState<number>(0)
   const [zestoPaidBills, setZestoPaidBills] = useState<Record<string, boolean>>({})
   const [showSendModal, setShowSendModal] = useState<boolean>(false)
-  const [sendRecipient, setSendRecipient] = useState<string>('Tomasz Adeyemi')
+  const [sendRecipient, setSendRecipient] = useState<string>('Sahith (Primary Account)')
   const [sendAmount, setSendAmount] = useState<string>('50')
   const [showSaveModal, setShowSaveModal] = useState<boolean>(false)
   const [saveAmount, setSaveAmount] = useState<string>('100')
@@ -891,9 +891,9 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
   const numericPayout = Math.floor(Number(payoutAmount)) || 0
   const [workloadTelemetry, setWorkloadTelemetry] = useState<Deployment | null>(null)
 
-  const [profileName, setProfileName] = useState(sessionUser?.fullName || 'Priya Sharma')
-  const [profileEmail] = useState(sessionUser?.email || 'priya.s@novatech.ai')
-  const [profileOrg, setProfileOrg] = useState(sessionUser?.organization || 'NovaTech AI Systems')
+  const [profileName, setProfileName] = useState(sessionUser?.fullName || 'Sahith')
+  const [profileEmail] = useState(sessionUser?.email || 'sahith@inferxe.com')
+  const [profileOrg, setProfileOrg] = useState(sessionUser?.organization || 'Sahith Workspace')
   const [profileAvatar, setProfileAvatar] = useState('PS')
 
   const handleSaveProfile = (e: FormEvent) => {
@@ -1963,9 +1963,9 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                               fontSize: '0.86rem',
                             }}
                           >
-                            <option value="Tomasz Adeyemi">Tomasz Adeyemi</option>
-                            <option value="Ines Okafor">Ines Okafor</option>
-                            <option value="Kai Adeyemi">Kai Adeyemi</option>
+                            <option value="Sahith (Primary Account)">Sahith (Primary Account)</option>
+                            <option value="Sahith (Savings Vault)">Sahith (Savings Vault)</option>
+                            <option value="Sahith (Business Reserve)">Sahith (Business Reserve)</option>
                             <option value="External Account">External IBAN Account</option>
                           </select>
                         </div>
@@ -2055,34 +2055,34 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
             { day: 'Today', shopping: 8, groceries: 10, health: 0, transport: 4 },
           ]
 
-          // Family cards deck for interactive 3D rotation
+          // Sahith cards deck for interactive 3D rotation (Sky Blue theme)
           const cardDeck = [
             {
               id: 'c1',
-              title: 'zesto',
-              type: 'CREDIT',
+              title: 'inferxe',
+              type: 'PRIMARY',
               pan: '•••• 1904',
               expiry: '06/29',
-              holder: 'Amara Adeyemi',
-              bg: 'linear-gradient(135deg, #2ae0c8 0%, #17a085 60%, #0e6b56 100%)',
+              holder: 'Sahith',
+              bg: 'linear-gradient(135deg, #0284c7 0%, #0ea5e9 55%, #38bdf8 100%)',
             },
             {
               id: 'c2',
-              title: 'zesto',
-              type: 'DEBIT',
+              title: 'inferxe',
+              type: 'VAULT',
               pan: '•••• 4821',
               expiry: '11/28',
-              holder: 'Tomasz Adeyemi',
-              bg: 'linear-gradient(135deg, #1b3d36 0%, #102621 100%)',
+              holder: 'Sahith',
+              bg: 'linear-gradient(135deg, #0369a1 0%, #0284c7 60%, #0ea5e9 100%)',
             },
             {
               id: 'c3',
-              title: 'zesto',
-              type: 'POCKET',
+              title: 'inferxe',
+              type: 'BUSINESS',
               pan: '•••• 7730',
               expiry: '03/30',
-              holder: 'Ines & Kai',
-              bg: 'linear-gradient(135deg, #122420 0%, #0a1412 100%)',
+              holder: 'Sahith',
+              bg: 'linear-gradient(135deg, #0c4a6e 0%, #0369a1 60%, #38bdf8 100%)',
             },
           ]
 
@@ -2095,7 +2095,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
               {/* Top Greeting & Action Buttons */}
               <div className="zesto-exact-header">
                 <div>
-                  <h1 className="zesto-exact-title">Good morning, Amara</h1>
+                  <h1 className="zesto-exact-title">Good morning, Sahith</h1>
                   <p className="zesto-exact-sub">
                     <span>Thursday 19 November</span>
                     <span>·</span>
@@ -2136,7 +2136,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                     <div className="zesto-green-hero-top">
                       <div className="zesto-green-hero-tag">
                         <Home size={15} />
-                        <span>Everything the family holds</span>
+                        <span>Everything Sahith holds</span>
                       </div>
                       <button
                         type="button"
@@ -2203,8 +2203,8 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                       </div>
                       <div className="zesto-green-cat-item">
                         <span className="zesto-green-cat-label">
-                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#0b0d0c' }} />
-                          Kids
+                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'currentColor' }} />
+                          Vault
                         </span>
                         <span className="zesto-green-cat-val">€247</span>
                       </div>
@@ -2266,7 +2266,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                         </p>
                       </div>
                       <div className="zesto-member-pills">
-                        {(['All', 'Amara', 'Tomasz', 'Ines', 'Kai'] as const).map((m) => (
+                        {(['All', 'Sahith', 'Personal', 'Savings', 'Vault'] as const).map((m) => (
                           <button
                             key={m}
                             type="button"
@@ -2336,7 +2336,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                                   {b.groceries > 0 && (
                                     <div
                                       className="zesto-bar-slice"
-                                      style={{ height: `${b.groceries * scale}px`, background: '#84cc16' }}
+                                      style={{ height: `${b.groceries * scale}px`, background: '#38bdf8' }}
                                     />
                                   )}
                                   {b.health > 0 && (
@@ -2390,7 +2390,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                         Shopping
                       </span>
                       <span className="zesto-legend-item">
-                        <span className="zesto-legend-dot" style={{ background: '#84cc16' }} />
+                        <span className="zesto-legend-dot" style={{ background: '#38bdf8' }} />
                         Groceries
                       </span>
                       <span className="zesto-legend-item">
@@ -2421,7 +2421,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                   <div className="zesto-mini-stat-bottom">
                     <span>vs €2,314 by the 19th last month</span>
                     <svg width="42" height="14" viewBox="0 0 42 14" fill="none">
-                      <path d="M1,12 Q10,4 20,8 T41,2" stroke="#84cc16" strokeWidth="1.8" fill="none" />
+                      <path d="M1,12 Q10,4 20,8 T41,2" stroke="#0ea5e9" strokeWidth="1.8" fill="none" />
                     </svg>
                   </div>
                 </div>
@@ -2507,7 +2507,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                         </span>
                       </div>
                       <div className="zesto-budget-track">
-                        <div className="zesto-budget-fill" style={{ width: '48%', background: '#84cc16' }} />
+                        <div className="zesto-budget-fill" style={{ width: '48%', background: '#0ea5e9' }} />
                         <div className="zesto-budget-tick" style={{ left: '63%' }} title="Today (63%)" />
                       </div>
                     </div>
@@ -2521,7 +2521,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                         </span>
                       </div>
                       <div className="zesto-budget-track">
-                        <div className="zesto-budget-fill" style={{ width: '54%', background: '#84cc16' }} />
+                        <div className="zesto-budget-fill" style={{ width: '54%', background: '#0ea5e9' }} />
                         <div className="zesto-budget-tick" style={{ left: '63%' }} title="Today (63%)" />
                       </div>
                     </div>
@@ -2627,7 +2627,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                         <div className="zesto-coming-right">
                           <span className="zesto-coming-amount">-€45.00</span>
                           {zestoPaidBills['bill-music'] ? (
-                            <span style={{ fontSize: '0.72rem', color: '#84cc16', fontWeight: 700 }}>Paid ✓</span>
+                            <span style={{ fontSize: '0.72rem', color: '#0ea5e9', fontWeight: 700 }}>Paid ✓</span>
                           ) : (
                             <button
                               type="button"
@@ -2708,9 +2708,9 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                             fontSize: '0.86rem',
                           }}
                         >
-                          <option value="Tomasz Adeyemi">Tomasz Adeyemi (Family)</option>
-                          <option value="Ines Adeyemi">Ines Adeyemi (Allowance)</option>
-                          <option value="Kai Adeyemi">Kai Adeyemi (Allowance)</option>
+                          <option value="Sahith (Primary Account)">Sahith (Primary Account)</option>
+                          <option value="Sahith (Savings Vault)">Sahith (Savings Vault)</option>
+                          <option value="Sahith (Business Reserve)">Sahith (Business Reserve)</option>
                           <option value="External Bank Account">External IBAN Account</option>
                         </select>
                       </div>
@@ -2895,7 +2895,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                     tabIndex={0}
                   >
                     <div className="row" style={{ justifyContent: 'space-between' }}>
-                      <span className="tag" style={{ background: 'rgba(118,185,0,0.12)', color: 'var(--brand-hi)', borderColor: 'var(--brand)' }}>
+                      <span className="tag" style={{ background: 'rgba(99, 102, 241,0.12)', color: 'var(--brand-hi)', borderColor: 'var(--brand)' }}>
                         {m.family}
                       </span>
                       <small style={{ fontFamily: 'var(--font-mono)', color: 'var(--ink-4)', fontSize: '0.68rem' }}>
@@ -3025,7 +3025,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                     <span>Runtime Overhead</span>
                     <strong>{fmtGB(modelMemoryCalc.overhead)}</strong>
                   </div>
-                  <div className="mw-calc-box" style={{ borderColor: 'rgba(118,185,0,0.4)', background: 'rgba(118,185,0,0.06)' }}>
+                  <div className="mw-calc-box" style={{ borderColor: 'rgba(99, 102, 241,0.4)', background: 'rgba(99, 102, 241,0.06)' }}>
                     <span style={{ color: 'var(--brand-hi)' }}>Total VRAM Required</span>
                     <strong style={{ color: 'var(--brand-hi)' }}>{fmtGB(modelMemoryCalc.need)}</strong>
                   </div>
@@ -3041,7 +3041,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                           Recommended Fit: {modelRecommendation.pick.label}
                         </strong>
                       </div>
-                      <span className="tag" style={{ background: 'rgba(118,185,0,0.2)', color: 'var(--brand-hi)', borderColor: 'var(--brand)' }}>
+                      <span className="tag" style={{ background: 'rgba(99, 102, 241,0.2)', color: 'var(--brand-hi)', borderColor: 'var(--brand)' }}>
                         {modelRecommendation.pick.rate ? inr(modelRecommendation.pick.rate) + '/hr' : 'Market Spot'}
                       </span>
                     </div>
@@ -3378,9 +3378,9 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                               fontSize: '0.68rem',
                               padding: '2px 7px',
                               borderRadius: 4,
-                              background: k.environment === 'test' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(34, 197, 94, 0.15)',
-                              color: k.environment === 'test' ? '#60a5fa' : '#4ade80',
-                              border: k.environment === 'test' ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid rgba(34, 197, 94, 0.3)',
+                              background: k.environment === 'test' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(14, 165, 233, 0.15)',
+                              color: k.environment === 'test' ? '#60a5fa' : '#38bdf8',
+                              border: k.environment === 'test' ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid rgba(56, 189, 248, 0.3)',
                               fontWeight: 600,
                               textTransform: 'uppercase'
                             }}>
@@ -3585,7 +3585,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
         {route === 'notebooks' && <NotebooksSection deployments={deployments} flash={flash} addNotification={addNotification} />}
         {route === 'reviews' && <ReviewsSection orders={orders} flash={flash} />}
         {route === 'rewards' && (
-          <RewardsSection userName={getSession()?.user.fullName || 'Priya Sharma'} flash={flash} onGrantTrial={startTrial} />
+          <RewardsSection userName={getSession()?.user.fullName || 'Sahith'} flash={flash} onGrantTrial={startTrial} />
         )}
 
         {/* ───────────────────────────────────────────────────────────
@@ -5236,7 +5236,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                       </button>
 
                       {checkoutReceipt && (
-                        <div style={{ marginTop: 14, padding: 12, background: 'rgba(118,185,0,0.08)', border: '1px solid var(--brand)', borderRadius: 8 }}>
+                        <div style={{ marginTop: 14, padding: 12, background: 'rgba(99, 102, 241,0.08)', border: '1px solid var(--brand)', borderRadius: 8 }}>
                           <div className="row" style={{ gap: 6, alignItems: 'center', color: 'var(--brand-hi)', marginBottom: 4 }}>
                             <Check size={16} /> <strong>Order {checkoutReceipt.orderId} Confirmed!</strong>
                           </div>
@@ -5614,7 +5614,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                             </div>
                             <div
                               className="zesto-tx-amount"
-                              style={{ color: tx.isCredit ? '#10b981' : '#ffffff' }}
+                              style={{ color: tx.isCredit ? '#0ea5e9' : '#ffffff' }}
                             >
                               {tx.isCredit ? `+${money(tx.amount)}` : `−${money(tx.amount)}`}
                             </div>
@@ -5639,11 +5639,11 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ fontSize: '0.82rem', color: '#d1d5db' }}>Auto-pause on limit breach</span>
-                        <span style={{ fontSize: '0.75rem', color: '#d4ff00', fontWeight: 600 }}>Enabled</span>
+                        <span style={{ fontSize: '0.75rem', color: '#38bdf8', fontWeight: 600 }}>Enabled</span>
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span style={{ fontSize: '0.82rem', color: '#d1d5db' }}>Card Status</span>
-                        <span style={{ fontSize: '0.75rem', color: isFrozen ? '#ef4444' : '#10b981', fontWeight: 600 }}>
+                        <span style={{ fontSize: '0.75rem', color: isFrozen ? '#ef4444' : '#0ea5e9', fontWeight: 600 }}>
                           {isFrozen ? 'Frozen' : 'Active'}
                         </span>
                       </div>
@@ -5827,7 +5827,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                   <label>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span>Work Email</span>
-                      <span style={{ fontSize: '0.72rem', color: 'var(--brand-hi)', background: 'rgba(118, 185, 0, 0.1)', padding: '2px 6px', borderRadius: 4, fontWeight: 500 }}>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--brand-hi)', background: 'rgba(99, 102, 241, 0.1)', padding: '2px 6px', borderRadius: 4, fontWeight: 500 }}>
                         Managed by SSO
                       </span>
                     </div>
@@ -6194,7 +6194,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                             style={{
                               opacity: isDimmed ? 0.35 : 1,
                               transition: 'opacity 0.25s ease',
-                              background: !isDimmed && selectedGeoCountry ? 'rgba(118, 185, 0, 0.06)' : undefined,
+                              background: !isDimmed && selectedGeoCountry ? 'rgba(99, 102, 241, 0.06)' : undefined,
                             }}
                           >
                             <td><strong>{n.city}</strong></td>
@@ -6389,8 +6389,8 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
       {createdSecretData && (
         <div className="mw-modal-backdrop" onClick={() => setCreatedSecretData(null)}>
           <div className="mw-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
-            <div className="mw-modal-head" style={{ borderBottom: '1px solid rgba(34, 197, 94, 0.2)' }}>
-              <h3 style={{ color: '#4ade80', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div className="mw-modal-head" style={{ borderBottom: '1px solid rgba(14, 165, 233, 0.2)' }}>
+              <h3 style={{ color: '#38bdf8', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Check size={18} /> API Key Created Successfully
               </h3>
               <button onClick={() => setCreatedSecretData(null)} aria-label="Close"><X size={16} /></button>
@@ -6556,7 +6556,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                         }}
                       >
                         <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                          <span className="tag" style={{ background: 'rgba(118,185,0,0.12)', color: 'var(--brand-hi)', borderColor: 'var(--brand)' }}>
+                          <span className="tag" style={{ background: 'rgba(99, 102, 241,0.12)', color: 'var(--brand-hi)', borderColor: 'var(--brand)' }}>
                             {model.family}
                           </span>
                           <small style={{ fontFamily: 'var(--font-mono)', color: 'var(--ink-4)', fontSize: '0.68rem' }}>
@@ -6689,9 +6689,9 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                       justifyContent: 'space-between',
                       alignItems: 'center',
                       padding: '10px 14px',
-                      background: 'rgba(118, 185, 0, 0.08)',
+                      background: 'rgba(99, 102, 241, 0.08)',
                       borderRadius: 8,
-                      border: '1px solid rgba(118, 185, 0, 0.25)',
+                      border: '1px solid rgba(99, 102, 241, 0.25)',
                       fontSize: '0.8rem',
                     }}
                   >
@@ -6879,8 +6879,8 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       padding: '12px 16px',
-                      background: 'rgba(118, 185, 0, 0.08)',
-                      border: '1px solid rgba(118, 185, 0, 0.22)',
+                      background: 'rgba(99, 102, 241, 0.08)',
+                      border: '1px solid rgba(99, 102, 241, 0.22)',
                       borderRadius: 10,
                     }}
                   >
@@ -7216,7 +7216,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
           <div className="mw-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440 }}>
             <div className="mw-modal-head">
               <div className="row" style={{ gap: 8, alignItems: 'center' }}>
-                <span className="mw-icon-box" style={{ background: 'rgba(118, 185, 0, 0.12)', color: 'var(--brand-hi)', width: 32, height: 32 }}>
+                <span className="mw-icon-box" style={{ background: 'rgba(99, 102, 241, 0.12)', color: 'var(--brand-hi)', width: 32, height: 32 }}>
                   <Archive size={16} />
                 </span>
                 <h3 style={{ margin: 0 }}>Archive Order?</h3>
@@ -7423,8 +7423,8 @@ function ChangePasswordCard({
 
     if (s <= 1) return { score: 1, label: 'Weak', color: '#ef4444', percent: 25 }
     if (s <= 2) return { score: 2, label: 'Fair', color: '#f59e0b', percent: 50 }
-    if (s <= 3) return { score: 3, label: 'Good', color: '#84cc16', percent: 75 }
-    return { score: 4, label: 'Strong', color: '#76b900', percent: 100 }
+    if (s <= 3) return { score: 3, label: 'Good', color: '#38bdf8', percent: 75 }
+    return { score: 4, label: 'Strong', color: '#0284c7', percent: 100 }
   }, [newPassword])
 
   // Validation rules checklist
@@ -7710,7 +7710,7 @@ function validateCorsOrigins(originsStr: string): { isValid: boolean; error?: st
 
 function SettingsSection({ flash }: { flash: (msg: string) => void }) {
   const session = getSession()
-  const userEmail = (session?.user as any)?.email || 'priya.s@novatech.ai'
+  const userEmail = (session?.user as any)?.email || 'sahith@inferxe.com'
   const [budget, setBudget] = useState(() => readStore('inferxe_demo_budget', '10000'))
   const [emailAlerts, setEmailAlerts] = useState(() => readStore('inferxe_demo_email_alerts', true))
   const [weekly, setWeekly] = useState(() => readStore('inferxe_demo_weekly_report', false))

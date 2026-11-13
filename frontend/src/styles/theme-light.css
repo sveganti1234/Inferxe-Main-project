@@ -23,8 +23,8 @@
 
 .lightbulb-toggle:hover {
   color: var(--brand-hi);
-  background: rgba(118, 185, 0, 0.1);
-  border-color: rgba(118, 185, 0, 0.4);
+  background: rgba(14, 165, 233, 0.1);
+  border-color: rgba(14, 165, 233, 0.4);
   transform: translateY(-1px);
   box-shadow: 0 0 16px var(--brand-glow);
 }
@@ -124,7 +124,7 @@ body,
 }
 
 [data-theme="light"] .glass::before {
-  background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 0%), rgba(118, 185, 0, 0.1), transparent 62%);
+  background: radial-gradient(420px circle at var(--mx, 50%) var(--my, 0%), rgba(14, 165, 233, 0.1), transparent 62%);
 }
 
 [data-theme="light"] .glass--deep {
@@ -132,7 +132,7 @@ body,
 }
 
 [data-theme="light"] .glass--lime {
-  background: linear-gradient(145deg, rgba(118, 185, 0, 0.12), rgba(255, 255, 255, 0.9) 60%);
+  background: linear-gradient(145deg, rgba(14, 165, 233, 0.12), rgba(255, 255, 255, 0.9) 60%);
 }
 
 [data-theme="light"] .glass--lift:hover {
@@ -159,13 +159,13 @@ body,
 /* ── Light Mode Ambient Background ─────────────────────────── */
 [data-theme="light"] .ambient {
   background:
-    radial-gradient(1200px 700px at 85% -10%, rgba(118, 185, 0, 0.12), transparent 60%),
+    radial-gradient(1200px 700px at 85% -10%, rgba(14, 165, 233, 0.12), transparent 60%),
     radial-gradient(900px 600px at -5% 30%, rgba(71, 215, 197, 0.08), transparent 60%),
     var(--bg-0);
 }
 
 [data-theme="light"] .ambient__blob--a {
-  background: radial-gradient(circle, rgba(118, 185, 0, 0.16), transparent 68%);
+  background: radial-gradient(circle, rgba(14, 165, 233, 0.16), transparent 68%);
 }
 
 [data-theme="light"] .ambient__blob--b {
@@ -260,7 +260,7 @@ body,
 /* ── Light Mode Hero ───────────────────────────────────────── */
 [data-theme="light"] .hero__wash {
   background:
-    radial-gradient(1000px 640px at 78% 38%, rgba(118, 185, 0, 0.16), transparent 62%),
+    radial-gradient(1000px 640px at 78% 38%, rgba(14, 165, 233, 0.16), transparent 62%),
     linear-gradient(90deg, rgba(248, 250, 246, 0.98) 0%, rgba(248, 250, 246, 0.88) 46%, rgba(248, 250, 246, 0.5) 100%),
     linear-gradient(180deg, rgba(248, 250, 246, 0.6), transparent 28%, rgba(248, 250, 246, 0.4) 72%, var(--bg-0) 100%);
 }
@@ -271,7 +271,7 @@ body,
 }
 
 [data-theme="light"] .hero__halo {
-  background: radial-gradient(closest-side, rgba(118, 185, 0, 0.22), transparent 72%);
+  background: radial-gradient(closest-side, rgba(14, 165, 233, 0.22), transparent 72%);
 }
 
 [data-theme="light"] .hchip {
@@ -285,7 +285,7 @@ body,
 }
 
 [data-theme="light"] .strip::before {
-  background: radial-gradient(circle at 50% 0%, rgba(118, 185, 0, 0.06) 0%, transparent 60%);
+  background: radial-gradient(circle at 50% 0%, rgba(14, 165, 233, 0.06) 0%, transparent 60%);
 }
 
 [data-theme="light"] .strip__provider {
@@ -331,7 +331,7 @@ body,
 /* ── Light Mode NVIDIA Section ─────────────────────────────── */
 [data-theme="light"] .nv__shade {
   background:
-    radial-gradient(900px 500px at 80% 20%, rgba(118, 185, 0, 0.1), transparent 65%),
+    radial-gradient(900px 500px at 80% 20%, rgba(14, 165, 233, 0.1), transparent 65%),
     linear-gradient(180deg, var(--bg-0), rgba(248, 250, 246, 0.6) 22%, rgba(248, 250, 246, 0.8) 75%, var(--bg-0));
 }
 
