@@ -325,38 +325,60 @@ class NotificationService:
         event_type: str,
         payload: Dict[str, Any],
         idempotency_key: Optional[str] = None,
-        user_id: Optional[str] = None
+        user_id: Optional[str] = None,
+        cur=None,
     ) -> Tuple[str, bool]:
         """
         Records an event into notification_outbox with idempotency check.
         Returns (event_id, is_duplicate).
+
+        If `cur` is provided, uses that cursor within the caller's transaction
+        (no separate connection opened). Otherwise opens its own autocommit
+        connection for backward compatibility with non-wallet callers.
         """
         evt_id = f"evt_{uuid.uuid4().hex[:12]}"
         created_time = now_iso()
         payload_str = json.dumps(payload)
 
-        with DBConnection(autocommit=True) as conn:
-            cur = conn.cursor(cursor_factory=RealDictCursor)
-
+        def _record_with_cursor(c):
             if idempotency_key:
-                cur.execute(
+                c.execute(
                     "SELECT id, status FROM notification_outbox WHERE idempotency_key = %s;",
                     (idempotency_key,)
                 )
-                existing = cur.fetchone()
+                existing = c.fetchone()
                 if existing:
                     logger.info(f"Duplicate outbox event skipped for idempotency key '{idempotency_key}'")
                     return existing["id"], True
 
-            cur.execute(
-                """
-                INSERT INTO notification_outbox (id, event_type, user_id, payload, idempotency_key, status, retry_count, created_at)
-                VALUES (%s, %s, %s, %s, %s, 'PROCESSED', 0, %s)
-                RETURNING id;
-                """,
-                (evt_id, event_type, user_id, payload_str, idempotency_key, created_time)
-            )
+            try:
+                c.execute(
+                    """
+                    INSERT INTO notification_outbox (id, event_type, user_id, payload, idempotency_key, status, retry_count, created_at)
+                    VALUES (%s, %s, %s, %s, %s, 'PROCESSED', 0, %s)
+                    RETURNING id;
+                    """,
+                    (evt_id, event_type, user_id, payload_str, idempotency_key, created_time)
+                )
+            except psycopg2.IntegrityError:
+                # Concurrent duplicate: another transaction inserted same idempotency_key
+                c.execute(
+                    "SELECT id, status FROM notification_outbox WHERE idempotency_key = %s;",
+                    (idempotency_key,)
+                )
+                existing = c.fetchone()
+                if existing:
+                    return existing["id"], True
+                raise
+
             return evt_id, False
+
+        if cur is not None:
+            return _record_with_cursor(cur)
+
+        with DBConnection(autocommit=True) as conn:
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+            return _record_with_cursor(cur)
 
     # ── Notification Scenarios ──
 
@@ -500,22 +522,28 @@ class NotificationService:
         - Updates wallet balance atomically.
         - Creates wallet transaction record.
         - Creates WALLET_RECHARGE notification with updated balance.
+        All operations run in a single database transaction; if any step
+        fails, the entire transaction (including the outbox event) rolls back.
         """
         if amount <= 0:
             raise ValueError("Recharge amount must be greater than zero")
 
         idem_key = idempotency_key or f"wallet_recharge_{user_id}_{int(amount)}_{int(datetime.now().timestamp())}"
-        evt_id, is_duplicate = cls.record_outbox_event(
-            event_type="WALLET_RECHARGE",
-            payload={"user_id": user_id, "amount": amount},
-            idempotency_key=idem_key,
-            user_id=user_id
-        )
-        if is_duplicate:
-            return {"status": "skipped", "message": "Duplicate wallet recharge event ignored."}
 
         with DBConnection(autocommit=False) as conn:
             cur = conn.cursor(cursor_factory=RealDictCursor)
+
+            # Outbox idempotency check + insert in SAME transaction as wallet update
+            evt_id, is_duplicate = cls.record_outbox_event(
+                event_type="WALLET_RECHARGE",
+                payload={"user_id": user_id, "amount": amount},
+                idempotency_key=idem_key,
+                user_id=user_id,
+                cur=cur,
+            )
+            if is_duplicate:
+                conn.rollback()
+                return {"status": "skipped", "message": "Duplicate wallet recharge event ignored."}
 
             cur.execute("SELECT balance, low_balance_alert_level FROM wallets WHERE user_id = %s FOR UPDATE;", (user_id,))
             wallet = cur.fetchone()
@@ -599,26 +627,33 @@ class NotificationService:
         - Sends WALLET_DEBIT notification.
         - Evaluates Warning (<= 100) and Critical (<= 25) thresholds with state machine:
           only alerts when entering a new alert tier!
+        All operations run in a single database transaction; if any step
+        fails, the entire transaction (including the outbox event) rolls back.
         """
         if amount <= 0:
             raise ValueError("Debit amount must be greater than zero")
 
         idem_key = idempotency_key or f"wallet_debit_{user_id}_{int(amount)}_{int(datetime.now().timestamp())}"
-        evt_id, is_duplicate = cls.record_outbox_event(
-            event_type="WALLET_DEBIT",
-            payload={"user_id": user_id, "amount": amount, "description": description},
-            idempotency_key=idem_key,
-            user_id=user_id
-        )
-        if is_duplicate:
-            return {"status": "skipped", "message": "Duplicate wallet debit event ignored."}
 
         with DBConnection(autocommit=False) as conn:
             cur = conn.cursor(cursor_factory=RealDictCursor)
 
+            # Outbox idempotency check + insert in SAME transaction as wallet update
+            evt_id, is_duplicate = cls.record_outbox_event(
+                event_type="WALLET_DEBIT",
+                payload={"user_id": user_id, "amount": amount, "description": description},
+                idempotency_key=idem_key,
+                user_id=user_id,
+                cur=cur,
+            )
+            if is_duplicate:
+                conn.rollback()
+                return {"status": "skipped", "message": "Duplicate wallet debit event ignored."}
+
             cur.execute("SELECT balance, low_balance_alert_level FROM wallets WHERE user_id = %s FOR UPDATE;", (user_id,))
             wallet = cur.fetchone()
             if not wallet or float(wallet["balance"]) < amount:
+                conn.rollback()
                 raise ValueError("Insufficient wallet balance for this transaction")
 
             curr_balance = float(wallet["balance"])

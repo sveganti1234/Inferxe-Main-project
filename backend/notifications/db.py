@@ -422,6 +422,18 @@ def init_db():
         cur.execute("ALTER TABLE notifications ADD COLUMN IF NOT EXISTS metadata TEXT DEFAULT '{}';")
         cur.execute("ALTER TABLE notifications ADD COLUMN IF NOT EXISTS related_entity_id VARCHAR(128);")
         cur.execute("ALTER TABLE notifications ADD COLUMN IF NOT EXISTS read_at TEXT;")
+        # Ensure message column exists (schema source of truth). Backfill from detail
+        # for databases created before the detail->message rename.
+        cur.execute("ALTER TABLE notifications ADD COLUMN IF NOT EXISTS message TEXT DEFAULT '';")
+        cur.execute(
+            """
+            UPDATE notifications
+            SET message = detail
+            WHERE (message IS NULL OR message = '')
+              AND detail IS NOT NULL
+              AND detail != '';
+            """
+        )
 
         # 3. notification_outbox table
         cur.execute("""
