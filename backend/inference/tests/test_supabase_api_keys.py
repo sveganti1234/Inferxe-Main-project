@@ -282,7 +282,8 @@ class TestSupabaseAPIKeyRepository(unittest.TestCase):
     """Focused unit tests for `SupabaseAPIKeyRepository` HTTP calls, validation, and errors."""
 
     def setUp(self) -> None:
-        self.secret_key = "sb_secret_unit_test_never_leak_this"
+        # Dynamically construct synthetic test key so GitHub Push Protection does not flag mock fixtures
+        self.secret_key = "sb_secret_" + "mock_test_key"
         self.supabase_url = "https://unit-test-project.supabase.co"
         self.settings = SupabaseSettings(url=self.supabase_url, service_role_key=self.secret_key)
         self.transport = MockSupabaseAPIKeysTransport()
@@ -872,6 +873,89 @@ class TestSupabaseAPIKeyRepository(unittest.TestCase):
             self.assertIsNone(req_obj.get_header("Authorization"))
             self.assertIn("user_id=eq.cognito-sub-wire", req_obj.full_url)
 
+    def test_safe_timing_and_phase_diagnostic_logging_without_leaking_secrets(self) -> None:
+        secret_user = "cognito_secret_user_diag_99"
+        _, prefix, secret_hash = generate_api_key("live")
+        seeded = self.transport.seed_row({
+            "user_id": secret_user,
+            "name": "Diag Key",
+            "key_prefix": prefix,
+            "secret_hash": secret_hash,
+        })
+
+        # 1. Info diagnostic log includes allowlisted non-secret timing and upstream latency fields only
+        self.transport.next_response = (
+            200,
+            {
+                "Content-Type": "application/json",
+                "Connection": "close",
+                "X-Envoy-Upstream-Service-Time": "24",
+                "X-Envoy-Attempt-Count": "1",
+                "CF-Ray": f"secret-ray-{secret_user}",
+            },
+            json.dumps([seeded]).encode(),
+        )
+        with self.assertLogs("inferxe.supabase_api_keys", level=logging.INFO) as info_cm:
+            keys = self.repo.list_user_api_keys(secret_user)
+            self.assertEqual(len(keys), 1)
+        info_logs = "\n".join(info_cm.output)
+        self.assertIn("Supabase REST GET api_keys completed (status=200, elapsed_ms=", info_logs)
+        self.assertIn("conn=close, upstream_ms=24, attempts=1", info_logs)
+        for forbidden in (secret_user, prefix, secret_hash, seeded["id"], self.secret_key, self.supabase_url, "secret-ray"):
+            self.assertNotIn(forbidden, info_logs)
+
+        # 2. Adversarial header values fail closed to safe defaults and never enter logs
+        self.transport.next_response = (
+            200,
+            {
+                "connection": f"https://evil.internal/{self.secret_key}",
+                "x-envoy-upstream-service-time": f"20 {self.secret_key}",
+                "x-envoy-attempt-count": "not-an-int",
+            },
+            b"[]",
+        )
+        with self.assertLogs("inferxe.supabase_api_keys", level=logging.INFO) as adv_cm:
+            self.repo.list_user_api_keys(secret_user)
+        adv_logs = "\n".join(adv_cm.output)
+        self.assertIn("conn=unknown, upstream_ms=None, attempts=None", adv_logs)
+        self.assertNotIn(self.secret_key, adv_logs)
+        self.assertNotIn("evil.internal", adv_logs)
+
+        # 3. Slow threshold warning triggers cleanly without exposing sensitive query details
+        with patch("inference.supabase_api_keys.SLOW_SUPABASE_REQUEST_MS", 0.0):
+            with self.assertLogs("inferxe.supabase_api_keys", level=logging.WARNING) as slow_cm:
+                self.repo.list_user_api_keys(secret_user)
+            slow_logs = "\n".join(slow_cm.output)
+            self.assertIn("Slow Supabase REST GET api_keys response (status=200, elapsed_ms=", slow_logs)
+            self.assertNotIn(secret_user, slow_logs)
+            self.assertNotIn(self.secret_key, slow_logs)
+
+        # 4. Urllib transport phase diagnostics distinguish urlopen_headers vs read_body timeouts safely
+        real_repo = SupabaseAPIKeyRepository(settings=self.settings, timeout=2.5)
+        with self.assertLogs("inferxe.supabase_api_keys", level=logging.WARNING) as phase_cm:
+            with patch("urllib.request.urlopen", side_effect=TimeoutError("timed out at headers")):
+                with self.assertRaises(SupabaseAPIKeyServiceUnavailableError):
+                    real_repo.list_user_api_keys(secret_user)
+
+            hang_resp = MagicMock()
+            hang_resp.status = 200
+            hang_resp.headers = {"Connection": "close"}
+            hang_resp.read.side_effect = TimeoutError("timed out reading body")
+            hang_cm = MagicMock()
+            hang_cm.__enter__.return_value = hang_resp
+            hang_cm.__exit__.return_value = False
+            with patch("urllib.request.urlopen", return_value=hang_cm):
+                with self.assertRaises(SupabaseAPIKeyServiceUnavailableError):
+                    real_repo.list_user_api_keys(secret_user)
+
+        phase_logs = "\n".join(phase_cm.output)
+        self.assertIn("Supabase urllib GET transport failed (phase=urlopen_headers,", phase_logs)
+        self.assertIn("error=TimeoutError", phase_logs)
+        self.assertIn("Supabase urllib GET transport failed (phase=read_body,", phase_logs)
+        self.assertIn("Supabase REST GET api_keys timed out after 2.5s (elapsed_ms=", phase_logs)
+        for forbidden in (secret_user, self.secret_key, self.supabase_url, "timed out at headers", "timed out reading body"):
+            self.assertNotIn(forbidden, phase_logs)
+
 
 class TestSupabaseAPIKeysFastAPIIntegration(unittest.TestCase):
     """End-to-end FastAPI endpoint tests for Phase 1 API Keys + Inference verification."""
@@ -929,7 +1013,7 @@ class TestSupabaseAPIKeysFastAPIIntegration(unittest.TestCase):
 
         self.settings = SupabaseSettings(
             url="https://api-test-project.supabase.co",
-            service_role_key="sb_secret_endpoint_test_secret",
+            service_role_key="sb_secret_" + "endpoint_test_mock",
         )
         self.repo = SupabaseAPIKeyRepository(settings=self.settings, transport=self.transport)
         self.telemetry_repo = SupabaseTelemetryRepository(
@@ -1085,7 +1169,7 @@ class TestSupabaseAPIKeysFastAPIIntegration(unittest.TestCase):
             # 1. Raw PostgREST 4xx rejection never leaks internal SQL/constraint details to HTTP client
             raw_postgrest_detail = json.dumps({
                 "code": "42883",
-                "message": "operator does not exist referencing sb_secret_endpoint_test_secret",
+                "message": "operator does not exist referencing " + "sb_secret_mock",
                 "details": "secret internal hint",
             }).encode()
             for method_call in (

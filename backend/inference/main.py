@@ -24,10 +24,18 @@ if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
 from inference.supabase_config import load_backend_env, get_supabase_settings, SupabaseConfigurationError
-from inference.database import init_db, check_database_connection, get_masked_url, DATABASE_URL
-from inference.routes import router
-
 load_backend_env()
+
+from inference.supabase_ssh_keys import close_shared_ssh_keys_http_client
+from inference.supabase_notebooks import close_shared_notebooks_http_client
+from inference.database import (
+    LEGACY_SQL_CONFIGURED,
+    init_db,
+    check_database_connection,
+    get_masked_url,
+    DATABASE_URL,
+)
+from inference.routes import router
 
 # Configure logging
 logging.basicConfig(
@@ -39,11 +47,12 @@ logger = logging.getLogger("inferxe.api")
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Application lifespan: verify database and log startup configuration."""
+    """Application lifespan: verify database/Supabase REST and log startup configuration."""
     logger.info("Initializing Inferxe Inference Service...")
-    logger.info(f"Target Database: {get_masked_url(DATABASE_URL)}")
+    supabase_configured = False
     try:
         supabase_info = get_supabase_settings(auto_load=False).masked_summary()
+        supabase_configured = True
         logger.info(
             "Supabase REST backend configured (scheme=%s, key_format=%s).",
             supabase_info["scheme"],
@@ -52,23 +61,37 @@ async def lifespan(app: FastAPI):
     except SupabaseConfigurationError as sb_err:
         logger.warning(f"Supabase REST configuration note: {sb_err}")
 
-    # Check database connectivity and create tables if reachable
-    if check_database_connection():
-        logger.info("Connected to PostgreSQL database. Verifying tables...")
-        try:
-            init_db()
-            logger.info("Database tables initialized successfully.")
-        except Exception as e:
-            logger.error(f"Error initializing database schema: {e}")
+    if LEGACY_SQL_CONFIGURED:
+        logger.info(f"Legacy SQLAlchemy Target Database: {get_masked_url(DATABASE_URL)}")
+        if check_database_connection():
+            logger.info("Connected to legacy PostgreSQL database. Verifying tables...")
+            try:
+                init_db()
+                logger.info("Legacy database tables initialized successfully.")
+            except Exception as e:
+                logger.error(f"Error initializing legacy database schema: {e}")
+        elif supabase_configured:
+            logger.info(
+                "Local legacy PostgreSQL is inactive; active runtime persists via Supabase REST."
+            )
+        else:
+            logger.warning(
+                "PostgreSQL database is unreachable and Supabase REST is not configured. "
+                "Please configure SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in backend/.env."
+            )
+    elif supabase_configured:
+        logger.info("Local legacy PostgreSQL is not configured; runtime persists via Supabase REST.")
     else:
         logger.warning(
-            "PostgreSQL database is currently unreachable. "
-            "Please ensure PostgreSQL service is running and credentials in backend/.env are valid."
+            "Neither Supabase REST nor legacy PostgreSQL is configured in backend/.env."
         )
 
-    yield
-
-    logger.info("Shutting down Inferxe Inference Service.")
+    try:
+        yield
+    finally:
+        close_shared_ssh_keys_http_client()
+        close_shared_notebooks_http_client()
+        logger.info("Shutting down Inferxe Inference Service.")
 
 
 app = FastAPI(

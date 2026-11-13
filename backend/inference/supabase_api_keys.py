@@ -23,6 +23,7 @@ import json
 import logging
 import re
 import socket
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -50,6 +51,7 @@ SHA256_HEX_RE = re.compile(r"^[0-9a-fA-F]{64}$")
 
 TRUSTED_HTTP_METHODS = frozenset({"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"})
 TRUSTED_API_KEY_RESOURCES = frozenset({"api_keys"})
+SLOW_SUPABASE_REQUEST_MS = 1500.0
 _SAFE_ERROR_CODE_RE = re.compile(r"^[A-Za-z0-9_]{1,32}$")
 _HEX_TOKEN_RE = re.compile(r"^[0-9a-fA-F]{32,}$")
 
@@ -155,10 +157,14 @@ def _default_urllib_transport(
 ) -> Tuple[int, Dict[str, str], bytes]:
     """Execute an HTTPS/HTTP request using stdlib `urllib.request` with explicit timeout."""
     req = urllib.request.Request(url=url, data=body, headers=headers, method=method)
+    started_at = time.perf_counter()
+    phase = "urlopen_headers"
     try:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
+            phase = "read_body"
             resp_headers = {k.lower(): v for k, v in resp.headers.items()}
-            return resp.status, resp_headers, resp.read()
+            resp_body = resp.read()
+            return resp.status, resp_headers, resp_body
     except urllib.error.HTTPError as http_err:
         err_headers = {k.lower(): v for k, v in http_err.headers.items()} if http_err.headers else {}
         try:
@@ -166,6 +172,16 @@ def _default_urllib_transport(
         finally:
             http_err.close()
         return http_err.code, err_headers, err_body
+    except (TimeoutError, socket.timeout, urllib.error.URLError, http.client.HTTPException, OSError) as net_err:
+        elapsed_ms = max(0.0, (time.perf_counter() - started_at) * 1000.0)
+        logger.warning(
+            "Supabase urllib %s transport failed (phase=%s, elapsed_ms=%.1f, error=%s).",
+            _trusted_log_method(method),
+            phase,
+            elapsed_ms,
+            type(net_err).__name__,
+        )
+        raise
 
 
 @dataclass
@@ -275,6 +291,36 @@ def _trusted_log_method(method: Any) -> str:
 def _trusted_log_resource(resource: Any) -> str:
     candidate = resource.strip() if isinstance(resource, str) else ""
     return candidate if candidate in TRUSTED_API_KEY_RESOURCES else "unknown_resource"
+
+
+def _safe_response_diagnostics(resp_headers: Any) -> Tuple[str, Optional[int], Optional[int]]:
+    """Extract strictly non-secret connection and upstream latency metadata from response headers."""
+    if not isinstance(resp_headers, dict):
+        return "unknown", None, None
+
+    lowered = {str(k).lower(): v for k, v in resp_headers.items()}
+    raw_conn = lowered.get("connection")
+    conn_mode = "unknown"
+    if isinstance(raw_conn, str):
+        normalized_conn = raw_conn.strip().lower()
+        if normalized_conn in ("close", "keep-alive"):
+            conn_mode = normalized_conn
+
+    def _parse_non_negative_int_header(header_name: str) -> Optional[int]:
+        raw_val = lowered.get(header_name)
+        if isinstance(raw_val, str):
+            stripped = raw_val.strip()
+            if stripped.isdigit():
+                return int(stripped)
+        elif isinstance(raw_val, int) and not isinstance(raw_val, bool) and raw_val >= 0:
+            return raw_val
+        return None
+
+    return (
+        conn_mode,
+        _parse_non_negative_int_header("x-envoy-upstream-service-time"),
+        _parse_non_negative_int_header("x-envoy-attempt-count"),
+    )
 
 
 def _sanitize_error_code(raw_code: Any) -> Optional[str]:
@@ -389,35 +435,76 @@ class SupabaseAPIKeyRepository:
         headers = settings.auth_headers(extra_headers=extra_headers)
         body_bytes = json.dumps(payload).encode("utf-8") if payload is not None else None
 
+        started_at = time.perf_counter()
         try:
-            status_code, _resp_headers, resp_body = self._transport(
+            status_code, resp_headers, resp_body = self._transport(
                 method, url, headers, body_bytes, self.timeout
             )
         except (TimeoutError, socket.timeout) as timeout_err:
-            logger.error("Supabase REST %s %s timed out after %.1fs.", safe_method, safe_resource, self.timeout)
+            elapsed_ms = max(0.0, (time.perf_counter() - started_at) * 1000.0)
+            logger.error(
+                "Supabase REST %s %s timed out after %.1fs (elapsed_ms=%.1f).",
+                safe_method,
+                safe_resource,
+                self.timeout,
+                elapsed_ms,
+            )
             raise SupabaseAPIKeyServiceUnavailableError(
                 "API key database request timed out."
             ) from timeout_err
         except urllib.error.URLError as conn_err:
+            elapsed_ms = max(0.0, (time.perf_counter() - started_at) * 1000.0)
             logger.error(
-                "Supabase REST %s %s connection error (%s).",
+                "Supabase REST %s %s connection error (%s, elapsed_ms=%.1f).",
                 safe_method,
                 safe_resource,
                 type(conn_err.reason).__name__ if getattr(conn_err, "reason", None) else type(conn_err).__name__,
+                elapsed_ms,
             )
             raise SupabaseAPIKeyServiceUnavailableError(
                 "API key database is temporarily unavailable."
             ) from conn_err
         except http.client.HTTPException as http_err:
-            logger.error("Supabase REST %s %s protocol error (%s).", safe_method, safe_resource, type(http_err).__name__)
+            elapsed_ms = max(0.0, (time.perf_counter() - started_at) * 1000.0)
+            logger.error(
+                "Supabase REST %s %s protocol error (%s, elapsed_ms=%.1f).",
+                safe_method,
+                safe_resource,
+                type(http_err).__name__,
+                elapsed_ms,
+            )
             raise SupabaseAPIKeyServiceUnavailableError(
                 "API key database communication failed."
             ) from http_err
         except (OSError, ValueError) as net_err:
-            logger.error("Supabase REST %s %s transport error (%s).", safe_method, safe_resource, type(net_err).__name__)
+            elapsed_ms = max(0.0, (time.perf_counter() - started_at) * 1000.0)
+            logger.error(
+                "Supabase REST %s %s transport error (%s, elapsed_ms=%.1f).",
+                safe_method,
+                safe_resource,
+                type(net_err).__name__,
+                elapsed_ms,
+            )
             raise SupabaseAPIKeyServiceUnavailableError(
                 "API key database is temporarily unavailable."
             ) from net_err
+
+        transport_ms = max(0.0, (time.perf_counter() - started_at) * 1000.0)
+        resp_bytes = len(resp_body) if isinstance(resp_body, (bytes, bytearray)) else 0
+        conn_mode, upstream_ms, envoy_attempts = _safe_response_diagnostics(resp_headers)
+
+        if transport_ms >= SLOW_SUPABASE_REQUEST_MS:
+            logger.warning(
+                "Slow Supabase REST %s %s response (status=%s, elapsed_ms=%.1f, bytes=%d, conn=%s, upstream_ms=%s, attempts=%s).",
+                safe_method,
+                safe_resource,
+                status_code,
+                transport_ms,
+                resp_bytes,
+                conn_mode,
+                upstream_ms,
+                envoy_attempts,
+            )
 
         if status_code >= 500:
             pg_code, _safe_msg, _safe_details = _extract_sanitized_supabase_error(status_code, resp_body)
@@ -473,10 +560,21 @@ class SupabaseAPIKeyRepository:
             raise SupabaseAPIKeyError("API key database rejected the request.")
 
         if not resp_body:
+            logger.info(
+                "Supabase REST %s %s completed (status=%s, elapsed_ms=%.1f, json_ms=0.00, bytes=0, conn=%s, upstream_ms=%s, attempts=%s).",
+                safe_method,
+                safe_resource,
+                status_code,
+                transport_ms,
+                conn_mode,
+                upstream_ms,
+                envoy_attempts,
+            )
             return None
 
+        parse_started = time.perf_counter()
         try:
-            return json.loads(resp_body.decode("utf-8"))
+            parsed = json.loads(resp_body.decode("utf-8"))
         except Exception as json_err:
             logger.error(
                 "Supabase REST %s %s returned invalid JSON (%s).",
@@ -487,6 +585,21 @@ class SupabaseAPIKeyRepository:
             raise SupabaseAPIKeyServiceUnavailableError(
                 "Received invalid response from API key database."
             ) from json_err
+
+        json_ms = max(0.0, (time.perf_counter() - parse_started) * 1000.0)
+        logger.info(
+            "Supabase REST %s %s completed (status=%s, elapsed_ms=%.1f, json_ms=%.2f, bytes=%d, conn=%s, upstream_ms=%s, attempts=%s).",
+            safe_method,
+            safe_resource,
+            status_code,
+            transport_ms,
+            json_ms,
+            resp_bytes,
+            conn_mode,
+            upstream_ms,
+            envoy_attempts,
+        )
+        return parsed
 
     def create_api_key(
         self,

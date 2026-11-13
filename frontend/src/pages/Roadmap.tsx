@@ -65,7 +65,7 @@ export default function Roadmap() {
         eyebrow="Strategic Roadmap"
         title={['The roadmap to', 'sovereign AI infrastructure']}
         lead="Our technical milestones from MVP sovereign routing to rack-scale Blackwell clusters and global datacenter federation."
-        image="/images/platform-compute.webp"
+        image="/images/nodes.webp"
         actions={
           <div className="row row--wrap" style={{ gap: 12 }}>
             <LinkButton to="/platform" arrow>

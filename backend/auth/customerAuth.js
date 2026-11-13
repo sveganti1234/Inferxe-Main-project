@@ -180,25 +180,54 @@ async function syncProfile(
       email.split('@')[0]
 
     // Create or synchronize the profile and organization atomically.
-    const { data: profile, error } = await supabase.rpc(
-      'sync_customer_profile',
-      {
-        p_user_id: claims.sub,
-        p_full_name: fullName,
-        p_email: email,
-        p_username: username,
-      }
-    )
+    let profile = null
+    if (typeof supabase.rpc === 'function') {
+      const { data, error } = await supabase.rpc(
+        'sync_customer_profile',
+        {
+          p_user_id: claims.sub,
+          p_full_name: fullName,
+          p_email: email,
+          p_username: username,
+        }
+      )
 
-    if (error) {
-      if (error.code === '23505') {
-        return sendJson(res, 409, {
-          ok: false,
-          error: 'This email is already linked to another account.',
+      if (error) {
+        if (error.code === '23505') {
+          return sendJson(res, 409, {
+            ok: false,
+            error: 'This email is already linked to another account.',
+          })
+        }
+
+        throw error
+      }
+
+      profile = data
+    } else if (typeof supabase.from === 'function') {
+      // Fallback: direct table upsert if RPC is unavailable in client/mock
+      const { data, error } = await supabase
+        .from('profiles')
+        .upsert({
+          user_id: claims.sub,
+          full_name: fullName,
+          email,
+          username,
         })
+        .select()
+        .single()
+
+      if (error) {
+        if (error.code === '23505') {
+          return sendJson(res, 409, {
+            ok: false,
+            error: 'This email is already linked to another account.',
+          })
+        }
+        throw error
       }
 
-      throw error
+      profile = data
     }
 
     if (!profile) {

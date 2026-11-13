@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import { ChevronDown, LogOut, Menu, Search, X } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
-import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { Link, NavLink, useLocation } from 'react-router-dom'
 import { NAV } from '../../data/site'
 import { Logo } from '../Logo'
 import { LinkButton } from '../ui/Button'
@@ -13,7 +13,6 @@ export function Navbar() {
   const [mobile, setMobile] = useState(false)
   const [session, setSession] = useState(() => getSession())
   const { pathname } = useLocation()
-  const navigate = useNavigate()
   const closeTimer = useRef<number>(0)
 
   useEffect(() => {
@@ -137,7 +136,7 @@ export function Navbar() {
                 <span className="nav__profile-avatar">{session.user.fullName.charAt(0).toUpperCase()}</span>
                 <span className="nav__profile-name">{session.user.fullName}</span>
               </Link>
-              <button className="nav__signout" onClick={() => { clearSession(); navigate('/') }}>
+              <button className="nav__signout" onClick={() => { clearSession(); window.location.replace('/') }}>
                 <LogOut size={14} /> Sign out
               </button>
             </>
@@ -186,7 +185,7 @@ export function Navbar() {
                     <span>{session.user.fullName}</span>
                     <small>{session.user.email}</small>
                   </div>
-                  <button className="btn btn--glass btn--block mt-2" onClick={() => { clearSession(); navigate('/'); setMobile(false) }}>
+                  <button className="btn btn--glass btn--block mt-2" onClick={() => { clearSession(); setMobile(false); window.location.replace('/') }}>
                     <LogOut size={16} /> Sign out
                   </button>
                 </>

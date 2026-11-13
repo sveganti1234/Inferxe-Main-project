@@ -112,7 +112,11 @@ function isWalletQuery(q: string): boolean {
     q.includes('billing') ||
     q.includes('top up') ||
     q.includes('topup') ||
-    q.includes('recharge')
+    q.includes('recharge') ||
+    q.includes('add money') ||
+    q.includes('deposit') ||
+    q.includes('add fund') ||
+    q.includes('add balance')
   )
 }
 
@@ -148,9 +152,17 @@ function getBotReply(query: string, currentPath: string = '/'): string {
     return OUT_OF_SCOPE_REFUSAL
   }
 
-  // 2. Greetings
-  if (domainStatus === 'greeting') {
-    return "Hi there! I am your Inferxe AI Assistant. Ask me about GPU sizing, cluster pricing, sovereign data residency in India, or deploying models on our marketplace."
+  // 2. Greetings & Assistance Capabilities
+  if (
+    domainStatus === 'greeting' ||
+    q.includes('answer my question') ||
+    q.includes('can you answer') ||
+    q.includes('what can you do') ||
+    q.includes('help me') ||
+    q.includes('assist me') ||
+    q === 'help'
+  ) {
+    return "Hi there! I am your Inferxe AI Assistant. Ask me anything about:\n• **Project & Architecture**: Overview of Inferxe, the multi-provider orchestration, and what was built.\n• **GPU Specs & Pricing**: Live hourly rates and sizing for NVIDIA H100, L40S, and L4.\n• **Wallet & Top-Up**: How to add funds, top up your compute credits, and manage 3D virtual cards.\n• **Customer Dashboard**: Real-time telemetry, ₹60/hr burn rate, and the 3-column Kanban deployment board.\n• **Model Inference & API**: Deploying Llama 3, Qwen 2.5, or Mistral with OpenAI SDK compatibility.\n• **Authentication**: Customer and Admin login with AWS Cognito.\n\nWhat would you like to know?"
   }
 
   const isInsideDashboard = currentPath.startsWith('/dashboard')
@@ -165,7 +177,7 @@ function getBotReply(query: string, currentPath: string = '/'): string {
 
   // 3a. Wallet Queries
   if (isWalletQuery(q)) {
-    if (!isAuthenticated) {
+    if (!isAuthenticated && q === 'how wallet works in this web site') {
       return PUBLIC_WALLET_REPLY
     }
     return getDashboardWalletReply()
@@ -194,6 +206,91 @@ function getBotReply(query: string, currentPath: string = '/'): string {
     return "To access the GPU Marketplace, launch instances, or manage your wallet, please visit the **[Sign In](/login)** page to log in or create your free account."
   }
 
+  // 3d. Project & Platform Overview / What is Inferxe
+  if (
+    q.includes('what is this project') ||
+    q.includes('project overview') ||
+    q.includes('explain this project') ||
+    q.includes('tell me about this project') ||
+    q.includes('about the project') ||
+    q.includes('what is inferxe') ||
+    q.includes('about inferxe') ||
+    q.includes('website overview') ||
+    q.includes('explain this website') ||
+    q.includes('tell me about this website')
+  ) {
+    return "**Inferxe** is an intelligent, decentralized GPU inference marketplace and compute orchestration platform built on the **'One API, Many GPU Providers'** architecture.\n\n**Core Highlights:**\n1. **Unified Marketplace**: Aggregates enterprise GPUs (NVIDIA H100, L40S, L4) across Indian sovereign Tier-IV data centers (Navi Mumbai & Noida) and cloud providers like JarvisLabs.\n2. **Customer Workspace**: Real-time compute telemetry (live balance, ₹60/hr burn rate, remaining runtime) and an interactive 3-column Kanban workflow board.\n3. **3D Virtual Cards & Top-Up**: Interactive digital cards with live flip, security freeze/unfreeze, and an idempotent `+ Top Up` modal with instant balance synchronization.\n4. **Cognito Enterprise Auth**: Strict RBAC for Customer and Admin portals with encrypted JWT token verification.\n5. **Drop-in OpenAI SDK**: Compatible with any OpenAI client pointing to `https://api.inferxe.com/v1`."
+  }
+
+  // 3e. Project Contributions & Author Work
+  if (
+    q.includes('sahith') ||
+    q.includes('who built this') ||
+    q.includes('what did you do in this project') ||
+    q.includes('what did i do in this project') ||
+    q.includes('what is done in this project') ||
+    q.includes('my contributions') ||
+    q.includes('what you done') ||
+    q.includes('what i done')
+  ) {
+    return "In this project, **Sahith** engineered the full-stack architecture for the **Inferxe GPU Marketplace**:\n\n• **Frontend Engineering**: Developed a high-performance, cyber-dark UI using **React 19, TypeScript, and Vite**, with glassmorphism styling and responsive micro-interactions.\n• **AWS Cognito Auth & RBAC**: Integrated Cognito user pools, secure JWT exchange, and persistent sessions for Customer and Admin roles.\n• **Customer Portal & Kanban**: Designed real-time compute telemetry cards and an interactive 3-column Kanban board for managing inference jobs and deployments.\n• **3D Virtual Cards & Top-Up Engine**: Built interactive 3D virtual cards (flip, freeze/unfreeze, number masking) and an idempotent `+ Top Up` workflow with instantaneous balance synchronization (`inferxe_wallet_change`).\n• **FastAPI & Node.js Microservices**: Connected backend services for RAG vector search (ChromaDB), billing idempotency, and model evaluation.\n• **Multi-Remote CI/CD**: Maintained and verified production builds synchronized across both **GitHub (`main`)** and **GitLab (`Main_project`)**."
+  }
+
+  // 3f. Customer Dashboard & Kanban Board
+  if (
+    q.includes('customer dashboard') ||
+    q.includes('customer portal') ||
+    q.includes('kanban') ||
+    q.includes('board') ||
+    q.includes('telemetry') ||
+    q.includes('burn rate') ||
+    q.includes('runtime')
+  ) {
+    return "### Customer Dashboard & Workspace Guide (`/dashboard/customer`):\n\n" +
+      "• **Compute Balance & Credits Hero Card**:\n" +
+      "  - Displays your available balance in INR (e.g. ₹5,000).\n" +
+      "  - Calculates live **hourly burn rate** (e.g. `₹60/hr` for active L4 instances).\n" +
+      "  - Estimates **remaining runtime** (e.g. `≈ 83.3 hrs left`).\n" +
+      "  - Shows active GPU count and Sovereign Tier status.\n" +
+      "  - Features quick-action buttons: `+ Add Funds`, `Playground`, `API Keys`, and `Compare`.\n\n" +
+      "• **3-Column Kanban Workflow Board**:\n" +
+      "  1. **To Do**: Pending inference tasks, prompt engineering jobs, and scheduled runs.\n" +
+      "  2. **Done – Waiting for you**: Finished jobs awaiting authorization or payout.\n" +
+      "  3. **Paid / Active**: Live GPU deployments and fulfilled compute allocations.\n\n" +
+      "• **30-Day Activity Sparklines**: Tracks daily token throughput and cluster consumption."
+  }
+
+  // 3g. Deploying Models & Running Inference
+  if (
+    q.includes('deploy') ||
+    q.includes('run model') ||
+    q.includes('how to use') ||
+    q.includes('how to start') ||
+    q.includes('how does it work') ||
+    q.includes('how it works') ||
+    q.includes('which models') ||
+    q.includes('supported models') ||
+    q.includes('what models')
+  ) {
+    return "### How to Deploy Models and Run Inference on Inferxe:\n\n" +
+      "1. **Sign In**: Log in to your account at [Sign In](/login).\n" +
+      "2. **Check Balance**: Make sure you have compute credits in [Wallet & Cards](/dashboard/wallet). Top up anytime via `+ Top Up`.\n" +
+      "3. **Choose Hardware**: Select an optimal GPU (NVIDIA L4 for ≤8B at ₹60/hr, L40S for 14B–34B at ₹100/hr, or H100 for 70B+ at ₹280/hr).\n" +
+      "4. **Supported Models**: Meta Llama 3.3 70B, Qwen 2.5 14B/72B, Mistral 7B, and DeepSeek distilled models with FP8 FlashAttention.\n" +
+      "5. **Invoke API**: Use the standard OpenAI SDK:\n" +
+      "```python\n" +
+      "from openai import OpenAI\n" +
+      "client = OpenAI(\n" +
+      "    base_url='https://api.inferxe.com/v1',\n" +
+      "    api_key='your_inferxe_api_key'\n" +
+      ")\n" +
+      "response = client.chat.completions.create(\n" +
+      "    model='llama-3.3-70b',\n" +
+      "    messages=[{'role': 'user', 'content': 'Hello Inferxe!'}]\n" +
+      ")\n" +
+      "```"
+  }
+
   // 4. Specific Factual Queries
   if (q.includes('specifications of nvidia l4') || q.includes('specs of nvidia l4') || q.includes('nvidia l4 specs')) {
     return 'The NVIDIA L4 is built on NVIDIA\'s Ada Lovelace architecture. It features 24 GB of GDDR6 memory with 300 GB/s bandwidth. Compute throughput delivers 485 FP8 TFLOPS and 242 FP16/BF16 Tensor TFLOPS at a low 72W TDP in a single-slot PCIe form factor.'
@@ -220,7 +317,7 @@ function getBotReply(query: string, currentPath: string = '/'): string {
     if (rec) return rec
   }
 
-  if (q.includes('features does inferxe provide') || q.includes('inferxe provide') || q.includes('features') || q.includes('tell me about this website')) {
+  if (q.includes('features does inferxe provide') || q.includes('inferxe provide') || q.includes('features')) {
     return 'Documented features of the Inferxe platform:\n1. GPU Marketplace Catalog: Discover and filter GPUs across sovereign Indian clouds and JarvisLabs.\n2. GPU Sizing Calculator: Calculates weights and KV cache memory to recommend the most cost-effective GPU.\n3. Simulated Wallet & Burn Rate: Tracks runtime spend, hourly burn rates, and low-balance warnings.\n4. Sovereign Indian Data Residency: Tier-IV datacenters in Navi Mumbai and Noida compliant with DPDP Act and MeitY.\n5. OpenAI-Compatible API: Drop-in SDK endpoint pointing base_url to https://api.inferxe.com/v1.\n6. Intermediary Orchestration: Intermediary software routing layer (Inferxe does not own physical data centers).'
   }
 
@@ -548,7 +645,7 @@ export function GlobalBotCompanion() {
       let replyText = ''
 
       if (isWalletQuery(qLower)) {
-        if (!isAuthenticated) {
+        if (!isAuthenticated && qLower === 'how wallet works in this web site') {
           replyText = PUBLIC_WALLET_REPLY
         } else {
           replyText = getDashboardWalletReply()

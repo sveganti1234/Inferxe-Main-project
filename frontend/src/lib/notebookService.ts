@@ -11,13 +11,18 @@
  */
 
 import { getSession } from './authStore'
+import {
+  INFERENCE_API_BASE,
+  formatApiConnectionError,
+  getAuthHeaders,
+} from './apiConfig'
 
 export interface BackendNotebook {
   id: string
   user_id: string
   name: string
   gpu_profile: string
-  status: 'provisioning' | 'running' | 'stopped' | 'failed' | 'terminated'
+  status: 'starting' | 'provisioning' | 'running' | 'stopped' | 'failed' | 'terminated'
   runtime_type: string
   runtime_reference?: string | null
   selected_ssh_key_id?: string | null
@@ -46,20 +51,6 @@ export interface BackendNotebookActionResponse {
   success: boolean
   message: string
   notebook: BackendNotebook
-}
-
-const INFERENCE_API_BASE =
-  (import.meta.env.VITE_INFERENCE_API_ENDPOINT as string | undefined)?.replace(/\/$/, '') ||
-  'http://127.0.0.1:8001'
-
-function getAuthHeaders(): HeadersInit {
-  const session = getSession()
-  const token = session?.token || ''
-  return {
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  }
 }
 
 /**
@@ -96,7 +87,7 @@ export async function fetchBackendNotebooks(): Promise<{
   } catch (err) {
     return {
       ok: false,
-      error: `Inference API server is unreachable at ${INFERENCE_API_BASE}. Please ensure the backend is running.`,
+      error: formatApiConnectionError('Inference API server', INFERENCE_API_BASE),
     }
   }
 }
@@ -134,7 +125,7 @@ export async function getBackendNotebook(id: string): Promise<{
   } catch (err) {
     return {
       ok: false,
-      error: `Inference API server is unreachable at ${INFERENCE_API_BASE}.`,
+      error: formatApiConnectionError('Inference API server', INFERENCE_API_BASE),
     }
   }
 }
@@ -183,7 +174,7 @@ export async function createBackendNotebook(payload: NotebookCreatePayload): Pro
   } catch (err) {
     return {
       ok: false,
-      error: `Inference API server is unreachable at ${INFERENCE_API_BASE}.`,
+      error: formatApiConnectionError('Inference API server', INFERENCE_API_BASE),
     }
   }
 }
@@ -222,7 +213,7 @@ export async function startBackendNotebook(id: string): Promise<{
   } catch (err) {
     return {
       ok: false,
-      error: `Inference API server is unreachable at ${INFERENCE_API_BASE}.`,
+      error: formatApiConnectionError('Inference API server', INFERENCE_API_BASE),
     }
   }
 }
@@ -261,7 +252,7 @@ export async function stopBackendNotebook(id: string): Promise<{
   } catch (err) {
     return {
       ok: false,
-      error: `Inference API server is unreachable at ${INFERENCE_API_BASE}.`,
+      error: formatApiConnectionError('Inference API server', INFERENCE_API_BASE),
     }
   }
 }
@@ -300,7 +291,7 @@ export async function deleteBackendNotebook(id: string): Promise<{
   } catch (err) {
     return {
       ok: false,
-      error: `Inference API server is unreachable at ${INFERENCE_API_BASE}.`,
+      error: formatApiConnectionError('Inference API server', INFERENCE_API_BASE),
     }
   }
 }

@@ -6,7 +6,9 @@ import test from 'node:test'
 import { fileURLToPath } from 'node:url'
 import {
   BACKEND_ENV_PATH,
+  FRONTEND_DIR,
   assertNoFrontendSupabaseSecrets,
+  collectFrontendEnvForSecurityCheck,
   loadBackendEnv,
   parseEnvContent,
 } from '../auth/envLoader.js'
@@ -74,6 +76,54 @@ test('assertNoFrontendSupabaseSecrets blocks frontend secret exposure while allo
     () => assertNoFrontendSupabaseSecrets({ VITE_SUPABASE_URL: 'https://example.supabase.co' }),
     /Forbidden/,
   )
+})
+
+test('collectFrontendEnvForSecurityCheck allows server-only process.env while blocking frontend/.env* and VITE_SUPABASE_* leaks', () => {
+  assert.equal(FRONTEND_DIR, path.join(ROOT_DIR, 'frontend'))
+
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'inferxe-fe-env-check-'))
+  try {
+    fs.writeFileSync(
+      path.join(tmpDir, '.env'),
+      'VITE_COGNITO_REGION=ap-south-1\nVITE_COGNITO_CLIENT_ID=client123\n',
+      'utf8',
+    )
+
+    // Server-only process.env vars (e.g. from loadBackendEnv() on config reload or IDE shell) must be allowed.
+    const clean = collectFrontendEnvForSecurityCheck({
+      envDir: tmpDir,
+      mode: 'development',
+      processEnv: {
+        SUPABASE_URL: 'https://example.supabase.co',
+        SUPABASE_SERVICE_ROLE_KEY: 'sb_secret_dummy_server_key',
+        VITE_COGNITO_REGION: 'ap-south-1',
+      },
+    })
+    assert.doesNotThrow(() => assertNoFrontendSupabaseSecrets(clean))
+    assert.equal(clean.SUPABASE_URL, undefined)
+
+    // Any VITE_SUPABASE_* in process.env must still fail.
+    const leakedProcessVite = collectFrontendEnvForSecurityCheck({
+      envDir: tmpDir,
+      mode: 'development',
+      processEnv: { VITE_SUPABASE_URL: 'https://example.supabase.co' },
+    })
+    assert.throws(() => assertNoFrontendSupabaseSecrets(leakedProcessVite), /Forbidden/)
+
+    // Any SUPABASE_URL in frontend/.env.local must fail immediately (even if process.env is empty).
+    fs.writeFileSync(path.join(tmpDir, '.env.local'), 'SUPABASE_URL=https://leaked.supabase.co\n', 'utf8')
+    assert.throws(
+      () =>
+        collectFrontendEnvForSecurityCheck({
+          envDir: tmpDir,
+          mode: 'development',
+          processEnv: {},
+        }),
+      /Forbidden/,
+    )
+  } finally {
+    fs.rmSync(tmpDir, { recursive: true, force: true })
+  }
 })
 
 test('upsertCognitoProfile uses apikey only for sb_secret_ keys and rejects PAT/publishable keys', async () => {
