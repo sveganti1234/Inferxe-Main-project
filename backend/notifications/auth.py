@@ -8,36 +8,51 @@ import os
 import json
 import time
 import logging
+from pathlib import Path
 from typing import Optional, Dict, Any, List
 from fastapi import HTTPException, Security, Request, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt
 from jwt import PyJWKClient, ExpiredSignatureError, InvalidTokenError
-from dotenv import load_dotenv
+from dotenv import load_dotenv, dotenv_values
 
-load_dotenv()
+ROOT_DIR = Path(__file__).resolve().parents[2]
+if (ROOT_DIR / ".env").is_file():
+    load_dotenv(ROOT_DIR / ".env", override=False)
+if (ROOT_DIR / "backend" / ".env").is_file():
+    load_dotenv(ROOT_DIR / "backend" / ".env", override=False)
+if (ROOT_DIR / "frontend" / ".env").is_file():
+    try:
+        for _k, _v in dotenv_values(ROOT_DIR / "frontend" / ".env").items():
+            if _k and _k.startswith("VITE_COGNITO_") and _v and _k not in os.environ:
+                os.environ[_k] = _v
+    except Exception:
+        pass
 
 logger = logging.getLogger("inferxe.notifications.auth")
+
+_COGNITO_PLACEHOLDERS = {"", "ap-south-1_xxxxxxxxx", "your-cognito-client-id", "your-user-pool-id"}
 
 COGNITO_REGION = (
     os.environ.get("AWS_REGION")
     or os.environ.get("VITE_COGNITO_REGION")
     or os.environ.get("COGNITO_REGION")
     or "ap-south-1"
-)
+).strip() or "ap-south-1"
 COGNITO_USER_POOL_ID = (
     os.environ.get("AWS_COGNITO_USER_POOL_ID")
     or os.environ.get("COGNITO_USER_POOL_ID")
     or os.environ.get("VITE_COGNITO_USER_POOL_ID")
-    or "ap-south-1_cYw1QjgbQ"
-)
+    or ""
+).strip()
 COGNITO_CLIENT_ID = (
     os.environ.get("AWS_COGNITO_CLIENT_ID")
     or os.environ.get("COGNITO_CLIENT_ID")
     or os.environ.get("VITE_COGNITO_CLIENT_ID")
     or ""
-)
-COGNITO_ISSUER = f"https://cognito-idp.{COGNITO_REGION}.amazonaws.com/{COGNITO_USER_POOL_ID}"
+).strip()
+_EFFECTIVE_ISSUER_POOL = COGNITO_USER_POOL_ID or "unconfigured-pool"
+COGNITO_ISSUER = f"https://cognito-idp.{COGNITO_REGION}.amazonaws.com/{_EFFECTIVE_ISSUER_POOL}"
 JWKS_URL = f"{COGNITO_ISSUER}/.well-known/jwks.json"
 ADMIN_SESSION_SECRET = os.environ.get("ADMIN_SESSION_SECRET", "inferxe_dev_secret_key_2026_super_secure")
 
@@ -162,6 +177,15 @@ def verify_cognito_jwt(token: str) -> AuthenticatedUser:
     if kid and kid in _test_public_keys:
         signing_key = _test_public_keys[kid]
     else:
+        if (
+            COGNITO_USER_POOL_ID in _COGNITO_PLACEHOLDERS
+            or COGNITO_CLIENT_ID in _COGNITO_PLACEHOLDERS
+        ):
+            logger.error("Cognito User Pool ID / Client ID not configured for notifications service.")
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Cognito authentication service is not configured on this backend.",
+            )
         # First attempt: use cached JWKS client
         try:
             client = get_jwks_client()

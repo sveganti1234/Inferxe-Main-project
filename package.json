@@ -9,12 +9,18 @@
   ],
   "scripts": {
     "dev": "npx concurrently -n CUSTOMER_AUTH,WALLET_NOTIF,FRONTEND,INFERENCE_API -c cyan,green,yellow,magenta --kill-others-on-fail \"npm run server:admin\" \"npm run dev:backend\" \"npm run dev:frontend\" \"npm --prefix backend run server:inference\"",
+    "dev:backend": "node backend/scripts/dev-backend.mjs",
     "dev:frontend": "npm --prefix frontend run dev",
-    "dev:backend": "python -m uvicorn backend.notifications.main:app --host 127.0.0.1 --port 8000 --reload",
+    "dev:all": "concurrently -n BACKEND,FRONTEND -c cyan,green --kill-others-on-fail \"npm run dev:backend\" \"npm run dev:frontend\"",
     "build": "npm --prefix frontend run build",
     "preview": "npm --prefix frontend run preview",
     "typecheck": "npm --prefix frontend run typecheck",
     "server:admin": "node backend/auth/adminAuthServer.mjs"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.119.0",
+    "aws-jwt-verify": "^5.2.1"
   },
   "devDependencies": {
     "concurrently": "^10.0.7"

@@ -9,12 +9,15 @@ import hmac
 import hashlib
 import secrets
 import logging
+from pathlib import Path
 from datetime import datetime, timezone
 from typing import Optional, Tuple, Dict, Any
+from dotenv import load_dotenv, dotenv_values
 import jwt
 from jwt import PyJWKClient, PyJWTError
 from fastapi import Header, HTTPException, Depends, status
 
+from inference.supabase_config import BACKEND_DIR, load_backend_env
 from inference.supabase_api_keys import (
     SupabaseAPIKeyError,
     SupabaseAPIKeyRecord,
@@ -24,10 +27,58 @@ from inference.supabase_api_keys import (
 
 logger = logging.getLogger("inferxe.auth")
 
-# AWS Cognito Configuration
-COGNITO_REGION = os.getenv("COGNITO_REGION", "ap-south-1")
-COGNITO_USER_POOL_ID = os.getenv("COGNITO_USER_POOL_ID", "")
-COGNITO_CLIENT_ID = os.getenv("COGNITO_CLIENT_ID", "")
+# Load backend/.env, root .env, and public Cognito fallback keys from frontend/.env
+# without overriding existing process or test environment variables.
+load_backend_env(override=False)
+ROOT_DIR = BACKEND_DIR.parent
+if (ROOT_DIR / ".env").is_file():
+    load_dotenv(ROOT_DIR / ".env", override=False)
+
+_FRONTEND_ENV_FILE = ROOT_DIR / "frontend" / ".env"
+if _FRONTEND_ENV_FILE.is_file():
+    try:
+        for _k, _v in dotenv_values(_FRONTEND_ENV_FILE).items():
+            if _k and _k.startswith("VITE_COGNITO_") and _v and _k not in os.environ:
+                os.environ[_k] = _v
+    except Exception:
+        pass
+
+_COGNITO_PLACEHOLDERS = {
+    "",
+    "ap-south-1_xxxxxxxxx",
+    "your-cognito-client-id",
+    "your-user-pool-id",
+}
+
+
+def _resolve_cognito_setting(primary_key: str, fallback_key: str, default: str = "") -> str:
+    """Resolve Cognito setting from primary COGNITO_* key, falling back to VITE_COGNITO_* only if unset."""
+    if primary_key in os.environ:
+        return (os.environ.get(primary_key) or "").strip()
+    if fallback_key in os.environ:
+        return (os.environ.get(fallback_key) or "").strip()
+    return default
+
+
+def get_cognito_runtime_config() -> Tuple[str, str, str]:
+    """Return (region, user_pool_id, client_id) resolved from environment."""
+    region = _resolve_cognito_setting("COGNITO_REGION", "VITE_COGNITO_REGION", "ap-south-1") or "ap-south-1"
+    user_pool_id = _resolve_cognito_setting("COGNITO_USER_POOL_ID", "VITE_COGNITO_USER_POOL_ID", "")
+    client_id = _resolve_cognito_setting("COGNITO_CLIENT_ID", "VITE_COGNITO_CLIENT_ID", "")
+    return region, user_pool_id, client_id
+
+
+def is_cognito_configured() -> bool:
+    """Return True when real (non-placeholder) Cognito pool & client IDs are configured."""
+    _, user_pool_id, client_id = get_cognito_runtime_config()
+    return (
+        user_pool_id not in _COGNITO_PLACEHOLDERS
+        and client_id not in _COGNITO_PLACEHOLDERS
+    )
+
+
+# AWS Cognito Configuration (resolved defaults at module import)
+COGNITO_REGION, COGNITO_USER_POOL_ID, COGNITO_CLIENT_ID = get_cognito_runtime_config()
 
 
 def hash_api_key(raw_key: str) -> str:
@@ -200,9 +251,13 @@ def verify_cognito_jwt(token: str) -> Dict[str, Any]:
         return claims
 
     # Live Production Runtime: Require both User Pool ID and App Client ID; strictly enforce audience verification
-    user_pool_id = os.getenv("COGNITO_USER_POOL_ID", COGNITO_USER_POOL_ID)
-    client_id = os.getenv("COGNITO_CLIENT_ID", COGNITO_CLIENT_ID)
-    region = os.getenv("COGNITO_REGION", COGNITO_REGION)
+    region, user_pool_id, client_id = get_cognito_runtime_config()
+    if not region:
+        region = COGNITO_REGION or "ap-south-1"
+    if not user_pool_id and "COGNITO_USER_POOL_ID" not in os.environ:
+        user_pool_id = COGNITO_USER_POOL_ID
+    if not client_id and "COGNITO_CLIENT_ID" not in os.environ:
+        client_id = COGNITO_CLIENT_ID
 
     if not user_pool_id or not client_id:
         logger.error("Cognito User Pool ID and Client ID must both be configured. Protected endpoint failing closed.")

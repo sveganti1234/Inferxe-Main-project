@@ -17,11 +17,69 @@ from psycopg2.pool import ThreadedConnectionPool
 from dotenv import load_dotenv
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
-load_dotenv(ROOT_DIR / ".env", override=False)
-
+BACKEND_DIR = ROOT_DIR / "backend"
+if (ROOT_DIR / ".env").is_file():
+    load_dotenv(ROOT_DIR / ".env", override=False)
+if (BACKEND_DIR / ".env").is_file():
+    load_dotenv(BACKEND_DIR / ".env", override=False)
 logger = logging.getLogger("inferxe.notifications.db")
 
-DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
+
+def _normalize_psycopg2_dsn(raw_url: str) -> str:
+    cleaned = (raw_url or "").strip()
+    if not cleaned:
+        return ""
+    if cleaned.startswith("postgresql+psycopg2://"):
+        return "postgresql://" + cleaned[len("postgresql+psycopg2://"):]
+    if cleaned.startswith("postgres://"):
+        return "postgresql://" + cleaned[len("postgres://"):]
+    return cleaned
+
+
+def _is_placeholder_or_empty(dsn: str) -> bool:
+    cleaned = (dsn or "").strip()
+    return (
+        not cleaned
+        or "YOUR_PASSWORD" in cleaned
+        or "your-project" in cleaned
+    )
+
+
+def _is_local_host_dsn(dsn: str) -> bool:
+    try:
+        host = (urlsplit(dsn).hostname or "").lower()
+        return host in {"localhost", "127.0.0.1", "::1"}
+    except ValueError:
+        return False
+
+
+def _resolve_notifications_dsn() -> str:
+    """
+    Resolve PostgreSQL DSN for notifications/wallet/GPU service in priority order:
+      1. Explicit NOTIFICATIONS_DATABASE_URL
+      2. Non-local DATABASE_URL (e.g., Supabase Postgres URL in root .env)
+      3. Shared SUPABASE_DATABASE_URL (from backend/.env or env)
+      4. Fallback DATABASE_URL (e.g., local Postgres if intentionally configured)
+    """
+    explicit = _normalize_psycopg2_dsn(os.environ.get("NOTIFICATIONS_DATABASE_URL", ""))
+    if not _is_placeholder_or_empty(explicit):
+        return explicit
+
+    primary_db = _normalize_psycopg2_dsn(os.environ.get("DATABASE_URL", ""))
+    if not _is_placeholder_or_empty(primary_db) and not _is_local_host_dsn(primary_db):
+        return primary_db
+
+    supabase_db = _normalize_psycopg2_dsn(os.environ.get("SUPABASE_DATABASE_URL", ""))
+    if not _is_placeholder_or_empty(supabase_db):
+        return supabase_db
+
+    if not _is_placeholder_or_empty(primary_db):
+        return primary_db
+
+    return ""
+
+
+DATABASE_URL = _resolve_notifications_dsn()
 
 try:
     _database_url = urlsplit(DATABASE_URL)
@@ -140,15 +198,16 @@ def _extract_url_components(parsed_url) -> Dict[str, Any]:
 
 
 def get_connection_params() -> Dict[str, Any]:
-    if not DATABASE_URL:
+    dsn = _resolve_notifications_dsn() or DATABASE_URL
+    if not dsn:
         raise RuntimeError(
-            "DATABASE_URL is required. Set it in the repository root .env to the "
-            "Supabase PostgreSQL connection string."
+            "SUPABASE_DATABASE_URL (or DATABASE_URL) is required in backend/.env or root .env "
+            "pointing to the shared Supabase PostgreSQL connection string."
         )
 
     # ── STAGE 1: URL parsing ──────────────────────────────────────────
     try:
-        parsed_url = urlsplit(DATABASE_URL)
+        parsed_url = urlsplit(dsn)
     except Exception as e:
         logger.error(
             "URL parsing failed at stage 'urlsplit': %s",
@@ -192,7 +251,7 @@ def get_connection_params() -> Dict[str, Any]:
         "host": components["host"],
         "port": components["port"],
         "dbname": components["dbname"],
-        "connect_timeout": 3,
+        "connect_timeout": 8,
     }
 
     if components["user"]:
@@ -260,10 +319,77 @@ class DBConnection:
 def init_db():
     """
     Idempotent, non-destructive migration ensuring all tables and required columns exist.
+    Fast-paths cleanly when the shared Supabase database already contains all required
+    tables, migrated columns, and indexes to avoid redundant DDL roundtrips on reload.
     """
-    logger.info("Running safe database migrations on the configured PostgreSQL database.")
+    logger.info("Verifying PostgreSQL schema for notifications/wallet/GPU service...")
+    expected_tables = {
+        "users",
+        "notifications",
+        "notification_outbox",
+        "wallets",
+        "wallet_transactions",
+        "gpu_inventory",
+        "gpu_deployments",
+        "gpu_maintenance_schedules",
+    }
+    expected_migrated_cols = {
+        ("notifications", "metadata"),
+        ("notifications", "related_entity_id"),
+        ("notifications", "read_at"),
+        ("notification_outbox", "user_id"),
+        ("notification_outbox", "idempotency_key"),
+        ("notification_outbox", "retry_count"),
+        ("notification_outbox", "error"),
+        ("notification_outbox", "processed_at"),
+        ("wallets", "low_balance_alert_level"),
+    }
+    expected_indexes = {
+        "idx_notifications_user_id",
+        "idx_notifications_is_read",
+        "idx_notifications_created_at",
+        "idx_outbox_idempotency_key",
+        "idx_outbox_status",
+        "idx_wallet_tx_user_id",
+        "idx_gpu_dep_user_id",
+    }
+
     with DBConnection(autocommit=True) as conn:
         cur = conn.cursor()
+
+        try:
+            cur.execute(
+                """
+                SELECT table_name, column_name
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name = ANY(%s);
+                """,
+                (list(expected_tables),),
+            )
+            col_pairs = {(r[0], r[1]) for r in cur.fetchall()}
+            existing_tables = {t for (t, _) in col_pairs}
+
+            cur.execute(
+                """
+                SELECT indexname
+                FROM pg_indexes
+                WHERE schemaname = 'public'
+                  AND indexname = ANY(%s);
+                """,
+                (list(expected_indexes),),
+            )
+            existing_indexes = {r[0] for r in cur.fetchall()}
+
+            if (
+                expected_tables.issubset(existing_tables)
+                and expected_migrated_cols.issubset(col_pairs)
+                and expected_indexes.issubset(existing_indexes)
+            ):
+                logger.info("PostgreSQL schema already verified (%d tables ready).", len(existing_tables))
+                return
+        except Exception:
+            pass
 
         # 1. users table
         cur.execute("""

@@ -11,6 +11,7 @@
  * - Zero exposure of internal paths or credentials
  */
 
+import { OLLAMA_CHAT_ENDPOINT, RAG_CHAT_ENDPOINT } from './apiConfig'
 import { getSession, getCognitoTokenFromStorage } from './authStore'
 
 export interface ChatMessage {
@@ -28,8 +29,8 @@ export interface LlmConfig {
 export const DEFAULT_LLM_CONFIG: LlmConfig = {
   activeModel: 'inferxe-qwen-ft',
   fallbackModel: 'inferxe-assistant',
-  endpoint: 'http://127.0.0.1:11434/api/chat',
-  timeoutMs: 1200,
+  endpoint: OLLAMA_CHAT_ENDPOINT,
+  timeoutMs: 12000,
 }
 
 export const INFERXE_SYSTEM_PROMPT = `You are the Inferxe GPU infrastructure assistant. Answer only approved GPU, LLM inference, cloud pricing, and documented Inferxe platform questions. Never invent facts.
@@ -101,7 +102,7 @@ export interface SourceReference {
   snippet?: string
 }
 
-export const RAG_BACKEND_ENDPOINT = 'http://127.0.0.1:8000/api/chat'
+export const RAG_BACKEND_ENDPOINT = RAG_CHAT_ENDPOINT
 
 /**
  * Queries the FastAPI RAG pipeline backed by ChromaDB vector search and local dataset grounding.

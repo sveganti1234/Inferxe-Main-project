@@ -54,39 +54,58 @@ Sahith project/
 
 # Part 0 — Run commands
 
-Everything below is run **from the project folder** — the one that contains `package.json`:
+Everything below is run **from the repository root folder** — the one that contains `package.json`.
 
-```
-C:\Users\ch4ra\Desktop\website inferxe\inferxe-website
-```
+**Prerequisites:**
+- Node.js 20+ (`node --version`)
+- Python 3.11+ (`python --version`) with dependencies from `backend/requirements.txt` (in `.venv311`, `.venv`, or system Python — no manual venv activation required by `npm run dev:backend`)
 
-**Prerequisite:** Node.js 20 or newer (developed on Node 24, npm 11). Check with `node --version`.
-
-## 0.1 The 60-second start
+## 0.1 Team setup (one-time per laptop)
 
 ```bash
-cd "C:/Users/ch4ra/Desktop/website inferxe/inferxe-website"
-npm install          # first time only (≈1 min) — installs everything into node_modules/
-npm run dev          # starts the dev server → http://127.0.0.1:5173
+# 1. Install JS dependencies (root + frontend)
+npm install
+
+# 2. Install Python backend dependencies (recommended: .venv311 or .venv)
+python -m pip install -r backend/requirements.txt
+
+# 3. Configure environment files (do not commit .env files)
+#    - Copy backend/.env.example -> backend/.env and fill shared Supabase, Cognito, and NVIDIA keys
+#    - Copy frontend/.env.example -> frontend/.env and fill public VITE_COGNITO_* keys
 ```
 
-Open **http://127.0.0.1:5173** (or `http://localhost:5173`). The first page load takes a few seconds while Vite compiles on demand; after that
-navigation and edits are instant (hot module reload).
+## 0.2 Two-command local workflow
 
-**Windows one-click:** double-click **`start-website.bat`**. It installs dependencies if `node_modules/` is missing, opens your browser, and runs the dev server.
+Open two terminals from the repository root:
 
-## 0.2 Every command
+**Terminal 1 — Unified Python Backends (Ports `8000` & `8001`):**
+```bash
+npm run dev:backend
+```
+Starts both `backend.notifications.main:app` (`http://127.0.0.1:8000`, shared Supabase PostgreSQL + RAG `/api/chat`) and `inference.main:app` (`http://127.0.0.1:8001`, API keys, SSH keys, notebooks, NVIDIA inference via Supabase REST) automatically using the first valid workspace `.venv311` / `.venv` or system Python.
+
+**Terminal 2 — Frontend & Auth Middleware (Port `5173`):**
+```bash
+npm run dev
+```
+
+Open **http://127.0.0.1:5173** (or `http://localhost:5173`). Vite proxies `/api/v1/*` → `8001`, `/api/notifications`, `/api/wallet`, `/api/deployments`, `/api/gpu`, `/api/workspace`, `/api/chat`, `/api/health` → `8000`, and serves `/api/auth/*` + `/api/admin/*` directly.
+
+**Windows one-click:** double-click **`start-website.bat`**. It starts `npm run dev:backend` (ports `8000` & `8001`), opens your browser, and starts `npm run dev`.
+
+## 0.3 Every command
 
 | Command | What it does | When to use it |
 | --- | --- | --- |
-| `npm install` | Installs dependencies from `package.json` / `package-lock.json`. | First run, or after pulling changes that touch `package.json`. |
-| `npm run dev` | Starts Vite's dev server on `127.0.0.1:5173` with hot reload. | Day-to-day development and demos. |
+| `npm install` | Installs root and workspace dependencies from `package.json` / `package-lock.json`. | First run, or after pulling changes that touch `package.json`. |
+| `npm run dev:backend` | Validates env & Python runtime, then launches Notifications+RAG (`8000`) and Inference (`8001`). Pass `-- --with-search` to also start web search (`8765`), or `-- --check` to validate setup. | Whenever running the app locally. |
+| `npm run dev` | Starts Vite's dev server on `127.0.0.1:5173` with hot reload, API proxies, and SSO/Admin auth middleware. | Day-to-day development and demos. |
 | `npm run typecheck` | Runs `tsc --noEmit` — strict TypeScript type-check, no output files. | Before committing; fast sanity check. |
 | `npm run build` | `tsc --noEmit && vite build` → optimised production bundle in `dist/`. | Before deploying; fails on any type error. |
-| `npm run preview` | Serves the built `dist/` on `127.0.0.1:4173` exactly as production would. | Verify the production build locally (run `npm run build` first). |
-| `start-website.bat` | Windows launcher: installs if needed, opens the browser, runs `npm run dev`. | Non-developers / demos. |
+| `npm run preview` | Serves the built `dist/` on `127.0.0.1:4173` with backend proxies & auth middleware. | Verify the production build locally (run `npm run build` first). |
+| `start-website.bat` | Windows launcher: starts backend (`8000` & `8001`), opens browser, runs `npm run dev`. | Non-developers / demos. |
 
-## 0.3 Useful variations
+## 0.4 Useful variations
 
 ```bash
 # Run from the PARENT folder (…/website inferxe) without cd-ing in
@@ -755,7 +774,7 @@ There is **no automated test suite committed** — be aware of this. Quality gat
 ## 30. Configuration
 | Setting | Where | Notes |
 | --- | --- | --- |
-| Cognito authentication | `frontend/.env.local` (`VITE_COGNITO_USER_POOL_ID`, `VITE_COGNITO_CLIENT_ID`, `VITE_COGNITO_REGION`) | Use real values from your Cognito user pool. Profile synchronization also requires server-only `SUPABASE_URL` and `SUPABASE_SECRET_KEY` (or the legacy `SUPABASE_SERVICE_ROLE_KEY`) in the Node auth server environment; locally, keep these values in `backend/.env`, never in a frontend env file. Never expose Supabase credentials to the browser. Restart Vite after changing env values. |
+| Cognito authentication | `frontend/.env` / `frontend/.env.local` (`VITE_COGNITO_USER_POOL_ID`, `VITE_COGNITO_CLIENT_ID`, `VITE_COGNITO_REGION`) | Use real values from your Cognito user pool. Backend profile synchronization and FastAPI Supabase REST calls read server-only `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (or `SUPABASE_SECRET_KEY`) exclusively from `backend/.env` (see `backend/.env.example`). Never place `SUPABASE_SERVICE_ROLE_KEY` in `frontend/.env*`, never prefix it with `VITE_`, and never expose it to the browser. Restart Vite/backend after changing env values. |
 | Contact email | `src/data/site.ts` → `SITE.contactEmail` | Empty = hidden on Contact page and in form fallback text. |
 | Form endpoint | env `VITE_FORM_ENDPOINT` (e.g. in `.env.local`) | Create `.env.local` with `VITE_FORM_ENDPOINT=https://…`; restart the dev server after changing env. |
 | Brand/stage text | `SITE` (`tagline`, `stage`, `updated`) | Footer chips and Company plate read from it. |

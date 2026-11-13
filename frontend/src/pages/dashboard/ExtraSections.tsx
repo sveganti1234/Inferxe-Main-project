@@ -46,6 +46,7 @@ import {
   deleteBackendNotebook,
   type BackendNotebook,
 } from '../../lib/notebookService'
+import { getAuthHeaders, hasJwtToken } from '../../lib/apiConfig'
 
 /* ───────────────────────────────────────────────────────────
    Extra customer-dashboard sections
@@ -544,18 +545,20 @@ export function NotebooksSection({
     if (addNotification) {
       addNotification(notifItem)
     }
-    try {
-      fetch('/api/gpu/alerts/trigger', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          instance_id: selectedNotebook?.id || sel?.id || 'dep-1042',
-          alert_type: 'resource_audit',
-          title: notifItem.title,
-          message: notifItem.detail,
-        }),
-      }).catch(() => {})
-    } catch {}
+    if (hasJwtToken()) {
+      try {
+        fetch('/api/gpu/alerts/trigger', {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            instance_id: selectedNotebook?.id || sel?.id || 'dep-1042',
+            alert_type: 'resource_audit',
+            title: notifItem.title,
+            message: notifItem.detail,
+          }),
+        }).catch(() => {})
+      } catch {}
+    }
     flash('AI Assistant Audit Complete: Telemetry analyzed and alert dispatched.')
   }
 
@@ -737,6 +740,8 @@ export function NotebooksSection({
                       background:
                         selectedNotebook.status === 'running'
                           ? '#10b981'
+                          : selectedNotebook.status === 'starting' || selectedNotebook.status === 'provisioning'
+                          ? '#38bdf8'
                           : selectedNotebook.status === 'stopped'
                           ? '#f59e0b'
                           : '#6b7280',
@@ -759,7 +764,7 @@ export function NotebooksSection({
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {(selectedNotebook.status === 'stopped' || selectedNotebook.status === 'failed' || selectedNotebook.status === 'provisioning') && (
+                  {(selectedNotebook.status === 'stopped' || selectedNotebook.status === 'failed' || selectedNotebook.status === 'provisioning' || selectedNotebook.status === 'starting') && (
                     <button
                       type="button"
                       className="mw-secondary"
@@ -771,7 +776,7 @@ export function NotebooksSection({
                     </button>
                   )}
 
-                  {(selectedNotebook.status === 'running' || selectedNotebook.status === 'provisioning') && (
+                  {(selectedNotebook.status === 'running' || selectedNotebook.status === 'provisioning' || selectedNotebook.status === 'starting') && (
                     <button
                       type="button"
                       className="mw-secondary"

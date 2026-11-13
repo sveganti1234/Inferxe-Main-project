@@ -6,6 +6,11 @@
  */
 
 import { getSession, decodeJwt } from './authStore'
+import {
+  INFERENCE_API_BASE,
+  formatApiConnectionError,
+  getAuthHeaders,
+} from './apiConfig'
 
 export interface BackendApiKey {
   id: string
@@ -27,10 +32,6 @@ export interface GeneratedApiKeyResponse {
   environment: string
   created_at: string
 }
-
-const INFERENCE_API_BASE =
-  (import.meta.env.VITE_INFERENCE_API_ENDPOINT as string | undefined)?.replace(/\/$/, '') ||
-  'http://127.0.0.1:8001'
 
 // Client-side request filter: only Cognito RS256 ID tokens may reach the inference API.
 // Admin HS256 JWTs (from loginAdminBackend) share the same session storage key but are
@@ -55,17 +56,6 @@ function assertCustomerToken(token: string | undefined): { ok: true } | { ok: fa
   }
   return { ok: true }
 }
-
-function getAuthHeaders(): HeadersInit {
-  const session = getSession()
-  const token = session?.token || ''
-  return {
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  }
-}
-
 /**
  * Fetch all API keys belonging to the authenticated Cognito user.
  */
@@ -103,7 +93,7 @@ export async function fetchBackendApiKeys(): Promise<{
   } catch (err) {
     return {
       ok: false,
-      error: 'Inference API server is unreachable at ' + INFERENCE_API_BASE + '. Please ensure backend is running.',
+      error: formatApiConnectionError('Inference API server', INFERENCE_API_BASE),
     }
   }
 }
@@ -153,7 +143,7 @@ export async function createBackendApiKey(
   } catch (err) {
     return {
       ok: false,
-      error: 'Inference API server is unreachable. Please ensure the backend is running.',
+      error: formatApiConnectionError('Inference API server', INFERENCE_API_BASE),
     }
   }
 }
@@ -194,7 +184,7 @@ export async function revokeBackendApiKey(keyId: string): Promise<{
   } catch (err) {
     return {
       ok: false,
-      error: 'Inference API server is unreachable. Please ensure the backend is running.',
+      error: formatApiConnectionError('Inference API server', INFERENCE_API_BASE),
     }
   }
 }
