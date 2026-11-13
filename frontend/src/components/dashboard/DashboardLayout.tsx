@@ -6,10 +6,7 @@ import {
   Activity as ActivityIcon,
   BarChart3,
   Bell,
-  Eye,
-  EyeOff,
   Moon,
-  NotebookPen,
   Plus,
   Search,
   Sun,
@@ -18,18 +15,15 @@ import {
   Cpu,
   CreditCard,
   ExternalLink,
-  FileText,
   Globe,
   HelpCircle,
-  KeyRound,
   LayoutDashboard,
   LogOut,
   Menu,
   Server,
   Settings,
   Sparkles,
-  Terminal,
-  TrendingUp,
+  TrendingUp, Target, ArrowUpDown, Send,
   User,
   Users,
   Wallet,
@@ -214,6 +208,7 @@ export function DashboardLayout({
 
   // Monthly budget tracking
   void monthlyBudget;
+  void liveDeploymentsCount;
 
   // Responsive mobile screen tracking
   const [isMobile, setIsMobile] = useState<boolean>(() => {
@@ -467,6 +462,9 @@ export function DashboardLayout({
     }
   })
 
+  void dashWalletBalance;
+  void hideBalance;
+
   useEffect(() => {
     const handleSync = () => {
       try {
@@ -514,55 +512,22 @@ export function DashboardLayout({
   // 1A. Customer Portal Main Navigation Groups (Matching Zesto hierarchy)
   const customerMainNavGroups: NavGroup[] = [
     {
-      title: 'MONEY',
+      title: '',
       items: [
-        { label: 'Home', to: '/dashboard/customer', icon: LayoutDashboard, matchExact: true },
-        { label: 'Insights', to: '/dashboard/analytics', icon: TrendingUp, matchExact: true },
-        { label: 'Activity', to: '/dashboard/orders', icon: FileText, matchExact: true },
-      ],
-    },
-    {
-      title: 'MOVE',
-      items: [
-        { label: 'Payments', to: '/dashboard/checkout', icon: CreditCard, badge: '4', badgeType: 'count', matchExact: true },
-        { label: 'Cards', to: '/dashboard/wallet', icon: Wallet, matchExact: true },
-      ],
-    },
-    {
-      title: 'PLAN',
-      items: [
-        { label: 'Plan', to: '/dashboard/gpus', icon: Cpu, matchExact: true },
-        { label: 'Family', to: '/dashboard/models', icon: Users, badge: '2', badgeType: 'count', matchExact: true },
-      ],
-    },
-    {
-      title: 'COMPUTE & TOOLS',
-      items: [
-        {
-          label: 'Deployments',
-          to: '/dashboard/deployments',
-          icon: Server,
-          badge: liveDeploymentsCount > 0 ? `${liveDeploymentsCount} live` : undefined,
-          badgeType: 'pill',
-          matchExact: true,
-        },
-        { label: 'Inference Playground', to: '/dashboard/playground', icon: Terminal, badge: 'Sandbox', badgeType: 'pill', matchExact: true },
-        { label: 'Notebooks & SSH', to: '/dashboard/notebooks', icon: NotebookPen, matchExact: true },
-        { label: 'API Keys', to: '/dashboard/api-keys', icon: KeyRound, matchExact: true },
+        { label: 'Overview', to: '/dashboard/customer?tab=overview', icon: LayoutDashboard },
+        { label: 'Cards', to: '/dashboard/wallet', icon: CreditCard },
+        { label: 'Payments', to: '/dashboard/checkout', icon: ArrowUpDown, badge: '1', badgeType: 'count' },
+        { label: 'Insights', to: '/dashboard/customer', icon: TrendingUp },
+        { label: 'Budgets', to: '/dashboard/customer?tab=budgets', icon: BarChart3, badge: '2', badgeType: 'count' },
+        { label: 'Goals', to: '/dashboard/customer?tab=goals', icon: Target },
+        { label: 'Household', to: '/dashboard/models', icon: Users },
+        { label: 'Settings', to: '/dashboard/settings', icon: Settings },
+        { label: 'Help', to: '/dashboard/faq', icon: HelpCircle },
       ],
     },
   ]
 
-  // 1B. Customer Portal Bottom Navigation Groups (Support & Settings)
-  const customerBottomNavGroups: NavGroup[] = [
-    {
-      title: 'SYSTEM',
-      items: [
-        { label: 'Settings', to: '/dashboard/settings', icon: Settings, matchExact: true },
-        { label: 'Help', to: '/dashboard/faq', icon: HelpCircle, matchExact: true },
-      ],
-    },
-  ]
+  const customerBottomNavGroups: NavGroup[] = []
 
   const customerNavGroups: NavGroup[] = [...customerMainNavGroups, ...customerBottomNavGroups]
 
@@ -588,6 +553,12 @@ export function DashboardLayout({
 
   const isItemActive = (item: NavItem) => {
     const path = location.pathname.replace(/\/+$/, '') || '/'
+    if (item.label === 'Overview') {
+      return path === '/dashboard/customer' && location.search.includes('tab=overview')
+    }
+    if (item.label === 'Insights') {
+      return path === '/dashboard/customer' && !location.search.includes('tab=overview')
+    }
     if (item.to === '/dashboard/users') {
       return path === '/dashboard/users' || path === '/dashboard/users/add'
     }
@@ -624,6 +595,50 @@ export function DashboardLayout({
   }
 
   const renderCustomerGroup = (group: NavGroup) => {
+    if (!group.title) {
+      return (
+        <div key="customer-main-nav" className="dash-nav-group" style={{ margin: 0, padding: 0 }}>
+          <nav className="dash-nav-list" aria-label="Customer Navigation">
+            {group.items.map((item) => {
+              const active = isItemActive(item)
+              return (
+                <Link
+                  key={item.label}
+                  to={item.to}
+                  className={`dash-nav-item ${active ? 'is-active' : ''}`}
+                  aria-current={active ? 'page' : undefined}
+                  onClick={() => {
+                    setHoveredFlyout(null)
+                    setMobileMenuOpen(false)
+                  }}
+                  onMouseEnter={(e) => {
+                    if (isSidebarCollapsed && !isMobile) {
+                      const rect = e.currentTarget.getBoundingClientRect()
+                      setHoveredFlyout({
+                        label: item.label,
+                        badge: item.badge,
+                        top: rect.top + rect.height / 2,
+                        left: rect.right + 12,
+                      })
+                    }
+                  }}
+                  onMouseLeave={() => setHoveredFlyout(null)}
+                >
+                  <item.icon />
+                  <span>{item.label}</span>
+                  {item.badge && (
+                    <span className={`dash-nav-badge ${item.badgeType === 'count' ? 'dash-nav-badge--count' : ''}`}>
+                      {item.badge}
+                    </span>
+                  )}
+                </Link>
+              )
+            })}
+          </nav>
+        </div>
+      )
+    }
+
     const isExpanded = Boolean(expandedCustomerGroups[group.title])
     const showItems = (isSidebarCollapsed && !isMobile) || isExpanded
 
@@ -711,17 +726,33 @@ export function DashboardLayout({
 
 
   return (
-    <div className="dash-shell" data-theme={dashTheme}>
+    <div className="dash-shell" data-theme={dashTheme} data-role={portalRole}>
       <Ambient />
       {/* ── Top Navigation Bar ──────────────────────────────── */}
       <header className="dash-topbar">
         <div className="dash-topbar__left">
-          <Link to={portalHomeRoute} className="row" style={{ gap: 10, alignItems: 'center' }}>
-            <LogoMark size={28} theme={dashTheme} />
-            <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.05rem', color: 'var(--ink)' }}>
-              Infer<span style={{ color: 'var(--brand-hi)' }}>xe</span>
-            </span>
-          </Link>
+          {portalRole === 'customer' ? (
+            <Link to="/dashboard/customer" className="row" style={{ gap: 10, alignItems: 'center', textDecoration: 'none' }}>
+              <div className="verdelo-brand-logo" style={{ width: 28, height: 28, fontSize: '0.95rem' }}>
+                <span>V</span>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column' }}>
+                <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.96rem', color: '#f0faf4', lineHeight: 1.15 }}>
+                  Verdelo
+                </span>
+                <span style={{ fontSize: '0.66rem', color: '#7a9a85', lineHeight: 1.15 }}>
+                  Okafor-Lindqvist home
+                </span>
+              </div>
+            </Link>
+          ) : (
+            <Link to={portalHomeRoute} className="row" style={{ gap: 10, alignItems: 'center' }}>
+              <LogoMark size={28} theme={dashTheme} />
+              <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.05rem', color: 'var(--ink)' }}>
+                Infer<span style={{ color: 'var(--brand-hi)' }}>xe</span>
+              </span>
+            </Link>
+          )}
 
           <span className="dash-topbar__divider" aria-hidden />
 
@@ -736,16 +767,16 @@ export function DashboardLayout({
               borderRadius: 4,
               background: portalRole === 'admin'
                 ? (dashTheme === 'light' ? 'rgba(118, 185, 0, 0.12)' : 'rgba(118, 185, 0, 0.15)')
-                : (dashTheme === 'light' ? 'rgba(14, 116, 144, 0.12)' : 'rgba(6, 182, 212, 0.15)'),
+                : 'rgba(80, 227, 150, 0.12)',
               color: portalRole === 'admin'
                 ? (dashTheme === 'light' ? '#65a300' : '#a3e635')
-                : (dashTheme === 'light' ? '#0e7490' : '#06b6d4'),
+                : '#50e396',
               border: `1px solid ${portalRole === 'admin'
                 ? (dashTheme === 'light' ? 'rgba(118, 185, 0, 0.35)' : 'rgba(118, 185, 0, 0.3)')
-                : (dashTheme === 'light' ? 'rgba(14, 116, 144, 0.35)' : 'rgba(6, 182, 212, 0.3)')
+                : 'rgba(80, 227, 150, 0.28)'
                 }`,
               marginLeft: 4,
-              fontWeight: dashTheme === 'light' ? 700 : 500,
+              fontWeight: 600,
             }}
           >
             {portalRole === 'admin' ? 'Admin Portal' : 'Customer Portal'}
@@ -753,16 +784,29 @@ export function DashboardLayout({
 
         </div>
 
-        {/* Center: Cluster status & Free Trial Countdown Telemetry */}
+        {/* Center: Verdelo Search Capsule for customer / Admin telemetry */}
         <div className="dash-topbar__center">
-
-          {/* 1-Hour Free Trial Countdown Widget (Only for Customer Portal) */}
-          {portalRole === 'customer' && (
+          {portalRole === 'customer' ? (
+            <div
+              className="verdelo-search-pill"
+              onClick={() => {
+                const searchModalTrigger = document.querySelector('.dash-search-btn') as HTMLButtonElement | null
+                if (searchModalTrigger) searchModalTrigger.click()
+              }}
+              role="button"
+              tabIndex={0}
+              aria-label="Search payments, people, pages"
+            >
+              <Search size={15} className="verdelo-search-icon" />
+              <span className="verdelo-search-text">Search payments, people, pages</span>
+              <kbd className="verdelo-search-kbd">⌘K</kbd>
+            </div>
+          ) : (
             trialTimeLeft !== null ? (
               trialTimeLeft > 0 ? (
                 <div
                   className={`mw-trial-chip ${trialTimeLeft < 600000 ? 'mw-trial-chip--warning' : ''}`}
-                  onClick={() => navigate('/dashboard/customer')}
+                  onClick={() => navigate('/dashboard')}
                   title="1-Hour Free Trial active (Demo)"
                 >
                   <span className="dash-pulse-dot" style={{ background: trialTimeLeft < 600000 ? '#f59e0b' : '#76b900' }} />
@@ -794,30 +838,27 @@ export function DashboardLayout({
 
         {/* Right: Notifications & Admin Profile Section */}
         <div className="dash-topbar__right">
-          {/* Customer Portal Topbar Balance Pill & Eye Toggle (Photos 1, 2, 4, 7) */}
+          {/* Customer Portal: 2 Circular Action Buttons (+ and Send) */}
           {portalRole === 'customer' && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div className="zesto-topbar-balance" title="Household Balance">
-                <span className="zesto-pulse-dot" />
-                <span>
-                  {hideBalance ? '••••••••' : `Household €${dashWalletBalance >= 1000 ? Math.round(dashWalletBalance / 1000) + 'k' : dashWalletBalance.toLocaleString('en-US')}`}
-                </span>
-              </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <button
                 type="button"
-                className="zesto-topbar-eye-btn"
-                onClick={() => {
-                  setHideBalance((prev) => {
-                    const next = !prev
-                    try { localStorage.setItem('inferxe_hide_balance', String(next)) } catch {}
-                    window.dispatchEvent(new Event('inferxe_balance_visibility'))
-                    return next
-                  })
-                }}
-                title={hideBalance ? "Show balance" : "Hide balance"}
-                aria-label="Toggle balance visibility"
+                className="verdelo-btn-circle verdelo-btn-circle--mint"
+                onClick={() => window.dispatchEvent(new Event('inferxe_open_topup'))}
+                title="Add / Move money"
+                aria-label="Add or move money"
               >
-                {hideBalance ? <EyeOff size={15} /> : <Eye size={15} />}
+                <Plus size={16} strokeWidth={2.6} />
+              </button>
+
+              <button
+                type="button"
+                className="verdelo-btn-circle verdelo-btn-circle--glass"
+                onClick={() => window.dispatchEvent(new Event('inferxe_open_send'))}
+                title="Send money"
+                aria-label="Send money"
+              >
+                <Send size={14} />
               </button>
             </div>
           )}
@@ -1009,42 +1050,45 @@ export function DashboardLayout({
             )}
           </div>
 
-          {/* Primary Action Button (Move money pill) */}
-          {portalRole === 'customer' && (
-            <button
-              type="button"
-              className="zesto-btn-lime-pill"
-              onClick={() => {
-                window.dispatchEvent(new Event('inferxe_open_topup'))
-              }}
-              style={{ border: 'none', cursor: 'pointer' }}
-            >
-              <Plus size={14} /> Move money
-            </button>
-          )}
+
 
           {/* User Profile & Demo Role Switcher */}
           <div ref={profileMenuRef} style={{ position: 'relative' }}>
-            <div
-              className="dash-admin-profile"
-              onClick={() => {
-                setAdminMenuOpen(!adminMenuOpen)
-                setNotifOpen(false)
-              }}
-              role="button"
-              tabIndex={0}
-              aria-label="User Profile Menu"
-            >
-              <div className="dash-admin-avatar">
-                {initials}
-                <span className="dash-admin-avatar__online" />
+            {portalRole === 'customer' ? (
+              <div
+                className="verdelo-avatar-circle"
+                onClick={() => {
+                  setAdminMenuOpen(!adminMenuOpen)
+                  setNotifOpen(false)
+                }}
+                role="button"
+                tabIndex={0}
+                title="Ines Okafor"
+              >
+                IO
               </div>
-              <div className="dash-admin-info">
-                <span className="dash-admin-name">{user.fullName}</span>
-                <span className="dash-admin-role">{roleLabel}</span>
+            ) : (
+              <div
+                className="dash-admin-profile"
+                onClick={() => {
+                  setAdminMenuOpen(!adminMenuOpen)
+                  setNotifOpen(false)
+                }}
+                role="button"
+                tabIndex={0}
+                aria-label="User Profile Menu"
+              >
+                <div className="dash-admin-avatar">
+                  {initials}
+                  <span className="dash-admin-avatar__online" />
+                </div>
+                <div className="dash-admin-info">
+                  <span className="dash-admin-name">{user.fullName}</span>
+                  <span className="dash-admin-role">{roleLabel}</span>
+                </div>
+                <ChevronDown size={14} style={{ color: 'var(--ink-3)' }} />
               </div>
-              <ChevronDown size={14} style={{ color: 'var(--ink-3)' }} />
-            </div>
+            )}
 
             {adminMenuOpen && (
               <div
@@ -1130,138 +1174,48 @@ export function DashboardLayout({
           }`}
           aria-label="Dashboard Sidebar"
         >
-          {/* Top header row with workspace indicator & collapse toggle */}
-          <div className="dash-sidebar__top">
-            {!isSidebarCollapsed && (
-              <span className="dash-sidebar__workspace-tag">
-                {portalRole === 'admin' ? 'Admin Control' : 'Customer Portal'}
-              </span>
-            )}
-            <button
-              type="button"
-              className="dash-sidebar__toggle-btn"
-              onClick={toggleSidebarCollapse}
-              title={isSidebarCollapsed ? "Expand sidebar (Ctrl+B)" : "Collapse sidebar (Ctrl+B)"}
-              aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-            >
-              <ChevronLeft
-                size={14}
-                style={{
-                  transition: 'transform 0.28s cubic-bezier(0.25, 1, 0.5, 1)',
-                  transform: isSidebarCollapsed ? 'rotate(180deg)' : 'rotate(0deg)',
-                }}
-              />
-            </button>
-          </div>
-
-          {/* Account Switcher Pill (Matching Zesto Adeyemi-Novak Family) */}
-          {portalRole === 'customer' && !isSidebarCollapsed && (
-            <div style={{ padding: '2px 12px 10px' }}>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: 10,
-                  padding: '8px 12px',
-                  background: 'rgba(255, 255, 255, 0.04)',
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
-                  borderRadius: 14,
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.07)'
-                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.14)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)'
-                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)'
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-                  <div style={{ display: 'flex', marginLeft: 4 }}>
-                    {['#f59e0b', '#10b981', '#3b82f6', '#ec4899', '#8b5cf6'].map((col, idx) => (
-                      <span
-                        key={idx}
-                        style={{
-                          width: 18,
-                          height: 18,
-                          borderRadius: '50%',
-                          background: col,
-                          marginLeft: idx === 0 ? 0 : -6,
-                          border: '1.5px solid #131615',
-                          fontSize: '0.55rem',
-                          fontWeight: 800,
-                          color: '#fff',
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        {['A', 'T', 'I', 'K', 'N'][idx]}
-                      </span>
-                    ))}
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                    <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      Adeyemi-Nov...
-                    </span>
-                    <span style={{ fontSize: '0.66rem', color: '#8c9692' }}>
-                      4 people · 5 cards
-                    </span>
-                  </div>
-                </div>
-                <ChevronDown size={14} style={{ color: '#8c9692', flexShrink: 0 }} />
+          {/* Top header row: Verdelo brand for customer / Admin tag */}
+          {portalRole === 'customer' && !isSidebarCollapsed ? (
+            <div className="verdelo-sidebar-brand">
+              <div className="verdelo-brand-logo">
+                <span>V</span>
               </div>
+              <div className="verdelo-brand-text">
+                <span className="verdelo-brand-name">Verdelo</span>
+                <span className="verdelo-brand-sub">Okafor-Lindqvist home</span>
+              </div>
+              <button
+                type="button"
+                className="verdelo-sidebar-toggle"
+                onClick={toggleSidebarCollapse}
+                title="Collapse sidebar (Ctrl+B)"
+                aria-label="Collapse sidebar"
+              >
+                <ChevronLeft size={14} />
+              </button>
             </div>
-          )}
-
-          {/* Quick Search Shortcut Pill (matching Zesto sidebar search) */}
-          {portalRole === 'customer' && !isSidebarCollapsed && (
-            <div style={{ padding: '4px 12px 10px' }}>
-              <div
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: '7px 11px',
-                  background: 'rgba(255, 255, 255, 0.04)',
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
-                  borderRadius: 10,
-                  color: '#9ca3af',
-                  fontSize: '0.8rem',
-                  cursor: 'pointer',
-                  transition: 'background 0.2s ease, border-color 0.2s ease',
-                }}
-                onClick={() => {
-                  const searchModalTrigger = document.querySelector('.dash-search-btn') as HTMLButtonElement | null
-                  if (searchModalTrigger) searchModalTrigger.click()
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.07)'
-                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.14)'
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)'
-                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)'
-                }}
-                role="button"
-                tabIndex={0}
-                aria-label="Quick Search"
+          ) : (
+            <div className="dash-sidebar__top">
+              {!isSidebarCollapsed && (
+                <span className="dash-sidebar__workspace-tag">
+                  {portalRole === 'admin' ? 'Admin Control' : 'Customer Portal'}
+                </span>
+              )}
+              <button
+                type="button"
+                className="dash-sidebar__toggle-btn"
+                onClick={toggleSidebarCollapse}
+                title={isSidebarCollapsed ? "Expand sidebar (Ctrl+B)" : "Collapse sidebar (Ctrl+B)"}
+                aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
               >
-                <Search size={14} />
-                <span style={{ flex: 1 }}>Search...</span>
-                <kbd style={{
-                  fontSize: '0.68rem',
-                  padding: '1px 5px',
-                  background: 'rgba(255, 255, 255, 0.08)',
-                  borderRadius: 4,
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  color: '#d1d5db',
-                  fontFamily: 'inherit'
-                }}>⌘K</kbd>
-              </div>
+                <ChevronLeft
+                  size={14}
+                  style={{
+                    transition: 'transform 0.28s cubic-bezier(0.25, 1, 0.5, 1)',
+                    transform: isSidebarCollapsed ? 'rotate(180deg)' : 'rotate(0deg)',
+                  }}
+                />
+              </button>
             </div>
           )}
 
@@ -1414,68 +1368,31 @@ export function DashboardLayout({
           {/* Quota & Organization Footer */}
           <div className="dash-sidebar__footer">
             {portalRole === 'customer' ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {/* Safe to spend floating pill (Exact Zesto replica) */}
-                <div
-                  style={{
-                    background: '#131615',
-                    border: '1px solid rgba(255, 255, 255, 0.08)',
-                    borderRadius: 14,
-                    padding: '10px 12px',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 6,
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.72rem' }}>
-                    <span style={{ color: '#8c9692' }}>Safe to spend</span>
-                    <span style={{ color: '#ffffff', fontWeight: 700 }}>€220/day</span>
+              !isSidebarCollapsed && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {/* Safe to spend floating card (Exact Verdelo replica) */}
+                  <div className="verdelo-safe-spend-card">
+                    <div className="verdelo-safe-spend-label">Safe to spend today</div>
+                    <div className="verdelo-safe-spend-amount">$67</div>
+                    <div className="verdelo-safe-spend-sub">$269 of bills still due · 19 days left</div>
                   </div>
-                  <div style={{ height: 4, background: 'rgba(255, 255, 255, 0.08)', borderRadius: 999, overflow: 'hidden' }}>
-                    <div style={{ width: '68%', height: '100%', background: '#22c55e', borderRadius: 999 }} />
-                  </div>
-                  <span style={{ fontSize: '0.64rem', color: '#6d7773' }}>6 days to payday</span>
-                </div>
 
-                {/* Account Owner Card (Exact Zesto replica) */}
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '4px 2px',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
-                    <span
-                      style={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: '50%',
-                        background: '#eab308',
-                        color: '#0b0d0c',
-                        fontWeight: 800,
-                        fontSize: '0.75rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        flexShrink: 0,
-                      }}
-                    >
-                      AA
-                    </span>
-                    <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                      <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#ffffff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        Amara Adeyemi
-                      </span>
-                      <span style={{ fontSize: '0.66rem', color: '#8c9692' }}>
-                        Owner · Adeyemi-Novak
-                      </span>
+                  {/* Account Owner Card (Exact Ines Okafor replica) */}
+                  <div
+                    className="verdelo-user-pill"
+                    onClick={() => setAdminMenuOpen(!adminMenuOpen)}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <div className="verdelo-user-avatar">IO</div>
+                    <div className="verdelo-user-info">
+                      <span className="verdelo-user-name">Ines Okafor</span>
+                      <span className="verdelo-user-email">ines@okafor-lindqvist.fa...</span>
                     </div>
+                    <span className="verdelo-user-dots">•••</span>
                   </div>
-                  <span style={{ color: '#8c9692', fontSize: '0.9rem', cursor: 'pointer', padding: '2px 4px' }} title="Switch Profile">⇅</span>
                 </div>
-              </div>
+              )
             ) : (
               <div className="dash-quota-card plate plate--dark" title="Cluster Fleet: 4 Nodes · 14 Users (64% capacity)">
                 <div className="dash-quota-card__header">

@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useLocation, Link, useNavigate } from 'react-router-dom'
 import {
-  Activity, Archive, ArrowDown, ArrowDownToLine, ArrowUp, ArrowUpDown, ArrowUpRight, Bell, Check, ChevronDown, ChevronRight,
+  Activity, Archive, ArrowDown, ArrowDownLeft, ArrowDownToLine, ArrowUp, ArrowUpDown, ArrowUpRight, Bell, Check, ChevronDown, ChevronRight,
   CircleDollarSign, Copy, Cpu, CreditCard, Download, Eye, EyeOff, FileText,
   Heart, Home, Info, KeyRound, LayoutGrid, List, Lock, MapPin, PiggyBank, Play, Plus,
-  RotateCw, Search, Send, Server, Settings2, Share2, ShieldCheck, Sparkles, Terminal,
+  RotateCw, Search, Send, Server, Settings2, Share2, ShieldCheck, Sparkles, Star, Terminal,
   Trash2, TrendingUp, Unlock, User, Users, Wallet, Wrench, X, Zap,
 } from 'lucide-react'
 import { DashboardLayout } from '../../components/dashboard/DashboardLayout'
@@ -439,6 +439,12 @@ export default function MarketplaceWorkspace() {
   const [saveAmount, setSaveAmount] = useState<string>('100')
   const [savingsTotal, setSavingsTotal] = useState<number>(15000)
 
+  // Verdelo Insights UI State (1:1 Match with Reference Screenshot @_code_and_chill_)
+  const [verdeloSubtab, setVerdeloSubtab] = useState<'in_out' | 'spending' | 'merchants'>('in_out')
+  const [verdeloMoneyFilter, setVerdeloMoneyFilter] = useState<'quarter' | '6months' | 'year'>('year')
+  const [verdeloBalanceFilter, setVerdeloBalanceFilter] = useState<'30days' | '90days' | 'year'>('90days')
+  const [verdeloHoveredBar, setVerdeloHoveredBar] = useState<number | null>(11)
+
   useEffect(() => {
     const handleSyncHide = () => {
       try {
@@ -450,6 +456,10 @@ export default function MarketplaceWorkspace() {
     }
     window.addEventListener('inferxe_balance_visibility', handleSyncHide)
     window.addEventListener('inferxe_open_topup', handleOpenTopUp)
+    const handleOpenSend = () => {
+      setShowSendModal(true)
+    }
+    window.addEventListener('inferxe_open_send', handleOpenSend)
     window.addEventListener('storage', handleSyncHide)
     return () => {
       window.removeEventListener('inferxe_balance_visibility', handleSyncHide)
@@ -1595,6 +1605,417 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
             1:1 Pixel-Perfect Replica of Zesto Dark Fintech UI (Photo 8)
             ─────────────────────────────────────────────────────────── */}
         {route === 'customer' && (() => {
+          const currentTab = new URLSearchParams(location.search).get('tab')
+          const isOverviewTab = currentTab === 'overview'
+
+          // 12 Monthly dual bars for Verdelo 'Money in & out' chart (Dec..Nov)
+          const verdeloTwelveMonthBars = [
+            { month: 'Dec', inPct: 75, outPct: 52, inVal: '10,240', outVal: '6,800' },
+            { month: 'Jan', inPct: 68, outPct: 48, inVal: '9,400', outVal: '6,200' },
+            { month: 'Feb', inPct: 72, outPct: 55, inVal: '9,800', outVal: '7,100' },
+            { month: 'Mar', inPct: 80, outPct: 60, inVal: '11,100', outVal: '7,800' },
+            { month: 'Apr', inPct: 65, outPct: 45, inVal: '8,900', outVal: '5,900' },
+            { month: 'May', inPct: 88, outPct: 64, inVal: '12,050', outVal: '8,300' },
+            { month: 'Jun', inPct: 78, outPct: 58, inVal: '10,700', outVal: '7,500' },
+            { month: 'Jul', inPct: 70, outPct: 50, inVal: '9,600', outVal: '6,500' },
+            { month: 'Aug', inPct: 62, outPct: 42, inVal: '8,500', outVal: '5,400' },
+            { month: 'Sep', inPct: 85, outPct: 62, inVal: '11,600', outVal: '8,100' },
+            { month: 'Oct', inPct: 92, outPct: 68, inVal: '12,600', outVal: '8,900' },
+            { month: 'Nov', inPct: 45, outPct: 60, inVal: '2,940', outVal: '4,951' },
+          ]
+
+          // ── If NOT Overview tab (default /dashboard/customer): Render Verdelo Insights Replica ──
+          if (!isOverviewTab) {
+            return (
+              <div className="verdelo-insights-container">
+                {/* Header & Subtitle */}
+                <div className="verdelo-insights-header">
+                  <h1 className="verdelo-insights-title">Insights</h1>
+                  <p className="verdelo-insights-sub">
+                    What the household earns, keeps and spends — and where it goes
+                  </p>
+                </div>
+
+                {/* Subtabs */}
+                <div className="verdelo-subtabs">
+                  <button
+                    type="button"
+                    className={`verdelo-subtab ${verdeloSubtab === 'in_out' ? 'is-active' : ''}`}
+                    onClick={() => setVerdeloSubtab('in_out')}
+                  >
+                    In & out
+                  </button>
+                  <button
+                    type="button"
+                    className={`verdelo-subtab ${verdeloSubtab === 'spending' ? 'is-active' : ''}`}
+                    onClick={() => setVerdeloSubtab('spending')}
+                  >
+                    Spending
+                  </button>
+                  <button
+                    type="button"
+                    className={`verdelo-subtab ${verdeloSubtab === 'merchants' ? 'is-active' : ''}`}
+                    onClick={() => setVerdeloSubtab('merchants')}
+                  >
+                    Merchants
+                  </button>
+                </div>
+
+                {/* 4 Glass Stat Cards Grid */}
+                <div className="verdelo-four-stat-cards">
+                  {/* 1. Average in a month */}
+                  <div className="verdelo-stat-card">
+                    <div className="verdelo-stat-head">
+                      <ArrowDownLeft size={16} className="verdelo-stat-head-icon verdelo-stat-head-icon--mint" />
+                      <span className="verdelo-stat-title">Average in a month</span>
+                    </div>
+                    <div className="verdelo-stat-value">$10,590</div>
+                    <div className="verdelo-stat-foot">
+                      <span className="verdelo-stat-sub">Two salaries and drawings</span>
+                      <svg className="verdelo-sparkline" width="60" height="20" viewBox="0 0 60 20">
+                        <path
+                          d="M 2 16 Q 16 18, 26 10 T 45 12 T 58 4"
+                          fill="none"
+                          stroke="#50e396"
+                          strokeWidth="2.2"
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                    </div>
+                  </div>
+
+                  {/* 2. Average out a month */}
+                  <div className="verdelo-stat-card">
+                    <div className="verdelo-stat-head">
+                      <ArrowUpRight size={16} className="verdelo-stat-head-icon verdelo-stat-head-icon--teal" />
+                      <span className="verdelo-stat-title">Average out a month</span>
+                    </div>
+                    <div className="verdelo-stat-value">$7,431</div>
+                    <div className="verdelo-stat-foot">
+                      <span className="verdelo-stat-sub">Bills, cards and transfers</span>
+                      <svg className="verdelo-sparkline" width="60" height="20" viewBox="0 0 60 20">
+                        <path
+                          d="M 2 8 Q 16 4, 30 14 T 48 8 T 58 16"
+                          fill="none"
+                          stroke="#2dd4bf"
+                          strokeWidth="2.2"
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                    </div>
+                  </div>
+
+                  {/* 3. Kept each month */}
+                  <div className="verdelo-stat-card">
+                    <div className="verdelo-stat-head">
+                      <Wallet size={16} className="verdelo-stat-head-icon verdelo-stat-head-icon--mint" />
+                      <span className="verdelo-stat-title">Kept each month</span>
+                    </div>
+                    <div className="verdelo-stat-value">29%</div>
+                    <div className="verdelo-stat-foot">
+                      <span className="verdelo-stat-sub">$3,258 on average</span>
+                    </div>
+                  </div>
+
+                  {/* 4. Best month */}
+                  <div className="verdelo-stat-card">
+                    <div className="verdelo-stat-head">
+                      <Star size={16} className="verdelo-stat-head-icon verdelo-stat-head-icon--gold" />
+                      <span className="verdelo-stat-title">Best month</span>
+                    </div>
+                    <div className="verdelo-stat-value">Dec</div>
+                    <div className="verdelo-stat-foot">
+                      <span className="verdelo-stat-sub">$6,534 kept</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Two Large Charts Grid */}
+                <div className="verdelo-two-charts-grid">
+                  {/* Left Chart: Money in & out */}
+                  <div className="verdelo-chart-card">
+                    <div className="verdelo-chart-header">
+                      <div>
+                        <h3 className="verdelo-chart-title">Money in & out</h3>
+                        <p className="verdelo-chart-sub">The last twelve months</p>
+                      </div>
+                      <div className="verdelo-time-pills">
+                        <button
+                          type="button"
+                          className={`verdelo-time-pill ${verdeloMoneyFilter === 'quarter' ? 'is-active' : ''}`}
+                          onClick={() => setVerdeloMoneyFilter('quarter')}
+                        >
+                          Quarter
+                        </button>
+                        <button
+                          type="button"
+                          className={`verdelo-time-pill ${verdeloMoneyFilter === '6months' ? 'is-active' : ''}`}
+                          onClick={() => setVerdeloMoneyFilter('6months')}
+                        >
+                          6 months
+                        </button>
+                        <button
+                          type="button"
+                          className={`verdelo-time-pill ${verdeloMoneyFilter === 'year' ? 'is-active' : ''}`}
+                          onClick={() => setVerdeloMoneyFilter('year')}
+                        >
+                          Year
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Legend */}
+                    <div className="verdelo-chart-legend">
+                      <span className="verdelo-legend-item">
+                        <span className="verdelo-legend-dot verdelo-legend-dot--in" />
+                        <span>In $119,343</span>
+                      </span>
+                      <span className="verdelo-legend-item">
+                        <span className="verdelo-legend-dot verdelo-legend-dot--out" />
+                        <span>Out $86,540</span>
+                      </span>
+                      <span className="verdelo-legend-text">
+                        Kept $32,803
+                      </span>
+                    </div>
+
+                    {/* Dual Bars Visualization */}
+                    <div className="verdelo-bars-container">
+                      <div className="verdelo-y-axis">
+                        <span>$20k</span>
+                        <span>$15k</span>
+                        <span>$10k</span>
+                        <span>$5.0k</span>
+                        <span>$0</span>
+                      </div>
+
+                      <div className="verdelo-bars-content">
+                        {/* Faint horizontal guide lines */}
+                        <div className="verdelo-grid-lines">
+                          <div className="verdelo-grid-line" style={{ top: '0%' }} />
+                          <div className="verdelo-grid-line" style={{ top: '25%' }} />
+                          <div className="verdelo-grid-line" style={{ top: '50%' }} />
+                          <div className="verdelo-grid-line" style={{ top: '75%' }} />
+                          <div className="verdelo-grid-line" style={{ top: '100%' }} />
+                        </div>
+
+                        <div className="verdelo-bars-track">
+                          {verdeloTwelveMonthBars.map((m, idx) => {
+                            const isNov = idx === 11 || m.month === 'Nov'
+                            const isHovered = verdeloHoveredBar === idx
+                            const showTooltip = isHovered || (verdeloHoveredBar === null && isNov)
+
+                            return (
+                              <div
+                                key={m.month}
+                                className="verdelo-month-col"
+                                onMouseEnter={() => setVerdeloHoveredBar(idx)}
+                                onMouseLeave={() => setVerdeloHoveredBar(null)}
+                              >
+                                {showTooltip && (
+                                  <div className="verdelo-bar-tooltip">
+                                    <div className="verdelo-bar-tooltip-val">${m.inVal}</div>
+                                    <div className="verdelo-bar-tooltip-sub">out ${m.outVal}</div>
+                                    <div className="verdelo-bar-tooltip-stem" />
+                                  </div>
+                                )}
+                                <div className="verdelo-bar-pair">
+                                  <div
+                                    className="verdelo-bar verdelo-bar--in"
+                                    style={{ height: `${m.inPct}%` }}
+                                    title={`${m.month} In: ${m.inVal}`}
+                                  />
+                                  <div
+                                    className="verdelo-bar verdelo-bar--out"
+                                    style={{ height: `${m.outPct}%` }}
+                                    title={`${m.month} Out: ${m.outVal}`}
+                                  />
+                                </div>
+                                <span className="verdelo-month-label">{m.month}</span>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Chart: Balance over time */}
+                  <div className="verdelo-chart-card">
+                    <div className="verdelo-chart-header">
+                      <div>
+                        <h3 className="verdelo-chart-title">Balance over time</h3>
+                        <p className="verdelo-chart-sub">The joint account at the end of each day</p>
+                      </div>
+                      <div className="verdelo-time-pills">
+                        <button
+                          type="button"
+                          className={`verdelo-time-pill ${verdeloBalanceFilter === '30days' ? 'is-active' : ''}`}
+                          onClick={() => setVerdeloBalanceFilter('30days')}
+                        >
+                          30 days
+                        </button>
+                        <button
+                          type="button"
+                          className={`verdelo-time-pill ${verdeloBalanceFilter === '90days' ? 'is-active' : ''}`}
+                          onClick={() => setVerdeloBalanceFilter('90days')}
+                        >
+                          90 days
+                        </button>
+                        <button
+                          type="button"
+                          className={`verdelo-time-pill ${verdeloBalanceFilter === 'year' ? 'is-active' : ''}`}
+                          onClick={() => setVerdeloBalanceFilter('year')}
+                        >
+                          Year
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Spline Area Chart */}
+                    <div className="verdelo-spline-container">
+                      <div className="verdelo-y-axis">
+                        <span>$40,000</span>
+                        <span>$35,000</span>
+                        <span>$30,000</span>
+                        <span>$25,000</span>
+                        <span>$20,000</span>
+                      </div>
+
+                      <div className="verdelo-spline-content">
+                        {/* Faint horizontal guide lines */}
+                        <div className="verdelo-grid-lines">
+                          <div className="verdelo-grid-line" style={{ top: '0%' }} />
+                          <div className="verdelo-grid-line" style={{ top: '25%' }} />
+                          <div className="verdelo-grid-line" style={{ top: '50%' }} />
+                          <div className="verdelo-grid-line" style={{ top: '75%' }} />
+                          <div className="verdelo-grid-line" style={{ top: '100%' }} />
+                        </div>
+
+                        <svg className="verdelo-spline-svg" viewBox="0 0 500 200" preserveAspectRatio="none">
+                          <defs>
+                            <linearGradient id="verdeloBalanceGrad" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#50e396" stopOpacity="0.32" />
+                              <stop offset="65%" stopColor="#50e396" stopOpacity="0.08" />
+                              <stop offset="100%" stopColor="#50e396" stopOpacity="0" />
+                            </linearGradient>
+                          </defs>
+                          <path
+                            d="M 0,160 L 25,162 L 50,150 L 75,155 L 90,135 L 105,145 L 125,120 L 140,155 L 160,150 L 175,130 L 195,140 L 210,128 L 225,132 L 245,85 L 260,145 L 280,135 L 295,142 L 315,115 L 330,122 L 350,145 L 365,135 L 385,60 L 400,120 L 420,132 L 440,118 L 460,70 L 475,55 L 500,140 L 500,200 L 0,200 Z"
+                            fill="url(#verdeloBalanceGrad)"
+                          />
+                          <path
+                            d="M 0,160 L 25,162 L 50,150 L 75,155 L 90,135 L 105,145 L 125,120 L 140,155 L 160,150 L 175,130 L 195,140 L 210,128 L 225,132 L 245,85 L 260,145 L 280,135 L 295,142 L 315,115 L 330,122 L 350,145 L 365,135 L 385,60 L 400,120 L 420,132 L 440,118 L 460,70 L 475,55 L 500,140"
+                            fill="none"
+                            stroke="#50e396"
+                            strokeWidth="2.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                          {/* Glowing peak dot on Oct spike */}
+                          <circle cx="385" cy="60" r="4.5" fill="#50e396" />
+                          <circle cx="385" cy="60" r="8" fill="none" stroke="#50e396" strokeWidth="1.5" opacity="0.6" />
+                        </svg>
+
+                        {/* Bottom X-axis date labels */}
+                        <div className="verdelo-x-axis">
+                          <span>Aug 14</span>
+                          <span>Aug 30</span>
+                          <span>Sep 15</span>
+                          <span>Oct 1</span>
+                          <span>Oct 17</span>
+                          <span>Nov 12</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Send Money Modal */}
+                {showSendModal && (
+                  <div className="mw-modal-backdrop" onClick={() => setShowSendModal(false)}>
+                    <div className="mw-modal-window" style={{ maxWidth: 440 }} onClick={(e) => e.stopPropagation()}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                        <h3 style={{ margin: 0, fontSize: '1.15rem', color: '#fff', fontWeight: 700 }}>Send Money</h3>
+                        <button
+                          type="button"
+                          onClick={() => setShowSendModal(false)}
+                          style={{ background: 'none', border: 'none', color: '#8c9692', cursor: 'pointer' }}
+                        >
+                          <X size={18} />
+                        </button>
+                      </div>
+                      <form onSubmit={handleSendMoney}>
+                        <div style={{ marginBottom: 14 }}>
+                          <label style={{ display: 'block', fontSize: '0.78rem', color: '#8c9692', marginBottom: 6 }}>
+                            Recipient
+                          </label>
+                          <select
+                            value={sendRecipient}
+                            onChange={(e) => setSendRecipient(e.target.value)}
+                            style={{
+                              width: '100%',
+                              padding: '10px 12px',
+                              borderRadius: 10,
+                              background: '#1a1f1d',
+                              border: '1px solid rgba(255,255,255,0.12)',
+                              color: '#fff',
+                              fontSize: '0.86rem',
+                            }}
+                          >
+                            <option value="Tomasz Adeyemi">Tomasz Adeyemi</option>
+                            <option value="Ines Okafor">Ines Okafor</option>
+                            <option value="Kai Adeyemi">Kai Adeyemi</option>
+                            <option value="External Account">External IBAN Account</option>
+                          </select>
+                        </div>
+                        <div style={{ marginBottom: 18 }}>
+                          <label style={{ display: 'block', fontSize: '0.78rem', color: '#8c9692', marginBottom: 6 }}>
+                            Amount ($)
+                          </label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            min="1"
+                            value={sendAmount}
+                            onChange={(e) => setSendAmount(e.target.value)}
+                            style={{
+                              width: '100%',
+                              padding: '10px 12px',
+                              borderRadius: 10,
+                              background: '#1a1f1d',
+                              border: '1px solid rgba(255,255,255,0.12)',
+                              color: '#fff',
+                              fontSize: '0.86rem',
+                            }}
+                            placeholder="e.g. 50.00"
+                          />
+                        </div>
+                        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                          <button
+                            type="button"
+                            className="mw-btn mw-btn-ghost"
+                            onClick={() => setShowSendModal(false)}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="submit"
+                            className="zesto-exact-btn-send"
+                            style={{ padding: '8px 22px' }}
+                          >
+                            Send ${sendAmount}
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          }
+
+          // ── If Overview tab: Render the full Overview cards (Zesto/Verdelo Family Cards) ──
           const displayBalance = hideBalance ? '••••••' : walletBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
           const balanceParts = displayBalance.split('.')
           const balanceWhole = balanceParts[0]
