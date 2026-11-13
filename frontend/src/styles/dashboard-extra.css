@@ -4499,11 +4499,11 @@
   width: 32px;
   height: 32px;
   border-radius: 10px;
-  background: linear-gradient(135deg, #0284c7 0%, #38bdf8 100%) !important;
+  background: linear-gradient(135deg, #00796b 0%, #80cbc4 100%) !important;
   color: #ffffff !important;
   font-weight: 900;
   font-size: 1.15rem;
-  box-shadow: 0 4px 14px rgba(14, 165, 233, 0.45) !important;
+  box-shadow: 0 4px 14px rgba(0, 121, 107, 0.45) !important;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4528,14 +4528,19 @@
 }
 
 /* Active Nav Item: Sky Blue */
-.dash-shell[data-role="customer"] .dash-nav-item.is-active {
-  background: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%) !important;
+.dash-shell[data-role="customer"] .dash-nav-item.is-active,
+.dash-shell[data-theme='light'] .dash-nav-item.is-active,
+.dash-nav-item.is-active {
+  background: linear-gradient(135deg, #00796b 0%, #26a69a 100%) !important;
   color: #ffffff !important;
   font-weight: 700 !important;
   border-radius: 12px !important;
-  box-shadow: 0 4px 16px rgba(14, 165, 233, 0.4) !important;
+  box-shadow: 0 4px 16px rgba(0, 121, 107, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.35) !important;
+  border: none !important;
 }
-.dash-shell[data-role="customer"] .dash-nav-item.is-active svg {
+.dash-shell[data-role="customer"] .dash-nav-item.is-active svg,
+.dash-shell[data-theme='light'] .dash-nav-item.is-active svg,
+.dash-nav-item.is-active svg {
   color: #ffffff !important;
 }
 .dash-shell[data-role="customer"] .dash-nav-item.is-active::before {
@@ -4544,20 +4549,22 @@
 
 /* Safe to spend card */
 .verdelo-safe-spend-card {
-  background: rgba(12, 24, 42, 0.7) !important;
-  border: 1px solid rgba(56, 189, 248, 0.2) !important;
-  border-radius: 14px;
-  padding: 12px 14px;
+  background: rgba(9, 35, 32, 0.75) !important;
+  border: 1.5px solid rgba(128, 203, 196, 0.22) !important;
+  border-radius: 16px;
+  padding: 14px 16px;
   display: flex;
   flex-direction: column;
   gap: 4px;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
 }
 [data-theme="light"] .verdelo-safe-spend-card {
-  background: rgba(240, 249, 255, 0.95) !important;
-  border: 1px solid rgba(186, 230, 253, 0.8) !important;
-  box-shadow: 0 4px 16px rgba(14, 165, 233, 0.05);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.20) 0%, rgba(128, 203, 196, 0.16) 100%) !important;
+  backdrop-filter: blur(28px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
+  border: 1.5px solid rgba(128, 203, 196, 0.45) !important;
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.8), 0 8px 24px rgba(0, 77, 64, 0.08) !important;
 }
 .verdelo-safe-spend-label {
   font-size: 0.72rem;
@@ -4594,20 +4601,21 @@
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: #0c4a6e !important;
-  color: #bae6fd !important;
-  font-size: 0.78rem;
+  background: linear-gradient(135deg, #00796b 0%, #80cbc4 100%) !important;
+  color: #ffffff !important;
+  font-size: 0.8rem;
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(56, 189, 248, 0.35) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.45) !important;
+  box-shadow: 0 2px 8px rgba(0, 121, 107, 0.3) !important;
   flex-shrink: 0;
 }
 [data-theme="light"] .verdelo-user-avatar {
-  background: #e0f2fe !important;
-  color: #0369a1 !important;
-  border-color: rgba(14, 165, 233, 0.4) !important;
+  background: linear-gradient(135deg, #00796b 0%, #80cbc4 100%) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.55) !important;
 }
 .verdelo-user-name {
   font-size: 0.8rem;
@@ -4630,8 +4638,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(12, 24, 42, 0.7) !important;
-  border: 1px solid rgba(56, 189, 248, 0.22) !important;
+  background: rgba(9, 35, 32, 0.72) !important;
+  border: 1.5px solid rgba(128, 203, 196, 0.25) !important;
   border-radius: 20px;
   padding: 6px 14px;
   min-width: 280px;
@@ -4642,9 +4650,11 @@
   transition: all 0.2s ease;
 }
 [data-theme="light"] .verdelo-search-pill {
-  background: rgba(240, 249, 255, 0.95) !important;
-  border: 1px solid rgba(186, 230, 253, 0.9) !important;
-  box-shadow: 0 2px 8px rgba(14, 165, 233, 0.05);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, rgba(128, 203, 196, 0.16) 100%) !important;
+  border: 1.5px solid rgba(128, 203, 196, 0.45) !important;
+  backdrop-filter: blur(24px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(190%) !important;
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.8), 0 2px 8px rgba(0, 77, 64, 0.05) !important;
 }
 .verdelo-search-pill:hover {
   border-color: rgba(56, 189, 248, 0.5) !important;
@@ -4720,21 +4730,22 @@
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: #0c4a6e !important;
-  border: 1px solid rgba(56, 189, 248, 0.35) !important;
-  color: #bae6fd !important;
-  font-size: 0.8rem;
+  background: linear-gradient(135deg, #00796b 0%, #80cbc4 100%) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.45) !important;
+  color: #ffffff !important;
+  font-size: 0.85rem;
   font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0, 121, 107, 0.3) !important;
 }
 [data-theme="light"] .verdelo-avatar-circle {
-  background: #e0f2fe !important;
-  color: #0369a1 !important;
-  border-color: rgba(14, 165, 233, 0.4) !important;
+  background: linear-gradient(135deg, #00796b 0%, #80cbc4 100%) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.55) !important;
 }
 .verdelo-avatar-circle:hover {
   border-color: #0ea5e9 !important;
@@ -5421,28 +5432,87 @@
 }
 
 
+
 /* ══════════════════════════════════════════════════════════════════════
-   BERMUDA #80CBC4 — 20% TRANSLUCENT FROSTED GLASS SUITE
-   Decreased White Opacity (20% max) + Bermuda Refraction & Deep Contrast
+   BERMUDA #80CBC4 — LUXURY TRANSLUCENT FROSTED GLASS SUITE (WINE ASH STYLE)
+   - Deep obsidian & Bermuda marble background showing through all glass
+   - Front bars (topbar, sidebar, search capsules) 100% transparent glass
+   - Translucent glass cards with specular highlight borders and blur
    ══════════════════════════════════════════════════════════════════════ */
 
-/* Universal Light Glass Surface Rule: 20% White + Bermuda Aqua Translucency */
-.dash-shell[data-theme='light'] .dash-card,
-.dash-shell[data-theme='light'] .dash-stat-card,
-.dash-shell[data-theme='light'] .dash-panel-card,
-.dash-shell[data-theme='light'] .dash-deploy-row,
-.dash-shell[data-theme='light'] .dash-role-card,
-.dash-shell[data-theme='light'] .dash-quota-card,
-.dash-shell[data-theme='light'] .dash-table-wrap,
-.dash-shell[data-theme='light'] .dash-sidebar-flyout,
-.dash-shell[data-theme='light'] .mw-panel,
-.dash-shell[data-theme='light'] .mw-card,
-.dash-shell[data-theme='light'] .mw-metric,
-.dash-shell[data-theme='light'] .mw-gpu-card,
-.dash-shell[data-theme='light'] .mw-model-card,
-.dash-shell[data-theme='light'] .mw-modal,
-.dash-shell[data-theme='light'] .mw-modal-window,
-.dash-shell[data-theme='light'] .xs-card,
+/* ── 1. Page Canvas Background ────────────────────────────────────── */
+html,
+body,
+.dash-shell,
+html[data-theme='light'],
+html[data-theme='dark'],
+.dash-shell[data-theme='light'],
+.dash-shell[data-theme='dark'] {
+  background-color: #020908 !important;
+  background-image: 
+    radial-gradient(ellipse 75% 55% at 85% 15%, rgba(128, 203, 196, 0.28) 0%, transparent 60%),
+    radial-gradient(ellipse 65% 65% at 15% 85%, rgba(38, 166, 154, 0.22) 0%, transparent 55%),
+    radial-gradient(circle at 50% 50%, rgba(9, 44, 40, 0.45) 0%, transparent 70%),
+    url('/bermuda-marble.svg') !important;
+  background-attachment: fixed !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  color: #ffffff;
+}
+
+/* ── 2. Transparent Front Bars: Topbar & Sidebar ───────────────────── */
+/* Top Header Bar: Transparent glass so the backside background is visible */
+.dash-shell .dash-topbar,
+.dash-shell[data-theme='light'] .dash-topbar,
+.dash-shell[data-theme='dark'] .dash-topbar {
+  background: rgba(4, 18, 16, 0.42) !important;
+  backdrop-filter: blur(28px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
+  border-bottom: 1.5px solid rgba(128, 203, 196, 0.28) !important;
+  box-shadow: 0 8px 32px -4px rgba(0, 0, 0, 0.65), inset 0 -1px 0 rgba(128, 203, 196, 0.15) !important;
+}
+
+/* Sidebar Front Bar: Transparent glass so the backside background is visible */
+.dash-shell .dash-sidebar,
+.dash-shell[data-theme='light'] .dash-sidebar,
+.dash-shell[data-theme='dark'] .dash-sidebar {
+  background: rgba(4, 18, 16, 0.46) !important;
+  backdrop-filter: blur(32px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(32px) saturate(190%) !important;
+  border-right: 1.5px solid rgba(128, 203, 196, 0.25) !important;
+  border-left: none !important;
+  box-shadow: 8px 0 32px -4px rgba(0, 0, 0, 0.65), inset -1px 0 0 rgba(128, 203, 196, 0.12) !important;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+/* ── 3. Translucent Glass Cards (Wine Ash Style) ───────────────────── */
+.dash-shell .dash-card,
+.dash-shell .dash-stat-card,
+.dash-shell .dash-panel-card,
+.dash-shell .dash-deploy-row,
+.dash-shell .dash-role-card,
+.dash-shell .dash-quota-card,
+.dash-shell .dash-table-wrap,
+.dash-shell .dash-sidebar-flyout,
+.dash-shell .mw-panel,
+.dash-shell .mw-card,
+.dash-shell .mw-metric,
+.dash-shell .mw-gpu-card,
+.dash-shell .mw-model-card,
+.dash-shell .mw-modal,
+.dash-shell .mw-modal-window,
+.dash-shell .xs-card,
+.zesto-card-stage,
+.zesto-cycle-panel,
+.zesto-card-tx-panel,
+.zesto-dark-chart-card,
+.zesto-mini-stat-card,
+.zesto-panel-card,
+.verdelo-stat-card,
+.verdelo-chart-card,
+.verdelo-safe-spend-card,
 [data-theme="light"] .zesto-card-stage,
 [data-theme="light"] .zesto-cycle-panel,
 [data-theme="light"] .zesto-card-tx-panel,
@@ -5452,41 +5522,33 @@
 [data-theme="light"] .verdelo-stat-card,
 [data-theme="light"] .verdelo-chart-card,
 [data-theme="light"] .verdelo-safe-spend-card,
-[data-theme="light"] .verdelo-search-pill,
-[data-theme="light"] .mw-modal-window {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.20) 0%, rgba(128, 203, 196, 0.16) 100%) !important;
+.dash-shell[data-theme='light'] .dash-card,
+.dash-shell[data-theme='light'] .dash-stat-card,
+.dash-shell[data-theme='light'] .dash-panel-card,
+.dash-shell[data-theme='light'] .mw-card,
+.dash-shell[data-theme='light'] .mw-panel {
+  background: linear-gradient(135deg, rgba(128, 203, 196, 0.12) 0%, rgba(4, 18, 16, 0.58) 100%) !important;
   backdrop-filter: blur(28px) saturate(190%) !important;
   -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
-  border: 1.5px solid rgba(128, 203, 196, 0.45) !important;
-  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.8), 0 12px 36px -6px rgba(0, 77, 64, 0.12), 0 0 20px rgba(128, 203, 196, 0.18) !important;
+  border: 1.5px solid rgba(128, 203, 196, 0.32) !important;
+  border-radius: 24px !important;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.22), inset 0 0 24px rgba(128, 203, 196, 0.06), 0 20px 48px -10px rgba(0, 0, 0, 0.7) !important;
 }
 
-/* Light Theme Topbar: Translucent Bermuda Frosted Glass Header */
-.dash-shell[data-theme='light'] .dash-topbar {
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.22) 0%, rgba(128, 203, 196, 0.18) 100%) !important;
-  backdrop-filter: blur(28px) saturate(190%) !important;
-  -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
-  border-bottom: 1.5px solid rgba(128, 203, 196, 0.40) !important;
-  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.6), 0 8px 30px rgba(0, 77, 64, 0.08) !important;
-}
-
-/* Light Theme Sidebar: Translucent Bermuda Frosted Glass Navigation */
-.dash-shell[data-theme='light'] .dash-sidebar {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(128, 203, 196, 0.18) 100%) !important;
-  backdrop-filter: blur(32px) saturate(190%) !important;
-  -webkit-backdrop-filter: blur(32px) saturate(190%) !important;
-  border: 1.5px solid rgba(128, 203, 196, 0.40) !important;
-  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.75), 0 12px 40px -10px rgba(0, 77, 64, 0.15) !important;
-  scrollbar-width: none !important;
-  -ms-overflow-style: none !important;
-}
-
-/* Hover States for all Light Glass Surfaces */
-.dash-shell[data-theme='light'] .dash-card:hover,
-.dash-shell[data-theme='light'] .dash-stat-card:hover,
-.dash-shell[data-theme='light'] .dash-panel-card:hover,
-.dash-shell[data-theme='light'] .mw-panel:hover,
-.dash-shell[data-theme='light'] .mw-card:hover,
+/* Hover States for all Glass Surfaces */
+.dash-shell .dash-card:hover,
+.dash-shell .dash-stat-card:hover,
+.dash-shell .dash-panel-card:hover,
+.dash-shell .mw-panel:hover,
+.dash-shell .mw-card:hover,
+.zesto-card-stage:hover,
+.zesto-cycle-panel:hover,
+.zesto-card-tx-panel:hover,
+.zesto-dark-chart-card:hover,
+.zesto-mini-stat-card:hover,
+.zesto-panel-card:hover,
+.verdelo-stat-card:hover,
+.verdelo-chart-card:hover,
 [data-theme="light"] .zesto-card-stage:hover,
 [data-theme="light"] .zesto-cycle-panel:hover,
 [data-theme="light"] .zesto-card-tx-panel:hover,
@@ -5495,11 +5557,40 @@
 [data-theme="light"] .zesto-panel-card:hover,
 [data-theme="light"] .verdelo-stat-card:hover,
 [data-theme="light"] .verdelo-chart-card:hover {
-  border-color: rgba(128, 203, 196, 0.75) !important;
-  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.95), 0 18px 46px -8px rgba(0, 77, 64, 0.18), 0 0 28px rgba(128, 203, 196, 0.35) !important;
+  border-color: rgba(128, 203, 196, 0.65) !important;
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.35), inset 0 0 35px rgba(128, 203, 196, 0.15), 0 28px 70px -10px rgba(0, 0, 0, 0.85) !important;
+  transform: translateY(-2px);
 }
 
-/* Hero Highlight Card: Authentic Bermuda Gradient Surface */
+/* ── 4. Inner Transparent Sub-Boxes & Floating Bars ─────────────────── */
+.zesto-tx-item,
+.zesto-card-action-pill,
+.verdelo-safe-spend-card,
+.verdelo-search-pill,
+.zesto-card-owner-bar,
+.dash-quota-card,
+.dash-admin-profile,
+.dash-topbar__status,
+.dash-theme-toggle,
+[data-theme="light"] .zesto-tx-item,
+[data-theme="light"] .zesto-card-action-pill,
+[data-theme="light"] .verdelo-search-pill,
+[data-theme="light"] .verdelo-safe-spend-card {
+  background: rgba(0, 0, 0, 0.32) !important;
+  border: 1px solid rgba(128, 203, 196, 0.28) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+}
+
+[data-theme="light"] .zesto-card-action-pill:hover,
+.zesto-card-action-pill:hover {
+  background: rgba(128, 203, 196, 0.22) !important;
+  border-color: rgba(128, 203, 196, 0.6) !important;
+  color: #ffffff !important;
+}
+
+/* ── 5. Hero Card: Luminous Bermuda Gradient ───────────────────────── */
 .zesto-green-hero-card {
   position: relative;
   border-radius: 24px;
@@ -5508,7 +5599,7 @@
   backdrop-filter: blur(30px) saturate(190%) !important;
   -webkit-backdrop-filter: blur(30px) saturate(190%) !important;
   border: 1.5px solid rgba(255, 255, 255, 0.45) !important;
-  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.8), 0 20px 48px -12px rgba(0, 77, 64, 0.45), 0 0 24px rgba(128, 203, 196, 0.35) !important;
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.8), 0 20px 48px -12px rgba(0, 77, 64, 0.5), 0 0 24px rgba(128, 203, 196, 0.35) !important;
   color: #ffffff !important;
   display: flex;
   flex-direction: column;
@@ -5519,10 +5610,30 @@
 }
 .zesto-green-hero-card:hover {
   transform: translateY(-2px);
-  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.95), 0 24px 54px -10px rgba(0, 77, 64, 0.55), 0 0 32px rgba(128, 203, 196, 0.5) !important;
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.95), 0 24px 54px -10px rgba(0, 77, 64, 0.6), 0 0 32px rgba(128, 203, 196, 0.5) !important;
 }
 
-/* Light Theme High-Contrast Deep Pine Teal Text (#004d40 / #00332c) */
+/* ── 6. Typography: Stark White Headings & Luminous Bermuda Accents ─── */
+.dash-shell .dash-header-title,
+.dash-shell .dash-stat-value,
+.dash-shell .mw-panel h2,
+.dash-shell .mw-panel h3,
+.zesto-exact-title,
+.zesto-cycle-title,
+.zesto-dark-chart-title,
+.zesto-panel-title,
+.verdelo-insights-title,
+.verdelo-chart-title,
+.verdelo-stat-value,
+.zesto-cycle-amount,
+.zesto-mini-stat-val,
+.zesto-coming-amount,
+.zesto-tx-title,
+.zesto-budget-cat,
+.zesto-card-chip-title,
+.verdelo-user-name,
+.verdelo-search-text,
+.verdelo-brand-name,
 [data-theme="light"] .zesto-exact-title,
 [data-theme="light"] .zesto-cycle-title,
 [data-theme="light"] .zesto-dark-chart-title,
@@ -5541,15 +5652,36 @@
 [data-theme="light"] .verdelo-brand-name,
 [data-theme="light"] .dash-stat-value,
 [data-theme="light"] .dash-panel-title,
-[data-theme="light"] .dash-admin-name,
-.dash-shell[data-theme='light'] .dash-stat-value,
-.dash-shell[data-theme='light'] .dash-panel-title,
-.dash-shell[data-theme='light'] .dash-admin-name {
-  color: #004d40 !important;
+[data-theme="light"] .dash-admin-name {
+  color: #ffffff !important;
   font-weight: 700;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.6);
 }
 
-/* Light Theme Medium Pine Teal Subtitles & Labels (#00695c) */
+.dash-shell .dash-header-desc,
+.dash-shell .dash-stat-label,
+.zesto-exact-sub,
+.zesto-cycle-sub,
+.zesto-dark-chart-sub,
+.zesto-panel-sub,
+.verdelo-insights-sub,
+.verdelo-chart-sub,
+.verdelo-stat-title,
+.verdelo-stat-sub,
+.zesto-tx-meta,
+.zesto-coming-sub,
+.zesto-budget-figures,
+.zesto-legend-label,
+.zesto-mini-stat-label,
+.zesto-mini-stat-bottom,
+.zesto-card-chip-sub,
+.zesto-card-owner-bar,
+.verdelo-user-email,
+.verdelo-legend-text,
+.verdelo-brand-sub,
+.verdelo-search-icon,
+.verdelo-safe-spend-label,
+.verdelo-safe-spend-sub,
 [data-theme="light"] .zesto-exact-sub,
 [data-theme="light"] .zesto-cycle-sub,
 [data-theme="light"] .zesto-dark-chart-sub,
@@ -5571,113 +5703,57 @@
 [data-theme="light"] .verdelo-brand-sub,
 [data-theme="light"] .verdelo-search-icon,
 [data-theme="light"] .verdelo-safe-spend-label,
-[data-theme="light"] .verdelo-safe-spend-sub,
-[data-theme="light"] .dash-stat-label,
-.dash-shell[data-theme='light'] .dash-stat-label,
-.dash-shell[data-theme='light'] .dash-admin-role {
-  color: #00695c !important;
+[data-theme="light"] .verdelo-safe-spend-sub {
+  color: #80cbc4 !important;
 }
 
+.zesto-legend-val,
 [data-theme="light"] .zesto-legend-val {
-  color: #004d40 !important;
+  color: #ffffff !important;
   font-weight: 700 !important;
 }
 
-/* Action pills in light mode */
-[data-theme="light"] .zesto-card-action-pill {
-  background: rgba(255, 255, 255, 0.25) !important;
-  border: 1.5px solid rgba(128, 203, 196, 0.5) !important;
-  color: #004d40 !important;
-  backdrop-filter: blur(14px) !important;
-  -webkit-backdrop-filter: blur(14px) !important;
-}
-[data-theme="light"] .zesto-card-action-pill:hover {
-  background: rgba(128, 203, 196, 0.3) !important;
-  border-color: #26a69a !important;
-  color: #00332c !important;
-}
-
-/* Send money, unfreeze, mint action circles: Bermuda Gradient */
+/* ── 7. Action Buttons & Gradient Accents ───────────────────────────── */
 .zesto-exact-btn-send,
 .zesto-card-action-pill--lime,
 .zesto-card-action-pill--skyblue,
 .zesto-card-action-pill--bermuda,
-.verdelo-btn-circle--mint {
+.verdelo-btn-circle--mint,
+.dash-shell .dash-btn--primary,
+.dash-shell .mw-primary {
   background: linear-gradient(135deg, #00796b 0%, #26a69a 100%) !important;
   color: #ffffff !important;
-  box-shadow: 0 4px 16px rgba(0, 121, 107, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  box-shadow: 0 4px 20px rgba(0, 121, 107, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
 }
 .zesto-exact-btn-send:hover,
 .zesto-card-action-pill--lime:hover,
 .zesto-card-action-pill--skyblue:hover,
 .zesto-card-action-pill--bermuda:hover,
-.verdelo-btn-circle--mint:hover {
+.verdelo-btn-circle--mint:hover,
+.dash-shell .dash-btn--primary:hover,
+.dash-shell .mw-primary:hover {
   background: linear-gradient(135deg, #00897b 0%, #80cbc4 100%) !important;
-  box-shadow: 0 8px 24px rgba(0, 121, 107, 0.55), inset 0 1px 0 #ffffff !important;
+  box-shadow: 0 8px 28px rgba(0, 121, 107, 0.7), inset 0 1px 0 #ffffff !important;
+  transform: translateY(-1.5px);
 }
 
-/* Active Nav & Indicator Pills */
 .dash-shell[data-role="customer"] .dash-nav-item.is-active,
-.dash-shell[data-theme='light'] .dash-nav-item.is-active {
+.dash-shell .dash-nav-item.is-active {
   background: linear-gradient(135deg, #00796b 0%, #26a69a 100%) !important;
   color: #ffffff !important;
-  box-shadow: 0 4px 16px rgba(0, 121, 107, 0.35) !important;
+  box-shadow: 0 4px 16px rgba(0, 121, 107, 0.45) !important;
 }
 
+.zesto-member-pill.is-active,
+.verdelo-time-pill.is-active,
 [data-theme="light"] .zesto-member-pill.is-active,
 [data-theme="light"] .verdelo-time-pill.is-active {
   background: #00796b !important;
   color: #ffffff !important;
-  border-color: #00796b !important;
+  border-color: #80cbc4 !important;
 }
 
-[data-theme="light"] .zesto-member-pill,
-[data-theme="light"] .verdelo-time-pill {
-  background: rgba(255, 255, 255, 0.25) !important;
-  border: 1px solid rgba(128, 203, 196, 0.4) !important;
-  color: #00695c !important;
-}
-
-/* Transaction List Item in Light Mode */
-[data-theme="light"] .zesto-tx-item {
-  background: rgba(255, 255, 255, 0.20) !important;
-  border: 1px solid rgba(128, 203, 196, 0.4) !important;
-}
-[data-theme="light"] .zesto-tx-icon-box {
-  background: rgba(128, 203, 196, 0.25) !important;
-  color: #00796b !important;
-  border: 1px solid rgba(128, 203, 196, 0.4) !important;
-}
-[data-theme="light"] .zesto-tx-amount {
-  color: #00796b !important;
-  font-weight: 700 !important;
-}
-
-/* Top Up Button in Light Mode */
-[data-theme="light"] .mw-link-btn {
-  color: #00796b !important;
-  font-weight: 700 !important;
-}
-
-/* Card Chip in Light Mode */
-[data-theme="light"] .zesto-card-chip {
-  background: rgba(255, 255, 255, 0.20) !important;
-  border: 1.5px solid rgba(128, 203, 196, 0.4) !important;
-  color: #00695c !important;
-}
-[data-theme="light"] .zesto-card-chip:hover {
-  background: rgba(128, 203, 196, 0.28) !important;
-  border-color: #26a69a !important;
-  color: #004d40 !important;
-}
-[data-theme="light"] .zesto-card-chip.is-active {
-  background: rgba(255, 255, 255, 0.35) !important;
-  border-color: #00796b !important;
-  box-shadow: 0 4px 14px rgba(128, 203, 196, 0.3) !important;
-  color: #004d40 !important;
-}
-
-/* Pay Button in Coming Up Panel */
 .zesto-coming-pay-btn {
   background: #00796b !important;
   color: #ffffff !important;
@@ -5687,18 +5763,15 @@
   background: #26a69a !important;
 }
 
-/* Sparklines & Charts in Light Mode */
-.dash-shell[data-theme='light'] .dash-sparkline-wrap svg path,
-[data-theme="light"] .verdelo-spline-line {
-  stroke: #00796b !important;
+/* Charts & Graphs */
+.dash-shell .dash-sparkline-wrap svg path,
+.verdelo-spline-line {
+  stroke: #80cbc4 !important;
 }
 .verdelo-bar--in {
   background: #26a69a !important;
   box-shadow: 0 0 8px rgba(128, 203, 196, 0.5) !important;
 }
 .verdelo-bar--out {
-  background: #80cbc4 !important;
-}
-[data-theme="dark"] .verdelo-bar--out {
   background: #00796b !important;
 }

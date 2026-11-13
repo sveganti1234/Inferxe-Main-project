@@ -15,10 +15,10 @@
   --bg-5: #202c24;
 
   /* Ink */
-  --ink: #eef2ea;
-  --ink-2: #b4c0b2;
-  --ink-3: #8e9c8c;
-  --ink-4: #6d7a6a;
+  --ink: #ffffff;
+  --ink-2: #e0f2f1;
+  --ink-3: #80cbc4;
+  --ink-4: #4db6ac;
 
   /* Lines */
   --line: rgba(238, 242, 234, 0.08);
@@ -70,6 +70,6 @@
   /* Elevation */
   --shadow-1: 0 2px 6px rgba(0, 0, 0, 0.35), 0 10px 24px -10px rgba(0, 0, 0, 0.6);
   --shadow-2: 0 4px 10px rgba(0, 0, 0, 0.35), 0 30px 60px -24px rgba(0, 0, 0, 0.75);
-  --shadow-glow: 0 0 0 1px rgba(128, 203, 196, 0.45), 0 0 40px -6px var(--brand-glow);
+  --shadow-glow: 0 0 0 1px rgba(56, 189, 248, 0.35), 0 0 40px -6px var(--brand-glow);
 }
 

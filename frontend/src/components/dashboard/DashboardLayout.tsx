@@ -766,14 +766,14 @@ export function DashboardLayout({
               padding: '2px 8px',
               borderRadius: 4,
               background: portalRole === 'admin'
-                ? (dashTheme === 'light' ? 'rgba(38, 166, 154, 0.15)' : 'rgba(128, 203, 196, 0.18)')
-                : (dashTheme === 'light' ? 'rgba(38, 166, 154, 0.15)' : 'rgba(128, 203, 196, 0.18)'),
+                ? (dashTheme === 'light' ? 'rgba(14, 165, 233, 0.12)' : 'rgba(14, 165, 233, 0.18)')
+                : (dashTheme === 'light' ? 'rgba(14, 165, 233, 0.1)' : 'rgba(14, 165, 233, 0.18)'),
               color: portalRole === 'admin'
-                ? (dashTheme === 'light' ? '#00796b' : '#80cbc4')
-                : (dashTheme === 'light' ? '#00796b' : '#80cbc4'),
+                ? (dashTheme === 'light' ? '#0284c7' : '#38bdf8')
+                : (dashTheme === 'light' ? '#0284c7' : '#38bdf8'),
               border: `1px solid ${portalRole === 'admin'
-                ? (dashTheme === 'light' ? 'rgba(38, 166, 154, 0.35)' : 'rgba(128, 203, 196, 0.35)')
-                : (dashTheme === 'light' ? 'rgba(38, 166, 154, 0.35)' : 'rgba(128, 203, 196, 0.35)')
+                ? (dashTheme === 'light' ? 'rgba(14, 165, 233, 0.35)' : 'rgba(56, 189, 248, 0.3)')
+                : (dashTheme === 'light' ? 'rgba(14, 165, 233, 0.25)' : 'rgba(56, 189, 248, 0.3)')
                 }`,
               marginLeft: 4,
               fontWeight: 600,
@@ -878,19 +878,19 @@ export function DashboardLayout({
                   rotate: dashTheme === 'light' ? 90 : -90,
                   scale: 0.25,
                   opacity: 0,
-                  color: dashTheme === 'light' ? '#FBBF24' : '#00796b',
+                  color: dashTheme === 'light' ? '#FBBF24' : '#0284c7',
                 }}
                 animate={{
                   rotate: 0,
                   scale: 1,
                   opacity: 1,
-                  color: dashTheme === 'light' ? '#00796b' : '#FBBF24',
+                  color: dashTheme === 'light' ? '#0284c7' : '#FBBF24',
                 }}
                 exit={{
                   rotate: dashTheme === 'light' ? -90 : 90,
                   scale: 0.25,
                   opacity: 0,
-                  color: dashTheme === 'light' ? '#00796b' : '#FBBF24',
+                  color: dashTheme === 'light' ? '#0284c7' : '#FBBF24',
                 }}
                 transition={{
                   duration: 0.45,
@@ -1021,7 +1021,7 @@ export function DashboardLayout({
                               fontSize: '0.66rem',
                               textTransform: 'uppercase',
                               fontWeight: 700,
-                              color: n.type === 'Billing' ? '#26a69a' : n.type === 'Deployment' ? '#00796b' : 'var(--brand-hi)',
+                              color: n.type === 'Billing' ? '#10b981' : n.type === 'Deployment' ? '#06b6d4' : 'var(--brand-hi)',
                             }}
                           >
                             {n.type}
@@ -1105,9 +1105,9 @@ export function DashboardLayout({
                     <span
                       className="tag"
                       style={{
-                        background: 'rgba(128, 203, 196, 0.18)',
-                        color: 'var(--brand-hi)',
-                        borderColor: 'rgba(128, 203, 196, 0.35)',
+                        background: portalRole === 'admin' ? 'rgba(118, 185, 0, 0.18)' : 'rgba(6, 182, 212, 0.18)',
+                        color: portalRole === 'admin' ? 'var(--brand-hi)' : '#06b6d4',
+                        borderColor: portalRole === 'admin' ? 'var(--brand)' : '#06b6d4',
                         fontSize: '0.68rem',
                         fontWeight: 600,
                       }}

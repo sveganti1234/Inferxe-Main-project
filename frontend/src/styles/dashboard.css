@@ -4341,15 +4341,19 @@
    Dashboard Glassmorphism & Light Theme Controls
    ─────────────────────────────────────────────────────────── */
 [data-theme="light"] .dash-topbar {
-  background: rgba(255, 255, 255, 0.78);
-  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
-  box-shadow: 0 4px 30px rgba(15, 23, 42, 0.04);
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.22) 0%, rgba(128, 203, 196, 0.18) 100%) !important;
+  backdrop-filter: blur(28px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
+  border-bottom: 1.5px solid rgba(128, 203, 196, 0.40) !important;
+  box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.6), 0 8px 30px rgba(0, 77, 64, 0.08) !important;
 }
 
 [data-theme="light"] .dash-sidebar {
-  background: rgba(255, 255, 255, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.95);
-  box-shadow: 0 16px 40px -10px rgba(15, 23, 42, 0.08);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.22) 0%, rgba(128, 203, 196, 0.18) 100%) !important;
+  backdrop-filter: blur(32px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(32px) saturate(190%) !important;
+  border-right: 1.5px solid rgba(128, 203, 196, 0.40) !important;
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.75), 0 12px 40px -10px rgba(0, 77, 64, 0.15) !important;
 }
 
 [data-theme="light"] .dash-nav-item,
