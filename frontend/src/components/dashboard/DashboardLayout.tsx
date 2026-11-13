@@ -728,61 +728,75 @@ export function DashboardLayout({
   return (
     <div className="dash-shell" data-theme={dashTheme} data-role={portalRole}>
       <Ambient />
-      {/* ── Top Navigation Bar ──────────────────────────────── */}
-      <header className="dash-topbar">
-        <div className="dash-topbar__left">
-          {portalRole === 'customer' ? (
-            <Link to="/dashboard/customer" className="row" style={{ gap: 10, alignItems: 'center', textDecoration: 'none' }}>
-              <div className="verdelo-brand-logo" style={{ width: 30, height: 30, fontSize: '0.95rem' }}>
-                <span>S</span>
+      <div className="dash-window-frame">
+        {/* ── Top Navigation Bar ──────────────────────────────── */}
+        <header className="dash-topbar">
+          <div className="dash-topbar__left">
+            {portalRole === 'customer' ? (
+              <div className="row" style={{ gap: 10, alignItems: 'center' }}>
+                <Link to="/dashboard/customer" className="row" style={{ gap: 10, alignItems: 'center', textDecoration: 'none' }}>
+                  <div className="verdelo-brand-logo" style={{ width: 32, height: 32, fontSize: '0.95rem' }}>
+                    <span>S</span>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column' }}>
+                    <span className="verdelo-brand-name" style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.98rem', lineHeight: 1.15 }}>
+                      Inferxe
+                    </span>
+                    <span className="verdelo-brand-sub" style={{ fontSize: '0.66rem', lineHeight: 1.15 }}>
+                      Sahith Workspace
+                    </span>
+                  </div>
+                </Link>
+                <button
+                  type="button"
+                  className="verdelo-sidebar-toggle"
+                  onClick={toggleSidebarCollapse}
+                  title={isSidebarCollapsed ? "Expand sidebar (Ctrl+B)" : "Collapse sidebar (Ctrl+B)"}
+                  aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+                  style={{ marginLeft: 6 }}
+                >
+                  <ChevronLeft
+                    size={14}
+                    style={{
+                      transition: 'transform 0.28s cubic-bezier(0.25, 1, 0.5, 1)',
+                      transform: isSidebarCollapsed ? 'rotate(180deg)' : 'rotate(0deg)',
+                    }}
+                  />
+                </button>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span className="verdelo-brand-name" style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '0.98rem', lineHeight: 1.15 }}>
-                  Inferxe
+            ) : (
+              <Link to={portalHomeRoute} className="row" style={{ gap: 10, alignItems: 'center' }}>
+                <LogoMark size={28} theme={dashTheme} />
+                <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.05rem', color: 'var(--ink)' }}>
+                  Infer<span style={{ color: 'var(--brand-hi)' }}>xe</span>
                 </span>
-                <span className="verdelo-brand-sub" style={{ fontSize: '0.66rem', lineHeight: 1.15 }}>
-                  Sahith Workspace
+              </Link>
+            )}
+
+            {portalRole === 'admin' && (
+              <>
+                <span className="dash-topbar__divider" aria-hidden />
+                {/* Active Portal Badge */}
+                <span
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: '0.66rem',
+                    letterSpacing: '0.06em',
+                    textTransform: 'uppercase',
+                    padding: '2px 8px',
+                    borderRadius: 4,
+                    background: dashTheme === 'light' ? 'rgba(14, 165, 233, 0.12)' : 'rgba(14, 165, 233, 0.18)',
+                    color: dashTheme === 'light' ? '#0284c7' : '#38bdf8',
+                    border: `1px solid ${dashTheme === 'light' ? 'rgba(14, 165, 233, 0.35)' : 'rgba(56, 189, 248, 0.3)'}`,
+                    marginLeft: 4,
+                    fontWeight: 600,
+                  }}
+                >
+                  Admin Portal
                 </span>
-              </div>
-            </Link>
-          ) : (
-            <Link to={portalHomeRoute} className="row" style={{ gap: 10, alignItems: 'center' }}>
-              <LogoMark size={28} theme={dashTheme} />
-              <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.05rem', color: 'var(--ink)' }}>
-                Infer<span style={{ color: 'var(--brand-hi)' }}>xe</span>
-              </span>
-            </Link>
-          )}
-
-          <span className="dash-topbar__divider" aria-hidden />
-
-          {/* Active Portal Badge */}
-          <span
-            style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: '0.66rem',
-              letterSpacing: '0.06em',
-              textTransform: 'uppercase',
-              padding: '2px 8px',
-              borderRadius: 4,
-              background: portalRole === 'admin'
-                ? (dashTheme === 'light' ? 'rgba(14, 165, 233, 0.12)' : 'rgba(14, 165, 233, 0.18)')
-                : (dashTheme === 'light' ? 'rgba(14, 165, 233, 0.1)' : 'rgba(14, 165, 233, 0.18)'),
-              color: portalRole === 'admin'
-                ? (dashTheme === 'light' ? '#0284c7' : '#38bdf8')
-                : (dashTheme === 'light' ? '#0284c7' : '#38bdf8'),
-              border: `1px solid ${portalRole === 'admin'
-                ? (dashTheme === 'light' ? 'rgba(14, 165, 233, 0.35)' : 'rgba(56, 189, 248, 0.3)')
-                : (dashTheme === 'light' ? 'rgba(14, 165, 233, 0.25)' : 'rgba(56, 189, 248, 0.3)')
-                }`,
-              marginLeft: 4,
-              fontWeight: 600,
-            }}
-          >
-            {portalRole === 'admin' ? 'Admin Portal' : 'Customer Portal'}
-          </span>
-
-        </div>
+              </>
+            )}
+          </div>
 
         {/* Center: Verdelo Search Capsule for customer / Admin telemetry */}
         <div className="dash-topbar__center">
@@ -1174,31 +1188,12 @@ export function DashboardLayout({
           }`}
           aria-label="Dashboard Sidebar"
         >
-          {/* Top header row: Sahith brand for customer / Admin tag */}
-          {portalRole === 'customer' && !isSidebarCollapsed ? (
-            <div className="verdelo-sidebar-brand">
-              <div className="verdelo-brand-logo">
-                <span>S</span>
-              </div>
-              <div className="verdelo-brand-text">
-                <span className="verdelo-brand-name">Inferxe</span>
-                <span className="verdelo-brand-sub">Sahith Workspace</span>
-              </div>
-              <button
-                type="button"
-                className="verdelo-sidebar-toggle"
-                onClick={toggleSidebarCollapse}
-                title="Collapse sidebar (Ctrl+B)"
-                aria-label="Collapse sidebar"
-              >
-                <ChevronLeft size={14} />
-              </button>
-            </div>
-          ) : (
+          {/* Top header row: Admin tag (Customer portal displays brand in integrated master topbar) */}
+          {portalRole === 'admin' && (
             <div className="dash-sidebar__top">
               {!isSidebarCollapsed && (
                 <span className="dash-sidebar__workspace-tag">
-                  {portalRole === 'admin' ? 'Admin Control' : 'Customer Portal'}
+                  Admin Control
                 </span>
               )}
               <button
@@ -1492,5 +1487,6 @@ export function DashboardLayout({
         </main>
       </div>
     </div>
-  )
+  </div>
+)
 }

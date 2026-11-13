@@ -4818,7 +4818,7 @@
   color: #082f49 !important;
 }
 .verdelo-subtab.is-active {
-  color: #38bdf8 !important;
+  color: #80cbc4 !important;
 }
 [data-theme="light"] .verdelo-subtab.is-active {
   color: #0284c7 !important;
@@ -4830,9 +4830,9 @@
   left: 0;
   right: 0;
   height: 2.5px;
-  background: #38bdf8 !important;
+  background: #80cbc4 !important;
   border-radius: 999px;
-  box-shadow: 0 0 10px rgba(56, 189, 248, 0.7) !important;
+  box-shadow: 0 0 10px rgba(128, 203, 196, 0.7) !important;
 }
 [data-theme="light"] .verdelo-subtab.is-active::after {
   background: #0284c7 !important;
@@ -5774,4 +5774,213 @@ html[data-theme='dark'],
 }
 .verdelo-bar--out {
   background: #00796b !important;
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════
+   MASTER UNIFIED GLASS BOX APPLICATION FRAME (PHOTO 2 REFERENCE)
+   The entire dashboard web page (topbar, sidebar, content) is enclosed
+   in ONE single master rounded frosted-glass container with Bermuda glow.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Outer Shell / Canvas: centered layout displaying Bermuda marble outside the master glass box */
+.dash-shell {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  min-height: 100vh !important;
+  padding: 24px 32px !important;
+  box-sizing: border-box !important;
+  overflow-x: hidden !important;
+  background-color: #020908 !important;
+  background-image: 
+    radial-gradient(ellipse 75% 55% at 85% 15%, rgba(128, 203, 196, 0.28) 0%, transparent 60%),
+    radial-gradient(ellipse 65% 65% at 15% 85%, rgba(38, 166, 154, 0.22) 0%, transparent 55%),
+    radial-gradient(circle at 50% 50%, rgba(9, 44, 40, 0.45) 0%, transparent 70%),
+    url('/bermuda-marble.svg') !important;
+  background-attachment: fixed !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+}
+
+/* Master Glass Window Frame: The ONE single glass box holding the entire website */
+.dash-window-frame {
+  width: 100% !important;
+  max-width: 1540px !important;
+  min-height: calc(100vh - 48px) !important;
+  margin: 0 auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  border-radius: 28px !important;
+  background: linear-gradient(135deg, rgba(128, 203, 196, 0.09) 0%, rgba(4, 18, 16, 0.65) 100%) !important;
+  backdrop-filter: blur(40px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(40px) saturate(200%) !important;
+  border: 1.5px solid rgba(128, 203, 196, 0.35) !important;
+  box-shadow: 
+    inset 0 1px 1.5px rgba(255, 255, 255, 0.32),
+    inset 0 0 35px rgba(128, 203, 196, 0.08),
+    0 35px 100px -15px rgba(0, 0, 0, 0.9) !important;
+  overflow: hidden !important;
+  position: relative !important;
+  box-sizing: border-box !important;
+}
+
+/* Master Frame: Integrated Top Navigation Bar */
+.dash-window-frame .dash-topbar {
+  position: relative !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+  height: 68px !important;
+  padding: 0 28px !important;
+  background: rgba(4, 18, 16, 0.28) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  border-bottom: 1px solid rgba(128, 203, 196, 0.18) !important;
+  border-radius: 28px 28px 0 0 !important;
+  box-shadow: none !important;
+  box-sizing: border-box !important;
+  z-index: 50 !important;
+}
+
+/* Master Frame: Body Area (Sidebar + Main) */
+.dash-window-frame .dash-body {
+  display: flex !important;
+  flex: 1 !important;
+  position: relative !important;
+  min-width: 0 !important;
+  min-height: calc(100vh - 48px - 68px) !important;
+  overflow: hidden !important;
+  border-radius: 0 0 28px 28px !important;
+}
+
+/* Master Frame: Integrated Sidebar (Flush inside left side of master glass box, NOT a separate floating island) */
+.dash-window-frame .dash-sidebar {
+  width: 260px !important;
+  min-width: 260px !important;
+  max-width: 260px !important;
+  flex-shrink: 0 !important;
+  margin: 0 !important; /* CRITICAL: removes detached floating margin */
+  border-radius: 0 0 0 28px !important;
+  border-top: none !important;
+  border-left: none !important;
+  border-bottom: none !important;
+  border-right: 1px solid rgba(128, 203, 196, 0.18) !important;
+  background: rgba(2, 10, 9, 0.22) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  box-shadow: none !important;
+  height: auto !important;
+  min-height: 100% !important;
+  position: static !important;
+  padding: 16px 14px 20px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  box-sizing: border-box !important;
+}
+
+.dash-window-frame .dash-sidebar.is-collapsed {
+  width: 76px !important;
+  min-width: 76px !important;
+  max-width: 76px !important;
+  padding: 16px 10px 20px !important;
+}
+
+/* Master Frame: Integrated Main Content Pane */
+.dash-window-frame .dash-main {
+  flex: 1 !important;
+  min-width: 0 !important;
+  padding: 24px 32px 36px !important;
+  background: transparent !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  max-height: calc(100vh - 48px - 68px) !important;
+  border-radius: 0 0 28px 0 !important;
+  box-sizing: border-box !important;
+}
+
+/* Slender custom glass scrollbar for main content */
+.dash-window-frame .dash-main::-webkit-scrollbar {
+  width: 6px;
+}
+.dash-window-frame .dash-main::-webkit-scrollbar-track {
+  background: transparent;
+}
+.dash-window-frame .dash-main::-webkit-scrollbar-thumb {
+  background: rgba(128, 203, 196, 0.28);
+  border-radius: 4px;
+}
+.dash-window-frame .dash-main::-webkit-scrollbar-thumb:hover {
+  background: rgba(128, 203, 196, 0.5);
+}
+
+/* Sub-panels inside the master glass box */
+.dash-window-frame .verdelo-stat-card,
+.dash-window-frame .verdelo-chart-card,
+.dash-window-frame .zesto-card-stage,
+.dash-window-frame .zesto-cycle-panel,
+.dash-window-frame .zesto-card-tx-panel,
+.dash-window-frame .zesto-dark-chart-card,
+.dash-window-frame .zesto-mini-stat-card,
+.dash-window-frame .zesto-panel-card {
+  background: rgba(0, 0, 0, 0.25) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(128, 203, 196, 0.2) !important;
+  border-radius: 20px !important;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.15), 0 12px 32px -8px rgba(0, 0, 0, 0.55) !important;
+}
+
+.dash-window-frame .verdelo-stat-card:hover,
+.dash-window-frame .verdelo-chart-card:hover {
+  border-color: rgba(128, 203, 196, 0.55) !important;
+  box-shadow: inset 0 1px 1.5px rgba(255, 255, 255, 0.28), 0 18px 42px -10px rgba(0, 0, 0, 0.75) !important;
+  transform: translateY(-2px);
+}
+
+/* Responsive adjustment for Mobile & Tablet */
+@media (max-width: 900px) {
+  .dash-shell {
+    padding: 0 !important;
+  }
+  .dash-window-frame {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: 100vh !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+  .dash-window-frame .dash-topbar {
+    border-radius: 0 !important;
+    padding: 0 16px !important;
+  }
+  .dash-window-frame .dash-body {
+    border-radius: 0 !important;
+    min-height: calc(100vh - 64px) !important;
+  }
+  .dash-window-frame .dash-sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    z-index: 100 !important;
+    height: 100vh !important;
+    border-radius: 0 20px 20px 0 !important;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1);
+  }
+  .dash-window-frame .dash-sidebar.is-open {
+    transform: translateX(0) !important;
+  }
+  .dash-window-frame .dash-main {
+    padding: 16px 18px 28px !important;
+    max-height: none !important;
+    overflow-y: visible !important;
+  }
 }

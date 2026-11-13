@@ -1561,7 +1561,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
       hideHeader={route === 'customer'}
       heading={info.title}
       description={info.description}
-      breadcrumb={breadcrumb}
+      breadcrumb={route === 'customer' ? undefined : breadcrumb}
       backButtonTo={isProvider ? '/dashboard/provider' : '/dashboard/customer'}
       backButtonLabel="Back to overview"
     >
