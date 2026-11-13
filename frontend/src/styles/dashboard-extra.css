@@ -5984,3 +5984,278 @@ html[data-theme='dark'],
     overflow-y: visible !important;
   }
 }
+
+
+/* ══════════════════════════════════════════════════════════════════════
+   MASTER UNIFIED GLASS BOX APPLICATION FRAME (FULL-WIDTH CLEAN & NEAT)
+   - Expanded width: NO arbitrary 1540px / 1200px / 1440px limits
+   - NO wasted extras / blank empty side margins
+   - Clean, neat 100% utilization of available viewport space
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Outer Shell / Canvas: minimal sleek perimeter margin, no huge blank gaps */
+.dash-shell {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  min-height: 100vh !important;
+  width: 100% !important;
+  padding: 10px 14px !important; /* Sleek, neat edge - no big wasted extras */
+  box-sizing: border-box !important;
+  overflow-x: hidden !important;
+  background-color: #020908 !important;
+  background-image: 
+    radial-gradient(ellipse 75% 55% at 85% 15%, rgba(128, 203, 196, 0.28) 0%, transparent 60%),
+    radial-gradient(ellipse 65% 65% at 15% 85%, rgba(38, 166, 154, 0.22) 0%, transparent 55%),
+    radial-gradient(circle at 50% 50%, rgba(9, 44, 40, 0.45) 0%, transparent 70%),
+    url('/bermuda-marble.svg') !important;
+  background-attachment: fixed !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+}
+
+/* Master Glass Window Frame: Fills 100% width cleanly and neatly */
+.dash-window-frame {
+  width: 100% !important;
+  max-width: 100% !important; /* Full width - no arbitrary restriction leaving side gaps */
+  min-height: calc(100vh - 20px) !important;
+  margin: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  border-radius: 22px !important;
+  background: linear-gradient(135deg, rgba(128, 203, 196, 0.09) 0%, rgba(4, 18, 16, 0.65) 100%) !important;
+  backdrop-filter: blur(40px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(40px) saturate(200%) !important;
+  border: 1.5px solid rgba(128, 203, 196, 0.35) !important;
+  box-shadow: 
+    inset 0 1px 1.5px rgba(255, 255, 255, 0.32),
+    inset 0 0 35px rgba(128, 203, 196, 0.08),
+    0 24px 80px -15px rgba(0, 0, 0, 0.9) !important;
+  overflow: hidden !important;
+  position: relative !important;
+  box-sizing: border-box !important;
+}
+
+/* Master Frame: Integrated Top Navigation Bar */
+.dash-window-frame .dash-topbar {
+  position: relative !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+  height: 62px !important;
+  padding: 0 22px !important;
+  background: rgba(4, 18, 16, 0.28) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  border-bottom: 1px solid rgba(128, 203, 196, 0.18) !important;
+  border-radius: 22px 22px 0 0 !important;
+  box-shadow: none !important;
+  box-sizing: border-box !important;
+  z-index: 50 !important;
+}
+
+/* Master Frame: Body Area (Sidebar + Main) */
+.dash-window-frame .dash-body {
+  display: flex !important;
+  flex: 1 !important;
+  position: relative !important;
+  min-width: 0 !important;
+  width: 100% !important;
+  min-height: calc(100vh - 20px - 62px) !important;
+  overflow: hidden !important;
+  border-radius: 0 0 22px 22px !important;
+}
+
+/* Master Frame: Integrated Sidebar */
+.dash-window-frame .dash-sidebar {
+  width: 250px !important;
+  min-width: 250px !important;
+  max-width: 250px !important;
+  flex-shrink: 0 !important;
+  margin: 0 !important;
+  border-radius: 0 0 0 22px !important;
+  border-top: none !important;
+  border-left: none !important;
+  border-bottom: none !important;
+  border-right: 1px solid rgba(128, 203, 196, 0.18) !important;
+  background: rgba(2, 10, 9, 0.22) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  box-shadow: none !important;
+  height: auto !important;
+  min-height: 100% !important;
+  position: static !important;
+  padding: 14px 12px 18px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  box-sizing: border-box !important;
+}
+
+.dash-window-frame .dash-sidebar.is-collapsed {
+  width: 72px !important;
+  min-width: 72px !important;
+  max-width: 72px !important;
+  padding: 14px 8px 18px !important;
+}
+
+/* Master Frame: Integrated Main Content Pane - NO 1200px CAP, FULL WIDTH */
+.dash-window-frame .dash-main {
+  flex: 1 !important;
+  min-width: 0 !important;
+  max-width: none !important; /* CRITICAL: removes 1200px limitation */
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 18px 24px 28px !important;
+  background: transparent !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  max-height: calc(100vh - 20px - 62px) !important;
+  border-radius: 0 0 22px 0 !important;
+  box-sizing: border-box !important;
+}
+
+/* Slender custom glass scrollbar for main content */
+.dash-window-frame .dash-main::-webkit-scrollbar {
+  width: 6px;
+}
+.dash-window-frame .dash-main::-webkit-scrollbar-track {
+  background: transparent;
+}
+.dash-window-frame .dash-main::-webkit-scrollbar-thumb {
+  background: rgba(128, 203, 196, 0.28);
+  border-radius: 4px;
+}
+.dash-window-frame .dash-main::-webkit-scrollbar-thumb:hover {
+  background: rgba(128, 203, 196, 0.5);
+}
+
+/* Container Full-Width Overrides - REMOVE 1440px / margin: 0 auto constraints */
+.dash-window-frame .verdelo-insights-container,
+.dash-window-frame .mw-page {
+  max-width: none !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 0 16px !important;
+  box-sizing: border-box !important;
+}
+
+/* 4 Stat Cards: Full Width Grid */
+.dash-window-frame .verdelo-four-stat-cards {
+  width: 100% !important;
+  max-width: none !important;
+  display: grid !important;
+  grid-template-columns: repeat(4, 1fr) !important;
+  gap: 14px !important;
+  margin: 0 !important;
+}
+
+/* 2 Large Charts: Full Width Grid */
+.dash-window-frame .verdelo-two-charts-grid {
+  width: 100% !important;
+  max-width: none !important;
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 16px !important;
+  margin: 0 !important;
+}
+
+/* Overview Tab Containers: Full Width */
+.dash-window-frame .zesto-top-grid,
+.dash-window-frame .zesto-hero-two-grid,
+.dash-window-frame .zesto-stats-grid,
+.dash-window-frame .zesto-three-bottom-grid {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+}
+
+/* Sub-panels inside the master glass box */
+.dash-window-frame .verdelo-stat-card,
+.dash-window-frame .verdelo-chart-card,
+.dash-window-frame .zesto-card-stage,
+.dash-window-frame .zesto-cycle-panel,
+.dash-window-frame .zesto-card-tx-panel,
+.dash-window-frame .zesto-dark-chart-card,
+.dash-window-frame .zesto-mini-stat-card,
+.dash-window-frame .zesto-panel-card {
+  background: rgba(0, 0, 0, 0.25) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(128, 203, 196, 0.2) !important;
+  border-radius: 18px !important;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.15), 0 12px 30px -8px rgba(0, 0, 0, 0.55) !important;
+}
+
+.dash-window-frame .verdelo-stat-card {
+  padding: 16px 18px !important;
+}
+
+.dash-window-frame .verdelo-chart-card {
+  padding: 20px 22px !important;
+}
+
+.dash-window-frame .verdelo-stat-card:hover,
+.dash-window-frame .verdelo-chart-card:hover {
+  border-color: rgba(128, 203, 196, 0.55) !important;
+  box-shadow: inset 0 1px 1.5px rgba(255, 255, 255, 0.28), 0 16px 36px -10px rgba(0, 0, 0, 0.75) !important;
+  transform: translateY(-2px);
+}
+
+/* Responsive adjustment for Mobile & Tablet */
+@media (max-width: 900px) {
+  .dash-shell {
+    padding: 0 !important;
+  }
+  .dash-window-frame {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: 100vh !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+  .dash-window-frame .dash-topbar {
+    border-radius: 0 !important;
+    padding: 0 14px !important;
+  }
+  .dash-window-frame .dash-body {
+    border-radius: 0 !important;
+    min-height: calc(100vh - 60px) !important;
+  }
+  .dash-window-frame .dash-sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    z-index: 100 !important;
+    height: 100vh !important;
+    border-radius: 0 20px 20px 0 !important;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1);
+  }
+  .dash-window-frame .dash-sidebar.is-open {
+    transform: translateX(0) !important;
+  }
+  .dash-window-frame .dash-main {
+    padding: 14px 14px 24px !important;
+    max-height: none !important;
+    overflow-y: visible !important;
+  }
+  .dash-window-frame .verdelo-four-stat-cards {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  .dash-window-frame .verdelo-two-charts-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 600px) {
+  .dash-window-frame .verdelo-four-stat-cards {
+    grid-template-columns: 1fr !important;
+  }
+}
