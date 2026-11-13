@@ -1,6 +1,4 @@
-"""
-index_knowledge.py
-==================
+﻿"""
 Vector indexing pipeline for the Inferxe RAG knowledge base.
 Uses ChromaDB for local persistent storage and 'nomic-embed-text' via Ollama for 768-dim embeddings.
 Stores chunks with sanitized metadata and tracks indexing manifests.
@@ -75,7 +73,7 @@ def index_all_chunks(force: bool = False):
     print(f"Collection Name:   {COLLECTION_NAME}\n")
 
     if not os.path.exists(CHUNKS_FILE):
-        print(f"❌ Error: Chunks file not found at '{CHUNKS_FILE}'. Run 'rag/ingest_dataset.py' first.")
+        print(f"âŒ Error: Chunks file not found at '{CHUNKS_FILE}'. Run 'rag/ingest_dataset.py' first.")
         sys.exit(1)
 
     with open(CHUNKS_FILE, "r", encoding="utf-8") as f:
@@ -92,7 +90,7 @@ def index_all_chunks(force: bool = False):
             with open(MANIFEST_FILE, "r", encoding="utf-8") as f:
                 manifest = json.load(f)
             if manifest.get("file_hash") == current_hash and manifest.get("indexed_chunks") == total_chunks:
-                print(f"✅ Index is already up to date with dataset version (SHA256: {current_hash[:12]}...).")
+                print(f"âœ… Index is already up to date with dataset version (SHA256: {current_hash[:12]}...).")
                 print(f"Use '--force' or pass force=True to reindex.")
                 return manifest
         except Exception:
@@ -102,10 +100,10 @@ def index_all_chunks(force: bool = False):
     print("Verifying Ollama connection and 'nomic-embed-text' model...")
     test_vec = get_embedding("Inferxe GPU cloud indexing verification")
     if not test_vec:
-        print("❌ Fatal: Ollama 'nomic-embed-text' model is not responding.")
+        print("âŒ Fatal: Ollama 'nomic-embed-text' model is not responding.")
         print("Please ensure Ollama is running (`ollama serve`) and the model is downloaded (`ollama pull nomic-embed-text`).")
         sys.exit(1)
-    print(f"✅ Embedding service active! Output dimension: {len(test_vec)}")
+    print(f"âœ… Embedding service active! Output dimension: {len(test_vec)}")
 
     # Initialize ChromaDB
     import chromadb
@@ -142,7 +140,7 @@ def index_all_chunks(force: bool = False):
                 batch_metas.append(sanitize_metadata(item.get("metadata", {})))
                 batch_embs.append(emb)
             else:
-                print(f"⚠️ Failed to embed chunk {item['id']}")
+                print(f"âš ï¸ Failed to embed chunk {item['id']}")
 
         if batch_ids:
             collection.add(
@@ -161,9 +159,9 @@ def index_all_chunks(force: bool = False):
     final_count = collection.count()
     print(f"\nVerification: Stored document count in ChromaDB = {final_count}")
     if final_count != total_chunks:
-        print(f"⚠️ Warning: Indexed {final_count} items, expected {total_chunks}.")
+        print(f"âš ï¸ Warning: Indexed {final_count} items, expected {total_chunks}.")
     else:
-        print("✅ Document count strictly matches expected dataset size!")
+        print("âœ… Document count strictly matches expected dataset size!")
 
     # Write Manifest
     manifest_data = {
@@ -193,7 +191,7 @@ def index_all_chunks(force: bool = False):
         print(f"  Result #{idx+1} [Cosine Distance: {dist:.4f}]:\n    {doc[:120]}...\n")
 
     print("=" * 80)
-    print("✅ RAG KNOWLEDGE INDEXING COMPLETED SUCCESSFULLY!")
+    print("âœ… RAG KNOWLEDGE INDEXING COMPLETED SUCCESSFULLY!")
     print("=" * 80)
     return manifest_data
 

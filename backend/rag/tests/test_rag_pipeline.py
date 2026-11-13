@@ -1,6 +1,4 @@
-"""
-test_rag_pipeline.py
-====================
+﻿"""
 Automated test suite evaluating the Inferxe RAG pipeline across:
 1. GPU Hardware Specifications
 2. LLM Inference & Sizing
@@ -32,7 +30,7 @@ EXACT_UNGROUNDED_REFUSAL = (
 )
 
 TEST_CASES = [
-    # ── Category 1: GPU Hardware Questions ──
+    # â”€â”€ Category 1: GPU Hardware Questions â”€â”€
     {
         "id": "gpu_specs_l4",
         "category": "GPU Hardware",
@@ -62,7 +60,7 @@ TEST_CASES = [
         "expected_desc": "Reports 141 GB HBM3e for NVIDIA H200."
     },
 
-    # ── Category 2: LLM Inference Questions ──
+    # â”€â”€ Category 2: LLM Inference Questions â”€â”€
     {
         "id": "llm_quantization",
         "category": "LLM Inference",
@@ -92,20 +90,20 @@ TEST_CASES = [
         "expected_desc": "Explains batching, throughput tokens/sec, and GPU hourly rate."
     },
 
-    # ── Category 3: Pricing & Inferxe Documentation ──
+    # â”€â”€ Category 3: Pricing & Inferxe Documentation â”€â”€
     {
         "id": "pricing_h100_jarvislabs",
         "category": "Pricing & Inferxe",
         "question": "What is the documented hourly price of H100 from JarvisLabs?",
         "expected_check": lambda r, resp: ("3.49" in resp or "330" in resp or "1.75" in resp or "146" in resp or "291" in resp) and r.get("status") == "success",
-        "expected_desc": "Quotes JarvisLabs catalog rate ($3.49/hr on-demand, $1.75/hr spot / ₹330 or ₹146)."
+        "expected_desc": "Quotes JarvisLabs catalog rate ($3.49/hr on-demand, $1.75/hr spot / â‚¹330 or â‚¹146)."
     },
     {
         "id": "pricing_inferxe_vs_providers",
         "category": "Pricing & Inferxe",
         "question": "How does provider pricing differ from proposed Inferxe marketplace pricing?",
         "expected_check": lambda r, resp: ("marketplace" in resp.lower() or "intermediary" in resp.lower() or "provider" in resp.lower() or "275" in resp) and r.get("status") == "success",
-        "expected_desc": "Contrasts provider catalog rates with Inferxe proposed rates (e.g. ₹275/hr for H100)."
+        "expected_desc": "Contrasts provider catalog rates with Inferxe proposed rates (e.g. â‚¹275/hr for H100)."
     },
     {
         "id": "inferxe_features_dpr",
@@ -122,7 +120,7 @@ TEST_CASES = [
         "expected_desc": "Cites Indian sovereign data residency in Noida/Mumbai and DPDP compliance."
     },
 
-    # ── Category 4: Out-of-Scope Questions (Exact Refusal) ──
+    # â”€â”€ Category 4: Out-of-Scope Questions (Exact Refusal) â”€â”€
     {
         "id": "offtopic_joke",
         "category": "Out-of-Scope Refusal",
@@ -152,7 +150,7 @@ TEST_CASES = [
         "expected_desc": "Returns EXACT out-of-scope refusal."
     },
 
-    # ── Category 5: Missing Evidence & Security / Prompt Injection ──
+    # â”€â”€ Category 5: Missing Evidence & Security / Prompt Injection â”€â”€
     {
         "id": "missing_evidence_gpu",
         "category": "Missing Evidence",
@@ -219,10 +217,10 @@ def run_tests():
 
         if is_pass:
             passed_count += 1
-            res_str = "✅ PASS"
+            res_str = "âœ… PASS"
         else:
             failed_count += 1
-            res_str = "❌ FAIL"
+            res_str = "âŒ FAIL"
 
         print(f"    Result: {res_str} ({elapsed_ms}ms) | Status: {status}")
         print(f"    Expected: {test['expected_desc']}")

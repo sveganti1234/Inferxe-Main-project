@@ -34,17 +34,20 @@ logger = logging.getLogger("inferxe.notifications.auth")
 _COGNITO_PLACEHOLDERS = {"", "ap-south-1_xxxxxxxxx", "your-cognito-client-id", "your-user-pool-id"}
 
 COGNITO_REGION = (
-    os.environ.get("COGNITO_REGION")
+    os.environ.get("AWS_REGION")
     or os.environ.get("VITE_COGNITO_REGION")
+    or os.environ.get("COGNITO_REGION")
     or "ap-south-1"
 ).strip() or "ap-south-1"
 COGNITO_USER_POOL_ID = (
-    os.environ.get("COGNITO_USER_POOL_ID")
+    os.environ.get("AWS_COGNITO_USER_POOL_ID")
+    or os.environ.get("COGNITO_USER_POOL_ID")
     or os.environ.get("VITE_COGNITO_USER_POOL_ID")
     or ""
 ).strip()
 COGNITO_CLIENT_ID = (
-    os.environ.get("COGNITO_CLIENT_ID")
+    os.environ.get("AWS_COGNITO_CLIENT_ID")
+    or os.environ.get("COGNITO_CLIENT_ID")
     or os.environ.get("VITE_COGNITO_CLIENT_ID")
     or ""
 ).strip()
@@ -58,9 +61,31 @@ _jwks_client: Optional[PyJWKClient] = None
 # Test mode public keys fixture for isolated multi-user automated testing
 _test_public_keys: Dict[str, Any] = {}
 
-def get_jwks_client() -> PyJWKClient:
+def reset_jwks_client() -> None:
+    """Invalidate the cached JWKS client so the next request fetches fresh keys.
+
+    Used when Cognito rotates signing keys and the cached JWKS no longer
+    contains the token's kid.
+    """
     global _jwks_client
-    if _jwks_client is None:
+    _jwks_client = None
+
+
+def _sanitize_error(message: Optional[str]) -> str:
+    """Sanitize error messages to avoid leaking secrets in logs."""
+    if not message:
+        return ""
+    import re
+    # Mask URLs that may contain credentials
+    message = re.sub(r"https?://[^\s'\"\)]+", "<url-redacted>", message)
+    # Mask key-like values
+    message = re.sub(r"[A-Za-z0-9+/]{40,}={0,2}", "<key-redacted>", message)
+    return message
+
+
+def get_jwks_client(force_refresh: bool = False) -> PyJWKClient:
+    global _jwks_client
+    if force_refresh or _jwks_client is None:
         _jwks_client = PyJWKClient(JWKS_URL, cache_keys=True, max_cached_keys=10)
     return _jwks_client
 
@@ -117,6 +142,7 @@ def verify_cognito_jwt(token: str) -> AuthenticatedUser:
 
     # Resolve signing key
     signing_key = None
+    last_key_error: Optional[Exception] = None
     if kid and kid in _test_public_keys:
         signing_key = _test_public_keys[kid]
     else:
@@ -129,16 +155,32 @@ def verify_cognito_jwt(token: str) -> AuthenticatedUser:
                 status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
                 detail="Cognito authentication service is not configured on this backend.",
             )
+        # First attempt: use cached JWKS client
         try:
             client = get_jwks_client()
             signing_key = client.get_signing_key_from_jwt(token).key
         except Exception as e:
-            logger.error(f"Failed to fetch Cognito signing key for kid '{kid}': {e}")
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Unable to verify token signature against Cognito JWKS.",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+            last_key_error = e
+            # Cognito may have rotated signing keys; invalidate cache and retry once
+            reset_jwks_client()
+            try:
+                client = get_jwks_client(force_refresh=True)
+                signing_key = client.get_signing_key_from_jwt(token).key
+                last_key_error = None
+            except Exception as e2:
+                last_key_error = e2
+
+    if signing_key is None:
+        logger.error(
+            "Failed to resolve Cognito signing key (kid=%s): %s",
+            kid or "<missing>",
+            _sanitize_error(str(last_key_error)) if last_key_error else "unknown error",
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Unable to verify token signature against Cognito JWKS.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
     # Decode and verify signature & claims
     try:

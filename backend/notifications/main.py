@@ -7,6 +7,7 @@ import sys
 import os
 import logging
 from pathlib import Path
+import traceback
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -32,8 +33,19 @@ async def lifespan(app: FastAPI):
         init_db()
         logger.info("Database initialized successfully.")
     except Exception as e:
-        logger.error("Failed to initialize database during startup (%s).", type(e).__name__)
+        # Log the actual exception message for local debugging; sanitize any secrets.
+        safe_msg = _sanitize_startup_error(str(e))
+        logger.error("Failed to initialize database during startup (%s): %s", type(e).__name__, safe_msg)
+        logger.debug("Database startup traceback:\n%s", traceback.format_exc())
     yield
+
+
+def _sanitize_startup_error(message: str) -> str:
+    """Mask any PostgreSQL connection strings or credentials that may appear in an error message."""
+    import re
+    message = re.sub(r"postgresql://[^\s'\"\)]+", "postgresql://<redacted>", message)
+    message = re.sub(r"password=[^\s'\"\)]+", "password=<redacted>", message)
+    return message
 
 app = FastAPI(
     title="Inferxe Multi-User Notification Service",

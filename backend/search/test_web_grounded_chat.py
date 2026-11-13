@@ -1,6 +1,4 @@
-"""
-test_web_grounded_chat.py
-=========================
+﻿"""
 Simulates the chatbot's live web-augmented flow:
 1. Search outside web via local DDGS proxy (http://127.0.0.1:8765)
 2. Inject live outside snippets into Ollama prompt
@@ -23,7 +21,7 @@ QUESTION = "What is the latest cloud rental price for an NVIDIA H100 on JarvisLa
 
 def main():
     print("=" * 80)
-    print("🌐 TESTING LIVE WEB SEARCH GROUNDING FOR INFERXE CHATBOT")
+    print("ðŸŒ TESTING LIVE WEB SEARCH GROUNDING FOR INFERXE CHATBOT")
     print("=" * 80)
     print(f"User Question: \"{QUESTION}\"\n")
 
@@ -93,7 +91,7 @@ def main():
     print(f"\n[Response from {MODEL} ({ollama_time:.2f}s)]:\n")
     print(response_text)
     print("\n" + "=" * 80)
-    print("✅ Live Web Search Grounding test completed successfully!")
+    print("âœ… Live Web Search Grounding test completed successfully!")
 
 if __name__ == "__main__":
     main()

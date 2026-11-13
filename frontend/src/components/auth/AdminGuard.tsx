@@ -34,13 +34,7 @@ export function AdminGuard({ children }: AdminGuardProps) {
         return
       }
 
-      // 3. Demo / Local Dev token bypass
-      if (session.token.startsWith('ix-tok-')) {
-        if (isMounted) setAuthState('authorized')
-        return
-      }
-
-      // 4. Server-side cryptographic verification of token
+      // Admin credentials are independent from customer Cognito sessions.
       const isServerValid = await verifyAdminSessionServer(session.token)
       if (!isMounted) return
 
@@ -78,4 +72,3 @@ export function AdminGuard({ children }: AdminGuardProps) {
 
   return <>{children}</>
 }
-

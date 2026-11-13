@@ -1,6 +1,4 @@
-"""
-init_db.py
-==========
+﻿"""
 PostgreSQL database and table initialization script for the Inferxe Inference API.
 Attempts to create the target database if missing and initializes required tables:
   1. api_keys

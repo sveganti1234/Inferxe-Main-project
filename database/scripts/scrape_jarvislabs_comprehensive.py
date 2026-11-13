@@ -1,6 +1,4 @@
-"""
-scrape_jarvislabs_comprehensive.py
-==================================
+﻿"""
 Legally compliant, high-depth extraction and compilation of JarvisLabs.ai data.
 
 Compliance Check:
@@ -74,7 +72,7 @@ jarvis_gpu_instances = [
         "storage_rate_usd_gb_month": 0.10,
         "egress_fee": "Free in-region",
         "status": "Available Active",
-        "best_for": "Large-model training, 70B–405B inference, 128k long-context reasoning with vLLM",
+        "best_for": "Large-model training, 70Bâ€“405B inference, 128k long-context reasoning with vLLM",
         "source_url": "https://jarvislabs.ai/gpu/nvidia-h200"
     },
     {
@@ -166,7 +164,7 @@ jarvis_gpu_instances = [
         "storage_rate_usd_gb_month": 0.10,
         "egress_fee": "Free in-region",
         "status": "Available Active",
-        "best_for": "Medium models (14B–32B), cost-efficient token generation",
+        "best_for": "Medium models (14Bâ€“32B), cost-efficient token generation",
         "source_url": "https://jarvislabs.ai/gpu/nvidia-a100-40gb"
     },
     {
@@ -189,7 +187,7 @@ jarvis_gpu_instances = [
         "storage_rate_usd_gb_month": 0.10,
         "egress_fee": "Free in-region",
         "status": "Available Active",
-        "best_for": "Small LLM inference (7B–8B), text embeddings, real-time video/audio pipelines, Jupyter notebooks",
+        "best_for": "Small LLM inference (7Bâ€“8B), text embeddings, real-time video/audio pipelines, Jupyter notebooks",
         "source_url": "https://jarvislabs.ai/gpu/nvidia-l4"
     },
     {
@@ -260,7 +258,7 @@ jarvis_faqs = [
         "faq_topic": "Running Qwen/QwQ-32B Model",
         "question": "What GPU is required to run the Qwen/QwQ-32B model from Hugging Face?",
         "recommended_gpu": "NVIDIA A100 80GB (unquantized) or RTX Pro 6000 / L40S (quantized)",
-        "expert_summary": "In full precision (FP16/BF16), Qwen/QwQ-32B requires ~65 GB of weights plus KV cache, fitting comfortably on an 80 GB GPU (A100 80GB or H100 SXM). With 4-bit AWQ or GPTQ quantization (~18–20 GB weights), it can be deployed on a single 24 GB GPU (like NVIDIA L4) for low context, or 48 GB (L40S) for extended context.",
+        "expert_summary": "In full precision (FP16/BF16), Qwen/QwQ-32B requires ~65 GB of weights plus KV cache, fitting comfortably on an 80 GB GPU (A100 80GB or H100 SXM). With 4-bit AWQ or GPTQ quantization (~18â€“20 GB weights), it can be deployed on a single 24 GB GPU (like NVIDIA L4) for low context, or 48 GB (L40S) for extended context.",
         "author": "Vishnu Subramanian (Founder @ Jarvislabs)",
         "source_url": "https://jarvislabs.ai/ai-faqs/what-gpu-is-required-to-run-qwen-qwq-32b-model-from-hugging-face"
     },
@@ -268,7 +266,7 @@ jarvis_faqs = [
         "faq_topic": "H100 vs H200 LLM Benchmarks",
         "question": "How do H100 and H200 compare for serving models with vLLM?",
         "recommended_gpu": "NVIDIA H200 for 128k long context; H100 for standard context",
-        "expert_summary": "In real-world benchmarks serving Qwen3-32B in BF16 on vLLM, H200's 4.8 TB/s HBM3e memory bandwidth delivered 1.2x faster decode speeds compared to H100 SXM (3.35 TB/s). More importantly, H200's 141 GB VRAM enables serving 70B models with massive 32k–128k context windows without out-of-memory errors.",
+        "expert_summary": "In real-world benchmarks serving Qwen3-32B in BF16 on vLLM, H200's 4.8 TB/s HBM3e memory bandwidth delivered 1.2x faster decode speeds compared to H100 SXM (3.35 TB/s). More importantly, H200's 141 GB VRAM enables serving 70B models with massive 32kâ€“128k context windows without out-of-memory errors.",
         "author": "Jarvislabs Engineering Team",
         "source_url": "https://jarvislabs.ai/ai-faqs/nvidia-h100-vs-h200-gpu-comparison"
     },
@@ -284,7 +282,7 @@ jarvis_faqs = [
         "faq_topic": "NVLink vs PCIe for Multi-GPU Inference",
         "question": "What is the key difference between NVLink and PCIe for LLM inference?",
         "recommended_gpu": "SXM5/NVLink for Tensor Parallelism (TP > 1)",
-        "expert_summary": "PCIe Gen5 provides 64–128 GB/s bidirectional bandwidth, which creates severe communication bottlenecks when splitting model weights across multiple GPUs (Tensor Parallelism). NVLink provides 900 GB/s on Hopper (over 7x faster than PCIe), eliminating inter-GPU latency during all-reduce communication in vLLM.",
+        "expert_summary": "PCIe Gen5 provides 64â€“128 GB/s bidirectional bandwidth, which creates severe communication bottlenecks when splitting model weights across multiple GPUs (Tensor Parallelism). NVLink provides 900 GB/s on Hopper (over 7x faster than PCIe), eliminating inter-GPU latency during all-reduce communication in vLLM.",
         "author": "Jarvislabs Engineering Team",
         "source_url": "https://jarvislabs.ai/ai-faqs/what-are-the-key-differences-between-nvlink-and-pcie"
     },
@@ -300,7 +298,7 @@ jarvis_faqs = [
         "faq_topic": "Retired GPU Notice",
         "question": "Can I still rent an NVIDIA A6000, RTX 6000 Ada, or A5000 on JarvisLabs?",
         "recommended_gpu": "RTX Pro 6000 Blackwell (96 GB) or L4 (24 GB)",
-        "expert_summary": "No. Jarvislabs has retired the older A6000, RTX 6000 Ada, and A5000 GPUs. The recommended direct replacements are the RTX Pro 6000 Blackwell (₹207/hr or $2.19/hr) with 96 GB VRAM, and the NVIDIA L4 (₹41/hr or $0.44/hr) with 24 GB VRAM.",
+        "expert_summary": "No. Jarvislabs has retired the older A6000, RTX 6000 Ada, and A5000 GPUs. The recommended direct replacements are the RTX Pro 6000 Blackwell (â‚¹207/hr or $2.19/hr) with 96 GB VRAM, and the NVIDIA L4 (â‚¹41/hr or $0.44/hr) with 24 GB VRAM.",
         "author": "Jarvislabs Official Policy (2026)",
         "source_url": "https://jarvislabs.ai/in"
     }
@@ -351,7 +349,7 @@ jarvis_comparisons = [
         "a100_80gb_hourly_usd": 1.89,
         "l4_hourly_usd": 0.60,
         "billing_granularity": "Per-second",
-        "boot_speed": "60–180s container startup",
+        "boot_speed": "60â€“180s container startup",
         "india_datacenter_presence": "Limited / Community hosts",
         "spot_discount": "Up to 40%",
         "in_region_egress_cost": "Billed after limit",
@@ -366,7 +364,7 @@ jarvis_comparisons = [
         "a100_80gb_hourly_usd": 1.79,
         "l4_hourly_usd": 0.50,
         "billing_granularity": "Per-hour / minute",
-        "boot_speed": "2–5 minutes",
+        "boot_speed": "2â€“5 minutes",
         "india_datacenter_presence": "No (US/EU datacenters)",
         "spot_discount": "Not available on single instances",
         "in_region_egress_cost": "Free",
@@ -396,12 +394,12 @@ jarvis_comparisons = [
         "a100_80gb_hourly_usd": 3.67,
         "l4_hourly_usd": 0.85,
         "billing_granularity": "Per-second (after 1 min)",
-        "boot_speed": "3–8 minutes",
+        "boot_speed": "3â€“8 minutes",
         "india_datacenter_presence": "Yes (Mumbai/Hyderabad)",
         "spot_discount": "Up to 70% (high preemption)",
         "in_region_egress_cost": "Expensive egress fees ($0.09/GB)",
         "quota_approval_time": "Starts at 0 quota; manual enterprise review",
-        "key_differentiation": "JarvisLabs is 2x to 3.5x cheaper on H100 (₹330 vs ₹557–₹995/hr) without bureaucratic quota hurdles"
+        "key_differentiation": "JarvisLabs is 2x to 3.5x cheaper on H100 (â‚¹330 vs â‚¹557â€“â‚¹995/hr) without bureaucratic quota hurdles"
     }
 ]
 
@@ -514,7 +512,7 @@ jarvis_qa_knowledge_base = [
         "id": "jl-qa-001",
         "category": "pricing_inr",
         "question": "What are JarvisLabs GPU rental prices in Indian Rupees (INR)?",
-        "answer": "JarvisLabs rents NVIDIA GPUs with per-minute billing in INR: NVIDIA L4 (24 GB) is ₹41/hr; NVIDIA A30 (24 GB) is ₹39/hr; NVIDIA A100 40GB is ₹84/hr; NVIDIA A100 80GB is ₹141/hr; NVIDIA RTX Pro 6000 Blackwell (96 GB) is ₹207/hr; NVIDIA H100 SXM (80 GB) is ₹330/hr; and NVIDIA H200 SXM (141 GB) is ₹435/hr. Spot instances are available with up to 56% savings (e.g. H100 spot is ₹146/hr, H200 spot is ₹217/hr).",
+        "answer": "JarvisLabs rents NVIDIA GPUs with per-minute billing in INR: NVIDIA L4 (24 GB) is â‚¹41/hr; NVIDIA A30 (24 GB) is â‚¹39/hr; NVIDIA A100 40GB is â‚¹84/hr; NVIDIA A100 80GB is â‚¹141/hr; NVIDIA RTX Pro 6000 Blackwell (96 GB) is â‚¹207/hr; NVIDIA H100 SXM (80 GB) is â‚¹330/hr; and NVIDIA H200 SXM (141 GB) is â‚¹435/hr. Spot instances are available with up to 56% savings (e.g. H100 spot is â‚¹146/hr, H200 spot is â‚¹217/hr).",
         "verified_source": "https://jarvislabs.ai/in (Official India Pricing)"
     },
     {
@@ -549,14 +547,14 @@ jarvis_qa_knowledge_base = [
         "id": "jl-qa-006",
         "category": "retired_hardware",
         "question": "Can I launch an RTX 6000 Ada, A6000, or A5000 on JarvisLabs?",
-        "answer": "No. The older A6000, RTX 6000 Ada, and A5000 GPUs have been formally retired from Jarvislabs and cannot be launched in any region. The direct replacement for high-memory workloads is the NVIDIA RTX Pro 6000 Blackwell (96 GB GDDR7) at ₹207/hr ($2.19/hr), and for lightweight workloads, the NVIDIA L4 (24 GB) at ₹41/hr ($0.44/hr).",
+        "answer": "No. The older A6000, RTX 6000 Ada, and A5000 GPUs have been formally retired from Jarvislabs and cannot be launched in any region. The direct replacement for high-memory workloads is the NVIDIA RTX Pro 6000 Blackwell (96 GB GDDR7) at â‚¹207/hr ($2.19/hr), and for lightweight workloads, the NVIDIA L4 (24 GB) at â‚¹41/hr ($0.44/hr).",
         "verified_source": "https://jarvislabs.ai/in"
     },
     {
         "id": "jl-qa-007",
         "category": "competitor_comparison",
         "question": "How does JarvisLabs compare to AWS for GPU rental in India?",
-        "answer": "JarvisLabs is 2x to 3.5x cheaper than hyperscalers. An NVIDIA H100 SXM is ₹330/hr ($3.49) on JarvisLabs versus roughly ₹557/hr on AWS and ₹896–₹995/hr on GCP and Azure. Furthermore, hyperscalers require lengthy manual quota approval processes that often reject startups, whereas JarvisLabs allows immediate instance launch upon adding credits.",
+        "answer": "JarvisLabs is 2x to 3.5x cheaper than hyperscalers. An NVIDIA H100 SXM is â‚¹330/hr ($3.49) on JarvisLabs versus roughly â‚¹557/hr on AWS and â‚¹896â€“â‚¹995/hr on GCP and Azure. Furthermore, hyperscalers require lengthy manual quota approval processes that often reject startups, whereas JarvisLabs allows immediate instance launch upon adding credits.",
         "verified_source": "https://jarvislabs.ai/in"
     },
     {
@@ -577,7 +575,7 @@ jarvis_qa_knowledge_base = [
         "id": "jl-qa-010",
         "category": "spot_instances",
         "question": "What are JarvisLabs spot GPUs and how should they be used?",
-        "answer": "Spot instances run on idle capacity at steep discounts (up to 56% off, e.g. H100 at ₹146/hr vs ₹330/hr). They can be preempted when on-demand capacity is required back. Spot GPUs are ideal for checkpointed training runs, fault-tolerant batch inference, and Kaggle experiments where workflows can be resumed seamlessly.",
+        "answer": "Spot instances run on idle capacity at steep discounts (up to 56% off, e.g. H100 at â‚¹146/hr vs â‚¹330/hr). They can be preempted when on-demand capacity is required back. Spot GPUs are ideal for checkpointed training runs, fault-tolerant batch inference, and Kaggle experiments where workflows can be resumed seamlessly.",
         "verified_source": "https://jarvislabs.ai/in"
     },
     {
@@ -591,7 +589,7 @@ jarvis_qa_knowledge_base = [
         "id": "jl-qa-012",
         "category": "blackwell_specs",
         "question": "What are the specs of the NVIDIA RTX Pro 6000 Blackwell on JarvisLabs?",
-        "answer": "The RTX Pro 6000 Blackwell features 96 GB of ultra-fast GDDR7 memory, paired with 160 GB of system RAM and 28 vCPUs on JarvisLabs. At ₹207/hr ($2.19/hr), it delivers high VRAM capacity for large LLM inference (such as Qwen 2.5 72B or Llama 3 70B in 4-bit) at a significantly lower hourly rate than H100 SXM.",
+        "answer": "The RTX Pro 6000 Blackwell features 96 GB of ultra-fast GDDR7 memory, paired with 160 GB of system RAM and 28 vCPUs on JarvisLabs. At â‚¹207/hr ($2.19/hr), it delivers high VRAM capacity for large LLM inference (such as Qwen 2.5 72B or Llama 3 70B in 4-bit) at a significantly lower hourly rate than H100 SXM.",
         "verified_source": "https://jarvislabs.ai/gpu/nvidia-rtx-6000-pro-blackwell"
     }
 ]

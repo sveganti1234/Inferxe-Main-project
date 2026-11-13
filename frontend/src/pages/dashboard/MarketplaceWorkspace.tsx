@@ -18,6 +18,7 @@ import {
   createBackendApiKey,
   revokeBackendApiKey,
 } from '../../lib/apiKeyService'
+import { fetchWalletBalance, topUpWallet } from '../../lib/walletService'
 import {
   fetchBackendSshKeys,
   createBackendSshKey,
@@ -144,12 +145,6 @@ const initialOrders: OrderItem[] = [
   { id: 'ORD-8390', modelOrGpu: 'DeepSeek R1 671B · 8x NVIDIA H100', provider: 'CtrlS Datacenters (Hyderabad)', date: '04 Oct 2026', duration: '4 hours', cost: 8800, status: 'Completed', details: 'Frontier MoE reasoning benchmark evaluation', is_archived: false },
   { id: 'ORD-8312', modelOrGpu: 'Mistral 7B · 1x NVIDIA L4', provider: 'Yotta NM1 (Mumbai)', date: '01 Oct 2026', duration: '8 hours', cost: 480, status: 'Cancelled', details: 'Workload canceled by user before warm-up', is_archived: false },
   { id: 'ORD-8201', modelOrGpu: 'CodeQwen 7B · 1x NVIDIA L40S', provider: 'Sify Infinit (Chennai)', date: '25 Sep 2026', duration: '72 hours', cost: 7200, status: 'Archived', details: 'Archived monthly sandbox workload', is_archived: true },
-]
-
-const initialTransactions: TransactionItem[] = [
-  { id: 'TX-1048', desc: 'Wallet top-up (Demo)', date: '10 Oct 2026', amount: 10000, isCredit: true, status: 'Completed' },
-  { id: 'TX-1032', desc: 'Inference deployment billing', date: '08 Oct 2026', amount: 1240, isCredit: false, status: 'Completed' },
-  { id: 'TX-1011', desc: 'Inference runtime usage', date: '01 Oct 2026', amount: 3580, isCredit: false, status: 'Completed' },
 ]
 
 const initialPayouts: PayoutRecord[] = [
@@ -289,6 +284,13 @@ export default function MarketplaceWorkspace() {
     }
   }, [route, navigate])
 
+  // User session & Cognito-scoped storage keys (declared before any state initializer uses them)
+  const session = getSession()
+  const sessionUser = session?.user as ({ fullName: string; email: string; organization?: string }) | undefined
+  const cognitoSub = session?.user?.id || ''
+  const walletStorageKey = cognitoSub ? `inferxe_demo_wallet_balance_v1_${cognitoSub}` : STORE.wallet
+  const transactionsStorageKey = cognitoSub ? `inferxe_demo_transactions_v2_${cognitoSub}` : STORE.transactions
+
   // Global Workspace State
   const [listings, setListings] = useState<Listing[]>(() => readStore(STORE.listings, initialListings))
   const [deployments, setDeployments] = useState<Deployment[]>(() => readStore(STORE.deployments, initialDeployments))
@@ -299,10 +301,13 @@ export default function MarketplaceWorkspace() {
   const [sshKeys, setSshKeys] = useState<SshKey[]>([])
   const [orders, setOrders] = useState<OrderItem[]>(() => readStore(STORE.orders, initialOrders))
   const [wishlist, setWishlist] = useState<string[]>(() => readStore(STORE.wishlist, ['gpu-101', 'gpu-104']))
-  const [walletBalance, setWalletBalance] = useState<number>(() => readStore(STORE.wallet, 10000))
-  const [transactions, setTransactions] = useState<TransactionItem[]>(() => readStore(STORE.transactions, initialTransactions))
+  const [walletBalance, setWalletBalance] = useState<number>(() => readStore(walletStorageKey, 0))
+  const [transactions, setTransactions] = useState<TransactionItem[]>(() => readStore(transactionsStorageKey, []))
   const [notifications, setNotifications] = useState<NotificationItem[]>(() => readStore(STORE.notifications, initialNotifications))
   const [announcementDismissed, setAnnouncementDismissed] = useState<boolean>(() => localStorage.getItem(STORE.announcementDismissed) === 'true')
+
+  // Wallet usage computed from transactions (not hardcoded)
+  const monthSpend = transactions.filter((t) => !t.isCredit).reduce((s, t) => s + t.amount, 0)
 
   // Real Elapsed Time 1-Hour Trial State
   const [trialTimeLeft, setTrialTimeLeft] = useState<number | null>(() => {
@@ -324,6 +329,23 @@ export default function MarketplaceWorkspace() {
     }
     const interval = setInterval(checkTimer, 1000)
     return () => clearInterval(interval)
+  }, [])
+
+  // Sync wallet balance from backend (source of truth) on mount
+  useEffect(() => {
+    let mounted = true
+    const syncWalletBalance = async () => {
+      const res = await fetchWalletBalance()
+      if (!mounted) return
+      if (res.ok && res.balance) {
+        setWalletBalance(res.balance.balance)
+        saveStore(walletStorageKey, res.balance.balance)
+      }
+    }
+    void syncWalletBalance()
+    return () => {
+      mounted = false
+    }
   }, [])
 
   const startTrial = () => {
@@ -589,9 +611,6 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
   const numericPayout = Math.floor(Number(payoutAmount)) || 0
   const [workloadTelemetry, setWorkloadTelemetry] = useState<Deployment | null>(null)
 
-  // User Profile State
-  const session = getSession()
-  const sessionUser = session?.user as ({ fullName: string; email: string; organization?: string }) | undefined
   const [profileName, setProfileName] = useState(sessionUser?.fullName || 'Priya Sharma')
   const [profileEmail] = useState(sessionUser?.email || 'priya.s@novatech.ai')
   const [profileOrg, setProfileOrg] = useState(sessionUser?.organization || 'NovaTech AI Systems')
@@ -615,8 +634,8 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
   useEffect(() => { saveStore(STORE.keys, keys) }, [keys])
   useEffect(() => { saveStore(STORE.orders, orders) }, [orders])
   useEffect(() => { saveStore(STORE.wishlist, wishlist) }, [wishlist])
-  useEffect(() => { saveStore(STORE.wallet, walletBalance) }, [walletBalance])
-  useEffect(() => { saveStore(STORE.transactions, transactions) }, [transactions])
+  useEffect(() => { saveStore(walletStorageKey, walletBalance) }, [walletStorageKey, walletBalance])
+  useEffect(() => { saveStore(transactionsStorageKey, transactions) }, [transactionsStorageKey, transactions])
   useEffect(() => { saveStore(STORE.payouts, payoutHistory) }, [payoutHistory])
   useEffect(() => { saveStore(STORE.pendingPayout, pendingPayout) }, [pendingPayout])
   useEffect(() => {
@@ -902,7 +921,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
     }
   }
 
-  const handleTopUpWallet = (e: FormEvent) => {
+  const handleTopUpWallet = async (e: FormEvent) => {
     e.preventDefault()
     const amountNum = Math.floor(Number(topUpAmount))
     if (!amountNum || isNaN(amountNum) || amountNum <= 0) {
@@ -910,12 +929,24 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
       return
     }
 
-    const newBalance = walletBalance + amountNum
+    const idemKey = `wallet_topup_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`
+    const result = await topUpWallet(amountNum, idemKey, 'Wallet top-up (Demo)')
+
+    if (!result.ok) {
+      if (result.unauthorized) {
+        flash('Session expired. Please sign in again.')
+        return
+      }
+      flash(result.error || 'Wallet top-up failed. Please try again.')
+      return
+    }
+
+    const newBalance = result.result!.new_balance
     setWalletBalance(newBalance)
-    saveStore(STORE.wallet, newBalance)
+    saveStore(walletStorageKey, newBalance)
 
     const newTx: TransactionItem = {
-      id: `TX-${Math.floor(1000 + Math.random() * 9000)}`,
+      id: result.result!.transaction_id,
       desc: 'Wallet top-up (Demo)',
       date: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
       amount: amountNum,
@@ -924,12 +955,12 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
     }
     const updatedTxs = [newTx, ...transactions]
     setTransactions(updatedTxs)
-    saveStore(STORE.transactions, updatedTxs)
+    saveStore(transactionsStorageKey, updatedTxs)
 
     setShowTopUpModal(false)
     addNotification({
       title: `Wallet Credited: +₹${amountNum.toLocaleString('en-IN')}`,
-      detail: `₹${amountNum.toLocaleString('en-IN')} successfully credited to compute wallet. Transaction ${newTx.id} confirmed.`,
+      detail: `₹${amountNum.toLocaleString('en-IN')} successfully credited to compute wallet. Transaction ${result.result!.transaction_id} confirmed.`,
       type: 'Billing',
     })
     flash(`₹${amountNum.toLocaleString('en-IN')} added to your wallet! Transaction completed.`)
@@ -2266,13 +2297,13 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
               </div>
               <div className="mw-metric">
                 <div className="mw-metric-top"><span>Current Month Usage</span><span className="mw-icon-box"><CircleDollarSign /></span></div>
-                <strong>₹4,820</strong>
-                <small>48% of ₹10,000 monthly limit</small>
+                <strong>{money(monthSpend)}</strong>
+                <small>{monthSpend === 0 ? 'No usage this month' : `${Math.round((monthSpend / 10000) * 100)}% of ₹10,000 monthly limit`}</small>
               </div>
               <div className="mw-metric">
                 <div className="mw-metric-top"><span>Pending Invoices</span><span className="mw-icon-box"><ArrowDownToLine /></span></div>
-                <strong>1</strong>
-                <small>Generated on 01 Oct 2026</small>
+                <strong>0</strong>
+                <small>No pending invoices</small>
               </div>
               <div className="mw-metric">
                 <div className="mw-metric-top"><span>Next Billing Cycle</span><span className="mw-icon-box"><Bell /></span></div>
@@ -3934,13 +3965,13 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
               </div>
               <div className="mw-metric">
                 <div className="mw-metric-top"><span>Current Month Usage</span><span className="mw-icon-box"><CircleDollarSign /></span></div>
-                <strong>₹4,820</strong>
-                <small>48% of ₹10,000 monthly limit</small>
+                <strong>{money(monthSpend)}</strong>
+                <small>{monthSpend === 0 ? 'No usage this month' : `${Math.round((monthSpend / 10000) * 100)}% of ₹10,000 monthly limit`}</small>
               </div>
               <div className="mw-metric">
                 <div className="mw-metric-top"><span>Pending Invoices</span><span className="mw-icon-box"><ArrowDownToLine /></span></div>
-                <strong>1</strong>
-                <small>Generated on 01 Oct 2026</small>
+                <strong>0</strong>
+                <small>No pending invoices</small>
               </div>
               <div className="mw-metric">
                 <div className="mw-metric-top"><span>Next Billing Cycle</span><span className="mw-icon-box"><Bell /></span></div>

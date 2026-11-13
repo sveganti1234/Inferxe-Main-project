@@ -1,6 +1,4 @@
-"""
-server.py
-=========
+﻿"""
 FastAPI backend for the Inferxe RAG pipeline.
 Integrates ChromaDB vector retrieval, nomic-embed-text embeddings,
 and inferxe-qwen-ft LLM generation via Ollama with strict domain guardrails,
@@ -341,10 +339,10 @@ async def chat_endpoint(payload: ChatRequest):
             return ChatResponse(
                 response=(
                     "Navigate to Wallet: Once logged in, navigate to the Dashboard and open the [Wallet](/dashboard/wallet) section (Dashboard -> Wallet).\n\n"
-                    "Choose Top-Up Amount: In the Wallet section, choose your top-up amount in Indian Rupees (INR) or USD (e.g., ₹2,000, ₹5,000, ₹10,000, or custom amount).\n\n"
+                    "Choose Top-Up Amount: In the Wallet section, choose your top-up amount in Indian Rupees (INR) or USD (e.g., â‚¹2,000, â‚¹5,000, â‚¹10,000, or custom amount).\n\n"
                     "Pay Using UPI, Credit/Debit Cards, or NetBanking: Choose a payment method: UPI (Google Pay, PhonePe, Paytm), Indian Debit/Credit Cards (Visa, MasterCard, RuPay), NetBanking, or Enterprise Invoicing.\n\n"
                     "Complete Payment: Your prepaid balance is credited to your account instantly.\n\n"
-                    "Current Balance Status: Your wallet balance is ₹10,000. Running GPUs cost ₹160/hr, so you have about 62.5 hours of runtime left."
+                    "Current Balance Status: Your wallet balance is â‚¹10,000. Running GPUs cost â‚¹160/hr, so you have about 62.5 hours of runtime left."
                 ),
                 grounded=True,
                 status="success",
@@ -378,10 +376,10 @@ async def chat_endpoint(payload: ChatRequest):
                     response=(
                         "Navigate to Provider Management: Open the [Provider Management](/dashboard/provider) section (Dashboard -> Provider Management).\n\n"
                         "Provider Analysis & Node Telemetry:\n"
-                        "• Active Providers: JarvisLabs, E2E Networks, Yotta Shakti Cloud, and sovereign Tier-IV nodes.\n"
-                        "• Provider Health & Telemetry: Real-time telemetry monitoring for GPU node uptime, thermals, power draw, and VRAM utilization across Indian data centers.\n"
-                        "• Provider Routing & Allocation: Automated dynamic routing allocating workloads between spot instances (up to 65% discount) and dedicated reserved nodes.\n"
-                        "• Margin & Revenue Tracking: Admin controls for per-GPU provider settlement rates, markup margins, and marketplace payouts."
+                        "â€¢ Active Providers: JarvisLabs, E2E Networks, Yotta Shakti Cloud, and sovereign Tier-IV nodes.\n"
+                        "â€¢ Provider Health & Telemetry: Real-time telemetry monitoring for GPU node uptime, thermals, power draw, and VRAM utilization across Indian data centers.\n"
+                        "â€¢ Provider Routing & Allocation: Automated dynamic routing allocating workloads between spot instances (up to 65% discount) and dedicated reserved nodes.\n"
+                        "â€¢ Margin & Revenue Tracking: Admin controls for per-GPU provider settlement rates, markup margins, and marketplace payouts."
                     ),
                     grounded=True,
                     status="success",
@@ -392,10 +390,10 @@ async def chat_endpoint(payload: ChatRequest):
                 return ChatResponse(
                     response=(
                         "Inferxe Administration Features:\n\n"
-                        "• Provider Management & Analysis: Monitor provider telemetry, GPU availability, and node health across cluster nodes at [Provider Management](/dashboard/provider).\n"
-                        "• User & Role Management (RBAC): Configure developer roles, invite team members, and set per-user monthly spend limits at [User Management](/dashboard/users).\n"
-                        "• Marketplace & Rate Control: Configure retail pricing, spot discount thresholds, and billing settlement margins.\n"
-                        "• Sovereign Audit Logs: Inspect MeitY / DPDP compliance logs, cluster access records, and telemetry audits."
+                        "â€¢ Provider Management & Analysis: Monitor provider telemetry, GPU availability, and node health across cluster nodes at [Provider Management](/dashboard/provider).\n"
+                        "â€¢ User & Role Management (RBAC): Configure developer roles, invite team members, and set per-user monthly spend limits at [User Management](/dashboard/users).\n"
+                        "â€¢ Marketplace & Rate Control: Configure retail pricing, spot discount thresholds, and billing settlement margins.\n"
+                        "â€¢ Sovereign Audit Logs: Inspect MeitY / DPDP compliance logs, cluster access records, and telemetry audits."
                     ),
                     grounded=True,
                     status="success",

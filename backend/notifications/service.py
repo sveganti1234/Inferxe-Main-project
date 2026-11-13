@@ -664,7 +664,7 @@ class NotificationService:
                     INSERT INTO wallet_transactions (id, user_id, transaction_type, direction, amount, balance_after, currency, status, idempotency_key, description, created_at, updated_at)
                     VALUES (%s, %s, 'usage_charge', 'debit', %s, %s, 'INR', 'completed', %s, %s, %s, %s);
                     """,
-                    (tx_id, user_id, float(amount), new_balance, idem_key, description, tx_now, tx_now)
+                    (tx_id, user_id, abs(float(amount)), new_balance, idem_key, description, tx_now, tx_now)
                 )
             else:
                 cur.execute(
@@ -672,7 +672,7 @@ class NotificationService:
                     INSERT INTO wallet_transactions (id, user_id, amount, balance_after, currency, status, idempotency_key, description, created_at, updated_at)
                     VALUES (%s, %s, %s, %s, 'INR', 'completed', %s, %s, %s, %s);
                     """,
-                    (tx_id, user_id, -amount, new_balance, idem_key, description, tx_now, tx_now)
+                    (tx_id, user_id, -abs(float(amount)), new_balance, idem_key, description, tx_now, tx_now)
                 )
 
             # Standard Debit notification
@@ -706,6 +706,32 @@ class NotificationService:
                 "amount": amount,
                 "remaining_balance": new_balance,
                 "low_balance_alert": threshold_alert_needed,
+            }
+
+    @staticmethod
+    def get_wallet_balance(user_id: str) -> Dict[str, Any]:
+        """Returns the wallet balance for the authenticated user. Zero if no wallet record exists."""
+        with DBConnection(autocommit=True) as conn:
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+            cur.execute(
+                "SELECT balance, currency, low_balance_alert_level, updated_at FROM wallets WHERE user_id = %s;",
+                (user_id,),
+            )
+            row = cur.fetchone()
+            if not row:
+                return {
+                    "user_id": user_id,
+                    "balance": 0.0,
+                    "currency": "INR",
+                    "low_balance_alert_level": "NORMAL",
+                    "updated_at": None,
+                }
+            return {
+                "user_id": user_id,
+                "balance": float(row["balance"]),
+                "currency": row["currency"],
+                "low_balance_alert_level": row["low_balance_alert_level"],
+                "updated_at": row["updated_at"],
             }
 
     @classmethod

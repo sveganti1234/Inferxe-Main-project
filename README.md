@@ -774,7 +774,7 @@ There is **no automated test suite committed** — be aware of this. Quality gat
 ## 30. Configuration
 | Setting | Where | Notes |
 | --- | --- | --- |
-| Cognito authentication | `frontend/.env` / `frontend/.env.local` (`VITE_COGNITO_USER_POOL_ID`, `VITE_COGNITO_CLIENT_ID`, `VITE_COGNITO_REGION`) | Use real values from your Cognito user pool. Backend profile synchronization and FastAPI Supabase REST calls read server-only `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` exclusively from `backend/.env` (see `backend/.env.example`). Never place `SUPABASE_SERVICE_ROLE_KEY` in `frontend/.env*`, never prefix it with `VITE_`, and never expose it to the browser. Restart Vite/backend after changing env values. |
+| Cognito authentication | `frontend/.env` / `frontend/.env.local` (`VITE_COGNITO_USER_POOL_ID`, `VITE_COGNITO_CLIENT_ID`, `VITE_COGNITO_REGION`) | Use real values from your Cognito user pool. Backend profile synchronization and FastAPI Supabase REST calls read server-only `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` (or `SUPABASE_SECRET_KEY`) exclusively from `backend/.env` (see `backend/.env.example`). Never place `SUPABASE_SERVICE_ROLE_KEY` in `frontend/.env*`, never prefix it with `VITE_`, and never expose it to the browser. Restart Vite/backend after changing env values. |
 | Contact email | `src/data/site.ts` → `SITE.contactEmail` | Empty = hidden on Contact page and in form fallback text. |
 | Form endpoint | env `VITE_FORM_ENDPOINT` (e.g. in `.env.local`) | Create `.env.local` with `VITE_FORM_ENDPOINT=https://…`; restart the dev server after changing env. |
 | Brand/stage text | `SITE` (`tagline`, `stage`, `updated`) | Footer chips and Company plate read from it. |

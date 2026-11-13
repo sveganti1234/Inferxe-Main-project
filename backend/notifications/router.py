@@ -257,6 +257,13 @@ def process_wallet_transaction(
     except ValueError as ve:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
 
+@router.get("/wallet/balance")
+def get_wallet_balance(
+    user: AuthenticatedUser = Depends(get_current_user),
+):
+    """Returns the wallet balance for the authenticated user."""
+    return NotificationService.get_wallet_balance(user_id=user.user_id)
+
 @router.post("/deployments/status")
 def update_deployment_status(
     req: DeploymentStatusRequest,

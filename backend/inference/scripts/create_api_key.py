@@ -1,6 +1,4 @@
-"""
-create_api_key.py
-=================
+﻿"""
 CLI utility to generate a customer API key, display the raw secret key ONCE,
 and persist the SHA-256 hash into the PostgreSQL database.
 

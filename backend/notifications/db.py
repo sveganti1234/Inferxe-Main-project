@@ -6,10 +6,11 @@ Handles connection pooling, queries with RealDictCursor, and idempotent migratio
 import os
 import json
 import logging
+import traceback
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
-from urllib.parse import unquote, urlsplit
+from urllib.parse import parse_qs, unquote, urlsplit, urlunsplit
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from psycopg2.pool import ThreadedConnectionPool
@@ -21,7 +22,6 @@ if (ROOT_DIR / ".env").is_file():
     load_dotenv(ROOT_DIR / ".env", override=False)
 if (BACKEND_DIR / ".env").is_file():
     load_dotenv(BACKEND_DIR / ".env", override=False)
-
 logger = logging.getLogger("inferxe.notifications.db")
 
 
@@ -93,6 +93,110 @@ except ValueError:
 
 _pool: Optional[ThreadedConnectionPool] = None
 
+def _mask_connection_params(params: Dict[str, Any]) -> Dict[str, Any]:
+    """Return a copy of params with credential fields masked so secrets are never logged."""
+    masked = dict(params)
+    sensitive_keys = {"user", "password", "host", "dbname"}
+    for key in sensitive_keys:
+        if key in masked:
+            masked[key] = "<redacted>"
+    return masked
+
+
+def _sanitize_error_message(message: str) -> str:
+    """Mask any PostgreSQL connection strings or credentials that may appear in an error message."""
+    import re
+    # Mask postgresql:// URLs that may appear in psycopg2 error messages
+    message = re.sub(r"postgresql://[^\s'\"\)]+", "postgresql://<redacted>", message)
+    # Mask password= parameters
+    message = re.sub(r"password=[^\s'\"\)]+", "password=<redacted>", message)
+    # Mask host= parameters (hostnames may appear in error messages)
+    message = re.sub(r"host=[^\s'\"\)]+", "host=<redacted>", message)
+    # Mask user= parameters
+    message = re.sub(r"user=[^\s'\"\)]+", "user=<redacted>", message)
+    # Mask dbname= parameters
+    message = re.sub(r"dbname=[^\s'\"\)]+", "dbname=<redacted>", message)
+    # Mask quoted hostname values that psycopg2 may include in error text
+    message = re.sub(r"'[^']*\.[^']*'", "'<redacted-host>'", message)
+    # Mask single-quoted values containing '@' (credentials/emails in error text)
+    message = re.sub(r"'[^']*@[^']*'", "'<redacted-cred>'", message)
+    return message
+
+
+def _extract_url_components(parsed_url) -> Dict[str, Any]:
+    """Extract connection components from a parsed URL, URL-decoding credentials.
+
+    urlsplit already decodes percent-encoded characters, but we apply unquote()
+    explicitly for defense-in-depth against double-encoded or unusual formats.
+    """
+    import re
+
+    # Extract hostname safely; some Python versions may validate IP addresses
+    # when accessing hostname on certain URL formats.
+    hostname = None
+    try:
+        hostname = parsed_url.hostname
+    except Exception:
+        # Fallback: manually extract from netloc
+        netloc = parsed_url.netloc or ""
+        # Strip userinfo (everything before last @)
+        if "@" in netloc:
+            netloc = netloc.rsplit("@", 1)[-1]
+        # Strip port
+        if ":" in netloc:
+            netloc = netloc.rsplit(":", 1)[0]
+        # Strip IPv6 brackets
+        hostname = netloc.strip("[]") or None
+
+    # Extract port
+    port = None
+    try:
+        port = parsed_url.port
+    except Exception:
+        netloc = parsed_url.netloc or ""
+        if "@" in netloc:
+            netloc = netloc.rsplit("@", 1)[-1]
+        if ":" in netloc:
+            try:
+                port = int(netloc.rsplit(":", 1)[-1])
+            except ValueError:
+                port = None
+    if port is None:
+        port = 5432
+
+    # Extract path (dbname)
+    dbname = ""
+    try:
+        dbname = (parsed_url.path or "").lstrip("/")
+    except Exception:
+        dbname = ""
+
+    # Extract username and password with explicit URL decoding
+    username = None
+    user_password = None
+    try:
+        username = parsed_url.username
+        if username:
+            username = unquote(username)
+    except Exception:
+        username = None
+
+    try:
+        user_password = parsed_url.password
+        if user_password:
+            user_password = unquote(user_password)
+    except Exception:
+        user_password = None
+
+    return {
+        "host": hostname,
+        "port": port,
+        "dbname": dbname,
+        "user": username,
+        "password": user_password,
+    }
+
+
 def get_connection_params() -> Dict[str, Any]:
     dsn = _resolve_notifications_dsn() or DATABASE_URL
     if not dsn:
@@ -101,25 +205,93 @@ def get_connection_params() -> Dict[str, Any]:
             "pointing to the shared Supabase PostgreSQL connection string."
         )
 
-    parsed_url = urlsplit(dsn)
-    if parsed_url.scheme not in {"postgres", "postgresql"} or not parsed_url.hostname or not parsed_url.path.strip("/"):
-        raise RuntimeError(
-            "SUPABASE_DATABASE_URL / DATABASE_URL must be a valid PostgreSQL connection string."
+    # ── STAGE 1: URL parsing ──────────────────────────────────────────
+    try:
+        parsed_url = urlsplit(dsn)
+    except Exception as e:
+        logger.error(
+            "URL parsing failed at stage 'urlsplit': %s",
+            _sanitize_error_message(str(e)),
         )
+        logger.debug("URL parsing traceback:\n%s", traceback.format_exc())
+        raise
 
-    return {
-        "dsn": dsn,
+    # ── STAGE 2: URL validation ───────────────────────────────────────
+    try:
+        scheme = parsed_url.scheme
+        scheme_valid = scheme in {"postgres", "postgresql"}
+        # Validate hostname presence without triggering IP validation
+        netloc = parsed_url.netloc or ""
+        hostname_present = bool(netloc)
+        path_present = bool((parsed_url.path or "").strip("/"))
+        if not scheme_valid or not hostname_present or not path_present:
+            logger.error(
+                "URL validation failed: scheme=%s hostname_present=%s path_present=%s",
+                scheme, hostname_present, path_present,
+            )
+            raise RuntimeError(
+                "DATABASE_URL must be a PostgreSQL connection string for the existing Supabase database."
+            )
+    except Exception as e:
+        logger.error("URL validation failed: %s", _sanitize_error_message(str(e)))
+        raise
+
+    # ── STAGE 3: Component extraction ─────────────────────────────────
+    try:
+        components = _extract_url_components(parsed_url)
+    except Exception as e:
+        logger.error(
+            "Component extraction failed at stage 'parsed_url properties': %s",
+            _sanitize_error_message(str(e)),
+        )
+        logger.debug("Component extraction traceback:\n%s", traceback.format_exc())
+        raise
+
+    params: Dict[str, Any] = {
+        "host": components["host"],
+        "port": components["port"],
+        "dbname": components["dbname"],
         "connect_timeout": 8,
     }
+
+    if components["user"]:
+        params["user"] = components["user"]
+    if components["password"]:
+        params["password"] = components["password"]
+
+    # Supabase requires SSL. Add sslmode=require unless already present in the URL query string.
+    try:
+        query_params = parse_qs(parsed_url.query)
+    except Exception:
+        query_params = {}
+    if "sslmode" not in query_params:
+        params["sslmode"] = "require"
+
+    return params
 
 def get_pool() -> ThreadedConnectionPool:
     global _pool
     if _pool is None or _pool.closed:
-        params = get_connection_params()
+        # ── STAGE 4: Connection parameter resolution ──────────────────
+        try:
+            params = get_connection_params()
+        except Exception:
+            # get_connection_params already logged stage-specific diagnostics
+            raise
+
+        # ── STAGE 5: ThreadedConnectionPool creation ──────────────────
         try:
             _pool = ThreadedConnectionPool(minconn=1, maxconn=10, **params)
         except Exception as e:
-            logger.error("Failed to initialize PostgreSQL pool (%s).", type(e).__name__)
+            logger.error(
+                "Failed to initialize PostgreSQL pool at stage 'ThreadedConnectionPool': %s",
+                _sanitize_error_message(str(e)),
+            )
+            logger.debug(
+                "Pool creation traceback:\n%s",
+                traceback.format_exc(),
+            )
+            logger.debug("Connection params (masked): %s", _mask_connection_params(params))
             raise
     return _pool
 
@@ -300,6 +472,13 @@ def init_db():
                 updated_at TEXT NOT NULL
             );
         """)
+        cur.execute("ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS balance_after NUMERIC(14,2);")
+        cur.execute("ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(255);")
+        cur.execute("ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS description TEXT;")
+        cur.execute("ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS created_at TEXT NOT NULL DEFAULT '';")
+        cur.execute("ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS updated_at TEXT NOT NULL DEFAULT '';")
+        cur.execute("ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS transaction_type VARCHAR(32) NOT NULL DEFAULT 'top_up';")
+        cur.execute("ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS direction VARCHAR(16) NOT NULL DEFAULT 'credit';")
 
         # 6. gpu_inventory table
         cur.execute("""

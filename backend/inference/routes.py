@@ -1,6 +1,4 @@
-"""
-routes.py
-=========
+﻿"""
 FastAPI route definitions for the Inferxe Inference API.
 Endpoints:
   - POST /api/v1/inference: Authenticated model execution

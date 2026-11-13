@@ -1,3 +1,5 @@
+import { updatePassword, signOut } from 'aws-amplify/auth'
+
 export type PortalRole = 'customer' | 'admin'
 export type UserRole = 'customer' | 'provider' | 'admin' | 'developer' | 'viewer'
 
@@ -23,6 +25,8 @@ export interface JwtClaims {
   exp?: number
   iat?: number
   name?: string
+  'cognito:username'?: string
+  'cognito:groups'?: string[]
   [key: string]: unknown
 }
 
@@ -49,6 +53,112 @@ export function isJwtExpired(token: string, skewSeconds = 30): boolean {
   return Date.now() / 1000 >= claims.exp - skewSeconds
 }
 
+/* ── AWS Cognito (USER_PASSWORD_AUTH over the public Cognito IDP endpoint) ──
+   Enabled when VITE_COGNITO_REGION and VITE_COGNITO_CLIENT_ID are set. */
+const COGNITO_REGION = (import.meta.env.VITE_COGNITO_REGION as string | undefined) || 'ap-south-1'
+const COGNITO_CLIENT_ID =
+  (import.meta.env.VITE_COGNITO_CLIENT_ID as string | undefined) || '334trhnhmim8v42gq4bgk7umst'
+
+export const cognitoEnabled = Boolean(COGNITO_CLIENT_ID)
+
+async function cognitoCall<T>(target: string, body: Record<string, unknown>): Promise<{ ok: boolean; data?: T; error?: string }> {
+  try {
+    const res = await fetch(`https://cognito-idp.${COGNITO_REGION}.amazonaws.com/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-amz-json-1.1',
+        'X-Amz-Target': `AWSCognitoIdentityProviderService.${target}`,
+      },
+      body: JSON.stringify({ ClientId: COGNITO_CLIENT_ID, ...body }),
+    })
+    const data = await res.json()
+    if (!res.ok) return { ok: false, error: (data as { message?: string }).message || 'Cognito request failed.' }
+    return { ok: true, data: data as T }
+  } catch {
+    return { ok: false, error: 'Unable to reach AWS Cognito.' }
+  }
+}
+
+export interface CustomerProfile {
+  id: string
+  fullName: string
+  email: string
+  username: string
+  role: UserRole
+  status: string
+  organizationId: string | null
+}
+
+export async function syncCustomerProfile(idToken: string): Promise<CustomerProfile> {
+  const response = await fetch('/api/customer/profile/sync', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${idToken}`,
+      'Content-Type': 'application/json',
+      Accept: 'application/json',
+    },
+    body: '{}',
+  })
+  const result = await response.json().catch(() => ({}))
+  if (!response.ok || !result.ok || !result.profile) {
+    throw new Error(result.error || 'Unable to synchronize your customer profile.')
+  }
+  return result.profile as CustomerProfile
+}
+
+function sessionFromProfile(idToken: string, profile: CustomerProfile): AuthSession {
+  const claims = decodeJwt(idToken)
+  return {
+    token: idToken,
+    user: {
+      id: profile.id,
+      fullName: profile.fullName,
+      email: profile.email,
+      username: profile.username,
+      role: profile.role,
+    },
+    expiresAt: claims?.exp ? claims.exp * 1000 : 0,
+  }
+}
+
+async function cognitoLogin(email: string, password: string): Promise<{ ok: boolean; session?: AuthSession; error?: string }> {
+  const r = await cognitoCall<{ AuthenticationResult?: { IdToken: string } }>('InitiateAuth', {
+    AuthFlow: 'USER_PASSWORD_AUTH',
+    AuthParameters: { USERNAME: email.trim(), PASSWORD: password },
+  })
+  if (!r.ok || !r.data?.AuthenticationResult?.IdToken) {
+    return { ok: false, error: r.error || 'Additional Cognito challenge required (MFA / new password).' }
+  }
+  let session: AuthSession
+  try {
+    const profile = await syncCustomerProfile(r.data.AuthenticationResult.IdToken)
+    session = sessionFromProfile(r.data.AuthenticationResult.IdToken, profile)
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : 'Customer profile synchronization failed.',
+    }
+  }
+  saveSession(session)
+  return { ok: true, session }
+}
+
+async function cognitoRegister(fullName: string, email: string, password: string): Promise<{ ok: boolean; error?: string }> {
+  // Cognito User Pool is configured with email as a sign-in alias, not the username attribute.
+  // The Username parameter must be a non-email unique identifier; the email is stored as a user attribute.
+  const cognitoUsername = `cust_${crypto.randomUUID().replace(/-/g, '')}`
+
+  const r = await cognitoCall('SignUp', {
+    Username: cognitoUsername,
+    Password: password,
+    UserAttributes: [
+      { Name: 'email', Value: email.trim() },
+      { Name: 'name', Value: fullName.trim() },
+    ],
+  })
+  return r.ok ? { ok: true } : { ok: false, error: r.error }
+}
+
 export function getPortalRole(role?: string): PortalRole {
   if (!role) return 'customer'
   const r = role.toLowerCase().trim()
@@ -61,7 +171,13 @@ export function getSession(): AuthSession | null {
     const raw = localStorage.getItem(AUTH_STORAGE_KEY)
     if (!raw) return null
     const session = JSON.parse(raw) as AuthSession
-    if ((session.expiresAt && Date.now() > session.expiresAt) || (session.token.split('.').length === 3 && isJwtExpired(session.token))) {
+    if (
+      typeof session.token !== 'string' ||
+      session.token.split('.').length !== 3 ||
+      !session.user ||
+      (session.expiresAt && Date.now() > session.expiresAt) ||
+      isJwtExpired(session.token)
+    ) {
       localStorage.removeItem(AUTH_STORAGE_KEY)
       return null
     }
@@ -82,12 +198,19 @@ export function saveSession(session: AuthSession): void {
 
 export function clearSession(): void {
   try {
+    signOut().catch(() => {})
+  } catch {}
+  try {
     localStorage.removeItem(AUTH_STORAGE_KEY)
     window.dispatchEvent(new Event('inferxe_auth_change'))
   } catch (err) {
     console.error('Failed to clear auth session', err)
   }
 }
+
+const ADMIN_API_BASE =
+  (import.meta.env.VITE_ADMIN_AUTH_ENDPOINT as string | undefined)?.replace(/\/$/, '') ||
+  '/api/admin'
 
 export const ADMIN_EMAILS = [
   'admin@inferxe.com',
@@ -114,94 +237,48 @@ export interface AdminLoginResult {
 
 /**
  * Validate submitted credentials against the backend admin authentication endpoint.
- * Credentials are verified exclusively on the server side (with resilient fallback for local development).
+ * Credentials are verified exclusively on the server side.
  */
 export async function loginAdminBackend(
   email: string,
   password: string,
 ): Promise<AdminLoginResult> {
   const cleanEmail = email.trim().toLowerCase()
-  const isKnownAdmin = isAdministratorEmail(cleanEmail)
 
-  // Candidate endpoints to reach the admin auth middleware:
-  // Primary: Same-origin relative path /api/admin/login
-  // Secondary: Configured endpoint if specified
-  const configured = (import.meta.env.VITE_ADMIN_AUTH_ENDPOINT as string | undefined)?.trim().replace(/\/+$/, '')
-  const candidateUrls: string[] = ['/api/admin/login']
+  try {
+    const res = await fetch(`${ADMIN_API_BASE}/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({ email: cleanEmail, password }),
+    })
 
-  if (configured) {
-    if (configured.endsWith('/api/admin')) {
-      candidateUrls.push(configured + '/login')
-    } else {
-      candidateUrls.push(configured + '/api/admin/login')
-      candidateUrls.push(configured + '/login')
-    }
-  }
+    const data = await res.json().catch(() => ({}))
 
-  for (const url of Array.from(new Set(candidateUrls))) {
-    try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        body: JSON.stringify({ email: cleanEmail, password }),
-      })
-
-      // Try parsing JSON even on non-200 responses (e.g. 401 Unauthorized, 429 Rate limited)
-      const data = await res.json().catch(() => null)
-      if (data && typeof data === 'object') {
-        if (data.isAdmin === true) {
-          if (res.ok && data.ok && data.token && data.user) {
-            const session: AuthSession = {
-              token: data.token,
-              user: data.user,
-              expiresAt: data.expiresAt || Date.now() + 7 * 24 * 60 * 60 * 1000,
-            }
-            saveSession(session)
-            return { ok: true, isAdmin: true, session }
-          }
-          return {
-            ok: false,
-            isAdmin: true,
-            error: data.error || (res.status === 401 ? 'Incorrect email or password.' : 'Authentication failed.'),
-          }
+    if (data.isAdmin === true) {
+      if (res.ok && data.ok && data.token && data.user) {
+        const session: AuthSession = {
+          token: data.token,
+          user: data.user,
+          expiresAt: data.expiresAt || Date.now() + 7 * 24 * 60 * 60 * 1000,
         }
-        if (data.isAdmin === false) {
-          return { ok: false, isAdmin: false }
-        }
+        saveSession(session)
+        return { ok: true, isAdmin: true, session }
       }
-    } catch {
-      // Continue to next candidate URL
-    }
-  }
-
-  // Resilient fallback for local development only (strictly disabled in production builds)
-  if (isKnownAdmin && import.meta.env.DEV) {
-    const allowedAdminPasswords = ['admin123', 'admin@123', 'Admin@123', 'admin', 'Admin123', 'Inferxe@2026']
-    if (allowedAdminPasswords.includes(password)) {
-      const session: AuthSession = {
-        token: 'ix-tok-' + Math.random().toString(36).substring(2, 12),
-        user: {
-          id: 'usr_admin',
-          fullName: 'Inferxe Administrator',
-          email: cleanEmail,
-          username: cleanEmail.split('@')[0],
-          role: 'admin',
-          organization: 'Inferxe Platform Org',
-        },
-        expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
-      }
-      saveSession(session)
-      return { ok: true, isAdmin: true, session }
-    } else {
       return {
         ok: false,
         isAdmin: true,
-        error: 'Incorrect email or password. Please verify your credentials and try again.',
+        error: data.error || 'Incorrect email or password. Please verify your credentials and try again.',
       }
     }
+
+    if (data.isAdmin === false) {
+      return { ok: false, isAdmin: false }
+    }
+  } catch (err) {
+    console.error('Admin backend login request failed:', err)
   }
 
   return { ok: false, isAdmin: false }
@@ -212,125 +289,54 @@ export async function loginAdminBackend(
  */
 export async function verifyAdminSessionServer(token: string): Promise<boolean> {
   if (!token) return false
-  if (token.startsWith('ix-tok-')) return true
+  try {
+    const res = await fetch(`${ADMIN_API_BASE}/verify`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ token }),
+    })
 
-  const configured = (import.meta.env.VITE_ADMIN_AUTH_ENDPOINT as string | undefined)?.trim().replace(/\/+$/, '')
-  const candidateUrls: string[] = ['/api/admin/verify']
-  if (configured) {
-    if (configured.endsWith('/api/admin')) {
-      candidateUrls.unshift(configured + '/verify')
-    } else {
-      candidateUrls.unshift(configured + '/api/admin/verify')
-      candidateUrls.push(configured + '/verify')
-    }
+    if (!res.ok) return false
+    const data = await res.json().catch(() => ({}))
+    return Boolean(data.ok && data.valid)
+  } catch {
+    return false
   }
-
-  for (const url of Array.from(new Set(candidateUrls))) {
-    try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: 'Bearer ' + token,
-        },
-        body: JSON.stringify({ token }),
-      })
-
-      if (res.ok) {
-        const data = await res.json().catch(() => ({}))
-        return Boolean(data.ok && data.valid)
-      }
-    } catch {
-      // Try next candidate
-    }
-  }
-  return true
-}
-
-export function switchRole(targetRole: PortalRole): AuthSession {
-  let user: AuthSession['user']
-  if (targetRole === 'admin') {
-    user = {
-      id: 'usr_demo_admin',
-      fullName: 'Bhumi Reddy',
-      email: 'bhumireddy@inferxe.com',
-      username: 'bhumireddy',
-      role: 'admin',
-      organization: 'Inferxe Platform Org',
-    }
-  } else {
-    user = {
-      id: 'usr_demo_customer',
-      fullName: 'Priya Sharma',
-      email: 'priya.s@novatech.ai',
-      username: 'priya.ml',
-      role: 'customer',
-      organization: 'NovaTech AI Systems',
-    }
-  }
-
-  const session: AuthSession = {
-    token: `ix-tok-${Math.random().toString(36).substring(2, 10)}`,
-    user,
-    expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
-  }
-
-  saveSession(session)
-  return session
 }
 
 export async function loginUser(
   email: string,
-  password?: string,
-  explicitRole?: string
+  _password?: string,
+  _explicitRole?: string
 ): Promise<{ ok: boolean; session?: AuthSession; error?: string }> {
-  const cleanEmail = email.trim().toLowerCase()
-  if (!cleanEmail || !password) {
-    return { ok: false, error: 'Please enter your email and password.' }
+  if (cognitoEnabled && _password) {
+    return cognitoLogin(email, _password)
   }
-
-  const accountName = cleanEmail.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
-  const session: AuthSession = {
-    token: `ix-demo-${Math.random().toString(36).substring(2, 10)}`,
-    user: {
-      id: `usr_${cleanEmail.split('@')[0]}`,
-      fullName: accountName,
-      email: cleanEmail,
-      username: cleanEmail.split('@')[0],
-      role: explicitRole || 'customer',
-      organization: 'Demo Workspace',
-    },
-    expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
+  return {
+    ok: false,
+    error: 'AWS Cognito authentication is required. Please sign in with valid credentials.',
   }
-  saveSession(session)
-  return { ok: true, session }
 }
 
 export async function registerUser(
   fullName: string,
   email: string,
-  password?: string,
-  organization?: string,
-  explicitRole: string = 'customer'
+  _password?: string,
+  _organization?: string,
+  _explicitRole: string = 'customer'
 ): Promise<{ ok: boolean; session?: AuthSession; error?: string }> {
-  const cleanEmail = email.trim().toLowerCase()
-  if (!fullName.trim() || !cleanEmail || !password) {
-    return { ok: false, error: 'Please provide your name, email, and password.' }
+  if (cognitoEnabled && _password) {
+    const r = await cognitoRegister(fullName, email, _password)
+    if (!r.ok) return { ok: false, error: r.error }
+    return { ok: false, error: 'Account created. Check your email for the Cognito verification code, confirm it, then sign in.' }
   }
-  const session: AuthSession = {
-    token: `ix-demo-${Math.random().toString(36).substring(2, 10)}`,
-    user: {
-      id: `usr_${cleanEmail.split('@')[0]}`,
-      fullName: fullName.trim(),
-      email: cleanEmail,
-      username: cleanEmail.split('@')[0],
-      role: explicitRole,
-      organization: organization?.trim() || 'Demo Workspace',
-    },
-    expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
+  return {
+    ok: false,
+    error: 'AWS Cognito registration is required.',
   }
-  saveSession(session)
-  return { ok: true, session }
 }
 
 export function getUserPasswordLastUpdated(email: string): string | null {
@@ -369,28 +375,22 @@ export async function changeUserPassword(
   }
 
   try {
-    const raw = localStorage.getItem('inferxe_registered_users')
-    const registered = raw ? JSON.parse(raw) as Record<string, { passwordHash?: string }> : {}
-    const account = registered[email.trim().toLowerCase()]
-    if (account?.passwordHash && account.passwordHash !== currentPassword) {
-      return { ok: false, error: 'Current password is incorrect.' }
-    }
-    registered[email.trim().toLowerCase()] = {
-      ...account,
-      passwordHash: newPassword,
-    }
-    localStorage.setItem('inferxe_registered_users', JSON.stringify(registered))
+    await updatePassword({
+      oldPassword: currentPassword,
+      newPassword,
+    })
+
     const key = `inferxe_pwd_updated_${email.trim().toLowerCase()}`
     localStorage.setItem(key, new Date().toISOString())
 
     return { ok: true }
   } catch (err) {
-    console.error('Local demo password update failed:', err)
+    console.error('Cognito password update failed:', err)
 
     const message =
       err instanceof Error
         ? err.message
-        : 'Unable to update your password in this browser.'
+        : 'Unable to update your password.'
 
     return { ok: false, error: message }
   }

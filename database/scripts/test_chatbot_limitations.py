@@ -1,6 +1,4 @@
-"""
-test_chatbot_limitations.py
-===========================
+﻿"""
 Automated test suite to verify the strict GPU and Website-Only Knowledge Policy.
 Evaluates both on-topic queries and off-topic queries to ensure 100% compliance.
 """
@@ -31,7 +29,7 @@ def check_topic_whitelist(query: str) -> bool:
     is_gpu_or_website = bool(
         re.search(r'\b(gpu|gpus|nvidia|h100|h200|l40s|l40|l4|a100|a30|a6000|b200|rtx|blackwell|hopper|ada|ampere|vram|memory|bandwidth|tensor|cuda|tflops|tops|tdp|nvlink|pcie|sxm)\b', q) or
         re.search(r'\b(llama|qwen|mistral|mixtral|gemma|deepseek|model|models|weights|kv\s*cache|context|vllm|docker|token|tokens|prompt|completion|quantization|quantized|awq|gptq|fp8|fp16|bf16|throughput|latency|ttft)\b', q) or
-        re.search(r'\b(jarvislabs|jarvis|e2e|yotta|cyfuture|runpod|lambda|vast|aws|azure|gcp|price|pricing|rate|rates|cost|hourly|spot|on-demand|inr|usd|rupee|₹|\$|bill|billing|quota)\b', q) or
+        re.search(r'\b(jarvislabs|jarvis|e2e|yotta|cyfuture|runpod|lambda|vast|aws|azure|gcp|price|pricing|rate|rates|cost|hourly|spot|on-demand|inr|usd|rupee|â‚¹|\$|bill|billing|quota)\b', q) or
         re.search(r'\b(inferxe|platform|website|marketplace|catalog|catalogue|dashboard|wallet|balance|burn|burn\s*rate|deploy|deployment|instance|instances|reservation|reserve|rent|rental|order|sovereign|india|noida|mumbai|dpdp|compliance|residency|api|sdk|key|auth|login|account)\b', q) or
         re.search(r'\b(sizing|calculate|calculator|recommend|recommendation|spec|specs|specification|benchmark|benchmarks)\b', q)
     )

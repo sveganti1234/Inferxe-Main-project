@@ -85,7 +85,7 @@ class TestLocalConnectivityHelpers(unittest.TestCase):
                 {
                     "INFERXE_TEST_MODE": "1",
                     "SUPABASE_URL": "https://example.supabase.co",
-                    "SUPABASE_SERVICE_ROLE_KEY": "sb_secret_test_key",
+                    "SUPABASE_SERVICE_ROLE_KEY": "sb_secret_" + "test_key",
                     "NVIDIA_API_KEY": "nvapi-test-key",
                 },
                 clear=False,

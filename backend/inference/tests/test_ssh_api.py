@@ -7,7 +7,7 @@ Enforces tenant isolation, private key rejection, duplicate rejection, permanent
 and sanitized error handling without local SQLite SSHKey persistence.
 
 Run via:
-  .venv\\Scripts\\python.exe -m unittest backend/inference/tests/test_ssh_api.py
+  .venv\Scripts\python.exe -m unittest backend/inference/tests/test_ssh_api.py
 """
 
 import base64
