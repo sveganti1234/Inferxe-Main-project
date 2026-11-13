@@ -21,6 +21,7 @@ pyjwt>=2.8.0
 cryptography>=41.0.0
 # Optional web search proxy dependency (only needed for backend/search/web_search_server.py):
 # ddgs>=7.0.0
+supabase>=2.0.0
 
 # ------------------------------------------------------------------------------
 # Notifications & Wallet Service (backend/notifications/)

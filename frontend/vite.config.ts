@@ -3,9 +3,11 @@ import react from '@vitejs/plugin-react'
 // @ts-ignore
 import { createAdminAuthMiddleware } from '../backend/auth/adminAuth.js'
 // @ts-ignore
-import { createSSOAuthMiddleware } from '../backend/auth/ssoAuth.js'
-// @ts-ignore
 import { createCustomerAuthMiddleware } from '../backend/auth/customerAuth.js'
+// @ts-ignore
+import { createSupabaseApiMiddleware } from '../backend/api/supabaseApi.js'
+// @ts-ignore
+import { createSSOAuthMiddleware } from '../backend/auth/ssoAuth.js'
 // @ts-ignore
 import { FRONTEND_DIR, loadBackendEnv, assertNoFrontendSupabaseSecrets, collectFrontendEnvForSecurityCheck } from '../backend/auth/envLoader.js'
 declare const process: any
@@ -50,15 +52,17 @@ export default defineConfig(({ command, mode }) => {
   const authPlugin = {
     name: 'inferxe-auth-middleware',
     configureServer(server: { middlewares: { use: (fn: any) => void } }) {
-  server.middlewares.use(createCustomerAuthMiddleware())
-  server.middlewares.use(createSSOAuthMiddleware())
-  server.middlewares.use(createAdminAuthMiddleware())
-},
+      server.middlewares.use(createSSOAuthMiddleware())
+      server.middlewares.use(createCustomerAuthMiddleware())
+      server.middlewares.use(createAdminAuthMiddleware())
+      server.middlewares.use(createSupabaseApiMiddleware())
+    },
     configurePreviewServer(server: { middlewares: { use: (fn: any) => void } }) {
-  server.middlewares.use(createCustomerAuthMiddleware())
-  server.middlewares.use(createSSOAuthMiddleware())
-  server.middlewares.use(createAdminAuthMiddleware())
-},
+      server.middlewares.use(createSSOAuthMiddleware())
+      server.middlewares.use(createCustomerAuthMiddleware())
+      server.middlewares.use(createAdminAuthMiddleware())
+      server.middlewares.use(createSupabaseApiMiddleware())
+    },
   }
 
   return {
