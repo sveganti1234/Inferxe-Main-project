@@ -2,8 +2,11 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
+import os from 'node:os'
 import {
   getDatabase,
+  closeDatabase,
+  seedInitialCustomersIfEmpty,
   computeActivityStatus,
   registerOrUpdateCustomer,
   recordHeartbeat,
@@ -23,8 +26,13 @@ import {
 } from '../auth/adminAuth.js'
 
 async function runTests() {
+  // Isolate tests to a temporary database to avoid polluting development / production SQLite database
+  const isolatedTestDb = path.join(os.tmpdir(), `inferxe_customers_test_${Date.now()}_${Math.random().toString(36).slice(2)}.db`)
+  process.env.CUSTOMER_DB_PATH = isolatedTestDb
+  seedInitialCustomersIfEmpty()
+
   console.log('───────────────────────────────────────────────────────')
-  console.log('▶ RUNNING INFERXE CUSTOMER MANAGEMENT & DATABASE TESTS')
+  console.log('▶ RUNNING INFERXE CUSTOMER MANAGEMENT & DATABASE TESTS (ISOLATED)')
   console.log('───────────────────────────────────────────────────────\n')
 
   let passed = 0
@@ -249,6 +257,14 @@ async function runTests() {
   console.log('\n───────────────────────────────────────────────────────')
   console.log(`TEST RESULTS: ${passed} PASSED, ${failed} FAILED`)
   console.log('───────────────────────────────────────────────────────\n')
+
+  // Clean up isolated test database
+  closeDatabase()
+  try {
+    if (fs.existsSync(isolatedTestDb)) fs.unlinkSync(isolatedTestDb)
+    if (fs.existsSync(isolatedTestDb + '-wal')) fs.unlinkSync(isolatedTestDb + '-wal')
+    if (fs.existsSync(isolatedTestDb + '-shm')) fs.unlinkSync(isolatedTestDb + '-shm')
+  } catch {}
 
   if (failed > 0) {
     process.exit(1)

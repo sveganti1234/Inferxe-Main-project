@@ -14,6 +14,8 @@ import http from 'node:http'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import dotenv from 'dotenv'
+import { loadBackendEnv } from './envLoader.js'
+loadBackendEnv({ override: true })
 import { createSupabaseApiMiddleware } from '../api/supabaseApi.js'
 import { createCustomerAuthMiddleware } from './customerAuth.js'
 import { createAdminAuthMiddleware } from './adminAuth.js'

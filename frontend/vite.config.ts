@@ -11,7 +11,21 @@ declare const process: any
 
 export default defineConfig(({ command, mode }) => {
   const frontendPublicEnv = loadEnv(mode, process.cwd(), 'VITE_')
+
+  // Temporarily isolate process.env Supabase keys so loadEnv strictly inspects frontend .env files
+  const existingSupabaseUrl = process.env.SUPABASE_URL
+  const existingSupabaseRole = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const existingSupabaseSecret = process.env.SUPABASE_SECRET_KEY
+  delete process.env.SUPABASE_URL
+  delete process.env.SUPABASE_SERVICE_ROLE_KEY
+  delete process.env.SUPABASE_SECRET_KEY
+
   const frontendSupabaseVars = loadEnv(mode, process.cwd(), ['VITE_SUPABASE_', 'SUPABASE_'])
+
+  if (existingSupabaseUrl !== undefined) process.env.SUPABASE_URL = existingSupabaseUrl
+  if (existingSupabaseRole !== undefined) process.env.SUPABASE_SERVICE_ROLE_KEY = existingSupabaseRole
+  if (existingSupabaseSecret !== undefined) process.env.SUPABASE_SECRET_KEY = existingSupabaseSecret
+
   assertNoFrontendSupabaseSecrets(frontendSupabaseVars)
 
   // Keep VITE_* variables available to Node server middleware (e.g. Cognito config),

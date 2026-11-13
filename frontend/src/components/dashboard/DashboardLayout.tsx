@@ -40,6 +40,7 @@ import { LogoMark } from '../Logo'
 import { Ambient } from '../layout/Ambient'
 import { getSession, clearSession, getPortalRole, type AuthSession, type PortalRole } from '../../lib/authStore'
 import { getCognitoContext } from '../../lib/cognitoContext'
+import { sendCustomerLogout } from '../../lib/customerService'
 interface BreadcrumbItem {
   label: string
   to?: string
@@ -835,7 +836,21 @@ export function DashboardLayout({
                     className="dash-nav-item dash-nav-item--danger"
                     onClick={async () => {
                       setAdminMenuOpen(false)
-                      if (currentSession?.user.role === 'customer') {
+                      const isCustomer = portalRole === 'customer'
+                      if (isCustomer) {
+                        try {
+                          await Promise.race([
+                            sendCustomerLogout({
+                              cognito_sub: currentSession?.user?.id?.startsWith('usr_') ? undefined : currentSession?.user?.id,
+                              email: currentSession?.user?.email,
+                              session_id: (typeof window !== 'undefined' ? sessionStorage.getItem('inferxe_client_session_id') : undefined) || undefined,
+                            }),
+                            new Promise((resolve) => setTimeout(resolve, 2500)),
+                          ])
+                        } catch (logoutErr) {
+                          console.warn('[customer-auth] Customer logout API warning:', logoutErr)
+                        }
+
                         try {
                           await signOut(getCognitoContext())
                         } catch (error) {
@@ -843,7 +858,7 @@ export function DashboardLayout({
                         }
                       }
                       clearSession()
-                      navigate('/')
+                      navigate('/login')
                     }}
                   >
                     <LogOut size={15} /> Sign Out

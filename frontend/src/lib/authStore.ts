@@ -1,4 +1,4 @@
-import { updatePassword, signOut } from 'aws-amplify/auth'
+import { updatePassword, signOut, fetchAuthSession } from 'aws-amplify/auth'
 
 export type PortalRole = 'customer' | 'admin'
 export type UserRole = 'customer' | 'provider' | 'admin' | 'developer' | 'viewer'
@@ -86,10 +86,19 @@ export interface CustomerProfile {
   username: string
   role: UserRole
   status: string
+  organization?: string | null
   organizationId: string | null
 }
 
-export async function syncCustomerProfile(idToken: string): Promise<CustomerProfile> {
+export async function syncCustomerProfile(
+  idToken: string,
+  extraProfile?: { organization?: string }
+): Promise<CustomerProfile> {
+  const payload =
+    extraProfile && typeof extraProfile.organization === 'string' && extraProfile.organization.trim()
+      ? { organization: extraProfile.organization.trim() }
+      : {}
+
   const response = await fetch('/api/customer/profile/sync', {
     method: 'POST',
     headers: {
@@ -97,13 +106,42 @@ export async function syncCustomerProfile(idToken: string): Promise<CustomerProf
       'Content-Type': 'application/json',
       Accept: 'application/json',
     },
-    body: '{}',
+    body: JSON.stringify(payload),
   })
   const result = await response.json().catch(() => ({}))
-  if (!response.ok || !result.ok || !result.profile) {
+  if (!response.ok || !result.ok) {
     throw new Error(result.error || 'Unable to synchronize your customer profile.')
   }
-  return result.profile as CustomerProfile
+
+  if (result.profile) {
+    return result.profile as CustomerProfile
+  }
+
+  // Graceful fallback from verified Cognito claims if profile envelope is omitted
+  const claims = decodeJwt(idToken)
+  if (claims?.sub) {
+    const email = typeof claims.email === 'string' ? claims.email : ''
+    const fullName =
+      (typeof claims.name === 'string' && claims.name) ||
+      (typeof claims.preferred_username === 'string' && claims.preferred_username) ||
+      (email ? email.split('@')[0] : 'Customer')
+    const username =
+      (typeof claims['cognito:username'] === 'string' && claims['cognito:username']) ||
+      (typeof claims.preferred_username === 'string' && claims.preferred_username) ||
+      (email ? email.split('@')[0] : 'customer')
+    return {
+      id: claims.sub,
+      fullName,
+      email,
+      username,
+      role: 'customer',
+      status: 'active',
+      organization: payload.organization || null,
+      organizationId: null,
+    }
+  }
+
+  throw new Error(result.error || 'Unable to synchronize your customer profile.')
 }
 
 function sessionFromProfile(idToken: string, profile: CustomerProfile): AuthSession {
@@ -116,6 +154,7 @@ function sessionFromProfile(idToken: string, profile: CustomerProfile): AuthSess
       email: profile.email,
       username: profile.username,
       role: profile.role,
+      organization: profile.organization || undefined,
     },
     expiresAt: claims?.exp ? claims.exp * 1000 : 0,
   }
@@ -261,6 +300,57 @@ export function getSession(): AuthSession | null {
   }
 }
 
+/**
+ * Refresh customer authentication session using AWS Amplify's Cognito token refresh.
+ * Automatically obtains fresh ID & access tokens using the refresh token.
+ */
+export async function refreshCustomerSession(forceRefresh = false): Promise<AuthSession | null> {
+  try {
+    const authSession = await fetchAuthSession({ forceRefresh })
+    const idToken = authSession.tokens?.idToken?.toString()
+    if (!idToken) {
+      return null
+    }
+
+    const claims = decodeJwt(idToken)
+    if (!claims) return null
+
+    let currentSession: AuthSession | null = null
+    try {
+      const raw = localStorage.getItem(AUTH_STORAGE_KEY)
+      if (raw) currentSession = JSON.parse(raw) as AuthSession
+    } catch {}
+
+    const expMs = claims.exp ? claims.exp * 1000 : Date.now() + 3600 * 1000
+    const refreshedSession: AuthSession = {
+      token: idToken,
+      user: {
+        id: claims.sub || currentSession?.user?.id || 'usr_customer',
+        fullName:
+          claims.name ||
+          (typeof claims.preferred_username === 'string' && claims.preferred_username) ||
+          currentSession?.user?.fullName ||
+          (claims.email ? claims.email.split('@')[0] : 'Customer'),
+        email: claims.email || currentSession?.user?.email || '',
+        username:
+          (claims['cognito:username'] as string) ||
+          (claims.preferred_username as string) ||
+          currentSession?.user?.username ||
+          (claims.email ? claims.email.split('@')[0] : 'customer'),
+        role: currentSession?.user?.role || 'customer',
+        organization: currentSession?.user?.organization || 'Customer Workspace',
+      },
+      expiresAt: expMs,
+    }
+
+    saveSession(refreshedSession)
+    return refreshedSession
+  } catch (err) {
+    console.warn('[authStore] Token refresh via Amplify unavailable:', err)
+    return null
+  }
+}
+
 export function saveSession(session: AuthSession): void {
   try {
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session))
@@ -282,9 +372,26 @@ export function clearSession(): void {
   }
 }
 
-const ADMIN_API_BASE =
-  (import.meta.env.VITE_ADMIN_AUTH_ENDPOINT as string | undefined)?.replace(/\/$/, '') ||
-  '/api/admin'
+function getAdminApiEndpoints(subpath: string): string[] {
+  const normalized = subpath.startsWith('/') ? subpath : `/${subpath}`
+  const endpoints: string[] = []
+
+  // Same-origin endpoint (handled directly by Vite dev server middleware or reverse proxy)
+  const sameOrigin = `/api/admin${normalized}`
+  endpoints.push(sameOrigin)
+
+  // Configured standalone endpoint (if specified and distinct)
+  const configured = (import.meta.env.VITE_ADMIN_AUTH_ENDPOINT as string | undefined)?.trim().replace(/\/$/, '')
+  if (configured) {
+    const base = configured.endsWith('/api/admin') ? configured : `${configured}/api/admin`
+    const ext = `${base}${normalized}`
+    if (!endpoints.includes(ext)) {
+      endpoints.push(ext)
+    }
+  }
+
+  return endpoints
+}
 
 export const ADMIN_EMAILS = [
   'admin@inferxe.com',
@@ -311,6 +418,8 @@ export interface AdminLoginResult {
 
 /**
  * Validate submitted credentials against the backend admin authentication endpoint.
+ * Tries the same-origin /api/admin endpoint first (embedded in Vite dev server / reverse proxy),
+ * with graceful fallback to the configured standalone admin server if defined.
  * Credentials are verified exclusively on the server side.
  */
 export async function loginAdminBackend(
@@ -318,41 +427,66 @@ export async function loginAdminBackend(
   password: string,
 ): Promise<AdminLoginResult> {
   const cleanEmail = email.trim().toLowerCase()
+  const isAdminCandidate = isAdministratorEmail(cleanEmail)
+  const endpoints = getAdminApiEndpoints('/login')
 
-  try {
-    const res = await fetch(`${ADMIN_API_BASE}/login`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({ email: cleanEmail, password }),
-    })
+  let connectionError = false
 
-    const data = await res.json().catch(() => ({}))
+  for (const endpoint of endpoints) {
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify({ email: cleanEmail, password }),
+      })
 
-    if (data.isAdmin === true) {
-      if (res.ok && data.ok && data.token && data.user) {
-        const session: AuthSession = {
-          token: data.token,
-          user: data.user,
-          expiresAt: data.expiresAt || Date.now() + 7 * 24 * 60 * 60 * 1000,
+      const data = await res.json().catch(() => ({}))
+
+      if (data.isAdmin === true) {
+        if (res.ok && data.ok && data.token && data.user) {
+          const session: AuthSession = {
+            token: data.token,
+            user: data.user,
+            expiresAt: data.expiresAt || Date.now() + 7 * 24 * 60 * 60 * 1000,
+          }
+          saveSession(session)
+          return { ok: true, isAdmin: true, session }
         }
-        saveSession(session)
-        return { ok: true, isAdmin: true, session }
+        return {
+          ok: false,
+          isAdmin: true,
+          error: data.error || 'Incorrect email or password. Please verify your credentials and try again.',
+        }
       }
-      return {
-        ok: false,
-        isAdmin: true,
-        error: data.error || 'Incorrect email or password. Please verify your credentials and try again.',
-      }
-    }
 
-    if (data.isAdmin === false) {
-      return { ok: false, isAdmin: false }
+      if (data.isAdmin === false) {
+        return { ok: false, isAdmin: false, error: data.error || data.message }
+      }
+
+      if (data.error && typeof data.error === 'string') {
+        return {
+          ok: false,
+          isAdmin: Boolean(data.isAdmin ?? isAdminCandidate),
+          error: data.error,
+        }
+      }
+    } catch (err) {
+      console.warn(`Admin login request to ${endpoint} failed:`, err)
+      connectionError = true
     }
-  } catch (err) {
-    console.error('Admin backend login request failed:', err)
+  }
+
+  if (isAdminCandidate) {
+    return {
+      ok: false,
+      isAdmin: true,
+      error: connectionError
+        ? 'Authentication service is unreachable. Please verify your server is running.'
+        : 'Incorrect email or password. Please verify your credentials and try again.',
+    }
   }
 
   return { ok: false, isAdmin: false }
@@ -363,22 +497,30 @@ export async function loginAdminBackend(
  */
 export async function verifyAdminSessionServer(token: string): Promise<boolean> {
   if (!token) return false
-  try {
-    const res = await fetch(`${ADMIN_API_BASE}/verify`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ token }),
-    })
+  const endpoints = getAdminApiEndpoints('/verify')
 
-    if (!res.ok) return false
-    const data = await res.json().catch(() => ({}))
-    return Boolean(data.ok && data.valid)
-  } catch {
-    return false
+  for (const endpoint of endpoints) {
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ token }),
+      })
+
+      if (!res.ok) continue
+      const data = await res.json().catch(() => ({}))
+      if (typeof data.valid === 'boolean') {
+        return data.valid
+      }
+    } catch {
+      // try next candidate endpoint
+    }
   }
+
+  return false
 }
 
 export async function loginUser(

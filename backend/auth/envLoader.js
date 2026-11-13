@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 export const BACKEND_DIR = path.resolve(__dirname, '..')
 export const BACKEND_ENV_PATH = path.join(BACKEND_DIR, '.env')
+export const ROOT_ENV_PATH = path.resolve(BACKEND_DIR, '..', '.env')
 
 const FORBIDDEN_FRONTEND_PREFIXES = ['VITE_SUPABASE_']
 const FORBIDDEN_FRONTEND_SECRET_KEYS = new Set([
@@ -69,16 +70,22 @@ export function loadBackendEnv({
   override = false,
   targetEnv = process.env,
 } = {}) {
-  if (!fs.existsSync(envPath)) {
+  const isDefaultBackendPath = envPath === BACKEND_ENV_PATH
+  const activePath =
+    isDefaultBackendPath && !fs.existsSync(BACKEND_ENV_PATH) && fs.existsSync(ROOT_ENV_PATH)
+      ? ROOT_ENV_PATH
+      : envPath
+
+  if (!fs.existsSync(activePath)) {
     return { loaded: false, envPath, keys: [] }
   }
 
-  const content = fs.readFileSync(envPath, 'utf8')
+  const content = fs.readFileSync(activePath, 'utf8')
   const parsed = parseEnvContent(content)
   const loadedKeys = []
 
   for (const [key, value] of Object.entries(parsed)) {
-    if (override || targetEnv[key] === undefined) {
+    if (override || targetEnv[key] === undefined || targetEnv[key] === '') {
       targetEnv[key] = value
       loadedKeys.push(key)
     }
