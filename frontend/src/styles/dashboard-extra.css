@@ -2020,12 +2020,12 @@
 /* 1. Global Customer Sidebar Active Item Override (Solid Neon Lime Pill) */
 .dash-shell[data-theme='dark'] .dash-sidebar .dash-nav-item.is-active,
 .dash-sidebar .dash-nav-item.is-active {
-  background: #d4ff00 !important;
+  background: #0ea5e9 !important;
   color: #0b0d0e !important;
   font-weight: 700 !important;
   border-radius: 999px !important;
-  border-color: #d4ff00 !important;
-  box-shadow: 0 4px 18px rgba(212, 255, 0, 0.28) !important;
+  border-color: #0ea5e9 !important;
+  box-shadow: 0 4px 18px rgba(14, 165, 233, 0.28) !important;
 }
 
 .dash-shell[data-theme='dark'] .dash-sidebar .dash-nav-item.is-active svg,
@@ -2039,7 +2039,7 @@
 
 .dash-sidebar .dash-nav-item.is-active .dash-nav-badge {
   background: #0b0d0e !important;
-  color: #d4ff00 !important;
+  color: #0ea5e9 !important;
   border-color: #0b0d0e !important;
   font-weight: 700 !important;
 }
@@ -2187,10 +2187,10 @@
   position: relative;
   border-radius: 24px;
   padding: 26px;
-  background: linear-gradient(135deg, #d4ff00 0%, #b8f21d 35%, #00e5a3 100%);
+  background: linear-gradient(135deg, #0ea5e9 0%, #38bdf8 35%, #00e5a3 100%);
   color: #0b0d0e;
   overflow: hidden;
-  box-shadow: 0 12px 32px -8px rgba(0, 229, 163, 0.2), 0 4px 16px rgba(212, 255, 0, 0.15);
+  box-shadow: 0 12px 32px -8px rgba(0, 229, 163, 0.2), 0 4px 16px rgba(14, 165, 233, 0.15);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -2451,7 +2451,7 @@
   height: 28px;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.05);
-  color: #d4ff00;
+  color: #0ea5e9;
 }
 
 .zesto-stat-value {
@@ -2505,9 +2505,9 @@
   left: 0;
   right: 0;
   height: 2.5px;
-  background: #d4ff00;
+  background: #0ea5e9;
   border-radius: 999px;
-  box-shadow: 0 0 10px #d4ff00;
+  box-shadow: 0 0 10px #0ea5e9;
 }
 
 .zesto-tab-badge {
@@ -2515,9 +2515,9 @@
   font-weight: 700;
   padding: 1px 6px;
   border-radius: 999px;
-  background: rgba(212, 255, 0, 0.15);
-  color: #d4ff00;
-  border: 1px solid rgba(212, 255, 0, 0.3);
+  background: rgba(14, 165, 233, 0.15);
+  color: #0ea5e9;
+  border: 1px solid rgba(14, 165, 233, 0.3);
 }
 
 .zesto-subfilter-bar {
@@ -2612,7 +2612,7 @@
   font-weight: 700;
   padding: 2px 7px;
   border-radius: 50%;
-  background: #d4ff00;
+  background: #0ea5e9;
   color: #0b0d0e;
 }
 
@@ -2644,14 +2644,14 @@
   height: 32px;
   border-radius: 50%;
   background: #1e242d;
-  color: #d4ff00;
+  color: #0ea5e9;
   font-weight: 700;
   font-size: 0.74rem;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  border: 1.5px solid rgba(212, 255, 0, 0.3);
+  border: 1.5px solid rgba(14, 165, 233, 0.3);
 }
 
 .zesto-card-details {
@@ -2679,11 +2679,11 @@
   font-family: var(--font-mono);
   font-size: 0.75rem;
   font-weight: 700;
-  color: #d4ff00;
-  background: rgba(212, 255, 0, 0.1);
+  color: #0ea5e9;
+  background: rgba(14, 165, 233, 0.1);
   padding: 2px 7px;
   border-radius: 6px;
-  border: 1px solid rgba(212, 255, 0, 0.2);
+  border: 1px solid rgba(14, 165, 233, 0.2);
   align-self: flex-start;
   white-space: nowrap;
 }
@@ -2712,12 +2712,12 @@
 }
 
 .zesto-card-action-btn--lime {
-  background: #d4ff00;
+  background: #0ea5e9;
   color: #0b0d0e;
 }
 
 .zesto-card-action-btn--lime:hover {
-  background: #e2ff33;
+  background: #38bdf8;
 }
 
 .zesto-card-action-btn--glass {
@@ -2738,7 +2738,7 @@
   transform: translateX(-50%);
   background: #181c24;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6), 0 0 20px rgba(212, 255, 0, 0.12);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6), 0 0 20px rgba(14, 165, 233, 0.12);
   border-radius: 999px;
   padding: 9px 20px;
   display: flex;
@@ -2762,7 +2762,7 @@
 }
 
 .zesto-toast-icon {
-  color: #d4ff00;
+  color: #0ea5e9;
   display: flex;
   align-items: center;
 }
@@ -2781,9 +2781,9 @@
 }
 
 .zesto-toast-btn:hover {
-  background: #d4ff00;
+  background: #0ea5e9;
   color: #0b0d0e;
-  border-color: #d4ff00;
+  border-color: #0ea5e9;
 }
 
 /* ───────────────────────────────────────────────────────────
@@ -2895,7 +2895,7 @@
   transform-style: preserve-3d;
   transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
   border-radius: 20px;
-  box-shadow: 0 20px 48px -12px rgba(0, 0, 0, 0.7), 0 0 24px rgba(212, 255, 0, 0.08);
+  box-shadow: 0 20px 48px -12px rgba(0, 0, 0, 0.7), 0 0 24px rgba(14, 165, 233, 0.08);
 }
 
 .zesto-3d-card.is-flipped {
@@ -3109,16 +3109,16 @@
 }
 
 .zesto-card-action-pill--lime {
-  background: #d4ff00;
+  background: #0ea5e9;
   color: #0b0d0e;
-  border-color: #d4ff00;
+  border-color: #0ea5e9;
   font-weight: 700;
 }
 
 .zesto-card-action-pill--lime:hover {
-  background: #e2ff33;
+  background: #38bdf8;
   color: #0b0d0e;
-  border-color: #e2ff33;
+  border-color: #38bdf8;
   transform: translateY(-1px);
 }
 
@@ -3167,9 +3167,9 @@
   font-weight: 700;
   padding: 2px 8px;
   border-radius: 999px;
-  background: rgba(212, 255, 0, 0.12);
-  color: #d4ff00;
-  border: 1px solid rgba(212, 255, 0, 0.25);
+  background: rgba(14, 165, 233, 0.12);
+  color: #0ea5e9;
+  border: 1px solid rgba(14, 165, 233, 0.25);
 }
 
 .zesto-cycle-amount {
@@ -3284,7 +3284,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #d4ff00;
+  color: #0ea5e9;
   flex-shrink: 0;
 }
 
@@ -3415,7 +3415,7 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  background: linear-gradient(135deg, #d4ff00 0%, #b8f200 100%);
+  background: linear-gradient(135deg, #0ea5e9 0%, #38bdf8 100%);
   color: #0b0d0c;
   font-size: 0.84rem;
   font-weight: 800;
@@ -3423,14 +3423,14 @@
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.3);
   cursor: pointer;
-  box-shadow: 0 4px 18px rgba(212, 255, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  box-shadow: 0 4px 18px rgba(14, 165, 233, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.6);
   transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .zesto-exact-btn-send:hover {
   background: linear-gradient(135deg, #e0ff33 0%, #c9ff00 100%);
   transform: translateY(-1.5px);
-  box-shadow: 0 8px 28px rgba(212, 255, 0, 0.6), inset 0 1px 0 #ffffff;
+  box-shadow: 0 8px 28px rgba(14, 165, 233, 0.6), inset 0 1px 0 #ffffff;
 }
 
 /* ── Top 2-Card Hero Grid ──────────────────────────────────── */
@@ -4054,7 +4054,7 @@
 }
 
 .zesto-panel-link:hover {
-  color: #d4ff00;
+  color: #0ea5e9;
 }
 
 [data-theme="light"] .zesto-panel-link {
@@ -4317,20 +4317,20 @@
 .zesto-coming-pay-btn {
   padding: 4px 12px;
   border-radius: 999px;
-  background: #d4ff00;
+  background: #0ea5e9;
   color: #0b0d0c;
   font-size: 0.72rem;
   font-weight: 700;
   border: none;
   cursor: pointer;
-  box-shadow: 0 2px 10px rgba(212, 255, 0, 0.4);
+  box-shadow: 0 2px 10px rgba(14, 165, 233, 0.4);
   transition: all 0.18s ease;
 }
 
 .zesto-coming-pay-btn:hover {
-  background: #e2ff33;
+  background: #38bdf8;
   transform: scale(1.06);
-  box-shadow: 0 4px 14px rgba(212, 255, 0, 0.6);
+  box-shadow: 0 4px 14px rgba(14, 165, 233, 0.6);
 }
 
 /* ── Modal Glassmorphism ───────────────────────────────────── */
@@ -5196,4 +5196,225 @@
 }
 [data-theme="light"] .verdelo-spline-line {
   stroke: #0284c7 !important;
+}
+
+
+
+/* ══════════════════════════════════════════════════════════════════════
+   CARDS & WALLET — SKY BLUE GLASSMORPHISM SUITE (DUAL THEME)
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Stage Wrapper */
+.zesto-card-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  background: rgba(12, 24, 42, 0.72) !important;
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid rgba(56, 189, 248, 0.18) !important;
+  border-radius: 24px;
+  padding: 32px 24px 24px;
+  box-shadow: 0 14px 34px -8px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(56, 189, 248, 0.1) !important;
+  transition: all 0.25s ease;
+}
+[data-theme="light"] .zesto-card-stage {
+  background: rgba(255, 255, 255, 0.88) !important;
+  border: 1px solid rgba(186, 230, 253, 0.85) !important;
+  box-shadow: 0 12px 32px -6px rgba(14, 165, 233, 0.08), inset 0 1px 0 #ffffff !important;
+}
+
+/* Right Column Panels */
+.zesto-cycle-panel,
+.zesto-card-tx-panel {
+  background: rgba(12, 24, 42, 0.72) !important;
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid rgba(56, 189, 248, 0.18) !important;
+  border-radius: 20px;
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 14px 34px -8px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(56, 189, 248, 0.1) !important;
+  transition: all 0.25s ease;
+}
+[data-theme="light"] .zesto-cycle-panel,
+[data-theme="light"] .zesto-card-tx-panel {
+  background: rgba(255, 255, 255, 0.88) !important;
+  border: 1px solid rgba(186, 230, 253, 0.85) !important;
+  box-shadow: 0 12px 32px -6px rgba(14, 165, 233, 0.08), inset 0 1px 0 #ffffff !important;
+}
+
+/* Typography Overrides for Light Mode */
+[data-theme="light"] .zesto-cycle-title {
+  color: #082f49 !important;
+}
+[data-theme="light"] .zesto-cycle-sub {
+  color: #64748b !important;
+}
+[data-theme="light"] .zesto-cycle-amount {
+  color: #082f49 !important;
+}
+[data-theme="light"] .zesto-cycle-limit {
+  color: #64748b !important;
+}
+[data-theme="light"] .zesto-legend-label {
+  color: #475569 !important;
+}
+[data-theme="light"] .zesto-legend-val {
+  color: #082f49 !important;
+  font-weight: 700 !important;
+}
+[data-theme="light"] .zesto-tx-title {
+  color: #082f49 !important;
+}
+[data-theme="light"] .zesto-tx-meta {
+  color: #64748b !important;
+}
+[data-theme="light"] .zesto-card-owner-bar {
+  color: #475569 !important;
+}
+
+/* Action Buttons below 3D Card */
+.zesto-card-action-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  color: #e2e8f0 !important;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.zesto-card-action-pill:hover {
+  background: rgba(255, 255, 255, 0.16) !important;
+  color: #ffffff !important;
+  border-color: rgba(56, 189, 248, 0.4) !important;
+  transform: translateY(-1px);
+}
+[data-theme="light"] .zesto-card-action-pill {
+  background: rgba(240, 249, 255, 0.9) !important;
+  border: 1px solid rgba(186, 230, 253, 0.95) !important;
+  color: #082f49 !important;
+  box-shadow: 0 2px 6px rgba(14, 165, 233, 0.05);
+}
+[data-theme="light"] .zesto-card-action-pill:hover {
+  background: #ffffff !important;
+  border-color: #0ea5e9 !important;
+  color: #0284c7 !important;
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.15) !important;
+}
+
+/* Unfreeze / Primary Action Pill (Sky Blue Gradient) */
+.zesto-card-action-pill--lime,
+.zesto-card-action-pill--skyblue {
+  background: linear-gradient(135deg, #0284c7 0%, #0ea5e9 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  font-weight: 700 !important;
+  box-shadow: 0 4px 14px rgba(14, 165, 233, 0.45) !important;
+}
+.zesto-card-action-pill--lime:hover,
+.zesto-card-action-pill--skyblue:hover {
+  background: linear-gradient(135deg, #0ea5e9 0%, #38bdf8 100%) !important;
+  color: #ffffff !important;
+  transform: translateY(-1.5px);
+  box-shadow: 0 6px 20px rgba(14, 165, 233, 0.6) !important;
+}
+
+/* Percentage Badge */
+.zesto-cycle-pct-badge {
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(14, 165, 233, 0.12) !important;
+  color: #0ea5e9 !important;
+  border: 1px solid rgba(14, 165, 233, 0.3) !important;
+}
+[data-theme="light"] .zesto-cycle-pct-badge {
+  background: rgba(14, 165, 233, 0.1) !important;
+  color: #0284c7 !important;
+  border-color: rgba(14, 165, 233, 0.28) !important;
+}
+
+/* Transaction List Item */
+.zesto-tx-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: all 0.2s ease;
+}
+[data-theme="light"] .zesto-tx-item {
+  background: rgba(240, 249, 255, 0.8) !important;
+  border-color: rgba(186, 230, 253, 0.7) !important;
+}
+.zesto-tx-icon-box {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(14, 165, 233, 0.12) !important;
+  color: #0ea5e9 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(14, 165, 233, 0.25) !important;
+}
+[data-theme="light"] .zesto-tx-icon-box {
+  background: rgba(14, 165, 233, 0.1) !important;
+  color: #0284c7 !important;
+}
+[data-theme="light"] .zesto-tx-amount {
+  color: #0284c7 !important;
+  font-weight: 700 !important;
+}
+
+
+
+/* Light Mode overrides for Tabs and Card Chips */
+[data-theme="light"] .zesto-tab-btn {
+  color: #64748b;
+}
+[data-theme="light"] .zesto-tab-btn:hover {
+  color: #082f49;
+}
+[data-theme="light"] .zesto-tab-btn.is-active {
+  color: #082f49 !important;
+}
+[data-theme="light"] .zesto-tab-btn.is-active::after {
+  background: #0284c7 !important;
+  box-shadow: 0 0 10px rgba(14, 165, 233, 0.6) !important;
+}
+
+[data-theme="light"] .zesto-card-chip {
+  background: rgba(240, 249, 255, 0.85) !important;
+  border: 1px solid rgba(186, 230, 253, 0.8) !important;
+  color: #475569 !important;
+}
+[data-theme="light"] .zesto-card-chip:hover {
+  background: #ffffff !important;
+  border-color: #0ea5e9 !important;
+  color: #082f49 !important;
+}
+[data-theme="light"] .zesto-card-chip.is-active {
+  background: #ffffff !important;
+  border-color: #0ea5e9 !important;
+  box-shadow: 0 4px 14px rgba(14, 165, 233, 0.18) !important;
+  color: #082f49 !important;
+}
+[data-theme="light"] .zesto-card-chip-title {
+  color: #082f49 !important;
+}
+[data-theme="light"] .zesto-card-chip-sub {
+  color: #64748b !important;
 }
