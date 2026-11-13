@@ -8,14 +8,11 @@ import {
   Bell,
   Eye,
   EyeOff,
-  Gift,
   Moon,
   NotebookPen,
   Plus,
   Search,
-  Star,
   Sun,
-  Bookmark,
   ChevronDown,
   ChevronLeft,
   Cpu,
@@ -30,7 +27,6 @@ import {
   Menu,
   Server,
   Settings,
-  ShieldCheck,
   Sparkles,
   Terminal,
   TrendingUp,
@@ -216,8 +212,8 @@ export function DashboardLayout({
     }
   }, [])
 
-  const currentMonthSpend = 4820
-  const budgetUsedPct = Math.min(100, Math.max(0, Math.round((currentMonthSpend / (monthlyBudget || 1)) * 100)))
+  // Monthly budget tracking
+  void monthlyBudget;
 
   // Responsive mobile screen tracking
   const [isMobile, setIsMobile] = useState<boolean>(() => {
@@ -515,20 +511,33 @@ export function DashboardLayout({
 
   const roleLabel = portalRole === 'admin' ? 'Super Admin' : 'Customer'
 
-  // 1A. Customer Portal Main Navigation Groups (Scrollable upper section)
+  // 1A. Customer Portal Main Navigation Groups (Matching Zesto hierarchy)
   const customerMainNavGroups: NavGroup[] = [
     {
-      title: 'GENERAL',
+      title: 'MONEY',
       items: [
-        { label: 'Customer Dashboard', to: '/dashboard/customer', icon: LayoutDashboard, matchExact: true },
+        { label: 'Home', to: '/dashboard/customer', icon: LayoutDashboard, matchExact: true },
+        { label: 'Insights', to: '/dashboard/analytics', icon: TrendingUp, matchExact: true },
+        { label: 'Activity', to: '/dashboard/orders', icon: FileText, matchExact: true },
       ],
     },
     {
-      title: 'COMPUTE & AI',
+      title: 'MOVE',
       items: [
-        { label: 'GPU Marketplace', to: '/dashboard/gpus', icon: Cpu, matchExact: true },
-        { label: 'LLM Catalog', to: '/dashboard/models', icon: Sparkles, matchExact: true },
-        { label: 'Inference Playground', to: '/dashboard/playground', icon: Terminal, badge: 'Sandbox', badgeType: 'pill', matchExact: true },
+        { label: 'Payments', to: '/dashboard/checkout', icon: CreditCard, badge: '4', badgeType: 'count', matchExact: true },
+        { label: 'Cards', to: '/dashboard/wallet', icon: Wallet, matchExact: true },
+      ],
+    },
+    {
+      title: 'PLAN',
+      items: [
+        { label: 'Plan', to: '/dashboard/gpus', icon: Cpu, matchExact: true },
+        { label: 'Family', to: '/dashboard/models', icon: Users, badge: '2', badgeType: 'count', matchExact: true },
+      ],
+    },
+    {
+      title: 'COMPUTE & TOOLS',
+      items: [
         {
           label: 'Deployments',
           to: '/dashboard/deployments',
@@ -537,62 +546,20 @@ export function DashboardLayout({
           badgeType: 'pill',
           matchExact: true,
         },
-        { label: 'Notebooks and SSH', to: '/dashboard/notebooks', icon: NotebookPen, matchExact: true },
-      ],
-    },
-    {
-      title: 'ORDERS & ACTIVITY',
-      items: [
-        { label: 'Orders and Purchase History', to: '/dashboard/orders', icon: FileText, matchExact: true },
-        { label: 'Usage and Analytics', to: '/dashboard/analytics', icon: BarChart3, matchExact: true },
-        { label: 'Spot Price History', to: '/dashboard/price-history', icon: TrendingUp, matchExact: true },
-      ],
-    },
-    {
-      title: 'BILLING & PAYMENTS',
-      items: [
-        { label: 'Wallet, Payments and Billing', to: '/dashboard/wallet', icon: Wallet, matchExact: true },
-        { label: 'Checkout & Payments', to: '/dashboard/checkout', icon: CreditCard, matchExact: true },
-      ],
-    },
-    {
-      title: 'DEVELOPER TOOLS',
-      items: [
+        { label: 'Inference Playground', to: '/dashboard/playground', icon: Terminal, badge: 'Sandbox', badgeType: 'pill', matchExact: true },
+        { label: 'Notebooks & SSH', to: '/dashboard/notebooks', icon: NotebookPen, matchExact: true },
         { label: 'API Keys', to: '/dashboard/api-keys', icon: KeyRound, matchExact: true },
-        { label: 'SSH Keys', to: '/dashboard/ssh-keys', icon: ShieldCheck, matchExact: true },
-      ],
-    },
-    {
-      title: 'PERSONAL',
-      items: [
-        { label: 'Wishlist', to: '/dashboard/wishlist', icon: Bookmark, matchExact: true },
-        { label: 'Reviews and Notes', to: '/dashboard/reviews', icon: Star, matchExact: true },
-        { label: 'Rewards and Discounts', to: '/dashboard/rewards', icon: Gift, matchExact: true },
       ],
     },
   ]
 
-  // 1B. Customer Portal Bottom Navigation Groups (Fixed bottom Support & Settings)
+  // 1B. Customer Portal Bottom Navigation Groups (Support & Settings)
   const customerBottomNavGroups: NavGroup[] = [
     {
-      title: 'SUPPORT',
+      title: 'SYSTEM',
       items: [
-        {
-          label: 'Notifications',
-          to: '/dashboard/notifications',
-          icon: Bell,
-          badge: unreadNotifCount > 0 ? String(unreadNotifCount) : undefined,
-          badgeType: 'count',
-          matchExact: true,
-        },
-        { label: 'Chatbot and Help', to: '/dashboard/faq', icon: HelpCircle, matchExact: true },
-      ],
-    },
-    {
-      title: 'SETTINGS',
-      items: [
-        { label: 'Profile and Settings', to: '/dashboard/profile', icon: User, matchExact: true },
-        { label: 'Workspace Settings', to: '/dashboard/settings', icon: Settings, matchExact: true },
+        { label: 'Settings', to: '/dashboard/settings', icon: Settings, matchExact: true },
+        { label: 'Help', to: '/dashboard/faq', icon: HelpCircle, matchExact: true },
       ],
     },
   ]
@@ -830,10 +797,10 @@ export function DashboardLayout({
           {/* Customer Portal Topbar Balance Pill & Eye Toggle (Photos 1, 2, 4, 7) */}
           {portalRole === 'customer' && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <div className="zesto-topbar-balance" title="Available Compute & Wallet Balance">
+              <div className="zesto-topbar-balance" title="Household Balance">
                 <span className="zesto-pulse-dot" />
                 <span>
-                  {hideBalance ? '••••••••' : `₹${dashWalletBalance.toLocaleString('en-IN')}`}
+                  {hideBalance ? '••••••••' : `Household €${dashWalletBalance >= 1000 ? Math.round(dashWalletBalance / 1000) + 'k' : dashWalletBalance.toLocaleString('en-US')}`}
                 </span>
               </div>
               <button
@@ -1042,11 +1009,18 @@ export function DashboardLayout({
             )}
           </div>
 
-          {/* Primary Action Button (Photo 1, 2, 4, 7) */}
+          {/* Primary Action Button (Move money pill) */}
           {portalRole === 'customer' && (
-            <Link to="/dashboard/gpus" className="zesto-btn-lime-pill" style={{ textDecoration: 'none' }}>
-              <Plus size={14} /> Deploy GPU
-            </Link>
+            <button
+              type="button"
+              className="zesto-btn-lime-pill"
+              onClick={() => {
+                window.dispatchEvent(new Event('inferxe_open_topup'))
+              }}
+              style={{ border: 'none', cursor: 'pointer' }}
+            >
+              <Plus size={14} /> Move money
+            </button>
           )}
 
           {/* User Profile & Demo Role Switcher */}
@@ -1179,6 +1153,69 @@ export function DashboardLayout({
               />
             </button>
           </div>
+
+          {/* Account Switcher Pill (Matching Zesto Adeyemi-Novak Family) */}
+          {portalRole === 'customer' && !isSidebarCollapsed && (
+            <div style={{ padding: '2px 12px 10px' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 10,
+                  padding: '8px 12px',
+                  background: 'rgba(255, 255, 255, 0.04)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  borderRadius: 14,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.07)'
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.14)'
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = 'rgba(255, 255, 255, 0.04)'
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                  <div style={{ display: 'flex', marginLeft: 4 }}>
+                    {['#f59e0b', '#10b981', '#3b82f6', '#ec4899', '#8b5cf6'].map((col, idx) => (
+                      <span
+                        key={idx}
+                        style={{
+                          width: 18,
+                          height: 18,
+                          borderRadius: '50%',
+                          background: col,
+                          marginLeft: idx === 0 ? 0 : -6,
+                          border: '1.5px solid #131615',
+                          fontSize: '0.55rem',
+                          fontWeight: 800,
+                          color: '#fff',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        {['A', 'T', 'I', 'K', 'N'][idx]}
+                      </span>
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                    <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      Adeyemi-Nov...
+                    </span>
+                    <span style={{ fontSize: '0.66rem', color: '#8c9692' }}>
+                      4 people · 5 cards
+                    </span>
+                  </div>
+                </div>
+                <ChevronDown size={14} style={{ color: '#8c9692', flexShrink: 0 }} />
+              </div>
+            </div>
+          )}
 
           {/* Quick Search Shortcut Pill (matching Zesto sidebar search) */}
           {portalRole === 'customer' && !isSidebarCollapsed && (
@@ -1377,23 +1414,66 @@ export function DashboardLayout({
           {/* Quota & Organization Footer */}
           <div className="dash-sidebar__footer">
             {portalRole === 'customer' ? (
-              <div
-                className="dash-quota-card"
-                title={`Monthly Spend Limit: ₹${monthlyBudget.toLocaleString('en-IN')} · Current spend: ₹${currentMonthSpend.toLocaleString('en-IN')} (${budgetUsedPct}% used)`}
-              >
-                <div className="dash-quota-card__header">
-                  <span className="dash-quota-card__label">Monthly Spend Limit</span>
-                  <span className="dash-quota-card__val">₹{monthlyBudget.toLocaleString('en-IN')}</span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {/* Safe to spend floating pill (Exact Zesto replica) */}
+                <div
+                  style={{
+                    background: '#131615',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: 14,
+                    padding: '10px 12px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 6,
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.72rem' }}>
+                    <span style={{ color: '#8c9692' }}>Safe to spend</span>
+                    <span style={{ color: '#ffffff', fontWeight: 700 }}>€220/day</span>
+                  </div>
+                  <div style={{ height: 4, background: 'rgba(255, 255, 255, 0.08)', borderRadius: 999, overflow: 'hidden' }}>
+                    <div style={{ width: '68%', height: '100%', background: '#22c55e', borderRadius: 999 }} />
+                  </div>
+                  <span style={{ fontSize: '0.64rem', color: '#6d7773' }}>6 days to payday</span>
                 </div>
-                <div className="dash-quota-progress">
-                  <div className="dash-quota-bar" style={{ width: `${budgetUsedPct}%` }} />
-                </div>
-                <div className="dash-quota-card__meta">
-                  <span>₹{currentMonthSpend.toLocaleString('en-IN')} spent</span>
-                  <span>{budgetUsedPct}% used</span>
-                </div>
-                <div className="dash-quota-card__sub">
-                  {user.organization || 'NovaTech AI Systems'} · Sovereign Active Tier
+
+                {/* Account Owner Card (Exact Zesto replica) */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '4px 2px',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                    <span
+                      style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: '50%',
+                        background: '#eab308',
+                        color: '#0b0d0c',
+                        fontWeight: 800,
+                        fontSize: '0.75rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                      }}
+                    >
+                      AA
+                    </span>
+                    <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                      <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#ffffff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        Amara Adeyemi
+                      </span>
+                      <span style={{ fontSize: '0.66rem', color: '#8c9692' }}>
+                        Owner · Adeyemi-Novak
+                      </span>
+                    </div>
+                  </div>
+                  <span style={{ color: '#8c9692', fontSize: '0.9rem', cursor: 'pointer', padding: '2px 4px' }} title="Switch Profile">⇅</span>
                 </div>
               </div>
             ) : (

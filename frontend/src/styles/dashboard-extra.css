@@ -3309,3 +3309,758 @@
   font-weight: 700;
   text-align: right;
 }
+
+/* ───────────────────────────────────────────────────────────
+   10. Pixel-Perfect Zesto Customer Dashboard (Photo 8 Replica)
+   ─────────────────────────────────────────────────────────── */
+
+.zesto-exact-view {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  width: 100%;
+  animation: zestoFadeIn 0.35s cubic-bezier(0.2, 0.9, 0.4, 1);
+}
+
+/* Header greeting */
+.zesto-exact-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.zesto-exact-title {
+  font-size: 2.15rem;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.035em;
+  margin: 0;
+  line-height: 1.15;
+}
+
+.zesto-exact-sub {
+  font-size: 0.86rem;
+  color: #8c9692;
+  margin: 5px 0 0 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+}
+
+.zesto-exact-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.zesto-exact-btn-ask {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #e6eae8;
+  font-size: 0.84rem;
+  font-weight: 600;
+  padding: 8px 18px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.zesto-exact-btn-ask:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+  transform: translateY(-1px);
+}
+
+.zesto-exact-btn-send {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #d4ff00;
+  color: #0b0d0c;
+  font-size: 0.84rem;
+  font-weight: 700;
+  padding: 8px 20px;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(212, 255, 0, 0.3);
+  transition: all 0.2s ease;
+}
+
+.zesto-exact-btn-send:hover {
+  background: #e2ff33;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 22px rgba(212, 255, 0, 0.45);
+}
+
+/* Two-column hero grid */
+.zesto-hero-two-grid {
+  display: grid;
+  grid-template-columns: 1.05fr 1.2fr;
+  gap: 20px;
+}
+
+@media (max-width: 1160px) {
+  .zesto-hero-two-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Green gradient hero card */
+.zesto-green-hero-card {
+  position: relative;
+  border-radius: 24px;
+  padding: 24px 26px 22px;
+  background: linear-gradient(135deg, #c4ff1a 0%, #9ff23d 25%, #35e489 70%, #20c894 100%);
+  color: #0b0d0c;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 295px;
+  box-shadow: 0 16px 36px -10px rgba(32, 200, 148, 0.32), 0 4px 16px rgba(196, 255, 26, 0.2);
+}
+
+.zesto-green-hero-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.zesto-green-hero-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #0b0d0c;
+}
+
+.zesto-green-hero-arrow {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(11, 13, 12, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0b0d0c;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.zesto-green-hero-arrow:hover {
+  background: rgba(11, 13, 12, 0.22);
+  transform: translate(2px, -2px);
+}
+
+.zesto-green-hero-amount {
+  font-size: 3.1rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1.08;
+  color: #0b0d0c;
+  margin: 10px 0 6px;
+}
+
+.zesto-green-hero-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.zesto-green-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(11, 13, 12, 0.14);
+  border: 1px solid rgba(11, 13, 12, 0.18);
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #0b0d0c;
+}
+
+.zesto-green-hero-wave {
+  width: 100%;
+  height: 38px;
+  margin: 4px 0 10px;
+}
+
+.zesto-green-hero-categories {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  padding: 8px 0;
+  margin-bottom: 14px;
+  border-top: 1px solid rgba(11, 13, 12, 0.12);
+}
+
+.zesto-green-cat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.zesto-green-cat-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: rgba(11, 13, 12, 0.75);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.zesto-green-cat-val {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #0b0d0c;
+}
+
+.zesto-green-hero-buttons {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.zesto-green-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.32);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  color: #0b0d0c;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.zesto-green-action-btn:hover {
+  background: rgba(255, 255, 255, 0.48);
+  transform: translateY(-1.5px);
+  box-shadow: 0 4px 12px rgba(11, 13, 12, 0.12);
+}
+
+/* Dark 30-day chart card */
+.zesto-dark-chart-card {
+  background: #131615;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 24px;
+  padding: 24px 26px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 295px;
+}
+
+.zesto-dark-chart-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.zesto-dark-chart-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+}
+
+.zesto-dark-chart-sub {
+  font-size: 0.76rem;
+  color: #8c9692;
+  margin: 3px 0 0 0;
+}
+
+.zesto-member-pills {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.zesto-member-pill {
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #8c9692;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.zesto-member-pill.is-active {
+  background: #ffffff;
+  color: #0b0d0c;
+  border-color: #ffffff;
+  font-weight: 700;
+}
+
+.zesto-stacked-bars-container {
+  position: relative;
+  margin: 14px 0 8px;
+  display: flex;
+  gap: 10px;
+}
+
+.zesto-chart-y-axis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-size: 0.68rem;
+  color: #555e5a;
+  height: 120px;
+  padding-bottom: 16px;
+  user-select: none;
+}
+
+.zesto-stacked-bars-area {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  height: 120px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.zesto-stacked-bar-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  height: 100%;
+  justify-content: flex-start;
+  gap: 1.5px;
+  cursor: pointer;
+}
+
+.zesto-bar-slice {
+  width: 100%;
+  max-width: 10px;
+  border-radius: 2px;
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+
+.zesto-stacked-bar-col:hover .zesto-bar-slice {
+  filter: brightness(1.25);
+}
+
+.zesto-chart-x-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.68rem;
+  color: #6d7773;
+  margin-top: 4px;
+  padding-left: 36px;
+}
+
+.zesto-dark-chart-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-top: 14px;
+  font-size: 0.75rem;
+  color: #8c9692;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.zesto-chart-stats-group {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.zesto-chart-stat-item strong {
+  color: #ffffff;
+  margin-left: 4px;
+}
+
+.zesto-chart-legend {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.zesto-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  color: #8c9692;
+}
+
+.zesto-legend-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+}
+
+/* 4 Middle Stat Cards */
+.zesto-four-stat-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 1024px) {
+  .zesto-four-stat-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .zesto-four-stat-cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+.zesto-mini-stat-card {
+  background: #131615;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 20px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: all 0.2s ease;
+}
+
+.zesto-mini-stat-card:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-2px);
+}
+
+.zesto-mini-stat-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.zesto-mini-stat-label {
+  font-size: 0.78rem;
+  color: #8c9692;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.zesto-mini-stat-pill {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.zesto-mini-stat-val {
+  font-size: 1.65rem;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.025em;
+  margin: 0 0 6px 0;
+}
+
+.zesto-mini-stat-bottom {
+  font-size: 0.72rem;
+  color: #6d7773;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* 3 Bottom Panels Grid */
+.zesto-three-bottom-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 1100px) {
+  .zesto-three-bottom-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.zesto-panel-card {
+  background: #131615;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 22px;
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 240px;
+}
+
+.zesto-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.zesto-panel-title {
+  font-size: 0.96rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+}
+
+.zesto-panel-sub {
+  font-size: 0.72rem;
+  color: #8c9692;
+  margin: 3px 0 0 0;
+}
+
+.zesto-panel-link {
+  font-size: 0.74rem;
+  color: #8c9692;
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.18s ease;
+  cursor: pointer;
+}
+
+.zesto-panel-link:hover {
+  color: #d4ff00;
+}
+
+/* Budget pace slider items */
+.zesto-budget-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.zesto-budget-item:last-child {
+  margin-bottom: 0;
+}
+
+.zesto-budget-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.78rem;
+}
+
+.zesto-budget-cat {
+  color: #e5e7eb;
+  font-weight: 600;
+}
+
+.zesto-budget-figures {
+  color: #8c9692;
+  font-size: 0.74rem;
+}
+
+.zesto-budget-status-pill {
+  font-size: 0.66rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
+}
+
+.zesto-budget-status-pill--over {
+  background: rgba(239, 68, 68, 0.18);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.zesto-budget-status-pill--track {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.zesto-budget-track {
+  position: relative;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: visible;
+}
+
+.zesto-budget-fill {
+  height: 100%;
+  border-radius: 999px;
+}
+
+.zesto-budget-tick {
+  position: absolute;
+  top: -4px;
+  width: 2px;
+  height: 13px;
+  background: #ffffff;
+  border-radius: 1px;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.7);
+}
+
+/* 3D Stack of Family Cards */
+.zesto-deck-stage {
+  position: relative;
+  height: 155px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  perspective: 900px;
+  cursor: pointer;
+  margin-top: 8px;
+}
+
+.zesto-deck-card {
+  position: absolute;
+  width: 250px;
+  height: 140px;
+  border-radius: 16px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.55);
+  transition: all 0.35s cubic-bezier(0.2, 0.9, 0.3, 1);
+  user-select: none;
+}
+
+.zesto-deck-card--front {
+  background: linear-gradient(135deg, #2ae0c8 0%, #17a085 60%, #0e6b56 100%);
+  color: #ffffff;
+  z-index: 3;
+  transform: translateY(0) scale(1);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.zesto-deck-card--mid {
+  background: linear-gradient(135deg, #1b3d36 0%, #102621 100%);
+  z-index: 2;
+  transform: translateY(-8px) scale(0.94);
+  opacity: 0.7;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.zesto-deck-card--back {
+  background: linear-gradient(135deg, #122420 0%, #0a1412 100%);
+  z-index: 1;
+  transform: translateY(-16px) scale(0.88);
+  opacity: 0.45;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.zesto-deck-stage:hover .zesto-deck-card--front {
+  transform: translateY(-4px) scale(1.02);
+}
+
+/* Coming up list */
+.zesto-coming-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.zesto-coming-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.zesto-coming-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.zesto-date-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.1;
+}
+
+.zesto-date-badge span {
+  font-size: 0.62rem;
+  color: #8c9692;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.zesto-coming-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.zesto-coming-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.zesto-coming-sub {
+  font-size: 0.7rem;
+  color: #6d7773;
+}
+
+.zesto-coming-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.zesto-coming-amount {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.zesto-coming-pay-btn {
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: #d4ff00;
+  color: #0b0d0c;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.zesto-coming-pay-btn:hover {
+  background: #e2ff33;
+  transform: scale(1.05);
+}
