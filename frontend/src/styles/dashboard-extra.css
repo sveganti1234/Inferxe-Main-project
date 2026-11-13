@@ -6740,3 +6740,252 @@ html[data-theme='dark'],
 .verdelo-bill-pay-btn:hover {
   transform: scale(1.05);
 }
+
+/* ── VERDELO SPROUT LOGO & TOPBAR REPLICA (IMAGE 1 & 2) ──────────────── */
+.verdelo-brand-logo-leaf {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #50e396;
+  box-shadow: 0 0 14px rgba(80, 227, 150, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.verdelo-sidebar-toggle {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(80, 227, 150, 0.18);
+  color: #8caba0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-left: 6px;
+}
+.verdelo-sidebar-toggle:hover {
+  background: rgba(80, 227, 150, 0.15);
+  border-color: rgba(80, 227, 150, 0.4);
+  color: #50e396;
+}
+
+.verdelo-topbar-sep {
+  width: 1px;
+  height: 22px;
+  background: rgba(80, 227, 150, 0.25);
+  margin: 0 4px;
+  display: inline-block;
+}
+
+.verdelo-topbar-icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(80, 227, 150, 0.18);
+  color: #8caba0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.verdelo-topbar-icon-btn:hover {
+  color: #ffffff;
+  background: rgba(80, 227, 150, 0.14);
+  border-color: rgba(80, 227, 150, 0.45);
+}
+
+.verdelo-bell-dot {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #50e396;
+  box-shadow: 0 0 8px #50e396;
+}
+
+.verdelo-avatar-pill {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #d1fae5 !important;
+  color: #082417 !important;
+  font-weight: 800 !important;
+  font-size: 0.9rem !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+  border: 1.5px solid rgba(80, 227, 150, 0.4);
+  transition: transform 0.18s ease;
+}
+
+.verdelo-avatar-pill:hover {
+  transform: scale(1.08);
+}
+
+/* Sidebar Navigation Divider between Household and Settings */
+.verdelo-nav-divider {
+  height: 1px;
+  background: rgba(80, 227, 150, 0.15);
+  margin: 12px 6px;
+}
+
+/* ── EXACT ALERTS POPUP (IMAGE 3) ────────────────────────────────────── */
+.verdelo-alerts-popup {
+  position: absolute;
+  top: calc(100% + 14px);
+  right: -10px;
+  width: 360px;
+  background: rgba(11, 26, 21, 0.96) !important;
+  backdrop-filter: blur(36px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(36px) saturate(200%) !important;
+  border: 1px solid rgba(80, 227, 150, 0.25) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 25px 60px -10px rgba(0, 0, 0, 0.88), inset 0 1px 1px rgba(255, 255, 255, 0.18) !important;
+  padding: 18px 20px !important;
+  z-index: 1000 !important;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: verdeloFadeIn 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes verdeloFadeIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.verdelo-alerts-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 2px;
+}
+
+.verdelo-alerts-title {
+  font-size: 1.05rem !important;
+  font-weight: 700 !important;
+  color: #ffffff !important;
+  margin: 0 !important;
+}
+
+.verdelo-alerts-mark-read {
+  background: none;
+  border: none;
+  color: #50e396;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 4px;
+  transition: opacity 0.18s ease;
+}
+.verdelo-alerts-mark-read:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
+
+.verdelo-alerts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.verdelo-alert-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 6px 4px;
+  border-radius: 12px;
+  transition: background 0.18s ease;
+}
+.verdelo-alert-row:hover {
+  background: rgba(80, 227, 150, 0.08);
+}
+
+.verdelo-alert-icon-box {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.verdelo-alert-icon-box--settled {
+  background: rgba(80, 227, 150, 0.15);
+  color: #50e396;
+  border: 1px solid rgba(80, 227, 150, 0.3);
+}
+.verdelo-alert-icon-box--pending {
+  background: rgba(255, 255, 255, 0.06);
+  color: #8caba0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.verdelo-alert-icon-box--warning {
+  background: rgba(251, 191, 36, 0.12);
+  color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.25);
+}
+.verdelo-alert-icon-box--goal {
+  background: rgba(80, 227, 150, 0.15);
+  color: #50e396;
+  border: 1px solid rgba(80, 227, 150, 0.3);
+}
+.verdelo-alert-icon-box--calendar {
+  background: rgba(255, 255, 255, 0.06);
+  color: #8caba0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.verdelo-alert-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.verdelo-alert-title-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.verdelo-alert-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.verdelo-alert-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #50e396;
+  box-shadow: 0 0 6px #50e396;
+  flex-shrink: 0;
+}
+
+.verdelo-alert-desc {
+  font-size: 0.78rem;
+  color: #8caba0;
+  line-height: 1.35;
+}
+
+.verdelo-alert-time {
+  font-size: 0.7rem;
+  color: #617b73;
+  margin-top: 2px;
+}
