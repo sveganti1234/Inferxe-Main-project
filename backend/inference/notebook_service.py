@@ -1,54 +1,45 @@
 """
 notebook_service.py
 ===================
-Orchestration and service layer for customer GPU Notebook Instances.
+Orchestration and service layer for customer GPU Notebook Instances backed by Supabase.
 Provides:
   - Driver abstraction for container / pod / simulated runtimes.
   - SimulatedNotebookDriver reporting transparent simulation status.
-  - User-scoped notebook lifecycle management (create, list, get, start, stop, terminate).
+  - User-scoped notebook lifecycle management (create, list, get, start, stop, terminate)
+    backed by `SupabaseNotebookRepository` and `SupabaseSSHKeyRepository`.
   - Secure session token generation and SHA-256 hashing (no raw tokens persisted).
   - Multi-tenant isolation and SSH key binding validation.
 """
 
-import uuid
-import secrets
 import hashlib
 import logging
+import secrets
+import uuid
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
-from typing import Dict, Any, Optional, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
-from sqlalchemy.orm import Session
-
-from inference.models import NotebookInstance
 from inference.schemas import NotebookResponse
-from inference.ssh_key_service import get_ssh_key_by_id, get_user_authorized_keys
+from inference.supabase_notebooks import (
+    ALLOWED_START_SOURCE_STATUSES,
+    ALLOWED_STOP_SOURCE_STATUSES,
+    InvalidStateTransitionError,
+    NotebookError,
+    NotebookNotFoundError,
+    NotebookValidationError,
+    SupabaseNotebookError,
+    SupabaseNotebookRecord,
+    SupabaseNotebookRepository,
+    SupabaseNotebookServiceUnavailableError,
+    SupabaseNotebookValidationError,
+    _validate_user_id,
+    get_notebook_repository,
+)
+from inference.supabase_ssh_keys import SupabaseSSHKeyRecord
 
 logger = logging.getLogger("inferxe.notebook_service")
 
 SIMULATION_NOTICE = "Simulated notebook runtime: no physical GPU or JupyterLab container is running."
-
-
-# --- Exceptions ---
-
-class NotebookError(Exception):
-    """Base exception for notebook operations."""
-    pass
-
-
-class NotebookNotFoundError(NotebookError):
-    """Raised when a notebook is not found or user lacks access."""
-    pass
-
-
-class NotebookValidationError(NotebookError):
-    """Raised when notebook parameters or SSH key bindings are invalid."""
-    pass
-
-
-class InvalidStateTransitionError(NotebookError):
-    """Raised when a requested lifecycle state transition is disallowed."""
-    pass
 
 
 # --- Security: Token Hashing Helpers ---
@@ -116,7 +107,7 @@ class SimulatedNotebookDriver(NotebookDriver):
         short_id = instance_id.replace("-", "")[:8]
         ref = f"sim-worker-{short_id}"
         host = f"{short_id}.simulated.nodes.inferxe.com"
-        logger.info(f"[SIMULATED DRIVER] Provisioning notebook {instance_id} with profile '{gpu_profile}' -> {ref}")
+        logger.info("[SIMULATED DRIVER] Provisioning notebook %s -> %s", instance_id, ref)
         return {
             "status": "running",
             "runtime_reference": ref,
@@ -128,7 +119,7 @@ class SimulatedNotebookDriver(NotebookDriver):
         }
 
     def start(self, runtime_reference: str) -> Dict[str, Any]:
-        logger.info(f"[SIMULATED DRIVER] Starting notebook with reference: {runtime_reference}")
+        logger.info("[SIMULATED DRIVER] Starting notebook with reference: %s", runtime_reference)
         return {
             "status": "running",
             "runtime_reference": runtime_reference,
@@ -137,7 +128,7 @@ class SimulatedNotebookDriver(NotebookDriver):
         }
 
     def stop(self, runtime_reference: str) -> Dict[str, Any]:
-        logger.info(f"[SIMULATED DRIVER] Stopping notebook with reference: {runtime_reference}")
+        logger.info("[SIMULATED DRIVER] Stopping notebook with reference: %s", runtime_reference)
         return {
             "status": "stopped",
             "runtime_reference": runtime_reference,
@@ -154,7 +145,7 @@ class SimulatedNotebookDriver(NotebookDriver):
         }
 
     def terminate(self, runtime_reference: str) -> Dict[str, Any]:
-        logger.info(f"[SIMULATED DRIVER] Terminating notebook with reference: {runtime_reference}")
+        logger.info("[SIMULATED DRIVER] Terminating notebook with reference: %s", runtime_reference)
         return {
             "status": "terminated",
             "runtime_reference": runtime_reference,
@@ -163,11 +154,11 @@ class SimulatedNotebookDriver(NotebookDriver):
         }
 
 
-# Default driver instance for Stage 2A
+# Default driver instance
 default_driver = SimulatedNotebookDriver()
 
 
-# --- SSH Command & Path Helpers ---
+# --- SSH Command & Response Formatting Helpers ---
 
 def get_suggested_key_path(key_type: Optional[str]) -> str:
     """Return default private key file path suggestion based on key algorithm."""
@@ -181,28 +172,34 @@ def get_suggested_key_path(key_type: Optional[str]) -> str:
     return "~/.ssh/id_ed25519"
 
 
-def format_notebook_ssh_command(notebook: NotebookInstance, host: str, port: int = 2222) -> str:
+def format_notebook_ssh_command(notebook: Any, host: str, port: int = 2222) -> str:
     """Format the copyable SSH command for the notebook instance."""
-    if notebook.ssh_key:
-        key_path = get_suggested_key_path(notebook.ssh_key.key_type)
+    ssh_key_type = getattr(notebook, "ssh_key_type", None)
+    if not ssh_key_type:
+        legacy_ssh_key = getattr(notebook, "ssh_key", None)
+        if legacy_ssh_key is not None:
+            ssh_key_type = getattr(legacy_ssh_key, "key_type", None)
+
+    if ssh_key_type:
+        key_path = get_suggested_key_path(ssh_key_type)
         return f"ssh -i {key_path} -p {port} ubuntu@{host}"
     return f"ssh -p {port} ubuntu@{host}"
 
 
 def serialize_notebook(
-    notebook: NotebookInstance,
+    notebook: Any,
     raw_token: Optional[str] = None,
     driver: Optional[NotebookDriver] = None,
 ) -> NotebookResponse:
-    """Convert a NotebookInstance ORM model into a standardized Pydantic NotebookResponse."""
+    """Convert a Supabase notebook record into a standardized Pydantic NotebookResponse."""
+    _ = driver
     short_id = str(notebook.id).replace("-", "")[:8]
     host = f"{short_id}.simulated.nodes.inferxe.com"
     ssh_port = 2222
 
-    # Construct URLs and commands
     ssh_cmd = format_notebook_ssh_command(notebook, host, ssh_port)
 
-    # If running, provide simulated Jupyter URL with token
+    # If running, provide simulated Jupyter URL (token returned only at creation time)
     jupyter_url = None
     if notebook.status == "running":
         token_param = raw_token if raw_token else "active_session"
@@ -231,224 +228,222 @@ def serialize_notebook(
 # --- Core Service Functions ---
 
 def create_notebook(
-    db: Session,
+    repo: Optional[SupabaseNotebookRepository],
     user_id: str,
     name: str = "Untitled Notebook",
     gpu_profile: str = "NVIDIA L4",
-    selected_ssh_key_id: Optional[uuid.UUID] = None,
+    selected_ssh_key_id: Optional[Union[str, uuid.UUID]] = None,
     driver: Optional[NotebookDriver] = None,
-) -> Tuple[NotebookInstance, str]:
+) -> Tuple[SupabaseNotebookRecord, str]:
     """
-    Create and provision a new notebook instance for the authenticated customer.
-    Validates SSH key tenant ownership, hashes access tokens before DB storage,
-    and invokes the runtime driver.
+    Create and provision a new notebook session in Supabase for the authenticated customer.
+    Validates SSH key tenant ownership via `SupabaseSSHKeyRepository`, hashes access
+    tokens with SHA-256 before DB persistence, and invokes the runtime driver.
 
     Returns:
-      (notebook_instance, raw_token)
+      (notebook_record, raw_token)
     """
+    active_repo = repo or get_notebook_repository()
     active_driver = driver or default_driver
-    clean_user_id = user_id.strip()
+    clean_user_id = _validate_user_id(user_id)
 
-    # 1. Validate SSH Key ownership if provided
-    if selected_ssh_key_id:
-        ssh_key = get_ssh_key_by_id(db, clean_user_id, selected_ssh_key_id)
-        if not ssh_key:
-            raise NotebookValidationError(
-                "Selected SSH key does not exist or does not belong to your account."
-            )
+    # 1. Validate SSH Key ownership via Supabase SSH keys repository if provided
+    validated_ssh_key: Optional[SupabaseSSHKeyRecord] = None
+    if selected_ssh_key_id is not None:
+        validated_ssh_key = active_repo.validate_owned_ssh_key(
+            user_id=clean_user_id,
+            selected_ssh_key_id=selected_ssh_key_id,
+        )
 
     # 2. Generate secure session token and SHA-256 hash
     raw_token, token_hash = generate_notebook_token()
 
-    # 3. Create ORM instance
+    # 3. Provision simulated runtime reference
     instance_id = uuid.uuid4()
     now = datetime.now(timezone.utc)
+    clean_name = name.strip() if isinstance(name, str) and name.strip() else "Untitled Notebook"
+    clean_profile = (
+        gpu_profile.strip()
+        if isinstance(gpu_profile, str) and gpu_profile.strip()
+        else "NVIDIA L4"
+    )
+    driver_res = active_driver.provision(str(instance_id), gpu_profile=clean_profile)
 
-    # 4. Invoke runtime driver
-    driver_res = active_driver.provision(str(instance_id), gpu_profile=gpu_profile)
-
-    notebook = NotebookInstance(
-        id=instance_id,
+    # 4. Persist metadata + token_hash (never raw_token) to Supabase
+    notebook = active_repo.create_notebook_session(
+        instance_id=instance_id,
         user_id=clean_user_id,
-        name=name.strip() or "Untitled Notebook",
-        gpu_profile=gpu_profile.strip() or "NVIDIA L4",
+        name=clean_name,
+        gpu_profile=clean_profile,
         status=driver_res.get("status", "running"),
         runtime_type="simulated",
         runtime_reference=driver_res.get("runtime_reference"),
-        selected_ssh_key_id=selected_ssh_key_id,
+        selected_ssh_key_id=validated_ssh_key.id if validated_ssh_key is not None else None,
+        validated_ssh_key=validated_ssh_key,
         token_hash=token_hash,
-        created_at=now,
-        updated_at=now,
-        last_active_at=now,
+        now=now,
     )
-
-    try:
-        db.add(notebook)
-        db.commit()
-        db.refresh(notebook)
-        logger.info(
-            f"Notebook created: id={notebook.id} user_id={clean_user_id} "
-            f"name='{notebook.name}' profile='{notebook.gpu_profile}' status='{notebook.status}'"
-        )
-        return notebook, raw_token
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Failed to persist notebook instance in database: {e}")
-        raise
+    return notebook, raw_token
 
 
 def list_user_notebooks(
-    db: Session,
+    repo: Optional[SupabaseNotebookRepository],
     user_id: str,
     include_terminated: bool = False,
-) -> List[NotebookInstance]:
+) -> List[SupabaseNotebookRecord]:
     """
-    List notebook instances belonging to the authenticated customer.
-    Enforces tenant isolation. By default excludes terminated sessions.
+    List notebook sessions in Supabase belonging strictly to the authenticated customer.
+    By default excludes `'terminated'` sessions.
     """
-    query = (
-        db.query(NotebookInstance)
-        .filter(NotebookInstance.user_id == user_id.strip())
+    active_repo = repo or get_notebook_repository()
+    return active_repo.list_user_notebooks(
+        user_id=user_id,
+        include_terminated=include_terminated,
     )
-    if not include_terminated:
-        query = query.filter(NotebookInstance.status != "terminated")
-
-    return query.order_by(NotebookInstance.created_at.desc()).all()
 
 
 def get_notebook(
-    db: Session,
+    repo: Optional[SupabaseNotebookRepository],
     user_id: str,
-    notebook_id: uuid.UUID,
-) -> NotebookInstance:
+    notebook_id: Union[str, uuid.UUID],
+) -> SupabaseNotebookRecord:
     """
-    Retrieve a single notebook instance by ID, verifying tenant ownership.
+    Retrieve a single notebook session by ID from Supabase, verifying tenant ownership.
     Raises NotebookNotFoundError if the notebook does not exist or belongs to another user.
     """
-    notebook = (
-        db.query(NotebookInstance)
-        .filter(
-            NotebookInstance.id == notebook_id,
-            NotebookInstance.user_id == user_id.strip(),
-        )
-        .first()
-    )
-    if not notebook:
-        raise NotebookNotFoundError(f"Notebook '{notebook_id}' not found.")
-    return notebook
+    active_repo = repo or get_notebook_repository()
+    return active_repo.get_notebook(user_id=user_id, notebook_id=notebook_id)
 
 
 def start_notebook(
-    db: Session,
+    repo: Optional[SupabaseNotebookRepository],
     user_id: str,
-    notebook_id: uuid.UUID,
+    notebook_id: Union[str, uuid.UUID],
     driver: Optional[NotebookDriver] = None,
-) -> NotebookInstance:
+) -> SupabaseNotebookRecord:
     """
-    Start a stopped or provisioning notebook instance.
-    Validates ownership and state transitions.
+    Start a stopped, starting, provisioning, or failed notebook session.
+    Validates ownership and state transitions atomically in Supabase.
     """
-    notebook = get_notebook(db, user_id, notebook_id)
+    active_repo = repo or get_notebook_repository()
     active_driver = driver or default_driver
+
+    notebook = active_repo.get_notebook(
+        user_id=user_id,
+        notebook_id=notebook_id,
+        resolve_ssh_key=False,
+    )
 
     if notebook.status == "running":
         raise InvalidStateTransitionError("Notebook is already running.")
     if notebook.status == "terminated":
         raise InvalidStateTransitionError("Cannot start a terminated notebook.")
-    if notebook.status not in ("stopped", "provisioning", "failed"):
+    if notebook.status not in ALLOWED_START_SOURCE_STATUSES:
         raise InvalidStateTransitionError(
             f"Cannot start notebook in '{notebook.status}' state."
         )
 
-    # Invoke runtime driver
     driver_res = active_driver.start(notebook.runtime_reference or str(notebook.id))
-    now = datetime.now(timezone.utc)
-
-    notebook.status = driver_res.get("status", "running")
-    notebook.updated_at = now
-    notebook.last_active_at = now
-
-    try:
-        db.commit()
-        db.refresh(notebook)
-        logger.info(f"Notebook started: id={notebook.id} user_id={user_id}")
-        return notebook
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Failed to start notebook {notebook_id}: {e}")
-        raise
+    return active_repo.transition_notebook_status(
+        user_id=user_id,
+        notebook_id=notebook.id,
+        action="start",
+        expected_status=notebook.status,
+        new_status=driver_res.get("status", "running"),
+    )
 
 
 def stop_notebook(
-    db: Session,
+    repo: Optional[SupabaseNotebookRepository],
     user_id: str,
-    notebook_id: uuid.UUID,
+    notebook_id: Union[str, uuid.UUID],
     driver: Optional[NotebookDriver] = None,
-) -> NotebookInstance:
+) -> SupabaseNotebookRecord:
     """
-    Stop a running notebook instance.
-    Validates ownership and state transitions.
+    Stop a running, starting, or provisioning notebook session.
+    Validates ownership and state transitions atomically in Supabase.
     """
-    notebook = get_notebook(db, user_id, notebook_id)
+    active_repo = repo or get_notebook_repository()
     active_driver = driver or default_driver
+
+    notebook = active_repo.get_notebook(
+        user_id=user_id,
+        notebook_id=notebook_id,
+        resolve_ssh_key=False,
+    )
 
     if notebook.status == "stopped":
         raise InvalidStateTransitionError("Notebook is already stopped.")
     if notebook.status == "terminated":
         raise InvalidStateTransitionError("Cannot stop a terminated notebook.")
-    if notebook.status not in ("running", "provisioning"):
+    if notebook.status not in ALLOWED_STOP_SOURCE_STATUSES:
         raise InvalidStateTransitionError(
             f"Cannot stop notebook in '{notebook.status}' state."
         )
 
-    # Invoke runtime driver
     driver_res = active_driver.stop(notebook.runtime_reference or str(notebook.id))
-    now = datetime.now(timezone.utc)
-
-    notebook.status = driver_res.get("status", "stopped")
-    notebook.updated_at = now
-
-    try:
-        db.commit()
-        db.refresh(notebook)
-        logger.info(f"Notebook stopped: id={notebook.id} user_id={user_id}")
-        return notebook
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Failed to stop notebook {notebook_id}: {e}")
-        raise
+    return active_repo.transition_notebook_status(
+        user_id=user_id,
+        notebook_id=notebook.id,
+        action="stop",
+        expected_status=notebook.status,
+        new_status=driver_res.get("status", "stopped"),
+    )
 
 
 def terminate_notebook(
-    db: Session,
+    repo: Optional[SupabaseNotebookRepository],
     user_id: str,
-    notebook_id: uuid.UUID,
+    notebook_id: Union[str, uuid.UUID],
     driver: Optional[NotebookDriver] = None,
-) -> NotebookInstance:
+) -> SupabaseNotebookRecord:
     """
-    Permanently terminate a notebook instance.
-    Validates ownership and updates status to 'terminated'.
+    Permanently terminate a notebook session in Supabase (`status='terminated'`).
+    Validates ownership and state transitions atomically.
     """
-    notebook = get_notebook(db, user_id, notebook_id)
+    active_repo = repo or get_notebook_repository()
     active_driver = driver or default_driver
+
+    notebook = active_repo.get_notebook(
+        user_id=user_id,
+        notebook_id=notebook_id,
+        resolve_ssh_key=False,
+    )
 
     if notebook.status == "terminated":
         raise InvalidStateTransitionError("Notebook is already terminated.")
 
-    # Invoke runtime driver
     active_driver.terminate(notebook.runtime_reference or str(notebook.id))
-    now = datetime.now(timezone.utc)
+    return active_repo.transition_notebook_status(
+        user_id=user_id,
+        notebook_id=notebook.id,
+        action="terminate",
+        expected_status=notebook.status,
+        new_status="terminated",
+    )
 
-    notebook.status = "terminated"
-    notebook.updated_at = now
 
-    try:
-        db.commit()
-        db.refresh(notebook)
-        logger.info(f"Notebook terminated: id={notebook.id} user_id={user_id}")
-        return notebook
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Failed to terminate notebook {notebook_id}: {e}")
-        raise
-
+__all__ = [
+    "SIMULATION_NOTICE",
+    "NotebookError",
+    "NotebookNotFoundError",
+    "NotebookValidationError",
+    "InvalidStateTransitionError",
+    "SupabaseNotebookError",
+    "SupabaseNotebookServiceUnavailableError",
+    "SupabaseNotebookValidationError",
+    "NotebookDriver",
+    "SimulatedNotebookDriver",
+    "default_driver",
+    "generate_notebook_token",
+    "verify_notebook_token",
+    "get_suggested_key_path",
+    "format_notebook_ssh_command",
+    "serialize_notebook",
+    "create_notebook",
+    "list_user_notebooks",
+    "get_notebook",
+    "start_notebook",
+    "stop_notebook",
+    "terminate_notebook",
+]

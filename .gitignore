@@ -32,3 +32,6 @@ database/*.db
 database/*.db-wal
 database/*.db-shm
 database/backups/
+
+#backend 
+backend/.env

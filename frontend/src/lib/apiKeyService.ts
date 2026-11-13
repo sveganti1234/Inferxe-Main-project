@@ -6,6 +6,11 @@
  */
 
 import { getSession } from './authStore'
+import {
+  INFERENCE_API_BASE,
+  formatApiConnectionError,
+  getAuthHeaders,
+} from './apiConfig'
 
 export interface BackendApiKey {
   id: string
@@ -26,20 +31,6 @@ export interface GeneratedApiKeyResponse {
   api_key: string // Secret token shown only once
   environment: string
   created_at: string
-}
-
-const INFERENCE_API_BASE =
-  (import.meta.env.VITE_INFERENCE_API_ENDPOINT as string | undefined)?.replace(/\/$/, '') ||
-  'http://127.0.0.1:8001'
-
-function getAuthHeaders(): HeadersInit {
-  const session = getSession()
-  const token = session?.token || ''
-  return {
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  }
 }
 
 /**
@@ -75,7 +66,7 @@ export async function fetchBackendApiKeys(): Promise<{
   } catch (err) {
     return {
       ok: false,
-      error: 'Inference API server is unreachable at ' + INFERENCE_API_BASE + '. Please ensure backend is running.',
+      error: formatApiConnectionError('Inference API server', INFERENCE_API_BASE),
     }
   }
 }
@@ -121,7 +112,7 @@ export async function createBackendApiKey(
   } catch (err) {
     return {
       ok: false,
-      error: 'Inference API server is unreachable. Please ensure the backend is running.',
+      error: formatApiConnectionError('Inference API server', INFERENCE_API_BASE),
     }
   }
 }
@@ -158,7 +149,7 @@ export async function revokeBackendApiKey(keyId: string): Promise<{
   } catch (err) {
     return {
       ok: false,
-      error: 'Inference API server is unreachable. Please ensure the backend is running.',
+      error: formatApiConnectionError('Inference API server', INFERENCE_API_BASE),
     }
   }
 }

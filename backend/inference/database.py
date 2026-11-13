@@ -18,11 +18,31 @@ from sqlalchemy.engine import make_url
 # Configure logger
 logger = logging.getLogger("inferxe.database")
 
-# Load environment configuration from backend/.env without overriding existing test env vars
+# Load environment configuration from backend/.env and root .env without overriding existing test env vars
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 load_dotenv(BACKEND_DIR / ".env", override=False)
+ROOT_DIR = BACKEND_DIR.parent
+if (ROOT_DIR / ".env").is_file():
+    load_dotenv(ROOT_DIR / ".env", override=False)
 
-DATABASE_URL = os.getenv("DATABASE_URL", "")
+
+def _normalize_optional_database_url(raw_url: str):
+    """
+    Normalize optional legacy SQLAlchemy DATABASE_URL.
+    Returns (effective_url, is_legacy_sql_configured).
+    Falls back to an isolated in-memory SQLite URL when blank or placeholder
+    so teams using shared Supabase never crash on module import without pgAdmin 4.
+    """
+    cleaned = (raw_url or "").strip()
+    if not cleaned or "YOUR_PASSWORD" in cleaned:
+        return "sqlite:///:memory:", False
+    if cleaned.startswith("postgres://"):
+        cleaned = "postgresql+psycopg2://" + cleaned[len("postgres://"):]
+    return cleaned, True
+
+
+RAW_DATABASE_URL = os.getenv("DATABASE_URL", "")
+DATABASE_URL, LEGACY_SQL_CONFIGURED = _normalize_optional_database_url(RAW_DATABASE_URL)
 
 Base = declarative_base()
 
@@ -39,18 +59,19 @@ def get_masked_url(url_str: str) -> str:
 
 # Initialize SQLAlchemy engine
 def create_app_engine(db_url: str = DATABASE_URL):
+    effective_url, _ = _normalize_optional_database_url(db_url)
     connect_args = {}
     engine_kwargs = {"pool_pre_ping": True}
 
-    if db_url.startswith("sqlite"):
+    if effective_url.startswith("sqlite"):
         connect_args["check_same_thread"] = False
-    elif "psycopg" in db_url:
+    elif "psycopg" in effective_url:
         connect_args["connect_timeout"] = 5
         engine_kwargs["pool_size"] = 10
         engine_kwargs["max_overflow"] = 20
 
     return create_engine(
-        db_url,
+        effective_url,
         connect_args=connect_args,
         **engine_kwargs
     )
@@ -72,6 +93,8 @@ def get_db() -> Generator[Session, None, None]:
 def check_database_connection(test_engine=None) -> bool:
     """Check if the database server is reachable using a fast probe."""
     eng = test_engine or engine
+    if (test_engine is None or test_engine is engine) and not LEGACY_SQL_CONFIGURED:
+        return False
     if eng.url.drivername.startswith("sqlite"):
         try:
             with eng.connect() as conn:
@@ -154,4 +177,6 @@ def create_database_if_not_exists(db_url: str = DATABASE_URL) -> bool:
 def init_db(target_engine=None):
     """Create all registered tables in the target database."""
     eng = target_engine or engine
+    if (target_engine is None or target_engine is engine) and not LEGACY_SQL_CONFIGURED:
+        return
     Base.metadata.create_all(bind=eng)

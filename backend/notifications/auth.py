@@ -8,21 +8,48 @@ import os
 import json
 import time
 import logging
+from pathlib import Path
 from typing import Optional, Dict, Any, List
 from fastapi import HTTPException, Security, Request, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt
 from jwt import PyJWKClient, ExpiredSignatureError, InvalidTokenError
-from dotenv import load_dotenv
+from dotenv import load_dotenv, dotenv_values
 
-load_dotenv()
+ROOT_DIR = Path(__file__).resolve().parents[2]
+if (ROOT_DIR / ".env").is_file():
+    load_dotenv(ROOT_DIR / ".env", override=False)
+if (ROOT_DIR / "backend" / ".env").is_file():
+    load_dotenv(ROOT_DIR / "backend" / ".env", override=False)
+if (ROOT_DIR / "frontend" / ".env").is_file():
+    try:
+        for _k, _v in dotenv_values(ROOT_DIR / "frontend" / ".env").items():
+            if _k and _k.startswith("VITE_COGNITO_") and _v and _k not in os.environ:
+                os.environ[_k] = _v
+    except Exception:
+        pass
 
 logger = logging.getLogger("inferxe.notifications.auth")
 
-COGNITO_REGION = os.environ.get("VITE_COGNITO_REGION", os.environ.get("COGNITO_REGION", "ap-south-1"))
-COGNITO_USER_POOL_ID = os.environ.get("COGNITO_USER_POOL_ID", "ap-south-1_cYw1QjgbQ")
-COGNITO_CLIENT_ID = os.environ.get("VITE_COGNITO_CLIENT_ID", os.environ.get("COGNITO_CLIENT_ID", ""))
-COGNITO_ISSUER = f"https://cognito-idp.{COGNITO_REGION}.amazonaws.com/{COGNITO_USER_POOL_ID}"
+_COGNITO_PLACEHOLDERS = {"", "ap-south-1_xxxxxxxxx", "your-cognito-client-id", "your-user-pool-id"}
+
+COGNITO_REGION = (
+    os.environ.get("COGNITO_REGION")
+    or os.environ.get("VITE_COGNITO_REGION")
+    or "ap-south-1"
+).strip() or "ap-south-1"
+COGNITO_USER_POOL_ID = (
+    os.environ.get("COGNITO_USER_POOL_ID")
+    or os.environ.get("VITE_COGNITO_USER_POOL_ID")
+    or ""
+).strip()
+COGNITO_CLIENT_ID = (
+    os.environ.get("COGNITO_CLIENT_ID")
+    or os.environ.get("VITE_COGNITO_CLIENT_ID")
+    or ""
+).strip()
+_EFFECTIVE_ISSUER_POOL = COGNITO_USER_POOL_ID or "unconfigured-pool"
+COGNITO_ISSUER = f"https://cognito-idp.{COGNITO_REGION}.amazonaws.com/{_EFFECTIVE_ISSUER_POOL}"
 JWKS_URL = f"{COGNITO_ISSUER}/.well-known/jwks.json"
 
 # In-memory JWK client cache
@@ -93,6 +120,15 @@ def verify_cognito_jwt(token: str) -> AuthenticatedUser:
     if kid and kid in _test_public_keys:
         signing_key = _test_public_keys[kid]
     else:
+        if (
+            COGNITO_USER_POOL_ID in _COGNITO_PLACEHOLDERS
+            or COGNITO_CLIENT_ID in _COGNITO_PLACEHOLDERS
+        ):
+            logger.error("Cognito User Pool ID / Client ID not configured for notifications service.")
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Cognito authentication service is not configured on this backend.",
+            )
         try:
             client = get_jwks_client()
             signing_key = client.get_signing_key_from_jwt(token).key

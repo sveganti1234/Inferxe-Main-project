@@ -16,12 +16,25 @@ import urllib.request
 import urllib.error
 from typing import List, Dict, Any, Optional
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Header, Depends, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-# Ensure UTF-8 output
-sys.stdout.reconfigure(encoding='utf-8')
+# Ensure UTF-8 output safely
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
+
+# Load root .env and backend/.env without overriding existing process vars
+_SERVER_DIR = os.path.dirname(os.path.abspath(__file__))
+_ROOT_DIR = os.path.abspath(os.path.join(_SERVER_DIR, "../.."))
+if os.path.isfile(os.path.join(_ROOT_DIR, ".env")):
+    load_dotenv(os.path.join(_ROOT_DIR, ".env"), override=False)
+if os.path.isfile(os.path.join(_ROOT_DIR, "backend", ".env")):
+    load_dotenv(os.path.join(_ROOT_DIR, "backend", ".env"), override=False)
 
 app = FastAPI(
     title="Inferxe AI Chatbot RAG Service",
@@ -55,7 +68,7 @@ COLLECTION_NAME = "inferxe_knowledge_base"
 EMBEDDING_MODEL = "nomic-embed-text"
 LLM_MODEL = "inferxe-qwen-ft:latest"
 FALLBACK_LLM_MODEL = "qwen2.5:0.5b"
-OLLAMA_BASE_URL = "http://127.0.0.1:11434"
+OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
 ADMIN_API_KEY = os.environ.get("INFERXE_RAG_ADMIN_KEY", "")
 
 # Strict Guardrail Refusal Strings (Mandated by Section 7)

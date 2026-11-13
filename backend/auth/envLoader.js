@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 export const BACKEND_DIR = path.resolve(__dirname, '..')
+export const ROOT_DIR = path.resolve(BACKEND_DIR, '..')
+export const FRONTEND_DIR = path.join(ROOT_DIR, 'frontend')
 export const BACKEND_ENV_PATH = path.join(BACKEND_DIR, '.env')
 
 const FORBIDDEN_FRONTEND_PREFIXES = ['VITE_SUPABASE_']
@@ -108,4 +110,37 @@ export function assertNoFrontendSupabaseSecrets(frontendEnv = {}) {
       )
     }
   }
+}
+
+/**
+ * Collect frontend .env* file declarations plus any VITE_-prefixed entries from
+ * processEnv while ignoring server-only non-VITE_ processEnv entries (such as
+ * SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY loaded by dev middleware or IDE shells).
+ */
+export function collectFrontendEnvForSecurityCheck({
+  envDir = FRONTEND_DIR,
+  mode = 'development',
+  processEnv = process.env,
+} = {}) {
+  const candidateFiles = ['.env', '.env.local']
+  if (mode) {
+    candidateFiles.push(`.env.${mode}`, `.env.${mode}.local`)
+  }
+
+  const collected = {}
+  for (const filename of candidateFiles) {
+    const filePath = path.join(envDir, filename)
+    if (!fs.existsSync(filePath)) continue
+    const parsed = parseEnvContent(fs.readFileSync(filePath, 'utf8'))
+    assertNoFrontendSupabaseSecrets(parsed)
+    Object.assign(collected, parsed)
+  }
+
+  for (const [key, value] of Object.entries(processEnv || {})) {
+    if (key.startsWith('VITE_')) {
+      collected[key] = value
+    }
+  }
+
+  return collected
 }

@@ -11,6 +11,8 @@
  * - Zero exposure of internal paths or credentials
  */
 
+import { OLLAMA_CHAT_ENDPOINT, RAG_CHAT_ENDPOINT } from './apiConfig'
+
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant'
   content: string
@@ -26,7 +28,7 @@ export interface LlmConfig {
 export const DEFAULT_LLM_CONFIG: LlmConfig = {
   activeModel: 'inferxe-qwen-ft',
   fallbackModel: 'inferxe-assistant',
-  endpoint: 'http://127.0.0.1:11434/api/chat',
+  endpoint: OLLAMA_CHAT_ENDPOINT,
   timeoutMs: 12000,
 }
 
@@ -98,7 +100,7 @@ export interface SourceReference {
   snippet?: string
 }
 
-export const RAG_BACKEND_ENDPOINT = 'http://127.0.0.1:8000/api/chat'
+export const RAG_BACKEND_ENDPOINT = RAG_CHAT_ENDPOINT
 
 /**
  * Queries the FastAPI RAG pipeline backed by ChromaDB vector search and local dataset grounding.

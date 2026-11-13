@@ -8,12 +8,15 @@ Endpoints:
   - POST /api/v1/api-keys: Issue customer API keys
 """
 
+import logging
 import os
 import uuid
+import httpx2
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sqlalchemy.orm import Session
 
 from inference.database import get_db, check_database_connection
+from inference.supabase_config import SupabaseConfigurationError, get_supabase_settings
 from inference.supabase_api_keys import (
     APIKeyForbiddenError,
     APIKeyNotFoundError,
@@ -23,6 +26,20 @@ from inference.supabase_api_keys import (
     SupabaseAPIKeyServiceUnavailableError,
     SupabaseAPIKeyValidationError,
     get_api_key_repository,
+)
+from inference.supabase_ssh_keys import (
+    SupabaseSSHKeyError,
+    SupabaseSSHKeyRepository,
+    SupabaseSSHKeyServiceUnavailableError,
+    SupabaseSSHKeyValidationError,
+    get_ssh_key_repository,
+)
+from inference.supabase_notebooks import (
+    SupabaseNotebookError,
+    SupabaseNotebookRepository,
+    SupabaseNotebookServiceUnavailableError,
+    SupabaseNotebookValidationError,
+    get_notebook_repository,
 )
 from inference.supabase_telemetry import (
     SupabaseTelemetryRepository,
@@ -48,9 +65,6 @@ from inference.schemas import (
     NotebookActionResponse,
 )
 from inference.ssh_key_service import (
-    create_ssh_key,
-    list_user_ssh_keys,
-    delete_ssh_key,
     SSHKeyValidationError,
     DuplicateSSHKeyError,
 )
@@ -71,10 +85,12 @@ from inference.auth import (
     generate_api_key,
     extract_cognito_sub,
     require_cognito_user,
+    is_cognito_configured,
 )
 from inference.service import InferenceService
 
 router = APIRouter(prefix="/api/v1", tags=["Inference & Management"])
+logger = logging.getLogger("inferxe.routes")
 
 # Global inference service instance
 inference_service = InferenceService()
@@ -107,22 +123,50 @@ def run_inference(
     "/health",
     response_model=HealthResponse,
     summary="Health & Dependency Check",
-    description="Returns connectivity status of the service, PostgreSQL database, and NVIDIA provider."
+    description="Returns connectivity status of the service, Supabase REST, optional PostgreSQL database, and NVIDIA provider."
 )
-async def health_check(db: Session = Depends(get_db)):
-    """Health status check."""
+def health_check(db: Session = Depends(get_db)):
+    """Health status check covering Supabase REST, optional legacy PostgreSQL, NVIDIA, and Cognito."""
     db_ok = check_database_connection(db.get_bind())
-    nvidia_configured = bool(os.getenv("NVIDIA_API_KEY"))
+    nvidia_key = (os.getenv("NVIDIA_API_KEY") or "").strip()
+    nvidia_configured = bool(nvidia_key) and "your-key-here" not in nvidia_key
+    cognito_ok = is_cognito_configured()
 
-    db_status = "connected" if db_ok else "unreachable"
+    supabase_ok = False
+    supabase_status = "unconfigured"
+    try:
+        sb_settings = get_supabase_settings(auto_load=False)
+        if os.getenv("INFERXE_TEST_MODE") == "1":
+            supabase_ok = True
+            supabase_status = "configured"
+        else:
+            with httpx2.Client(timeout=3.0) as client:
+                probe = client.get(
+                    sb_settings.rest_url("api_keys"),
+                    params={"select": "id", "limit": "1"},
+                    headers=sb_settings.auth_headers(),
+                )
+            supabase_ok = probe.status_code < 500
+            supabase_status = "connected" if supabase_ok else "unreachable"
+    except SupabaseConfigurationError:
+        supabase_ok = False
+        supabase_status = "unconfigured"
+    except Exception:
+        supabase_ok = False
+        supabase_status = "unreachable"
+
+    db_status = "connected" if db_ok else ("supabase_rest" if supabase_ok else "unreachable")
     nvidia_status = "configured" if nvidia_configured else "missing_api_key"
-    overall_status = "ok" if (db_ok and nvidia_configured) else "degraded"
+    storage_ok = supabase_ok or db_ok
+    overall_status = "ok" if (storage_ok and nvidia_configured) else "degraded"
 
     return HealthResponse(
         status=overall_status,
         service="inferxe-inference-api",
         database=db_status,
         nvidia_provider=nvidia_status,
+        supabase_rest=supabase_status,
+        cognito_configured=cognito_ok,
         version="1.0.0"
     )
 
@@ -296,39 +340,49 @@ def revoke_api_key(
     summary="Register Customer SSH Public Key",
     description="Registers and cryptographically validates an OpenSSH public key for compute pairing. Never accepts private keys."
 )
-async def register_ssh_key(
+def register_ssh_key(
     req: SSHKeyCreateRequest,
     user_id: str = Depends(require_cognito_user),
-    db: Session = Depends(get_db)
+    repo: SupabaseSSHKeyRepository = Depends(get_ssh_key_repository),
 ):
     """
-    Register a new OpenSSH public key for the authenticated customer.
+    Register a new OpenSSH public key for the authenticated customer in Supabase.
     Validates algorithm, RSA >= 2048-bit, computes OpenSSH SHA-256 fingerprint,
     and strictly rejects private keys.
     """
     try:
-        new_key = create_ssh_key(
-            db=db,
+        new_key = repo.create_ssh_key(
             user_id=user_id,
             name=req.name or "Default SSH Key",
             raw_public_key=req.public_key,
         )
-    except SSHKeyValidationError as ve:
+    except (SSHKeyValidationError, SupabaseSSHKeyValidationError) as ve:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(ve)
+            detail=str(ve),
         )
     except DuplicateSSHKeyError as de:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail=str(de)
+            detail=str(de),
+        )
+    except SupabaseSSHKeyServiceUnavailableError as sue:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(sue),
+        )
+    except SupabaseSSHKeyError:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Upstream SSH key database rejected the request.",
         )
     except HTTPException:
         raise
     except Exception as e:
+        logger.error("Unexpected error registering SSH key (%s).", type(e).__name__)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to register SSH key in database."
+            detail="Failed to register SSH key in database.",
         )
 
     return SSHKeyResponse(
@@ -347,19 +401,37 @@ async def register_ssh_key(
     summary="List Customer SSH Public Keys",
     description="Returns all OpenSSH public keys registered by the authenticated customer. Enforces tenant isolation."
 )
-async def get_customer_ssh_keys(
+def get_customer_ssh_keys(
     user_id: str = Depends(require_cognito_user),
-    db: Session = Depends(get_db)
+    repo: SupabaseSSHKeyRepository = Depends(get_ssh_key_repository),
 ):
     """
-    List all SSH keys belonging exclusively to the authenticated customer.
+    List all SSH keys belonging exclusively to the authenticated customer in Supabase.
     """
     try:
-        keys = list_user_ssh_keys(db=db, user_id=user_id)
+        keys = repo.list_user_ssh_keys(user_id=user_id)
+    except (SSHKeyValidationError, SupabaseSSHKeyValidationError) as ve:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(ve),
+        )
+    except SupabaseSSHKeyServiceUnavailableError as sue:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(sue),
+        )
+    except SupabaseSSHKeyError:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Upstream SSH key database rejected the request.",
+        )
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error("Unexpected error listing SSH keys (%s).", type(e).__name__)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve SSH keys from database."
+            detail="Failed to retrieve SSH keys from database.",
         )
 
     return SSHKeyListResponse(
@@ -382,15 +454,15 @@ async def get_customer_ssh_keys(
     "/ssh-keys/{key_id}",
     response_model=SSHKeyDeleteResponse,
     summary="Delete Customer SSH Key",
-    description="Deletes a registered SSH key owned by the authenticated customer. Returns 404 if not found or unauthorized."
+    description="Permanently deletes a registered SSH key owned by the authenticated customer. Returns 404 if not found or unauthorized."
 )
-async def remove_ssh_key(
+def remove_ssh_key(
     key_id: str,
     user_id: str = Depends(require_cognito_user),
-    db: Session = Depends(get_db)
+    repo: SupabaseSSHKeyRepository = Depends(get_ssh_key_repository),
 ):
     """
-    Delete a customer SSH key.
+    Permanently delete a customer SSH key from Supabase.
     Enforces tenant isolation: returns HTTP 404 if the key does not exist
     or belongs to another customer to prevent customer enumeration.
     """
@@ -399,27 +471,45 @@ async def remove_ssh_key(
     except ValueError:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invalid key ID format. Expected UUID."
+            detail="Invalid key ID format. Expected UUID.",
         )
 
     try:
-        deleted = delete_ssh_key(db=db, user_id=user_id, key_id=key_uuid)
+        deleted = repo.delete_ssh_key(user_id=user_id, key_id=key_uuid)
+    except (SSHKeyValidationError, SupabaseSSHKeyValidationError) as ve:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(ve),
+        )
+    except SupabaseSSHKeyServiceUnavailableError as sue:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(sue),
+        )
+    except SupabaseSSHKeyError:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Upstream SSH key database rejected the request.",
+        )
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error("Unexpected error deleting SSH key (%s).", type(e).__name__)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to delete SSH key from database."
+            detail="Failed to delete SSH key from database.",
         )
 
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="SSH key not found."
+            detail="SSH key not found.",
         )
 
     return SSHKeyDeleteResponse(
         success=True,
         message="SSH key deleted successfully.",
-        id=str(key_uuid)
+        id=str(key_uuid),
     )
 
 # --- Notebook Management Endpoints ---
@@ -429,16 +519,17 @@ async def remove_ssh_key(
     response_model=NotebookResponse,
     status_code=status.HTTP_201_CREATED,
     summary="Create & Provision Notebook Instance",
-    description="Provisions a new notebook session for the authenticated customer. Derives user_id exclusively from Cognito token.",
+    description="Provisions a new notebook session in Supabase for the authenticated customer. Derives user_id exclusively from Cognito token.",
 )
-async def create_notebook_instance(
+def create_notebook_instance(
     req: NotebookCreateRequest,
     user_id: str = Depends(require_cognito_user),
-    db: Session = Depends(get_db),
+    repo: SupabaseNotebookRepository = Depends(get_notebook_repository),
 ):
     """
-    Create a new notebook session.
-    Returns the one-time raw Jupyter session token in access_token.
+    Create a new notebook session in Supabase.
+    Validates selected SSH key ownership via Supabase SSH Keys repository
+    and returns the one-time raw Jupyter session token in access_token.
     """
     ssh_key_uuid = None
     if req.selected_ssh_key_id:
@@ -452,18 +543,31 @@ async def create_notebook_instance(
 
     try:
         notebook, raw_token = create_notebook(
-            db=db,
+            repo=repo,
             user_id=user_id,
             name=req.name or "Untitled Notebook",
             gpu_profile=req.gpu_profile or "NVIDIA L4",
             selected_ssh_key_id=ssh_key_uuid,
         )
-    except NotebookValidationError as ve:
+    except (NotebookValidationError, SupabaseNotebookValidationError) as ve:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(ve),
         )
+    except SupabaseNotebookServiceUnavailableError as sue:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(sue),
+        )
+    except SupabaseNotebookError:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Upstream notebook database rejected the request.",
+        )
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error("Unexpected error creating notebook instance (%s).", type(e).__name__)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to create notebook instance.",
@@ -476,18 +580,36 @@ async def create_notebook_instance(
     "/notebooks",
     response_model=NotebookListResponse,
     summary="List Customer Notebooks",
-    description="Returns all active or stopped notebook sessions belonging to the authenticated customer.",
+    description="Returns all non-terminated notebook sessions in Supabase belonging to the authenticated customer.",
 )
-async def list_notebooks(
+def list_notebooks(
     user_id: str = Depends(require_cognito_user),
-    db: Session = Depends(get_db),
+    repo: SupabaseNotebookRepository = Depends(get_notebook_repository),
 ):
     """
-    List customer notebooks with tenant isolation.
+    List customer notebooks from Supabase with tenant isolation.
     """
     try:
-        notebooks = list_user_notebooks(db=db, user_id=user_id)
+        notebooks = list_user_notebooks(repo=repo, user_id=user_id)
+    except (NotebookValidationError, SupabaseNotebookValidationError) as ve:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(ve),
+        )
+    except SupabaseNotebookServiceUnavailableError as sue:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(sue),
+        )
+    except SupabaseNotebookError:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Upstream notebook database rejected the request.",
+        )
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error("Unexpected error listing notebooks (%s).", type(e).__name__)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve notebooks from database.",
@@ -503,15 +625,15 @@ async def list_notebooks(
     "/notebooks/{id}",
     response_model=NotebookResponse,
     summary="Get Notebook Details",
-    description="Retrieves notebook instance details. Returns 404 if not found or unauthorized.",
+    description="Retrieves notebook instance details from Supabase. Returns 404 if not found or unauthorized.",
 )
-async def get_notebook_instance(
+def get_notebook_instance(
     id: str,
     user_id: str = Depends(require_cognito_user),
-    db: Session = Depends(get_db),
+    repo: SupabaseNotebookRepository = Depends(get_notebook_repository),
 ):
     """
-    Get single notebook instance by ID.
+    Get single notebook instance by ID from Supabase.
     Enforces tenant ownership.
     """
     try:
@@ -523,13 +645,31 @@ async def get_notebook_instance(
         )
 
     try:
-        notebook = get_notebook(db=db, user_id=user_id, notebook_id=nb_uuid)
+        notebook = get_notebook(repo=repo, user_id=user_id, notebook_id=nb_uuid)
     except NotebookNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Notebook not found.",
         )
+    except (NotebookValidationError, SupabaseNotebookValidationError) as ve:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(ve),
+        )
+    except SupabaseNotebookServiceUnavailableError as sue:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(sue),
+        )
+    except SupabaseNotebookError:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Upstream notebook database rejected the request.",
+        )
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error("Unexpected error retrieving notebook (%s).", type(e).__name__)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve notebook.",
@@ -542,15 +682,15 @@ async def get_notebook_instance(
     "/notebooks/{id}/start",
     response_model=NotebookActionResponse,
     summary="Start Notebook Session",
-    description="Starts a paused or provisioning notebook session.",
+    description="Starts a paused, starting, provisioning, or failed notebook session in Supabase.",
 )
-async def start_notebook_instance(
+def start_notebook_instance(
     id: str,
     user_id: str = Depends(require_cognito_user),
-    db: Session = Depends(get_db),
+    repo: SupabaseNotebookRepository = Depends(get_notebook_repository),
 ):
     """
-    Start notebook session.
+    Start notebook session in Supabase.
     """
     try:
         nb_uuid = uuid.UUID(id)
@@ -561,7 +701,7 @@ async def start_notebook_instance(
         )
 
     try:
-        notebook = start_notebook(db=db, user_id=user_id, notebook_id=nb_uuid)
+        notebook = start_notebook(repo=repo, user_id=user_id, notebook_id=nb_uuid)
     except NotebookNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -572,7 +712,25 @@ async def start_notebook_instance(
             status_code=status.HTTP_409_CONFLICT,
             detail=str(se),
         )
+    except (NotebookValidationError, SupabaseNotebookValidationError) as ve:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(ve),
+        )
+    except SupabaseNotebookServiceUnavailableError as sue:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(sue),
+        )
+    except SupabaseNotebookError:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Upstream notebook database rejected the request.",
+        )
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error("Unexpected error starting notebook (%s).", type(e).__name__)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to start notebook.",
@@ -589,15 +747,15 @@ async def start_notebook_instance(
     "/notebooks/{id}/stop",
     response_model=NotebookActionResponse,
     summary="Stop Notebook Session",
-    description="Stops a running notebook session.",
+    description="Stops a running, starting, or provisioning notebook session in Supabase.",
 )
-async def stop_notebook_instance(
+def stop_notebook_instance(
     id: str,
     user_id: str = Depends(require_cognito_user),
-    db: Session = Depends(get_db),
+    repo: SupabaseNotebookRepository = Depends(get_notebook_repository),
 ):
     """
-    Stop notebook session.
+    Stop notebook session in Supabase.
     """
     try:
         nb_uuid = uuid.UUID(id)
@@ -608,7 +766,7 @@ async def stop_notebook_instance(
         )
 
     try:
-        notebook = stop_notebook(db=db, user_id=user_id, notebook_id=nb_uuid)
+        notebook = stop_notebook(repo=repo, user_id=user_id, notebook_id=nb_uuid)
     except NotebookNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -619,7 +777,25 @@ async def stop_notebook_instance(
             status_code=status.HTTP_409_CONFLICT,
             detail=str(se),
         )
+    except (NotebookValidationError, SupabaseNotebookValidationError) as ve:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(ve),
+        )
+    except SupabaseNotebookServiceUnavailableError as sue:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(sue),
+        )
+    except SupabaseNotebookError:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Upstream notebook database rejected the request.",
+        )
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error("Unexpected error stopping notebook (%s).", type(e).__name__)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to stop notebook.",
@@ -636,15 +812,15 @@ async def stop_notebook_instance(
     "/notebooks/{id}",
     response_model=NotebookActionResponse,
     summary="Terminate Notebook Instance",
-    description="Permanently terminates a notebook session.",
+    description="Permanently terminates a notebook session in Supabase.",
 )
-async def delete_notebook_instance(
+def delete_notebook_instance(
     id: str,
     user_id: str = Depends(require_cognito_user),
-    db: Session = Depends(get_db),
+    repo: SupabaseNotebookRepository = Depends(get_notebook_repository),
 ):
     """
-    Terminate notebook session.
+    Terminate notebook session in Supabase.
     """
     try:
         nb_uuid = uuid.UUID(id)
@@ -655,7 +831,7 @@ async def delete_notebook_instance(
         )
 
     try:
-        notebook = terminate_notebook(db=db, user_id=user_id, notebook_id=nb_uuid)
+        notebook = terminate_notebook(repo=repo, user_id=user_id, notebook_id=nb_uuid)
     except NotebookNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -666,7 +842,25 @@ async def delete_notebook_instance(
             status_code=status.HTTP_409_CONFLICT,
             detail=str(se),
         )
+    except (NotebookValidationError, SupabaseNotebookValidationError) as ve:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(ve),
+        )
+    except SupabaseNotebookServiceUnavailableError as sue:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=str(sue),
+        )
+    except SupabaseNotebookError:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Upstream notebook database rejected the request.",
+        )
+    except HTTPException:
+        raise
     except Exception as e:
+        logger.error("Unexpected error terminating notebook (%s).", type(e).__name__)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to terminate notebook.",

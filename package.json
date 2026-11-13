@@ -9,10 +9,14 @@
   ],
   "scripts": {
     "dev": "npm --prefix frontend run dev",
-    "dev:backend": "python -m uvicorn backend.notifications.main:app --host 127.0.0.1 --port 8000 --reload",
+    "dev:backend": "node backend/scripts/dev-backend.mjs",
     "build": "npm --prefix frontend run build",
     "preview": "npm --prefix frontend run preview",
     "typecheck": "npm --prefix frontend run typecheck",
     "server:admin": "node backend/auth/adminAuthServer.mjs"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.12.7",
+    "@supabase/supabase-js": "^2.119.0"
   }
 }
