@@ -1436,359 +1436,529 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
             1:1 Pixel-Perfect Replica of Verdelo Dark Fintech UI
             ─────────────────────────────────────────────────────────── */}
         {(() => {
-          // ── Verdelo Cards List (1:1 Match with User's Reference Screenshot) ──
+          // ── Verdelo Cards List (1:1 Match with User's Reference Screenshot & Demo Link) ──
           const verdeloCardsList = [
             {
               id: 'c1',
               title: 'Everyday',
               sub: 'Sahith · Debit · joint account',
-              pan: '•••• •••• 4182',
+              pan: '•••• 4182',
               fullPan: '4182 9012 4432 4182',
+              last4: '4182',
               cvv: '829',
               holder: 'Sahith',
               exp: '09/29',
-              bg: 'linear-gradient(135deg, #1b5e3f 0%, #11422c 50%, #0a291b 100%)',
+              type: 'Debit',
+              accountType: 'joint account',
+              bg: 'radial-gradient(120% 140% at 0% 0%, #8cecb69e, transparent 55%), linear-gradient(140deg, #3f8a64, #1f4b39 60%, #183a2d)',
+              miniBg: 'linear-gradient(135deg, #3f8a64 0%, #183a2d 100%)',
               spentNov: '$1,393.11',
+              spentNovNum: 1393,
               leftNov: '$1,806.89',
               limit: 3200,
               pin: '4182',
             },
             {
               id: 'c2',
-              title: "Ada's card",
-              sub: 'Ada · Prepaid · personal card',
-              pan: '•••• •••• 9214',
-              fullPan: '9214 8831 2290 9214',
-              cvv: '412',
-              holder: 'Ada',
-              exp: '11/28',
-              bg: 'linear-gradient(135deg, #164a34 0%, #0d3423 50%, #061e14 100%)',
-              spentNov: '$420.50',
-              leftNov: '$1,079.50',
-              limit: 1500,
-              pin: '9214',
+              title: 'Travel',
+              sub: 'Sahith · Credit card',
+              pan: '•••• 7730',
+              fullPan: '7730 8821 3340 7730',
+              last4: '7730',
+              cvv: '561',
+              holder: 'Sahith',
+              exp: '11/27',
+              type: 'Credit',
+              accountType: 'Credit card',
+              bg: 'radial-gradient(120% 140% at 0% 0%, #ffffff29, transparent 55%), linear-gradient(140deg, #4a524f, #262c2a 60%, #1a1f1d)',
+              miniBg: 'linear-gradient(135deg, #4a524f 0%, #1a1f1d 100%)',
+              spentNov: '$367.00',
+              spentNovNum: 367,
+              leftNov: '$5,633.00',
+              limit: 6000,
+              pin: '7730',
             },
             {
               id: 'c3',
-              title: 'Savings Vault',
-              sub: 'Sahith · Reserve · high-yield card',
-              pan: '•••• •••• 7730',
-              fullPan: '7730 4520 1198 7730',
-              cvv: '654',
-              holder: 'Sahith',
-              exp: '03/30',
-              bg: 'linear-gradient(135deg, #113c29 0%, #08281a 50%, #04140d 100%)',
-              spentNov: '$0.00',
-              leftNov: '$15,000.00',
-              limit: 15000,
-              pin: '7730',
+              title: "Ada's card",
+              sub: 'Ada Lindqvist · Prepaid · allowance',
+              pan: '•••• 2056',
+              fullPan: '2056 9912 3421 2056',
+              last4: '2056',
+              cvv: '412',
+              holder: 'Ada',
+              exp: '08/28',
+              type: 'Prepaid',
+              accountType: 'allowance',
+              bg: 'radial-gradient(120% 140% at 100% 0%, #d6e8a866, transparent 55%), linear-gradient(140deg, #6f7f55, #3d4a33 60%, #2c3627)',
+              miniBg: 'linear-gradient(135deg, #6f7f55 0%, #2c3627 100%)',
+              spentNov: '$184.00',
+              spentNovNum: 184,
+              leftNov: '$76.00',
+              limit: 260,
+              pin: '2056',
             },
           ]
+
+          // ── Verdelo Payments List (Photo 2) ──
+          const verdeloCardPayments: Record<string, Array<{
+            id: string
+            name: string
+            meta: string
+            amount: string
+            icon: any
+            iconBg: string
+            iconColor: string
+          }>> = {
+            c1: [
+              { id: 'tx-1', name: 'Juniper Café', meta: '3 h ago · Eating out · Sahith', amount: '-$6.40', icon: <Coffee size={17} />, iconBg: 'rgba(217, 119, 6, 0.16)', iconColor: '#f59e0b' },
+              { id: 'tx-2', name: 'Arco Fuel', meta: 'Yesterday, 8:37 PM · Transport · Sahith', amount: '-$63.49', icon: <Truck size={17} />, iconBg: 'rgba(45, 212, 191, 0.16)', iconColor: '#2dd4bf' },
+              { id: 'tx-3', name: 'Outpost Supply', meta: 'Yesterday, 9:57 AM · Shopping · Jonas', amount: '-$126.64', icon: <Tag size={17} />, iconBg: 'rgba(99, 102, 241, 0.16)', iconColor: '#818cf8' },
+              { id: 'tx-4', name: 'Streamly', meta: 'Yesterday, 6:00 AM · Subscriptions · Sahith', amount: '-$22.99', icon: <ArrowUpDown size={17} />, iconBg: 'rgba(59, 130, 246, 0.16)', iconColor: '#60a5fa' },
+              { id: 'tx-5', name: 'Arco Fuel', meta: 'Tue, 2:26 PM · Transport · Sahith', amount: '-$42.21', icon: <Truck size={17} />, iconBg: 'rgba(45, 212, 191, 0.16)', iconColor: '#2dd4bf' },
+              { id: 'tx-6', name: 'Rainier Swim Club', meta: 'Mon, 9:03 AM · Kids · Jonas', amount: '-$45.00', icon: <Heart size={17} />, iconBg: 'rgba(244, 63, 94, 0.16)', iconColor: '#fb7185' },
+              { id: 'tx-7', name: 'Parkway Garage', meta: 'Sat, 2:55 PM · Transport · Sahith', amount: '-$17.09', icon: <Truck size={17} />, iconBg: 'rgba(45, 212, 191, 0.16)', iconColor: '#2dd4bf' },
+              { id: 'tx-8', name: 'Marlow Market', meta: 'Sat, 8:48 AM · Groceries · Sahith', amount: '-$160.26', icon: <ShoppingBag size={17} />, iconBg: 'rgba(80, 227, 150, 0.16)', iconColor: '#50e396' },
+            ],
+            c2: [
+              { id: 'tx-201', name: 'Delta Airlines', meta: '2 days ago · Flights · Sahith', amount: '-$284.00', icon: <Tag size={17} />, iconBg: 'rgba(99, 102, 241, 0.16)', iconColor: '#818cf8' },
+              { id: 'tx-202', name: 'Airport Express', meta: '2 days ago · Transport · Sahith', amount: '-$45.00', icon: <Truck size={17} />, iconBg: 'rgba(45, 212, 191, 0.16)', iconColor: '#2dd4bf' },
+              { id: 'tx-203', name: 'Pret A Manger', meta: '3 days ago · Food · Sahith', amount: '-$38.00', icon: <Coffee size={17} />, iconBg: 'rgba(217, 119, 6, 0.16)', iconColor: '#f59e0b' },
+            ],
+            c3: [
+              { id: 'tx-301', name: 'School Bookstore', meta: 'Yesterday, 3:15 PM · Books · Ada', amount: '-$34.50', icon: <Tag size={17} />, iconBg: 'rgba(99, 102, 241, 0.16)', iconColor: '#818cf8' },
+              { id: 'tx-302', name: 'Cinema City', meta: 'Nov 8 · Entertainment · Ada', amount: '-$22.00', icon: <Heart size={17} />, iconBg: 'rgba(244, 63, 94, 0.16)', iconColor: '#fb7185' },
+              { id: 'tx-303', name: 'Bakery & Sweets', meta: 'Nov 6 · Snacks · Ada', amount: '-$12.50', icon: <Coffee size={17} />, iconBg: 'rgba(217, 119, 6, 0.16)', iconColor: '#f59e0b' },
+            ],
+          }
 
           const renderVerdeloCardsView = () => {
             const activeCardIdx = verdeloCardIdx % verdeloCardsList.length
             const curCard = verdeloCardsList[activeCardIdx]
             const isCurCardFrozen = Boolean(cardsFrozen[curCard.id])
+            const activePayments = verdeloCardPayments[curCard.id] || verdeloCardPayments['c1']
 
             return (
-              <div className="verdelo-cards-view">
-                {/* ── Left Column: 3D Stack Stage ── */}
-                <div className="verdelo-section-card verdelo-cards-stage-panel">
-                  <div
-                    className="verdelo-card-stack-stage"
-                    onClick={() => setIsCardFlipped(!isCardFlipped)}
-                    title="Tap to turn over or flip"
-                  >
-                    {/* Layer 3: Backmost card shadow */}
-                    <div className="verdelo-stack-card-layer verdelo-stack-card-layer--back" />
-
-                    {/* Layer 2: Middle card layer with subtle title */}
-                    <div className="verdelo-stack-card-layer verdelo-stack-card-layer--mid">
-                      <span className="verdelo-stack-card-layer--mid-label">
-                        {verdeloCardsList[(activeCardIdx + 1) % verdeloCardsList.length].title}
-                      </span>
-                    </div>
-
-                    {/* Layer 1: Front Active 3D Card */}
-                    <div
-                      className="verdelo-front-card"
-                      style={{
-                        background: curCard.bg,
-                        transform: isCardFlipped ? 'rotateY(180deg)' : 'none',
-                      }}
-                    >
-                      {!isCardFlipped ? (
-                        <>
-                          <div className="verdelo-front-card-top">
-                            <span className="verdelo-front-card-type">{curCard.title}</span>
-                            <div className="verdelo-contactless-wave" title="Contactless Enabled">
-                              <Wifi size={18} style={{ transform: 'rotate(90deg)' }} />
-                            </div>
-                          </div>
-
-                          <div className="verdelo-gold-chip" />
-
-                          <div
-                            className="verdelo-front-card-pan"
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setShowCardNumber(!showCardNumber)
-                            }}
-                            title="Click to reveal/hide full number"
-                          >
-                            {showCardNumber ? curCard.fullPan : curCard.pan}
-                          </div>
-
-                          <div className="verdelo-front-card-bot">
-                            <div className="verdelo-front-card-meta">
-                              <div className="verdelo-front-card-meta-item">
-                                <span className="verdelo-front-card-meta-lbl">Holder</span>
-                                <span className="verdelo-front-card-meta-val">{curCard.holder}</span>
-                              </div>
-                              <div className="verdelo-front-card-meta-item">
-                                <span className="verdelo-front-card-meta-lbl">Exp</span>
-                                <span className="verdelo-front-card-meta-val">{curCard.exp}</span>
-                              </div>
-                            </div>
-                            <div className="verdelo-card-logo-marks" title="Verdelo Card">
-                              <span className="verdelo-card-logo-mark" />
-                              <span className="verdelo-card-logo-mark" />
-                            </div>
-                          </div>
-                        </>
-                      ) : (
-                        <div style={{ transform: 'rotateY(180deg)', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                          <div style={{ height: 38, background: '#05130d', margin: '4px -22px', borderRadius: 2 }} />
-                          <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '0 10px' }}>
-                            <div style={{ background: '#fff', color: '#041c12', padding: '4px 10px', borderRadius: 4, fontFamily: 'monospace', fontWeight: 700, fontSize: '0.85rem' }}>
-                              CVV {curCard.cvv}
-                            </div>
-                          </div>
-                          <div style={{ fontSize: '0.68rem', color: '#8caba0', textAlign: 'center' }}>
-                            Tap to turn back to front
-                          </div>
-                        </div>
-                      )}
-                    </div>
+              <div className="verdelo-cards-page">
+                {/* ── Page Header Matching Photo 1 ── */}
+                <div className="verdelo-cards-phead">
+                  <div className="verdelo-cards-phead-text">
+                    <h1 className="verdelo-cards-title">Cards</h1>
+                    <p className="verdelo-cards-sub">3 cards on one account · $1,944 spent on them in November</p>
                   </div>
-
-                  {/* Card Controls Below Stack */}
-                  <div className="verdelo-card-controls">
-                    <div className="verdelo-card-pagination">
-                      <button
-                        type="button"
-                        className="verdelo-card-arrow-btn"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setVerdeloCardIdx((prev) => (prev > 0 ? prev - 1 : verdeloCardsList.length - 1))
-                        }}
-                        title="Previous Card"
-                      >
-                        ‹
-                      </button>
-                      <div className="verdelo-card-dots">
-                        {verdeloCardsList.map((_, dotIdx) => (
-                          <span
-                            key={dotIdx}
-                            className={`verdelo-card-dot ${dotIdx === activeCardIdx ? 'is-active' : ''}`}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setVerdeloCardIdx(dotIdx)
-                            }}
-                            style={{ cursor: 'pointer' }}
-                          />
-                        ))}
-                      </div>
-                      <button
-                        type="button"
-                        className="verdelo-card-arrow-btn"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setVerdeloCardIdx((prev) => (prev + 1) % verdeloCardsList.length)
-                        }}
-                        title="Next Card"
-                      >
-                        ›
-                      </button>
-                    </div>
-
-                    <div className="verdelo-card-action-btns">
-                      <button
-                        type="button"
-                        className="verdelo-card-icon-btn"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setIsCardFlipped(!isCardFlipped)
-                        }}
-                        title="Turn Over Card"
-                      >
-                        <RotateCw size={14} />
-                      </button>
-                      <button
-                        type="button"
-                        className={`verdelo-btn-freeze ${isCurCardFrozen ? 'is-frozen' : ''}`}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          const nextFrozen = !isCurCardFrozen
-                          setCardsFrozen((prev) => ({ ...prev, [curCard.id]: nextFrozen }))
-                          flash(nextFrozen ? `${curCard.title} has been frozen.` : `${curCard.title} is now active.`)
-                        }}
-                        title={isCurCardFrozen ? 'Unfreeze Card' : 'Freeze Card'}
-                      >
-                        <Snowflake size={13} />
-                        <span>{isCurCardFrozen ? 'Unfreeze' : 'Freeze'}</span>
-                      </button>
-                    </div>
+                  <div className="verdelo-cards-phead-actions">
+                    <button
+                      type="button"
+                      className="verdelo-btn-add-card"
+                      onClick={() => flash('Virtual card creation flow started')}
+                      title="Create a new virtual card"
+                    >
+                      <Plus size={16} />
+                      <span>Virtual card</span>
+                    </button>
                   </div>
                 </div>
 
-                {/* ── Right Column: Card Controls & Details Panel ── */}
-                <div className="verdelo-section-card verdelo-card-controls-panel">
-                  {/* Header */}
-                  <div className="verdelo-card-ctrl-head">
-                    <div>
-                      <h3 className="verdelo-card-ctrl-title">{curCard.title}</h3>
-                      <p className="verdelo-card-ctrl-sub">{curCard.sub}</p>
-                    </div>
-                    <div className={`verdelo-card-live-badge ${isCurCardFrozen ? 'is-frozen' : ''}`}>
-                      <span className="verdelo-live-dot" />
-                      <span>{isCurCardFrozen ? 'Frozen' : 'Live'}</span>
-                    </div>
-                  </div>
+                {/* ── Top Row: 3D Stack Stage (Left) & Controls (Right) ── */}
+                <div className="verdelo-cards-row">
+                  {/* Left Column: 3D Stack Stage */}
+                  <div className="verdelo-section-card verdelo-cards-stage-panel">
+                    <div
+                      className="verdelo-card-stack-stage"
+                      onClick={() => setIsCardFlipped(!isCardFlipped)}
+                      title="Tap to turn over or flip"
+                    >
+                      {/* Layer 3: Backmost card shadow */}
+                      <div className="verdelo-stack-card-layer verdelo-stack-card-layer--back" />
 
-                  {/* Metrics Row: Spent & Left */}
-                  <div className="verdelo-card-metrics-grid">
-                    <div className="verdelo-card-metric-box">
-                      <span className="verdelo-card-metric-lbl">Spent in November</span>
-                      <span className="verdelo-card-metric-val">{curCard.spentNov}</span>
-                    </div>
-                    <div className="verdelo-card-metric-box">
-                      <span className="verdelo-card-metric-lbl">Left this month</span>
-                      <span className="verdelo-card-metric-val">{curCard.leftNov}</span>
-                    </div>
-                  </div>
-
-                  {/* 4 Toggles List */}
-                  <div className="verdelo-card-toggles-list">
-                    {/* 1. Freeze card */}
-                    <div className="verdelo-card-toggle-row">
-                      <div className="verdelo-card-toggle-info">
-                        <span className="verdelo-card-toggle-title">Freeze card</span>
-                        <span className="verdelo-card-toggle-desc">Stops new payments. Subscriptions keep working.</span>
+                      {/* Layer 2: Middle card layer with subtle title */}
+                      <div className="verdelo-stack-card-layer verdelo-stack-card-layer--mid">
+                        <span className="verdelo-stack-card-layer--mid-label">
+                          {verdeloCardsList[(activeCardIdx + 1) % verdeloCardsList.length].title}
+                        </span>
                       </div>
-                      <button
-                        type="button"
-                        className={`verdelo-switch-btn ${isCurCardFrozen ? 'is-on' : ''}`}
-                        onClick={() => {
-                          const next = !isCurCardFrozen
-                          setCardsFrozen((prev) => ({ ...prev, [curCard.id]: next }))
-                          flash(next ? `${curCard.title} has been frozen.` : `${curCard.title} is now active.`)
-                        }}
-                        title="Toggle Freeze Card"
-                      >
-                        <span className="verdelo-switch-knob" />
-                      </button>
-                    </div>
 
-                    {/* 2. Online payments */}
-                    <div className="verdelo-card-toggle-row">
-                      <div className="verdelo-card-toggle-info">
-                        <span className="verdelo-card-toggle-title">Online payments</span>
-                        <span className="verdelo-card-toggle-desc">Shops on the web and in apps.</span>
-                      </div>
-                      <button
-                        type="button"
-                        className={`verdelo-switch-btn ${verdeloOnlinePayments ? 'is-on' : ''}`}
-                        onClick={() => {
-                          const next = !verdeloOnlinePayments
-                          setVerdeloOnlinePayments(next)
-                          flash(next ? 'Online payments enabled.' : 'Online payments disabled.')
-                        }}
-                        title="Toggle Online Payments"
-                      >
-                        <span className="verdelo-switch-knob" />
-                      </button>
-                    </div>
-
-                    {/* 3. Payments abroad */}
-                    <div className="verdelo-card-toggle-row">
-                      <div className="verdelo-card-toggle-info">
-                        <span className="verdelo-card-toggle-title">Payments abroad</span>
-                        <span className="verdelo-card-toggle-desc">Outside the United States.</span>
-                      </div>
-                      <button
-                        type="button"
-                        className={`verdelo-switch-btn ${verdeloPaymentsAbroad ? 'is-on' : ''}`}
-                        onClick={() => {
-                          const next = !verdeloPaymentsAbroad
-                          setVerdeloPaymentsAbroad(next)
-                          flash(next ? 'International payments enabled.' : 'International payments disabled.')
-                        }}
-                        title="Toggle Payments Abroad"
-                      >
-                        <span className="verdelo-switch-knob" />
-                      </button>
-                    </div>
-
-                    {/* 4. Contactless */}
-                    <div className="verdelo-card-toggle-row">
-                      <div className="verdelo-card-toggle-info">
-                        <span className="verdelo-card-toggle-title">Contactless</span>
-                        <span className="verdelo-card-toggle-desc">Tap to pay up to $250.</span>
-                      </div>
-                      <button
-                        type="button"
-                        className={`verdelo-switch-btn ${verdeloContactless ? 'is-on' : ''}`}
-                        onClick={() => {
-                          const next = !verdeloContactless
-                          setVerdeloContactless(next)
-                          flash(next ? 'Contactless payments enabled.' : 'Contactless payments disabled.')
-                        }}
-                        title="Toggle Contactless"
-                      >
-                        <span className="verdelo-switch-knob" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Monthly Limit Slider */}
-                  <div className="verdelo-card-limit-section">
-                    <div className="verdelo-card-limit-head">
-                      <span className="verdelo-card-limit-lbl">Monthly limit</span>
-                      <span className="verdelo-card-limit-val">
-                        ${verdeloCardLimit.toLocaleString('en-US')}
-                      </span>
-                    </div>
-                    <div className="verdelo-card-slider-wrap">
-                      <input
-                        type="range"
-                        min="500"
-                        max="8000"
-                        step="100"
-                        value={verdeloCardLimit}
-                        onChange={(e) => setVerdeloCardLimit(Number(e.target.value))}
-                        className="verdelo-range-input"
+                      {/* Layer 1: Front Active 3D Card */}
+                      <div
+                        className={`verdelo-front-card ${isCardFlipped ? 'is-flipped' : ''}`}
                         style={{
-                          background: `linear-gradient(to right, #50e396 0%, #50e396 ${((verdeloCardLimit - 500) / (8000 - 500)) * 100}%, rgba(255, 255, 255, 0.1) ${((verdeloCardLimit - 500) / (8000 - 500)) * 100}%, rgba(255, 255, 255, 0.1) 100%)`
+                          background: curCard.bg,
+                          transform: isCardFlipped ? 'rotateY(180deg)' : 'none',
                         }}
-                      />
+                      >
+                        {!isCardFlipped ? (
+                          <>
+                            <div className="verdelo-front-card-top">
+                              <span className="verdelo-front-card-type">{curCard.title}</span>
+                              <div className="verdelo-contactless-wave" title="Contactless Enabled">
+                                <Wifi size={18} style={{ transform: 'rotate(90deg)' }} />
+                              </div>
+                            </div>
+
+                            <div className="verdelo-gold-chip" />
+
+                            <div
+                              className="verdelo-front-card-pan"
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setShowCardNumber(!showCardNumber)
+                              }}
+                              title="Click to reveal/hide full number"
+                            >
+                              {showCardNumber ? curCard.fullPan : curCard.pan}
+                            </div>
+
+                            <div className="verdelo-front-card-bot">
+                              <div className="verdelo-front-card-meta">
+                                <div className="verdelo-front-card-meta-item">
+                                  <span className="verdelo-front-card-meta-lbl">Holder</span>
+                                  <span className="verdelo-front-card-meta-val">{curCard.holder}</span>
+                                </div>
+                                <div className="verdelo-front-card-meta-item">
+                                  <span className="verdelo-front-card-meta-lbl">Exp</span>
+                                  <span className="verdelo-front-card-meta-val">{curCard.exp}</span>
+                                </div>
+                              </div>
+                              <div className="verdelo-card-logo-marks" title="Verdelo Card">
+                                <span className="verdelo-card-logo-mark" />
+                                <span className="verdelo-card-logo-mark" />
+                              </div>
+                            </div>
+                          </>
+                        ) : (
+                          <div style={{ transform: 'rotateY(180deg)', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                            <div style={{ height: 38, background: '#05130d', margin: '4px -22px', borderRadius: 2 }} />
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '0 10px' }}>
+                              <div style={{ background: '#fff', color: '#041c12', padding: '4px 10px', borderRadius: 4, fontFamily: 'monospace', fontWeight: 700, fontSize: '0.85rem' }}>
+                                CVV {curCard.cvv}
+                              </div>
+                            </div>
+                            <div style={{ fontSize: '0.68rem', color: '#8caba0', textAlign: 'center' }}>
+                              Tap to turn back to front
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Card Controls Below Stack */}
+                    <div className="verdelo-card-controls">
+                      <div className="verdelo-card-pagination">
+                        <button
+                          type="button"
+                          className="verdelo-card-arrow-btn"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            const nextIdx = activeCardIdx > 0 ? activeCardIdx - 1 : verdeloCardsList.length - 1
+                            setVerdeloCardIdx(nextIdx)
+                            setVerdeloCardLimit(verdeloCardsList[nextIdx].limit)
+                          }}
+                          title="Previous Card"
+                        >
+                          ‹
+                        </button>
+                        <div className="verdelo-card-dots">
+                          {verdeloCardsList.map((_, dotIdx) => (
+                            <span
+                              key={dotIdx}
+                              className={`verdelo-card-dot ${dotIdx === activeCardIdx ? 'is-active' : ''}`}
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setVerdeloCardIdx(dotIdx)
+                                setVerdeloCardLimit(verdeloCardsList[dotIdx].limit)
+                              }}
+                              style={{ cursor: 'pointer' }}
+                            />
+                          ))}
+                        </div>
+                        <button
+                          type="button"
+                          className="verdelo-card-arrow-btn"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            const nextIdx = (activeCardIdx + 1) % verdeloCardsList.length
+                            setVerdeloCardIdx(nextIdx)
+                            setVerdeloCardLimit(verdeloCardsList[nextIdx].limit)
+                          }}
+                          title="Next Card"
+                        >
+                          ›
+                        </button>
+                      </div>
+
+                      <div className="verdelo-card-action-btns">
+                        <button
+                          type="button"
+                          className="verdelo-card-icon-btn"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setIsCardFlipped(!isCardFlipped)
+                          }}
+                          title="Turn Over Card"
+                        >
+                          <RotateCw size={14} />
+                        </button>
+                        <button
+                          type="button"
+                          className={`verdelo-btn-freeze ${isCurCardFrozen ? 'is-frozen' : ''}`}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            const nextFrozen = !isCurCardFrozen
+                            setCardsFrozen((prev) => ({ ...prev, [curCard.id]: nextFrozen }))
+                            flash(nextFrozen ? `${curCard.title} has been frozen.` : `${curCard.title} is now active.`)
+                          }}
+                          title={isCurCardFrozen ? 'Unfreeze Card' : 'Freeze Card'}
+                        >
+                          <Snowflake size={13} />
+                          <span>{isCurCardFrozen ? 'Unfreeze' : 'Freeze'}</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Hold to see PIN Button */}
-                  <button
-                    type="button"
-                    className="verdelo-btn-see-pin"
-                    onClick={() => {
-                      const next = !verdeloPinRevealed
-                      setVerdeloPinRevealed(next)
-                      flash(next ? `Card PIN is ${curCard.pin}` : 'PIN hidden.')
-                    }}
-                    title="Hold or click to reveal PIN"
-                  >
-                    <Lock size={15} />
-                    <span>{verdeloPinRevealed ? `Card PIN: ${curCard.pin}` : 'Hold to see PIN'}</span>
-                  </button>
+                  {/* Right Column: Card Controls & Details Panel */}
+                  <div className="verdelo-section-card verdelo-card-controls-panel">
+                    {/* Header */}
+                    <div className="verdelo-card-ctrl-head">
+                      <div>
+                        <h3 className="verdelo-card-ctrl-title">{curCard.title}</h3>
+                        <p className="verdelo-card-ctrl-sub">{curCard.sub}</p>
+                      </div>
+                      <div className={`verdelo-card-live-badge ${isCurCardFrozen ? 'is-frozen' : ''}`}>
+                        <span className="verdelo-live-dot" />
+                        <span>{isCurCardFrozen ? 'Frozen' : 'Live'}</span>
+                      </div>
+                    </div>
+
+                    {/* Metrics Row: Spent & Left */}
+                    <div className="verdelo-card-metrics-grid">
+                      <div className="verdelo-card-metric-box">
+                        <span className="verdelo-card-metric-lbl">Spent in November</span>
+                        <span className="verdelo-card-metric-val">{curCard.spentNov}</span>
+                      </div>
+                      <div className="verdelo-card-metric-box">
+                        <span className="verdelo-card-metric-lbl">Left this month</span>
+                        <span className="verdelo-card-metric-val">{curCard.leftNov}</span>
+                      </div>
+                    </div>
+
+                    {/* 4 Toggles List */}
+                    <div className="verdelo-card-toggles-list">
+                      {/* 1. Freeze card */}
+                      <div className="verdelo-card-toggle-row">
+                        <div className="verdelo-card-toggle-info">
+                          <span className="verdelo-card-toggle-title">Freeze card</span>
+                          <span className="verdelo-card-toggle-desc">Stops new payments. Subscriptions keep working.</span>
+                        </div>
+                        <button
+                          type="button"
+                          className={`verdelo-switch-btn ${isCurCardFrozen ? 'is-on' : ''}`}
+                          onClick={() => {
+                            const next = !isCurCardFrozen
+                            setCardsFrozen((prev) => ({ ...prev, [curCard.id]: next }))
+                            flash(next ? `${curCard.title} has been frozen.` : `${curCard.title} is now active.`)
+                          }}
+                          title="Toggle Freeze Card"
+                        >
+                          <span className="verdelo-switch-knob" />
+                        </button>
+                      </div>
+
+                      {/* 2. Online payments */}
+                      <div className="verdelo-card-toggle-row">
+                        <div className="verdelo-card-toggle-info">
+                          <span className="verdelo-card-toggle-title">Online payments</span>
+                          <span className="verdelo-card-toggle-desc">Shops on the web and in apps.</span>
+                        </div>
+                        <button
+                          type="button"
+                          className={`verdelo-switch-btn ${verdeloOnlinePayments ? 'is-on' : ''}`}
+                          onClick={() => {
+                            const next = !verdeloOnlinePayments
+                            setVerdeloOnlinePayments(next)
+                            flash(next ? 'Online payments enabled.' : 'Online payments disabled.')
+                          }}
+                          title="Toggle Online Payments"
+                        >
+                          <span className="verdelo-switch-knob" />
+                        </button>
+                      </div>
+
+                      {/* 3. Payments abroad */}
+                      <div className="verdelo-card-toggle-row">
+                        <div className="verdelo-card-toggle-info">
+                          <span className="verdelo-card-toggle-title">Payments abroad</span>
+                          <span className="verdelo-card-toggle-desc">Outside the United States.</span>
+                        </div>
+                        <button
+                          type="button"
+                          className={`verdelo-switch-btn ${verdeloPaymentsAbroad ? 'is-on' : ''}`}
+                          onClick={() => {
+                            const next = !verdeloPaymentsAbroad
+                            setVerdeloPaymentsAbroad(next)
+                            flash(next ? 'International payments enabled.' : 'International payments disabled.')
+                          }}
+                          title="Toggle Payments Abroad"
+                        >
+                          <span className="verdelo-switch-knob" />
+                        </button>
+                      </div>
+
+                      {/* 4. Contactless */}
+                      <div className="verdelo-card-toggle-row">
+                        <div className="verdelo-card-toggle-info">
+                          <span className="verdelo-card-toggle-title">Contactless</span>
+                          <span className="verdelo-card-toggle-desc">Tap to pay up to $250.</span>
+                        </div>
+                        <button
+                          type="button"
+                          className={`verdelo-switch-btn ${verdeloContactless ? 'is-on' : ''}`}
+                          onClick={() => {
+                            const next = !verdeloContactless
+                            setVerdeloContactless(next)
+                            flash(next ? 'Contactless payments enabled.' : 'Contactless payments disabled.')
+                          }}
+                          title="Toggle Contactless"
+                        >
+                          <span className="verdelo-switch-knob" />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Monthly Limit Slider */}
+                    <div className="verdelo-card-limit-section">
+                      <div className="verdelo-card-limit-head">
+                        <span className="verdelo-card-limit-lbl">Monthly limit</span>
+                        <span className="verdelo-card-limit-val">
+                          ${verdeloCardLimit.toLocaleString('en-US')}
+                        </span>
+                      </div>
+                      <div className="verdelo-card-slider-wrap">
+                        <input
+                          type="range"
+                          min="200"
+                          max="8000"
+                          step="50"
+                          value={verdeloCardLimit}
+                          onChange={(e) => setVerdeloCardLimit(Number(e.target.value))}
+                          className="verdelo-range-input"
+                          style={{
+                            background: `linear-gradient(to right, #50e396 0%, #50e396 ${((verdeloCardLimit - 200) / (8000 - 200)) * 100}%, rgba(255, 255, 255, 0.1) ${((verdeloCardLimit - 200) / (8000 - 200)) * 100}%, rgba(255, 255, 255, 0.1) 100%)`
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Hold to see PIN Button */}
+                    <button
+                      type="button"
+                      className="verdelo-btn-see-pin"
+                      onClick={() => {
+                        const next = !verdeloPinRevealed
+                        setVerdeloPinRevealed(next)
+                        flash(next ? `Card PIN is ${curCard.pin}` : 'PIN hidden.')
+                      }}
+                      title="Hold or click to reveal PIN"
+                    >
+                      <Lock size={15} />
+                      <span>{verdeloPinRevealed ? `Card PIN: ${curCard.pin}` : 'Hold to see PIN'}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* ── Bottom Row (Photo 2): All cards (Left) & Everyday payments (Right) ── */}
+                <div className="verdelo-cards-row">
+                  {/* Left Column: All cards */}
+                  <div className="verdelo-section-card verdelo-all-cards-panel">
+                    <div className="verdelo-card-ctrl-head" style={{ marginBottom: 16 }}>
+                      <div>
+                        <h3 className="verdelo-card-ctrl-title" style={{ fontSize: '1.2rem' }}>All cards</h3>
+                        <p className="verdelo-card-ctrl-sub">Who holds what, and how far into the month each one is</p>
+                      </div>
+                    </div>
+
+                    <div className="verdelo-all-cards-list">
+                      {verdeloCardsList.map((card, idx) => {
+                        const isSelected = activeCardIdx === idx
+                        const isCardFrozen = Boolean(cardsFrozen[card.id])
+                        const pct = Math.min(100, Math.round((card.spentNovNum / card.limit) * 100))
+
+                        return (
+                          <div
+                            key={card.id}
+                            className={`verdelo-card-list-item ${isSelected ? 'is-selected' : ''}`}
+                            onClick={() => {
+                              setVerdeloCardIdx(idx)
+                              setVerdeloCardLimit(card.limit)
+                            }}
+                            title={`Select ${card.title}`}
+                          >
+                            {/* Mini Card Preview */}
+                            <div className="verdelo-mini-card" style={{ background: card.miniBg }}>
+                              <div className="verdelo-mini-chip" />
+                            </div>
+
+                            {/* Name & Sub */}
+                            <div className="verdelo-card-list-info">
+                              <div className="verdelo-card-list-name">
+                                <span>{card.title}</span>
+                                <span className="verdelo-card-list-pan">{card.pan}</span>
+                              </div>
+                              <div className="verdelo-card-list-sub">{card.sub}</div>
+                            </div>
+
+                            {/* Progress & Limit */}
+                            <div className="verdelo-card-list-progress-wrap">
+                              <span className="verdelo-card-list-progress-text">
+                                ${card.spentNovNum.toLocaleString('en-US')} of ${card.limit.toLocaleString('en-US')}
+                              </span>
+                              <div className="verdelo-card-list-track">
+                                <div className="verdelo-card-list-fill" style={{ width: `${pct}%` }} />
+                              </div>
+                            </div>
+
+                            {/* Live Status */}
+                            <div className={`verdelo-card-live-badge verdelo-card-live-badge--sm ${isCardFrozen ? 'is-frozen' : ''}`}>
+                              <span className="verdelo-live-dot" />
+                              <span>{isCardFrozen ? 'Frozen' : 'Live'}</span>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Right Column: Everyday payments */}
+                  <div className="verdelo-section-card verdelo-card-payments-panel">
+                    <div className="verdelo-card-ctrl-head" style={{ marginBottom: 14 }}>
+                      <div>
+                        <h3 className="verdelo-card-ctrl-title" style={{ fontSize: '1.2rem' }}>{curCard.title} payments</h3>
+                        <p className="verdelo-card-ctrl-sub">The latest on {curCard.pan}</p>
+                      </div>
+                      <button
+                        type="button"
+                        className="verdelo-link-all-act"
+                        onClick={() => flash(`Viewing full activity for ${curCard.title}`)}
+                      >
+                        All activity
+                      </button>
+                    </div>
+
+                    <div className="verdelo-tx-list">
+                      {activePayments.map((tx) => (
+                        <div key={tx.id} className="verdelo-tx-row">
+                          <div className="verdelo-tx-icon-wrap" style={{ background: tx.iconBg, color: tx.iconColor }}>
+                            {tx.icon}
+                          </div>
+                          <div className="verdelo-tx-info">
+                            <div className="verdelo-tx-name">{tx.name}</div>
+                            <div className="verdelo-tx-meta">{tx.meta}</div>
+                          </div>
+                          <div className="verdelo-tx-amount">{tx.amount}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
             )

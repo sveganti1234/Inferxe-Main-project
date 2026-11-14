@@ -7387,13 +7387,14 @@ html[data-theme='dark'],
   text-decoration: underline;
 }
 
-/* 3D Stack Stage */
+/* 3D Stack Stage - exact match with live demo */
 .verdelo-card-stack-stage {
   position: relative;
   width: 100%;
-  height: 250px;
-  margin: 24px 0 16px;
-  perspective: 1000px;
+  max-width: 420px;
+  aspect-ratio: 1.586;
+  margin: 16px auto 14px;
+  perspective: 1400px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -7403,8 +7404,8 @@ html[data-theme='dark'],
 .verdelo-stack-card-layer {
   position: absolute;
   width: 90%;
-  height: 205px;
-  border-radius: 18px;
+  height: 94%;
+  border-radius: 22px;
   pointer-events: none;
   transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
@@ -7412,7 +7413,7 @@ html[data-theme='dark'],
 .verdelo-stack-card-layer--back {
   top: 0;
   width: 82%;
-  height: 195px;
+  height: 90%;
   background: linear-gradient(135deg, rgba(16, 52, 38, 0.7) 0%, rgba(6, 26, 18, 0.9) 100%);
   border: 1px solid rgba(80, 227, 150, 0.14);
   transform: translateY(-16px) scale(0.92);
@@ -7421,9 +7422,9 @@ html[data-theme='dark'],
 }
 
 .verdelo-stack-card-layer--mid {
-  top: 10px;
+  top: 6px;
   width: 88%;
-  height: 200px;
+  height: 92%;
   background: linear-gradient(135deg, rgba(22, 74, 52, 0.8) 0%, rgba(9, 36, 25, 0.95) 100%);
   border: 1px solid rgba(80, 227, 150, 0.2);
   transform: translateY(-8px) scale(0.96);
@@ -7434,26 +7435,24 @@ html[data-theme='dark'],
 .verdelo-stack-card-layer--mid-label {
   position: absolute;
   top: 8px;
-  left: 20px;
-  font-size: 0.72rem;
+  left: 22px;
+  font-size: 0.75rem;
   color: #8caba0;
   font-weight: 600;
 }
 
-/* Front Main Card */
+/* Front Main Card - exact aspect ratio & radius 22px */
 .verdelo-front-card {
   position: relative;
   width: 100%;
-  max-width: 380px;
-  height: 220px;
-  border-radius: 18px;
-  background: linear-gradient(135deg, #1b5e3f 0%, #11422c 50%, #0a291b 100%);
-  border: 1.5px solid rgba(80, 227, 150, 0.35);
+  height: 100%;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
   box-shadow: 
-    inset 0 1px 1.5px rgba(255, 255, 255, 0.35),
-    inset 0 0 24px rgba(80, 227, 150, 0.08),
-    0 22px 50px -10px rgba(0, 0, 0, 0.75);
-  padding: 20px 22px;
+    inset 0 0 0 1px rgba(255, 255, 255, 0.16),
+    inset 1px 1px 0 rgba(255, 255, 255, 0.34),
+    0 24px 44px -24px rgba(0, 0, 0, 0.75);
+  padding: 20px 24px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -7462,7 +7461,7 @@ html[data-theme='dark'],
   overflow: hidden;
   z-index: 5;
   cursor: pointer;
-  transition: transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.3s ease;
+  transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.3s ease;
 }
 
 .verdelo-front-card:hover {
@@ -8440,19 +8439,72 @@ html[data-theme='dark'],
 }
 
 /* ─────────────────────────────────────────────────────────────
-   VERDELO CARDS TAB (2-PANEL LAYOUT MATCHING PHOTO 10)
+   VERDELO CARDS TAB & WALLET (2-ROW LAYOUT MATCHING PHOTO 1 & 2)
    ───────────────────────────────────────────────────────────── */
+.verdelo-cards-page {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 4px 0 32px;
+}
+
+/* Page Header matching Photo 1 */
+.verdelo-cards-phead {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  margin-bottom: 2px;
+}
+.verdelo-cards-title {
+  font-size: clamp(28px, 2.6vw, 36px);
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.025em;
+  line-height: 1.05;
+  margin: 0 0 6px;
+}
+.verdelo-cards-sub {
+  font-size: 0.95rem;
+  color: #8caba0;
+  margin: 0;
+}
+.verdelo-btn-add-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 18px;
+  border-radius: 12px;
+  background: #50e396;
+  color: #071510;
+  font-size: 0.88rem;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.verdelo-btn-add-card:hover {
+  background: #62ebb0;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(80, 227, 150, 0.4);
+}
+
+/* 2-column rows */
+.verdelo-cards-row,
 .verdelo-cards-view {
   display: grid;
-  grid-template-columns: minmax(360px, 460px) minmax(420px, 1fr);
-  gap: 24px;
+  grid-template-columns: minmax(360px, 480px) minmax(440px, 1fr);
+  gap: 22px;
   width: 100%;
-  max-width: 1360px;
-  margin: 0 auto;
   align-items: stretch;
 }
 
 @media (max-width: 1024px) {
+  .verdelo-cards-row,
   .verdelo-cards-view {
     grid-template-columns: 1fr;
   }
@@ -8706,4 +8758,172 @@ html[data-theme='dark'],
   background: rgba(80, 227, 150, 0.12);
   border-color: rgba(80, 227, 150, 0.4);
   color: #50e396;
+}
+
+/* ── Bottom Row (Photo 2): All cards styling ── */
+.verdelo-all-cards-panel {
+  padding: 26px 28px;
+}
+.verdelo-all-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.verdelo-card-list-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.verdelo-card-list-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(80, 227, 150, 0.2);
+}
+.verdelo-card-list-item.is-selected {
+  background: rgba(80, 227, 150, 0.08);
+  border-color: rgba(80, 227, 150, 0.4);
+}
+.verdelo-mini-card {
+  width: 44px;
+  height: 28px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  position: relative;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+.verdelo-mini-chip {
+  width: 7px;
+  height: 6px;
+  border-radius: 2px;
+  background: #d4af37;
+  position: absolute;
+  top: 6px;
+  left: 6px;
+}
+.verdelo-card-list-info {
+  flex: 1;
+  min-width: 0;
+}
+.verdelo-card-list-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+.verdelo-card-list-pan {
+  font-size: 0.82rem;
+  color: #8caba0;
+  font-weight: 500;
+  font-family: var(--font-mono, monospace);
+}
+.verdelo-card-list-sub {
+  font-size: 0.78rem;
+  color: #8caba0;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.verdelo-card-list-progress-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  min-width: 140px;
+}
+.verdelo-card-list-progress-text {
+  font-size: 0.78rem;
+  color: #8caba0;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.verdelo-card-list-track {
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.verdelo-card-list-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: #50e396;
+}
+.verdelo-card-live-badge--sm {
+  padding: 3px 9px;
+  font-size: 0.72rem;
+}
+
+/* ── Bottom Row (Photo 2): Everyday payments styling ── */
+.verdelo-card-payments-panel {
+  padding: 26px 28px;
+}
+.verdelo-link-all-act {
+  background: none;
+  border: none;
+  color: #50e396;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.18s ease;
+}
+.verdelo-link-all-act:hover {
+  background: rgba(80, 227, 150, 0.12);
+  text-decoration: underline;
+}
+.verdelo-tx-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.verdelo-tx-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 9px 12px;
+  border-radius: 14px;
+  transition: background 0.18s ease;
+}
+.verdelo-tx-row:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+.verdelo-tx-icon-wrap {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+.verdelo-tx-info {
+  flex: 1;
+  min-width: 0;
+}
+.verdelo-tx-name {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+.verdelo-tx-meta {
+  font-size: 0.78rem;
+  color: #8caba0;
+  margin-top: 1px;
+}
+.verdelo-tx-amount {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #ffffff;
+  white-space: nowrap;
 }
