@@ -4,8 +4,8 @@ import {
   Activity, Archive, ArrowDownLeft, ArrowDownToLine, ArrowUpDown, ArrowUpRight, Bell, Check, ChevronDown, ChevronLeft, ChevronRight,
   CircleDollarSign, Coffee, Copy, Cpu, Download, Eye, EyeOff, FileText,
   Heart, Home, Info, KeyRound, LayoutGrid, List, Lock, MapPin, Play, Plus,
-  RotateCw, Search, Send, Server, Settings2, Share2, ShieldCheck, ShoppingBag, Sparkles, Star, Tag, Terminal,
-  Trash2, TrendingUp, Truck, Unlock, User, Users, Wallet, Wrench, X, Zap,
+  RotateCw, Search, Send, Server, Settings2, Share2, ShieldCheck, ShoppingBag, Snowflake, Sparkles, Star, Tag, Terminal,
+  Trash2, TrendingUp, Truck, User, Users, Wallet, Wifi, Wrench, X, Zap,
 } from 'lucide-react'
 import { DashboardLayout } from '../../components/dashboard/DashboardLayout'
 import { AdminGuard } from '../../components/auth/AdminGuard'
@@ -156,113 +156,6 @@ const initialNotifications: NotificationItem[] = [
   { id: 'n1', title: 'Deployment qwen-chat-staging is healthy', detail: 'Serving tokens at 118 tok/s with 0.42s P95 TTFT.', type: 'Deployment', time: '12 mins ago', read: false },
   { id: 'n2', title: 'Monthly spending alert threshold reached', detail: 'Estimated spend has reached 48% of your monthly cap.', type: 'Billing', time: '2 hours ago', read: false },
   { id: 'n3', title: 'Yotta NM1 sovereign cluster capacity added', detail: 'New NVIDIA H100 nodes provisioned in Mumbai region.', type: 'Marketplace', time: 'Yesterday', read: true },
-]
-
-type ComputeCard = {
-  id: string
-  name: string
-  type: 'Credit' | 'Debit' | 'Virtual'
-  last4: string
-  fullNumber: string
-  cvv: string
-  exp: string
-  color: string
-  gradient: string
-  limit: number
-  spent: number
-  categoryBreakdown: {
-    inference: number
-    gpu: number
-    fineTuning: number
-    storage: number
-  }
-}
-
-const COMPUTE_CARDS: ComputeCard[] = [
-  {
-    id: 'card-1',
-    name: 'Main Compute Credit',
-    type: 'Credit',
-    last4: '1904',
-    fullNumber: '4532 8901 6723 1904',
-    cvv: '842',
-    exp: '06/29',
-    color: '#0284c7',
-    gradient: 'linear-gradient(135deg, #0284c7 0%, #0ea5e9 50%, #38bdf8 100%)',
-    limit: 50000,
-    spent: 14820,
-    categoryBreakdown: { inference: 6800, gpu: 5200, fineTuning: 1920, storage: 900 },
-  },
-  {
-    id: 'card-2',
-    name: 'Developer GPU Pool',
-    type: 'Debit',
-    last4: '4821',
-    fullNumber: '4112 5590 3341 4821',
-    cvv: '319',
-    exp: '08/28',
-    color: '#0284c7',
-    gradient: 'linear-gradient(135deg, #38bdf8 0%, #0284c7 50%, #0369a1 100%)',
-    limit: 25000,
-    spent: 8400,
-    categoryBreakdown: { inference: 3500, gpu: 3900, fineTuning: 600, storage: 400 },
-  },
-  {
-    id: 'card-3',
-    name: 'Batch Training Card',
-    type: 'Debit',
-    last4: '7730',
-    fullNumber: '5243 7810 9942 7730',
-    cvv: '561',
-    exp: '11/27',
-    color: '#0284c7',
-    gradient: 'linear-gradient(135deg, #0c4a6e 0%, #0369a1 50%, #38bdf8 100%)',
-    limit: 40000,
-    spent: 12100,
-    categoryBreakdown: { inference: 1100, gpu: 8500, fineTuning: 2000, storage: 500 },
-  },
-  {
-    id: 'card-4',
-    name: 'Fine-Tuning Cluster',
-    type: 'Virtual',
-    last4: '5512',
-    fullNumber: '4929 1102 3840 5512',
-    cvv: '702',
-    exp: '03/29',
-    color: '#f59e0b',
-    gradient: 'linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #b45309 100%)',
-    limit: 15000,
-    spent: 3200,
-    categoryBreakdown: { inference: 400, gpu: 1200, fineTuning: 1500, storage: 100 },
-  },
-  {
-    id: 'card-5',
-    name: 'API Sandbox',
-    type: 'Virtual',
-    last4: '0398',
-    fullNumber: '4200 8912 6601 0398',
-    cvv: '448',
-    exp: '09/29',
-    color: '#06b6d4',
-    gradient: 'linear-gradient(135deg, #06b6d4 0%, #0891b2 50%, #0e7490 100%)',
-    limit: 10000,
-    spent: 1450,
-    categoryBreakdown: { inference: 950, gpu: 300, fineTuning: 0, storage: 200 },
-  },
-  {
-    id: 'card-6',
-    name: 'Reserved Instances',
-    type: 'Credit',
-    last4: '6640',
-    fullNumber: '5501 3349 7120 6640',
-    cvv: '915',
-    exp: '12/30',
-    color: '#8b5cf6',
-    gradient: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 50%, #6d28d9 100%)',
-    limit: 100000,
-    spent: 42000,
-    categoryBreakdown: { inference: 14000, gpu: 24000, fineTuning: 2500, storage: 1500 },
-  },
 ]
 
 const FAQS = [
@@ -430,17 +323,11 @@ export default function MarketplaceWorkspace() {
 
   // Exact Zesto Dashboard Replica UI State (Photo 8)
   const [zestoMember, setZestoMember] = useState<'All' | 'Sahith' | 'Personal' | 'Savings' | 'Vault'>('All')
-  const [zestoCardDeckIndex, setZestoCardDeckIndex] = useState<number>(0)
-  void zestoCardDeckIndex; void setZestoCardDeckIndex;
-  const [zestoPaidBills, setZestoPaidBills] = useState<Record<string, boolean>>({})
   const [showSendModal, setShowSendModal] = useState<boolean>(false)
   const [sendRecipient, setSendRecipient] = useState<string>('Sahith (Primary Account)')
   const [sendAmount, setSendAmount] = useState<string>('50')
-  const [showSaveModal, setShowSaveModal] = useState<boolean>(false)
-  const [saveAmount, setSaveAmount] = useState<string>('100')
-  const [savingsTotal, setSavingsTotal] = useState<number>(15000)
 
-  // Verdelo Insights & Overview UI State (1:1 Match with Reference Screenshots)
+  // Verdelo Insights, Overview & Cards UI State (1:1 Match with Reference Screenshots)
   const [verdeloSubtab, setVerdeloSubtab] = useState<'in_out' | 'spending' | 'merchants'>('in_out')
   const [verdeloMoneyFilter, setVerdeloMoneyFilter] = useState<'quarter' | '6months' | 'year'>('year')
   const [verdeloBalanceFilter, setVerdeloBalanceFilter] = useState<'30days' | '90days' | 'year'>('90days')
@@ -449,6 +336,12 @@ export default function MarketplaceWorkspace() {
   const [verdeloQuickRecipient, setVerdeloQuickRecipient] = useState<string>('Jonas')
   const [verdeloQuickAmount, setVerdeloQuickAmount] = useState<number>(50)
   const [verdeloPaidBills, setVerdeloPaidBills] = useState<Record<string, boolean>>({})
+  const [verdeloCardIdx, setVerdeloCardIdx] = useState<number>(0)
+  const [verdeloCardLimit, setVerdeloCardLimit] = useState<number>(3200)
+  const [verdeloOnlinePayments, setVerdeloOnlinePayments] = useState<boolean>(true)
+  const [verdeloPaymentsAbroad, setVerdeloPaymentsAbroad] = useState<boolean>(true)
+  const [verdeloContactless, setVerdeloContactless] = useState<boolean>(true)
+  const [verdeloPinRevealed, setVerdeloPinRevealed] = useState<boolean>(false)
 
   useEffect(() => {
     const handleSyncHide = () => {
@@ -473,53 +366,14 @@ export default function MarketplaceWorkspace() {
     }
   }, [])
 
-  // Zesto Cards & Compute Wallet State (Photo 2)
-  const [selectedCardId, setSelectedCardId] = useState<string>('card-1')
+  // Verdelo Cards & Interactive State (Photo 10)
   const [isCardFlipped, setIsCardFlipped] = useState<boolean>(false)
   const [showCardNumber, setShowCardNumber] = useState<boolean>(false)
   const [cardsFrozen, setCardsFrozen] = useState<Record<string, boolean>>({
-    'card-1': true, // matches photo 2: "1 frozen", Family credit is frozen
+    'card-1': true, // matches photo 2: "1 frozen", Everyday card initial state
   })
-  const [cardToast, setCardToast] = useState<{ message: string; visible: boolean }>({
-    message: 'Main Compute Credit is frozen · nothing goes through',
-    visible: true,
-  })
-  const [cardTab, setCardTab] = useState<'wallet' | 'controls'>('wallet')
-  void selectedCardId;
-  void setSelectedCardId;
-  void cardToast;
   void zestoMember;
   void setZestoMember;
-  void showSaveModal;
-  void setShowSaveModal;
-  void saveAmount;
-  void setSaveAmount;
-  void savingsTotal;
-  void setSavingsTotal;
-  void cardTab;
-  void setCardTab;
-
-  const handleToggleFreeze = (cardId: string, cardName: string) => {
-    setCardsFrozen((prev) => {
-      const willFreeze = !prev[cardId]
-      const next = { ...prev, [cardId]: willFreeze }
-      setCardToast({
-        message: willFreeze
-          ? `${cardName} is frozen · nothing goes through`
-          : `${cardName} is active · transactions enabled`,
-        visible: true,
-      })
-      return next
-    })
-  }
-
-  const handleCopyCardNumber = (num: string) => {
-    void navigator.clipboard.writeText(num.replace(/\s+/g, ''))
-    setCardToast({
-      message: 'Card number copied to clipboard',
-      visible: true,
-    })
-  }
 
   // Real Elapsed Time 1-Hour Trial State
   const [trialTimeLeft, setTrialTimeLeft] = useState<number | null>(() => {
@@ -843,50 +697,6 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
       window.dispatchEvent(new Event('inferxe_wallet_change'))
     } catch {}
   }
-
-  const handleSaveToReserve = (e: FormEvent) => {
-    e.preventDefault()
-    const amt = parseFloat(saveAmount) || 0
-    if (amt <= 0) return
-    if (amt > walletBalance) {
-      flash('Insufficient balance to put away.')
-      return
-    }
-    const newBal = walletBalance - amt
-    setWalletBalance(newBal)
-    setSavingsTotal((prev) => prev + amt)
-    saveStore(walletStorageKey, newBal)
-    try {
-      localStorage.setItem('inferxe_demo_wallet_balance_v1', JSON.stringify(newBal))
-    } catch {}
-    setShowSaveModal(false)
-    flash(`€${amt.toFixed(2)} put away to savings goals!`)
-    try {
-      window.dispatchEvent(new Event('inferxe_wallet_change'))
-    } catch {}
-  }
-
-  const handlePayBill = (billId: string, amount: number, billName: string) => {
-    if (zestoPaidBills[billId]) return
-    if (amount > walletBalance) {
-      flash(`Insufficient balance to pay ${billName}. Please top up first.`)
-      return
-    }
-    const newBal = walletBalance - amount
-    setWalletBalance(newBal)
-    saveStore(walletStorageKey, newBal)
-    try {
-      localStorage.setItem('inferxe_demo_wallet_balance_v1', JSON.stringify(newBal))
-    } catch {}
-    setZestoPaidBills((prev) => ({ ...prev, [billId]: true }))
-    flash(`€${amount.toFixed(2)} paid for ${billName}!`)
-    try {
-      window.dispatchEvent(new Event('inferxe_wallet_change'))
-    } catch {}
-  }
-
-  void handleSaveToReserve;
-  void handlePayBill;
 
   // Notifications Filter & Sorting
   const [notifFilter, setNotifFilter] = useState<'all' | 'unread' | 'read'>('all')
@@ -1622,12 +1432,383 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
         )}
 
         {/* ───────────────────────────────────────────────────────────
-            1. CUSTOMER PORTAL OVERVIEW (route === 'customer')
-            1:1 Pixel-Perfect Replica of Zesto Dark Fintech UI (Photo 8)
+            1. CUSTOMER PORTAL OVERVIEW & CARDS (route === 'customer')
+            1:1 Pixel-Perfect Replica of Verdelo Dark Fintech UI
             ─────────────────────────────────────────────────────────── */}
-        {route === 'customer' && (() => {
+        {(() => {
+          // ── Verdelo Cards List (1:1 Match with User's Reference Screenshot) ──
+          const verdeloCardsList = [
+            {
+              id: 'c1',
+              title: 'Everyday',
+              sub: 'Sahith · Debit · joint account',
+              pan: '•••• •••• 4182',
+              fullPan: '4182 9012 4432 4182',
+              cvv: '829',
+              holder: 'Sahith',
+              exp: '09/29',
+              bg: 'linear-gradient(135deg, #1b5e3f 0%, #11422c 50%, #0a291b 100%)',
+              spentNov: '$1,393.11',
+              leftNov: '$1,806.89',
+              limit: 3200,
+              pin: '4182',
+            },
+            {
+              id: 'c2',
+              title: "Ada's card",
+              sub: 'Ada · Prepaid · personal card',
+              pan: '•••• •••• 9214',
+              fullPan: '9214 8831 2290 9214',
+              cvv: '412',
+              holder: 'Ada',
+              exp: '11/28',
+              bg: 'linear-gradient(135deg, #164a34 0%, #0d3423 50%, #061e14 100%)',
+              spentNov: '$420.50',
+              leftNov: '$1,079.50',
+              limit: 1500,
+              pin: '9214',
+            },
+            {
+              id: 'c3',
+              title: 'Savings Vault',
+              sub: 'Sahith · Reserve · high-yield card',
+              pan: '•••• •••• 7730',
+              fullPan: '7730 4520 1198 7730',
+              cvv: '654',
+              holder: 'Sahith',
+              exp: '03/30',
+              bg: 'linear-gradient(135deg, #113c29 0%, #08281a 50%, #04140d 100%)',
+              spentNov: '$0.00',
+              leftNov: '$15,000.00',
+              limit: 15000,
+              pin: '7730',
+            },
+          ]
+
+          const renderVerdeloCardsView = () => {
+            const activeCardIdx = verdeloCardIdx % verdeloCardsList.length
+            const curCard = verdeloCardsList[activeCardIdx]
+            const isCurCardFrozen = Boolean(cardsFrozen[curCard.id])
+
+            return (
+              <div className="verdelo-cards-view">
+                {/* ── Left Column: 3D Stack Stage ── */}
+                <div className="verdelo-section-card verdelo-cards-stage-panel">
+                  <div
+                    className="verdelo-card-stack-stage"
+                    onClick={() => setIsCardFlipped(!isCardFlipped)}
+                    title="Tap to turn over or flip"
+                  >
+                    {/* Layer 3: Backmost card shadow */}
+                    <div className="verdelo-stack-card-layer verdelo-stack-card-layer--back" />
+
+                    {/* Layer 2: Middle card layer with subtle title */}
+                    <div className="verdelo-stack-card-layer verdelo-stack-card-layer--mid">
+                      <span className="verdelo-stack-card-layer--mid-label">
+                        {verdeloCardsList[(activeCardIdx + 1) % verdeloCardsList.length].title}
+                      </span>
+                    </div>
+
+                    {/* Layer 1: Front Active 3D Card */}
+                    <div
+                      className="verdelo-front-card"
+                      style={{
+                        background: curCard.bg,
+                        transform: isCardFlipped ? 'rotateY(180deg)' : 'none',
+                      }}
+                    >
+                      {!isCardFlipped ? (
+                        <>
+                          <div className="verdelo-front-card-top">
+                            <span className="verdelo-front-card-type">{curCard.title}</span>
+                            <div className="verdelo-contactless-wave" title="Contactless Enabled">
+                              <Wifi size={18} style={{ transform: 'rotate(90deg)' }} />
+                            </div>
+                          </div>
+
+                          <div className="verdelo-gold-chip" />
+
+                          <div
+                            className="verdelo-front-card-pan"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setShowCardNumber(!showCardNumber)
+                            }}
+                            title="Click to reveal/hide full number"
+                          >
+                            {showCardNumber ? curCard.fullPan : curCard.pan}
+                          </div>
+
+                          <div className="verdelo-front-card-bot">
+                            <div className="verdelo-front-card-meta">
+                              <div className="verdelo-front-card-meta-item">
+                                <span className="verdelo-front-card-meta-lbl">Holder</span>
+                                <span className="verdelo-front-card-meta-val">{curCard.holder}</span>
+                              </div>
+                              <div className="verdelo-front-card-meta-item">
+                                <span className="verdelo-front-card-meta-lbl">Exp</span>
+                                <span className="verdelo-front-card-meta-val">{curCard.exp}</span>
+                              </div>
+                            </div>
+                            <div className="verdelo-card-logo-marks" title="Verdelo Card">
+                              <span className="verdelo-card-logo-mark" />
+                              <span className="verdelo-card-logo-mark" />
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <div style={{ transform: 'rotateY(180deg)', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                          <div style={{ height: 38, background: '#05130d', margin: '4px -22px', borderRadius: 2 }} />
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '0 10px' }}>
+                            <div style={{ background: '#fff', color: '#041c12', padding: '4px 10px', borderRadius: 4, fontFamily: 'monospace', fontWeight: 700, fontSize: '0.85rem' }}>
+                              CVV {curCard.cvv}
+                            </div>
+                          </div>
+                          <div style={{ fontSize: '0.68rem', color: '#8caba0', textAlign: 'center' }}>
+                            Tap to turn back to front
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Card Controls Below Stack */}
+                  <div className="verdelo-card-controls">
+                    <div className="verdelo-card-pagination">
+                      <button
+                        type="button"
+                        className="verdelo-card-arrow-btn"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setVerdeloCardIdx((prev) => (prev > 0 ? prev - 1 : verdeloCardsList.length - 1))
+                        }}
+                        title="Previous Card"
+                      >
+                        ‹
+                      </button>
+                      <div className="verdelo-card-dots">
+                        {verdeloCardsList.map((_, dotIdx) => (
+                          <span
+                            key={dotIdx}
+                            className={`verdelo-card-dot ${dotIdx === activeCardIdx ? 'is-active' : ''}`}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setVerdeloCardIdx(dotIdx)
+                            }}
+                            style={{ cursor: 'pointer' }}
+                          />
+                        ))}
+                      </div>
+                      <button
+                        type="button"
+                        className="verdelo-card-arrow-btn"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setVerdeloCardIdx((prev) => (prev + 1) % verdeloCardsList.length)
+                        }}
+                        title="Next Card"
+                      >
+                        ›
+                      </button>
+                    </div>
+
+                    <div className="verdelo-card-action-btns">
+                      <button
+                        type="button"
+                        className="verdelo-card-icon-btn"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setIsCardFlipped(!isCardFlipped)
+                        }}
+                        title="Turn Over Card"
+                      >
+                        <RotateCw size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        className={`verdelo-btn-freeze ${isCurCardFrozen ? 'is-frozen' : ''}`}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          const nextFrozen = !isCurCardFrozen
+                          setCardsFrozen((prev) => ({ ...prev, [curCard.id]: nextFrozen }))
+                          flash(nextFrozen ? `${curCard.title} has been frozen.` : `${curCard.title} is now active.`)
+                        }}
+                        title={isCurCardFrozen ? 'Unfreeze Card' : 'Freeze Card'}
+                      >
+                        <Snowflake size={13} />
+                        <span>{isCurCardFrozen ? 'Unfreeze' : 'Freeze'}</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── Right Column: Card Controls & Details Panel ── */}
+                <div className="verdelo-section-card verdelo-card-controls-panel">
+                  {/* Header */}
+                  <div className="verdelo-card-ctrl-head">
+                    <div>
+                      <h3 className="verdelo-card-ctrl-title">{curCard.title}</h3>
+                      <p className="verdelo-card-ctrl-sub">{curCard.sub}</p>
+                    </div>
+                    <div className={`verdelo-card-live-badge ${isCurCardFrozen ? 'is-frozen' : ''}`}>
+                      <span className="verdelo-live-dot" />
+                      <span>{isCurCardFrozen ? 'Frozen' : 'Live'}</span>
+                    </div>
+                  </div>
+
+                  {/* Metrics Row: Spent & Left */}
+                  <div className="verdelo-card-metrics-grid">
+                    <div className="verdelo-card-metric-box">
+                      <span className="verdelo-card-metric-lbl">Spent in November</span>
+                      <span className="verdelo-card-metric-val">{curCard.spentNov}</span>
+                    </div>
+                    <div className="verdelo-card-metric-box">
+                      <span className="verdelo-card-metric-lbl">Left this month</span>
+                      <span className="verdelo-card-metric-val">{curCard.leftNov}</span>
+                    </div>
+                  </div>
+
+                  {/* 4 Toggles List */}
+                  <div className="verdelo-card-toggles-list">
+                    {/* 1. Freeze card */}
+                    <div className="verdelo-card-toggle-row">
+                      <div className="verdelo-card-toggle-info">
+                        <span className="verdelo-card-toggle-title">Freeze card</span>
+                        <span className="verdelo-card-toggle-desc">Stops new payments. Subscriptions keep working.</span>
+                      </div>
+                      <button
+                        type="button"
+                        className={`verdelo-switch-btn ${isCurCardFrozen ? 'is-on' : ''}`}
+                        onClick={() => {
+                          const next = !isCurCardFrozen
+                          setCardsFrozen((prev) => ({ ...prev, [curCard.id]: next }))
+                          flash(next ? `${curCard.title} has been frozen.` : `${curCard.title} is now active.`)
+                        }}
+                        title="Toggle Freeze Card"
+                      >
+                        <span className="verdelo-switch-knob" />
+                      </button>
+                    </div>
+
+                    {/* 2. Online payments */}
+                    <div className="verdelo-card-toggle-row">
+                      <div className="verdelo-card-toggle-info">
+                        <span className="verdelo-card-toggle-title">Online payments</span>
+                        <span className="verdelo-card-toggle-desc">Shops on the web and in apps.</span>
+                      </div>
+                      <button
+                        type="button"
+                        className={`verdelo-switch-btn ${verdeloOnlinePayments ? 'is-on' : ''}`}
+                        onClick={() => {
+                          const next = !verdeloOnlinePayments
+                          setVerdeloOnlinePayments(next)
+                          flash(next ? 'Online payments enabled.' : 'Online payments disabled.')
+                        }}
+                        title="Toggle Online Payments"
+                      >
+                        <span className="verdelo-switch-knob" />
+                      </button>
+                    </div>
+
+                    {/* 3. Payments abroad */}
+                    <div className="verdelo-card-toggle-row">
+                      <div className="verdelo-card-toggle-info">
+                        <span className="verdelo-card-toggle-title">Payments abroad</span>
+                        <span className="verdelo-card-toggle-desc">Outside the United States.</span>
+                      </div>
+                      <button
+                        type="button"
+                        className={`verdelo-switch-btn ${verdeloPaymentsAbroad ? 'is-on' : ''}`}
+                        onClick={() => {
+                          const next = !verdeloPaymentsAbroad
+                          setVerdeloPaymentsAbroad(next)
+                          flash(next ? 'International payments enabled.' : 'International payments disabled.')
+                        }}
+                        title="Toggle Payments Abroad"
+                      >
+                        <span className="verdelo-switch-knob" />
+                      </button>
+                    </div>
+
+                    {/* 4. Contactless */}
+                    <div className="verdelo-card-toggle-row">
+                      <div className="verdelo-card-toggle-info">
+                        <span className="verdelo-card-toggle-title">Contactless</span>
+                        <span className="verdelo-card-toggle-desc">Tap to pay up to $250.</span>
+                      </div>
+                      <button
+                        type="button"
+                        className={`verdelo-switch-btn ${verdeloContactless ? 'is-on' : ''}`}
+                        onClick={() => {
+                          const next = !verdeloContactless
+                          setVerdeloContactless(next)
+                          flash(next ? 'Contactless payments enabled.' : 'Contactless payments disabled.')
+                        }}
+                        title="Toggle Contactless"
+                      >
+                        <span className="verdelo-switch-knob" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Monthly Limit Slider */}
+                  <div className="verdelo-card-limit-section">
+                    <div className="verdelo-card-limit-head">
+                      <span className="verdelo-card-limit-lbl">Monthly limit</span>
+                      <span className="verdelo-card-limit-val">
+                        ${verdeloCardLimit.toLocaleString('en-US')}
+                      </span>
+                    </div>
+                    <div className="verdelo-card-slider-wrap">
+                      <input
+                        type="range"
+                        min="500"
+                        max="8000"
+                        step="100"
+                        value={verdeloCardLimit}
+                        onChange={(e) => setVerdeloCardLimit(Number(e.target.value))}
+                        className="verdelo-range-input"
+                        style={{
+                          background: `linear-gradient(to right, #50e396 0%, #50e396 ${((verdeloCardLimit - 500) / (8000 - 500)) * 100}%, rgba(255, 255, 255, 0.1) ${((verdeloCardLimit - 500) / (8000 - 500)) * 100}%, rgba(255, 255, 255, 0.1) 100%)`
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Hold to see PIN Button */}
+                  <button
+                    type="button"
+                    className="verdelo-btn-see-pin"
+                    onClick={() => {
+                      const next = !verdeloPinRevealed
+                      setVerdeloPinRevealed(next)
+                      flash(next ? `Card PIN is ${curCard.pin}` : 'PIN hidden.')
+                    }}
+                    title="Hold or click to reveal PIN"
+                  >
+                    <Lock size={15} />
+                    <span>{verdeloPinRevealed ? `Card PIN: ${curCard.pin}` : 'Hold to see PIN'}</span>
+                  </button>
+                </div>
+              </div>
+            )
+          }
+
+          if (route === 'wallet') {
+            return renderVerdeloCardsView()
+          }
+
+          if (route !== 'customer') {
+            return null
+          }
+
           const currentTab = new URLSearchParams(location.search).get('tab')
           const isOverviewTab = currentTab === 'overview'
+          const isCardsTab = currentTab === 'cards'
+
+          if (isCardsTab) {
+            return renderVerdeloCardsView()
+          }
 
           // 12 Monthly dual bars for Verdelo 'Money in & out' chart (Dec..Nov) matching Photo 2
           const verdeloTwelveMonthBars = [
@@ -5502,259 +5683,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
           </>
         )}
 
-        {/* ───────────────────────────────────────────────────────────
-            24. WALLET & COMPUTE CARDS (route === 'wallet')
-            Matching Zesto Cards & Compute Wallet UI (Photo 2)
-            ─────────────────────────────────────────────────────────── */}
-        {route === 'wallet' && (() => {
-          const activeCard = COMPUTE_CARDS[0]
-          const isFrozen = Boolean(cardsFrozen[activeCard.id])
 
-          // Transactions matching Image 1
-          const displayTransactions = [
-            { id: 'tx-topup-1', desc: 'Wallet top-up (Demo)', date: '12 Nov 2026', amount: 233, isCredit: true },
-            { id: 'tx-topup-2', desc: 'Wallet top-up (Demo)', date: '12 Nov 2026', amount: 10000, isCredit: true },
-          ]
-
-          return (
-            <div className="zesto-cards-view zesto-cards-view--exact">
-              <div className="zesto-cards-layout">
-                {/* Left Column: Virtual Card Stage */}
-                <div className="zesto-card-stage">
-                  <div className="zesto-3d-card-wrapper">
-                    <div className={`zesto-3d-card ${isCardFlipped ? 'is-flipped' : ''}`}>
-                      {/* Front Side */}
-                      <div
-                        className="zesto-card-side"
-                        style={{
-                          background: 'linear-gradient(135deg, #174d51 0%, #1c6266 45%, #2a7e83 100%)',
-                          boxShadow: 'inset 0 1px 1.5px rgba(255,255,255,0.25), 0 24px 50px -10px rgba(0,0,0,0.7)',
-                          borderRadius: 20,
-                        }}
-                      >
-                        <div className="zesto-vcard-top">
-                          <span className="zesto-vcard-logo" style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700, fontSize: '1.05rem', color: '#ffffff' }}>
-                            <span style={{ color: '#a3e635', fontSize: '1.2rem' }}>●</span> inferxe
-                          </span>
-                          <span className="zesto-vcard-type-badge" style={{ background: 'rgba(0,0,0,0.3)', color: '#ffffff', borderRadius: 6, padding: '2px 8px', fontSize: '0.66rem', letterSpacing: '0.05em' }}>
-                            {isFrozen ? 'FROZEN' : 'ACTIVE'}
-                          </span>
-                        </div>
-
-                        <div className="zesto-vcard-chip-wrap" style={{ marginTop: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
-                          <div className="zesto-emv-chip" style={{ width: 38, height: 28, borderRadius: 5, background: 'linear-gradient(135deg, #d4af37 0%, #ffd700 50%, #aa820a 100%)', border: '1px solid rgba(255,255,255,0.3)' }} />
-                          <svg className="zesto-contactless-wave" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2">
-                            <path d="M8.5 16.5a5 5 0 0 1 0-7" />
-                            <path d="M12 19a8.5 8.5 0 0 0 0-14" />
-                            <path d="M15.5 21.5a12 12 0 0 0 0-19" />
-                          </svg>
-                        </div>
-
-                        <div className="zesto-vcard-number" style={{ marginTop: 24, fontSize: '1.25rem', fontWeight: 700, letterSpacing: '3px', color: '#ffffff', fontFamily: 'var(--font-mono)' }}>
-                          {showCardNumber ? '4532 8901 6723 1904' : '•••• •••• •••• 1904'}
-                        </div>
-
-                        <div className="zesto-vcard-bottom" style={{ marginTop: 22, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-                          <div className="zesto-vcard-holder" style={{ fontSize: '0.74rem', fontWeight: 600, color: 'rgba(255,255,255,0.88)', letterSpacing: '0.08em' }}>
-                            SAHITH490522MNP
-                          </div>
-                          <div className="zesto-vcard-expiry-wrap" style={{ textAlign: 'right' }}>
-                            <div className="zesto-vcard-expiry-label" style={{ fontSize: '0.55rem', color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>EXPIRES</div>
-                            <div className="zesto-vcard-expiry-val" style={{ fontSize: '0.86rem', fontWeight: 700, color: '#ffffff' }}>06/29</div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Back Side */}
-                      <div className="zesto-card-side is-back">
-                        <div className="zesto-vcard-magstripe" />
-                        <div className="zesto-vcard-signature-bar">
-                          <span style={{ fontSize: '0.65rem', color: '#6b7280', textTransform: 'uppercase' }}>Security Code</span>
-                          <span className="zesto-vcard-cvv">842</span>
-                        </div>
-                        <div style={{ padding: '16px 24px', fontSize: '0.68rem', color: '#9ca3af', lineHeight: 1.4 }}>
-                          For authorized compute node allocation only. Encrypted via Tier-IV Sovereign Infrastructure.
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 4 Action Pills below Card (Image 1) */}
-                  <div className="zesto-card-actions-bar" style={{ marginTop: 18, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                    <button
-                      type="button"
-                      className="zesto-card-action-pill"
-                      onClick={() => setIsCardFlipped((prev) => !prev)}
-                    >
-                      <RotateCw size={13} /> Back
-                    </button>
-                    <button
-                      type="button"
-                      className="zesto-card-action-pill"
-                      onClick={() => setShowCardNumber((prev) => !prev)}
-                    >
-                      {showCardNumber ? <EyeOff size={13} /> : <Eye size={13} />}
-                      <span>{showCardNumber ? 'Hide number' : 'Show number'}</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="zesto-card-action-pill"
-                      onClick={() => handleCopyCardNumber('4532 8901 6723 1904')}
-                    >
-                      <Copy size={13} /> Copy
-                    </button>
-                    <button
-                      type="button"
-                      className="zesto-card-action-pill"
-                      style={isFrozen ? { background: '#a3e635', color: '#000000', fontWeight: 700, border: 'none' } : {}}
-                      onClick={() => handleToggleFreeze(activeCard.id, activeCard.name)}
-                    >
-                      {isFrozen ? <Unlock size={13} strokeWidth={2.4} /> : <Lock size={13} />}
-                      <span>{isFrozen ? 'Unfreeze' : 'Freeze'}</span>
-                    </button>
-                  </div>
-
-                  {/* Owner Pill below buttons (Image 1) */}
-                  <div className="zesto-card-owner-bar" style={{ marginTop: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <div
-                      style={{
-                        width: 22,
-                        height: 22,
-                        borderRadius: '50%',
-                        background: '#a3e635',
-                        color: '#000000',
-                        fontWeight: 700,
-                        fontSize: '0.65rem',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      SA
-                    </div>
-                    <span style={{ fontSize: '0.8rem', color: '#d1d5db', fontWeight: 500 }}>Sahith490522mnp</span>
-                    <span style={{ color: '#6b7280' }}>•</span>
-                    <span style={{ fontSize: '0.8rem', color: '#9ca3af' }}>From Primary Balance</span>
-                    <span style={{ color: '#6b7280' }}>•</span>
-                    <span
-                      style={{
-                        fontSize: '0.68rem',
-                        padding: '1px 8px',
-                        borderRadius: 4,
-                        background: isFrozen ? 'rgba(239, 68, 68, 0.2)' : 'rgba(80, 227, 150, 0.15)',
-                        color: isFrozen ? '#f87171' : '#50e396',
-                        border: isFrozen ? '1px solid rgba(239, 68, 68, 0.35)' : '1px solid rgba(80, 227, 150, 0.3)',
-                      }}
-                    >
-                      {isFrozen ? 'Frozen' : 'Active'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Right Column: This cycle & Paid with this card (Image 1) */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  {/* Card 1: This cycle */}
-                  <div className="zesto-cycle-panel">
-                    <div className="zesto-cycle-head">
-                      <div>
-                        <h3 className="zesto-cycle-title">This cycle</h3>
-                        <p className="zesto-cycle-sub">Paid off in full from Everyday on the 1st</p>
-                      </div>
-                      <span className="zesto-cycle-pct-badge" style={{ background: '#a3e635', color: '#000000', fontWeight: 700 }}>30%</span>
-                    </div>
-
-                    <div>
-                      <div className="zesto-cycle-amount">
-                        ₹14,820
-                        <span className="zesto-cycle-limit"> of ₹50,000</span>
-                      </div>
-                    </div>
-
-                    {/* Multi-colored Progress Bar */}
-                    <div className="zesto-multi-progress" style={{ height: 7, borderRadius: 4, background: 'rgba(255, 255, 255, 0.08)', overflow: 'hidden', display: 'flex', gap: 2 }}>
-                      <div className="zesto-progress-seg" style={{ width: '14%', background: '#a3e635' }} />
-                      <div className="zesto-progress-seg" style={{ width: '10%', background: '#38bdf8' }} />
-                      <div className="zesto-progress-seg" style={{ width: '4%', background: '#f59e0b' }} />
-                      <div className="zesto-progress-seg" style={{ width: '2%', background: '#f43f5e' }} />
-                    </div>
-
-                    {/* 4-Item Breakdown Legend */}
-                    <div className="zesto-cycle-legend" style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px 18px', marginTop: 14 }}>
-                      <div className="zesto-legend-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span className="zesto-legend-label" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', color: '#d1d5db' }}>
-                          <span className="zesto-legend-dot" style={{ width: 8, height: 8, borderRadius: 2, background: '#a3e635' }} />
-                          <span>LLM Inference</span>
-                        </span>
-                        <span className="zesto-legend-val" style={{ fontWeight: 600, color: '#ffffff' }}>₹6,800</span>
-                      </div>
-                      <div className="zesto-legend-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span className="zesto-legend-label" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', color: '#d1d5db' }}>
-                          <span className="zesto-legend-dot" style={{ width: 8, height: 8, borderRadius: 2, background: '#38bdf8' }} />
-                          <span>GPU Instances</span>
-                        </span>
-                        <span className="zesto-legend-val" style={{ fontWeight: 600, color: '#ffffff' }}>₹5,200</span>
-                      </div>
-                      <div className="zesto-legend-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span className="zesto-legend-label" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', color: '#d1d5db' }}>
-                          <span className="zesto-legend-dot" style={{ width: 8, height: 8, borderRadius: 2, background: '#f59e0b' }} />
-                          <span>Fine-tuning</span>
-                        </span>
-                        <span className="zesto-legend-val" style={{ fontWeight: 600, color: '#ffffff' }}>₹1,920</span>
-                      </div>
-                      <div className="zesto-legend-item" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <span className="zesto-legend-label" style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', color: '#d1d5db' }}>
-                          <span className="zesto-legend-dot" style={{ width: 8, height: 8, borderRadius: 2, background: '#f43f5e' }} />
-                          <span>Storage &amp; Net</span>
-                        </span>
-                        <span className="zesto-legend-val" style={{ fontWeight: 600, color: '#ffffff' }}>₹900</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Card 2: Paid with this card */}
-                  <div className="zesto-card-tx-panel">
-                    <div className="zesto-cycle-head">
-                      <div>
-                        <h3 className="zesto-cycle-title">Paid with this card</h3>
-                        <p className="zesto-cycle-sub">2 payments since May</p>
-                      </div>
-                      <button
-                        type="button"
-                        className="mw-link-btn"
-                        onClick={() => handleOpenTopUpModal()}
-                        style={{ color: '#a3e635', fontSize: '0.78rem', fontWeight: 600 }}
-                      >
-                        + Top up
-                      </button>
-                    </div>
-
-                    <div className="zesto-tx-list">
-                      {displayTransactions.map((tx) => (
-                        <div key={tx.id} className="zesto-tx-item">
-                          <div className="zesto-tx-left">
-                            <div className="zesto-tx-icon-box">
-                              <Plus size={14} />
-                            </div>
-                            <div>
-                              <p className="zesto-tx-title">{tx.desc}</p>
-                              <p className="zesto-tx-meta">{tx.date}</p>
-                            </div>
-                          </div>
-                          <div
-                            className="zesto-tx-amount"
-                            style={{ color: '#38bdf8', fontWeight: 700 }}
-                          >
-                            +₹{tx.amount.toLocaleString()}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )
-        })()}
 
         {/* ───────────────────────────────────────────────────────────
             25. SAVED HARDWARE WISHLIST (route === 'wishlist')

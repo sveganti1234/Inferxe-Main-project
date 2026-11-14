@@ -8438,3 +8438,272 @@ html[data-theme='dark'],
   font-size: 0.76rem;
   font-weight: 700;
 }
+
+/* ─────────────────────────────────────────────────────────────
+   VERDELO CARDS TAB (2-PANEL LAYOUT MATCHING PHOTO 10)
+   ───────────────────────────────────────────────────────────── */
+.verdelo-cards-view {
+  display: grid;
+  grid-template-columns: minmax(360px, 460px) minmax(420px, 1fr);
+  gap: 24px;
+  width: 100%;
+  max-width: 1360px;
+  margin: 0 auto;
+  align-items: stretch;
+}
+
+@media (max-width: 1024px) {
+  .verdelo-cards-view {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Left panel: 3D Stack Stage Container */
+.verdelo-cards-stage-panel {
+  min-height: 480px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 34px 28px 24px;
+}
+
+/* Right panel: Controls and details */
+.verdelo-card-controls-panel {
+  padding: 28px 32px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+/* Header */
+.verdelo-card-ctrl-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.verdelo-card-ctrl-title {
+  font-size: 1.45rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0 0 4px;
+  letter-spacing: -0.01em;
+}
+
+.verdelo-card-ctrl-sub {
+  font-size: 0.88rem;
+  color: #8caba0;
+  margin: 0;
+}
+
+.verdelo-card-live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(80, 227, 150, 0.14);
+  border: 1px solid rgba(80, 227, 150, 0.35);
+  color: #50e396;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  transition: all 0.2s ease;
+}
+
+.verdelo-card-live-badge.is-frozen {
+  background: rgba(140, 171, 160, 0.14);
+  border-color: rgba(140, 171, 160, 0.35);
+  color: #a3c4b9;
+}
+
+.verdelo-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #50e396;
+  box-shadow: 0 0 8px rgba(80, 227, 150, 0.8);
+}
+
+.verdelo-card-live-badge.is-frozen .verdelo-live-dot {
+  background: #8caba0;
+  box-shadow: none;
+}
+
+/* Metrics Grid: Spent in Nov / Left this month */
+.verdelo-card-metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.verdelo-card-metric-box {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.verdelo-card-metric-lbl {
+  font-size: 0.78rem;
+  color: #8caba0;
+  font-weight: 500;
+}
+
+.verdelo-card-metric-val {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+}
+
+/* 4 Toggles List */
+.verdelo-card-toggles-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 16px 0;
+}
+
+.verdelo-card-toggle-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.verdelo-card-toggle-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.verdelo-card-toggle-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.verdelo-card-toggle-desc {
+  font-size: 0.78rem;
+  color: #8caba0;
+}
+
+/* Switches */
+.verdelo-switch-btn {
+  width: 44px;
+  height: 24px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  border: none;
+  cursor: pointer;
+  position: relative;
+  padding: 2px;
+  transition: background 0.22s ease;
+  flex-shrink: 0;
+}
+
+.verdelo-switch-btn.is-on {
+  background: #50e396;
+}
+
+.verdelo-switch-knob {
+  display: block;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.35);
+  transform: translateX(0);
+  transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.verdelo-switch-btn.is-on .verdelo-switch-knob {
+  transform: translateX(20px);
+}
+
+/* Monthly Limit Slider */
+.verdelo-card-limit-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.verdelo-card-limit-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.verdelo-card-limit-lbl {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.verdelo-card-limit-val {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #50e396;
+}
+
+.verdelo-card-slider-wrap {
+  width: 100%;
+}
+
+.verdelo-range-input {
+  width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 999px;
+  outline: none;
+  cursor: pointer;
+}
+
+.verdelo-range-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.verdelo-range-input::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+
+/* Hold to see PIN button */
+.verdelo-btn-see-pin {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.verdelo-btn-see-pin:hover {
+  background: rgba(80, 227, 150, 0.12);
+  border-color: rgba(80, 227, 150, 0.4);
+  color: #50e396;
+}

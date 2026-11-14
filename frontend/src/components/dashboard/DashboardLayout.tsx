@@ -569,7 +569,7 @@ export function DashboardLayout({
       title: '',
       items: [
         { label: 'Overview', to: '/dashboard/customer?tab=overview', icon: LayoutDashboard },
-        { label: 'Cards', to: '/dashboard/wallet', icon: CreditCard },
+        { label: 'Cards', to: '/dashboard/customer?tab=cards', icon: CreditCard },
         { label: 'Payments', to: '/dashboard/checkout', icon: ArrowUpDown, badge: '1', badgeType: 'count' },
         { label: 'Insights', to: '/dashboard/customer', icon: TrendingUp },
         { label: 'Budgets', to: '/dashboard/customer?tab=budgets', icon: BarChart3, badge: '2', badgeType: 'count' },
@@ -615,8 +615,11 @@ export function DashboardLayout({
     if (item.label === 'Overview') {
       return path === '/dashboard/customer' && location.search.includes('tab=overview')
     }
+    if (item.label === 'Cards') {
+      return path === '/dashboard/wallet' || (path === '/dashboard/customer' && location.search.includes('tab=cards'))
+    }
     if (item.label === 'Insights') {
-      return path === '/dashboard/customer' && !location.search.includes('tab=overview')
+      return path === '/dashboard/customer' && !location.search.includes('tab=overview') && !location.search.includes('tab=cards') && !location.search.includes('tab=budgets') && !location.search.includes('tab=goals')
     }
     if (item.to === '/dashboard/users') {
       return path === '/dashboard/users' || path === '/dashboard/users/add'
