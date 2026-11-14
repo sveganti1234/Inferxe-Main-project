@@ -38,22 +38,29 @@ INSUFFICIENT_INFO_REFUSAL = (
 )
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-SCRAPED_DATA_DIR = r"c:\Users\seema\OneDrive\Desktop\Dataset for web sracp"
-OUTPUT_DIR = os.path.join(BASE_DIR, "data")
+PROJECT_ROOT = os.path.abspath(os.path.join(BASE_DIR, "..", ".."))
+DATABASE_DATASETS_DIR = os.path.join(PROJECT_ROOT, "database", "datasets")
+OUTPUT_DIR = os.path.join(DATABASE_DATASETS_DIR, "training")
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
+def find_file(filename):
+    for root, dirs, files in os.walk(DATABASE_DATASETS_DIR):
+        if filename in files:
+            return os.path.join(root, filename)
+    return None
+
 def load_json(filename):
-    path = os.path.join(SCRAPED_DATA_DIR, filename)
-    if not os.path.exists(path):
-        print(f"[WARN] File not found: {path}")
+    path = find_file(filename)
+    if not path:
+        print(f"[WARN] File not found: {filename}")
         return None
     with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
 def load_jsonl(filename):
-    path = os.path.join(SCRAPED_DATA_DIR, filename)
-    if not os.path.exists(path):
-        print(f"[WARN] File not found: {path}")
+    path = find_file(filename)
+    if not path:
+        print(f"[WARN] File not found: {filename}")
         return []
     records = []
     with open(path, "r", encoding="utf-8") as f:
@@ -64,9 +71,9 @@ def load_jsonl(filename):
     return records
 
 def load_csv(filename):
-    path = os.path.join(SCRAPED_DATA_DIR, filename)
-    if not os.path.exists(path):
-        print(f"[WARN] File not found: {path}")
+    path = find_file(filename)
+    if not path:
+        print(f"[WARN] File not found: {filename}")
         return []
     records = []
     with open(path, "r", encoding="utf-8") as f:
@@ -74,7 +81,6 @@ def load_csv(filename):
         for row in reader:
             records.append(row)
     return records
-
 def build_dataset_records():
     records = []
 
@@ -140,7 +146,7 @@ def build_dataset_records():
             "The NVIDIA Blackwell B200 features 192 GB of HBM3e memory with 8,000 GB/s (8 TB/s) "
             "bandwidth. It delivers 4,500 FP8 TFLOPS and 2,250 FP16 TFLOPS at a 1,000W TDP, "
             "interconnected via NVLink 5 delivering 1,800 GB/s bidirectional throughput. "
-            "Estimated marketplace rate is â‚¹650/hr."
+            "Estimated marketplace rate is ₹650/hr."
         ),
         "category": "gpu_hardware",
         "source": "inferxe_filtered_gpu_hardware"
@@ -150,7 +156,7 @@ def build_dataset_records():
         "question": "What are the specifications of the NVIDIA RTX Pro 6000 Blackwell?",
         "answer": (
             "The NVIDIA RTX Pro 6000 Blackwell features 96 GB of GDDR7 memory. On JarvisLabs, it is paired "
-            "with 160 GB of system RAM and 28 vCPUs, available at $2.80/hr (â‚¹265/hr). It is ideal for "
+            "with 160 GB of system RAM and 28 vCPUs, available at $2.80/hr (₹265/hr). It is ideal for "
             "large-scale workstation and server inference."
         ),
         "category": "gpu_hardware",
@@ -165,8 +171,8 @@ def build_dataset_records():
             "1. Memory: L4 has 24 GB GDDR6 (300 GB/s); L40S has 48 GB GDDR6 with ECC (864 GB/s).\n"
             "2. Compute: L4 delivers 485 FP8 / 242 FP16 TFLOPS; L40S delivers 1,466 FP8 / 733 FP16 TFLOPS (3x more).\n"
             "3. Power: L4 requires 72W (single-slot); L40S requires 350W (dual-slot).\n"
-            "4. Pricing: On JarvisLabs, L4 is $0.44/hr (â‚¹41/hr) on-demand ($0.19/hr spot), while L40S is $1.25/hr (â‚¹118/hr) on-demand ($0.65/hr spot). "
-            "On Inferxe marketplace, retail rates are â‚¹60/hr for L4 and â‚¹100/hr for L40S."
+            "4. Pricing: On JarvisLabs, L4 is $0.44/hr (₹41/hr) on-demand ($0.19/hr spot), while L40S is $1.25/hr (₹118/hr) on-demand ($0.65/hr spot). "
+            "On Inferxe marketplace, retail rates are ₹60/hr for L4 and ₹100/hr for L40S."
         ),
         "category": "gpu_hardware",
         "source": "dataset_1_and_2_comparison"
@@ -192,7 +198,7 @@ def build_dataset_records():
             "1. Memory Capacity: H200 has 141 GB HBM3e (1.76x the 80 GB HBM3 on H100).\n"
             "2. Memory Bandwidth: H200 reaches 4.8 TB/s (1.43x the 3.35 TB/s on H100).\n"
             "3. Compute: Both share the same Hopper tensor core architecture (3,958 FP8 / 1,979 FP16 TFLOPS) at 700W TDP.\n"
-            "4. Pricing: On JarvisLabs, H100 SXM is $3.49/hr (â‚¹330/hr) on-demand vs $1.55/hr (â‚¹146/hr) spot. H200 SXM is $4.60/hr (â‚¹435/hr) on-demand vs $2.00/hr (â‚¹189/hr) spot."
+            "4. Pricing: On JarvisLabs, H100 SXM is $3.49/hr (₹330/hr) on-demand vs $1.55/hr (₹146/hr) spot. H200 SXM is $4.60/hr (₹435/hr) on-demand vs $2.00/hr (₹189/hr) spot."
         ),
         "category": "gpu_hardware",
         "source": "dataset_1_and_2_comparison"
@@ -201,22 +207,25 @@ def build_dataset_records():
     # 5. Cloud Pricing & Provider Records
     pricing_records = load_json("dataset_2_gpu_cloud_pricing.json") or []
     for p in pricing_records:
-        prov = p.get("provider_name")
+        prov = p.get("provider") or p.get("provider_name")
         gpu = p.get("gpu_model")
-        reg = p.get("region")
-        ond_usd = p.get("hourly_on_demand_usd")
-        ond_inr = p.get("hourly_on_demand_inr")
-        spot_usd = p.get("hourly_spot_usd")
-        spot_inr = p.get("hourly_spot_inr")
-        vcpu = p.get("vcpu_count")
-        ram = p.get("ram_gb")
+        reg = p.get("data_center_region") or p.get("region")
+        ond_usd = p.get("on_demand_hourly_usd") if p.get("on_demand_hourly_usd") is not None else p.get("hourly_on_demand_usd")
+        ond_inr = p.get("on_demand_hourly_inr") if p.get("on_demand_hourly_inr") is not None else p.get("hourly_on_demand_inr")
+        spot_usd = p.get("spot_hourly_usd") if p.get("spot_hourly_usd") is not None else p.get("hourly_spot_usd")
+        spot_inr = p.get("spot_hourly_inr") if p.get("spot_hourly_inr") is not None else p.get("hourly_spot_inr")
+        vcpu = p.get("vcpu") or p.get("vcpu_count")
+        ram = p.get("system_ram_gb") or p.get("ram_gb")
+
+        if not prov or not gpu or ond_usd is None or ond_inr is None:
+            continue
 
         if spot_usd and spot_inr:
             records.append({
                 "question": f"What is the documented hourly price of an {gpu} from {prov}?",
                 "answer": (
                     f"From {prov} ({reg}), the documented hourly rate for an {gpu} is "
-                    f"${ond_usd}/hr (â‚¹{ond_inr}/hr) on-demand, and ${spot_usd}/hr (â‚¹{spot_inr}/hr) "
+                    f"${ond_usd}/hr (₹{ond_inr}/hr) on-demand, and ${spot_usd}/hr (₹{spot_inr}/hr) "
                     f"on spot instances. Instance specifications include {vcpu} vCPUs and {ram} GB RAM."
                 ),
                 "category": "cloud_pricing",
@@ -227,7 +236,7 @@ def build_dataset_records():
                 "question": f"What is the documented hourly price of an {gpu} from {prov}?",
                 "answer": (
                     f"From {prov} ({reg}), the documented hourly on-demand rate for an {gpu} is "
-                    f"${ond_usd}/hr (â‚¹{ond_inr}/hr). Instance configuration provides {vcpu} vCPUs and {ram} GB RAM."
+                    f"${ond_usd}/hr (₹{ond_inr}/hr). Instance configuration provides {vcpu} vCPUs and {ram} GB RAM."
                 ),
                 "category": "cloud_pricing",
                 "source": "dataset_2_pricing"
@@ -239,13 +248,13 @@ def build_dataset_records():
         "answer": (
             "Inferxe distinguishes between direct provider infrastructure rates and Inferxe marketplace retail rates:\n"
             "1. JarvisLabs Direct Rates (MVP Infrastructure Provider):\n"
-            "   - NVIDIA L4 (24 GB): $0.44/hr (â‚¹41/hr) on-demand, $0.19/hr (â‚¹18/hr) spot.\n"
-            "   - NVIDIA L40S (48 GB): $1.25/hr (â‚¹118/hr) on-demand, $0.65/hr (â‚¹61/hr) spot.\n"
-            "   - NVIDIA H100 SXM (80 GB): $3.49/hr (â‚¹330/hr) on-demand, $1.55/hr (â‚¹146/hr) spot.\n"
+            "   - NVIDIA L4 (24 GB): $0.44/hr (₹41/hr) on-demand, $0.19/hr (₹18/hr) spot.\n"
+            "   - NVIDIA L40S (48 GB): $1.25/hr (₹118/hr) on-demand, $0.65/hr (₹61/hr) spot.\n"
+            "   - NVIDIA H100 SXM (80 GB): $3.49/hr (₹330/hr) on-demand, $1.55/hr (₹146/hr) spot.\n"
             "2. Inferxe Proposed Marketplace Retail Rates (with managed intelligent routing & orchestration):\n"
-            "   - NVIDIA L4: â‚¹55â€“â‚¹65/hr (listed as â‚¹60/hr in website UI).\n"
-            "   - NVIDIA L40S: â‚¹100/hr.\n"
-            "   - NVIDIA H100 SXM: â‚¹250â€“â‚¹280/hr.\n"
+            "   - NVIDIA L4: ₹55–₹65/hr (listed as ₹60/hr in website UI).\n"
+            "   - NVIDIA L40S: ₹100/hr.\n"
+            "   - NVIDIA H100 SXM: ₹250–₹280/hr.\n"
             "Spot routing on Inferxe provides up to 65% automatic discount with zero long-term lock-in."
         ),
         "category": "cloud_pricing",
@@ -314,7 +323,7 @@ def build_dataset_records():
             "3. Context Window Length: Longer input contexts quadratic or linearly expand KV cache memory and compute requirements.\n"
             "4. Concurrency & Continuous Batching: Higher request concurrency maximizes GPU utilization, dramatically lowering effective cost per 1M tokens.\n"
             "5. GPU Architectural Efficiency: Higher memory bandwidth (e.g. HBM3 at 3.35 TB/s vs GDDR6 at 300 GB/s) increases token generation speed during memory-bound decode.\n"
-            "6. Provider Pricing Model: Dedicated GPU hourly rates (e.g., JarvisLabs L4 at â‚¹41/hr or H100 at â‚¹330/hr) vs serverless per-token billing."
+            "6. Provider Pricing Model: Dedicated GPU hourly rates (e.g., JarvisLabs L4 at ₹41/hr or H100 at ₹330/hr) vs serverless per-token billing."
         ),
         "category": "token_economics",
         "source": "dataset_4_benchmarks_and_economics"
@@ -408,8 +417,8 @@ def build_dataset_records():
         "question": "How does the simulated wallet and burn rate work on Inferxe?",
         "answer": (
             "Inferxe includes a simulated wallet system that stores user balance in browser local storage. "
-            "When GPU instances are launched, the system calculates the combined hourly burn rate (e.g. â‚¹60/hr for L4, â‚¹100/hr for L40S). "
-            "The platform computes remaining runtime hours and issues proactive warning alerts when the balance falls below â‚¹2,000 or under 6 hours of remaining runtime."
+            "When GPU instances are launched, the system calculates the combined hourly burn rate (e.g. ₹60/hr for L4, ₹100/hr for L40S). "
+            "The platform computes remaining runtime hours and issues proactive warning alerts when the balance falls below ₹2,000 or under 6 hours of remaining runtime."
         ),
         "category": "inferxe_platform",
         "source": "inferxe_frontend_wallet_store"

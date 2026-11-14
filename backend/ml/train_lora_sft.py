@@ -18,11 +18,11 @@ sys.stdout.reconfigure(encoding='utf-8')
 @dataclass
 class TrainingConfig:
     base_model_name_or_path: str = "Qwen/Qwen2.5-0.5B-Instruct"
-    train_data_path: str = "finetuning/data/train.jsonl"
-    val_data_path: str = "finetuning/data/validation.jsonl"
-    output_dir: str = "finetuning/output/inferxe-qwen-ft-adapter"
-    metrics_output_path: str = "finetuning/results/training_metrics.json"
-    config_output_path: str = "finetuning/configs/training_config.json"
+    train_data_path: str = "database/datasets/training/train.jsonl"
+    val_data_path: str = "database/datasets/training/validation.jsonl"
+    output_dir: str = "backend/ml/models/inferxe-qwen-ft-adapter"
+    metrics_output_path: str = "backend/ml/results/training_metrics.json"
+    config_output_path: str = "backend/ml/configs/training_config.json"
     
     # LoRA Parameters
     lora_r: int = 8

@@ -1,11 +1,11 @@
 {
   "dataset_name": "inferxe-sft-dataset",
   "version": "1.0.0",
-  "created_at": "2026-10-15T09:46:40.631134",
-  "total_records": 83,
+  "created_at": "2026-11-14T10:14:57.358243",
+  "total_records": 90,
   "splits": {
-    "train": 56,
-    "validation": 11,
+    "train": 62,
+    "validation": 12,
     "test": 16
   },
   "system_prompt": "You are the Inferxe GPU infrastructure assistant. Answer only approved GPU, LLM inference, cloud pricing, and documented Inferxe platform questions. Never invent facts.",
@@ -33,7 +33,7 @@
     "benchmarks": 1,
     "blackwell_specs": 1,
     "gpu_hardware": 10,
-    "cloud_pricing": 9,
+    "cloud_pricing": 16,
     "technical_concepts": 3,
     "inferxe_platform": 3,
     "insufficient_info_refusal": 10
