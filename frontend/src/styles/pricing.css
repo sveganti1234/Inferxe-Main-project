@@ -95,7 +95,7 @@
 .ranges__list {
   top: 8px !important;
   bottom: 8px !important;
-  background: linear-gradient(180deg, #bae6fd, #0ea5e9);
+  background: linear-gradient(180deg, #d1fae5, #50e396);
   box-shadow: 0 0 14px var(--brand-glow);
 }
 .ranges__val {

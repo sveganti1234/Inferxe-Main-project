@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useLocation, Link, useNavigate } from 'react-router-dom'
 import {
-  Activity, Archive, ArrowDown, ArrowDownLeft, ArrowDownToLine, ArrowUp, ArrowUpDown, ArrowUpRight, Bell, Check, ChevronDown, ChevronRight,
+  Activity, Archive, Snowflake, Wifi, ArrowDownLeft, ArrowDownToLine, ArrowUpDown, ArrowUpRight, Bell, Check, ChevronDown, ChevronRight,
   CircleDollarSign, Copy, Cpu, Download, Eye, EyeOff, FileText,
-  Heart, Home, Info, KeyRound, LayoutGrid, List, Lock, MapPin, PiggyBank, Play, Plus,
-  RotateCw, Search, Send, Server, Settings2, Share2, ShieldCheck, Sparkles, Star, Terminal,
+  Heart, Info, KeyRound, LayoutGrid, List, Lock, MapPin, Play, Plus,
+  RotateCw, Search, Send, Server, Settings2, Share2, ShieldCheck, Star, Terminal,
   Trash2, TrendingUp, Unlock, User, Users, Wallet, Wrench, X, Zap,
 } from 'lucide-react'
 import { DashboardLayout } from '../../components/dashboard/DashboardLayout'
@@ -483,6 +483,14 @@ export default function MarketplaceWorkspace() {
   void selectedCardId;
   void setSelectedCardId;
   void cardToast;
+  void zestoMember;
+  void setZestoMember;
+  void showSaveModal;
+  void setShowSaveModal;
+  void saveAmount;
+  void setSaveAmount;
+  void savingsTotal;
+  void setSavingsTotal;
   void cardTab;
   void setCardTab;
 
@@ -871,6 +879,9 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
       window.dispatchEvent(new Event('inferxe_wallet_change'))
     } catch {}
   }
+
+  void handleSaveToReserve;
+  void handlePayBill;
 
   // Notifications Filter & Sorting
   const [notifFilter, setNotifFilter] = useState<'all' | 'unread' | 'read'>('all')
@@ -2312,112 +2323,80 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
             )
           }
 
-          // ── If Overview tab: Render the full Overview cards (Zesto/Verdelo Family Cards) ──
+          // ── If Overview tab: Render the full Verdelo Overview Screen (1:1 with Reference Image) ──
           const displayBalance = hideBalance ? '••••••' : walletBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-          const balanceParts = displayBalance.split('.')
-          const balanceWhole = balanceParts[0]
-          const balanceCents = balanceParts[1] ? `.${balanceParts[1]}` : ''
 
-          // 30 stacked vertical bars for the last 30 days chart (matching photo 8 colors: pink Shopping, lime Groceries, cyan Health, orange Transport)
-          const barDays = [
-            { day: '19', shopping: 18, groceries: 12, health: 6, transport: 0 },
-            { day: '20', shopping: 0, groceries: 0, health: 0, transport: 0 },
-            { day: '21', shopping: 10, groceries: 8, health: 0, transport: 0 },
-            { day: '22', shopping: 0, groceries: 15, health: 0, transport: 0 },
-            { day: '23', shopping: 12, groceries: 18, health: 0, transport: 0 },
-            { day: '24', shopping: 0, groceries: 0, health: 0, transport: 0 },
-            { day: '25', shopping: 0, groceries: 0, health: 0, transport: 0 },
-            { day: '26', shopping: 15, groceries: 22, health: 0, transport: 0 },
-            { day: '27', shopping: 8, groceries: 10, health: 0, transport: 0 },
-            { day: '28', shopping: 0, groceries: 14, health: 0, transport: 0 },
-            { day: '29', shopping: 0, groceries: 0, health: 0, transport: 0 },
-            { day: '30', shopping: 14, groceries: 30, health: 0, transport: 0 },
-            { day: '1', shopping: 0, groceries: 0, health: 0, transport: 0 },
-            { day: '2', shopping: 16, groceries: 25, health: 0, transport: 0 },
-            { day: '3', shopping: 0, groceries: 0, health: 0, transport: 0 },
-            { day: '4', shopping: 12, groceries: 32, health: 0, transport: 0 },
-            { day: '5', shopping: 0, groceries: 10, health: 0, transport: 0 },
-            { day: '6', shopping: 0, groceries: 18, health: 0, transport: 0 },
-            { day: '7', shopping: 18, groceries: 30, health: 0, transport: 0 },
-            { day: '8', shopping: 0, groceries: 12, health: 0, transport: 0 },
-            { day: '9', shopping: 0, groceries: 0, health: 0, transport: 0 },
-            { day: '10', shopping: 0, groceries: 14, health: 0, transport: 0 },
-            { day: '11', shopping: 15, groceries: 15, health: 0, transport: 0 },
-            { day: '12', shopping: 0, groceries: 0, health: 0, transport: 0 },
-            { day: '13', shopping: 10, groceries: 12, health: 0, transport: 0 },
-            { day: '14', shopping: 0, groceries: 8, health: 0, transport: 0 },
-            { day: '15', shopping: 28, groceries: 24, health: 12, transport: 18 }, // Tallest day: 15 Nov
-            { day: '16', shopping: 12, groceries: 14, health: 0, transport: 8 },
-            { day: '17', shopping: 0, groceries: 12, health: 0, transport: 6 },
-            { day: 'Today', shopping: 8, groceries: 10, health: 0, transport: 4 },
-          ]
-
-          // Sahith cards deck for interactive 3D rotation (Sky Blue theme)
-          const cardDeck = [
+          // Interactive Family Cards Deck for 3D Stack
+          const verdeloOverviewCards = [
             {
               id: 'c1',
-              title: 'inferxe',
-              type: 'PRIMARY',
-              pan: '•••• 1904',
-              expiry: '06/29',
+              title: 'Everyday',
+              pan: '•••• •••• 4182',
               holder: 'Sahith',
-              bg: 'linear-gradient(135deg, #0284c7 0%, #0ea5e9 55%, #38bdf8 100%)',
+              exp: '09/29',
+              bg: 'linear-gradient(135deg, #1b5e3f 0%, #11422c 50%, #0a291b 100%)',
+              sub: 'Everyday account · ... 0457',
             },
             {
               id: 'c2',
-              title: 'inferxe',
-              type: 'VAULT',
-              pan: '•••• 4821',
-              expiry: '11/28',
-              holder: 'Sahith',
-              bg: 'linear-gradient(135deg, #0369a1 0%, #0284c7 60%, #0ea5e9 100%)',
+              title: "Ada's card",
+              pan: '•••• •••• 9214',
+              holder: 'Ada',
+              exp: '11/28',
+              bg: 'linear-gradient(135deg, #164a34 0%, #0d3423 50%, #061e14 100%)',
+              sub: 'Secondary personal card',
             },
             {
               id: 'c3',
-              title: 'inferxe',
-              type: 'BUSINESS',
-              pan: '•••• 7730',
-              expiry: '03/30',
+              title: 'Savings Vault',
+              pan: '•••• •••• 7730',
               holder: 'Sahith',
-              bg: 'linear-gradient(135deg, #0c4a6e 0%, #0369a1 60%, #38bdf8 100%)',
+              exp: '03/30',
+              bg: 'linear-gradient(135deg, #113c29 0%, #08281a 50%, #04140d 100%)',
+              sub: 'High-yield reserve card',
             },
           ]
 
-          const topCard = cardDeck[zestoCardDeckIndex % cardDeck.length]
-          const midCard = cardDeck[(zestoCardDeckIndex + 1) % cardDeck.length]
-          const backCard = cardDeck[(zestoCardDeckIndex + 2) % cardDeck.length]
+          const activeCardIdx = zestoCardDeckIndex % verdeloOverviewCards.length
+          const currentTopCard = verdeloOverviewCards[activeCardIdx]
+          const isCardFrozen = Boolean(cardsFrozen[currentTopCard.id])
 
           return (
-            <div className="zesto-exact-view">
-              {/* Top Greeting & Action Buttons */}
-              <div className="zesto-exact-header">
+            <div className="verdelo-overview-view">
+              {/* ── Top Header: Date, Greeting, Statement & Send Actions ── */}
+              <div className="verdelo-overview-header">
                 <div>
-                  <h1 className="zesto-exact-title">Good morning, Sahith</h1>
-                  <p className="zesto-exact-sub">
-                    <span>Thursday 19 November</span>
-                    <span>·</span>
-                    <span>6 days to payday</span>
+                  <div className="verdelo-overview-date">Thursday, November 12</div>
+                  <h1 className="verdelo-overview-title">Good morning, Sahith</h1>
+                  <p className="verdelo-overview-sub">
+                    Sahith is paid in 3 days. Four bills go out before then.
                   </p>
                 </div>
-                <div className="zesto-exact-actions">
+                <div className="verdelo-overview-actions">
                   <button
                     type="button"
-                    className="zesto-exact-btn-ask"
+                    className="verdelo-btn-statement"
                     onClick={() => {
-                      window.dispatchEvent(
-                        new CustomEvent('inferxe_open_bot', {
-                          detail: { prompt: 'How is our family budget and spending tracking for this month?' },
-                        })
-                      )
-                      flash('Inferxe AI companion activated.')
+                      const stmtData = `VERDELO ACCOUNT STATEMENT\nAccount Holder: Sahith\nAccount: Everyday account · ... 0457\nPeriod: November 2026\nCurrent Joint Balance: $${walletBalance.toLocaleString('en-US', { minimumFractionDigits: 2 })}\nGenerated: ${new Date().toLocaleDateString()}`
+                      const blob = new Blob([stmtData], { type: 'text/plain' })
+                      const url = URL.createObjectURL(blob)
+                      const a = document.createElement('a')
+                      a.href = url
+                      a.download = 'Verdelo_Statement_November_2026.txt'
+                      a.click()
+                      URL.revokeObjectURL(url)
+                      flash('Monthly statement downloaded successfully.')
                     }}
+                    title="Download November Statement"
                   >
-                    <span>Ask</span>
+                    <Download size={15} />
+                    <span>Statement</span>
                   </button>
                   <button
                     type="button"
-                    className="zesto-exact-btn-send"
+                    className="verdelo-btn-send"
                     onClick={() => setShowSendModal(true)}
+                    title="Send money"
                   >
                     <Send size={15} />
                     <span>Send money</span>
@@ -2425,547 +2404,402 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                 </div>
               </div>
 
-              {/* Two-Column Hero Grid */}
-              <div className="zesto-hero-two-grid">
-                {/* 1. Left Mint-Lime Gradient Hero Card */}
-                <div className="zesto-green-hero-card">
-                  <div>
-                    <div className="zesto-green-hero-top">
-                      <div className="zesto-green-hero-tag">
-                        <Home size={15} />
-                        <span>Everything Sahith holds</span>
+              {/* ── Two-Column Main Content Grid ── */}
+              <div className="verdelo-overview-grid">
+                {/* ── Column 1: Left Cards Stack Container ── */}
+                <div className="verdelo-cards-panel">
+                  <div className="verdelo-cards-head">
+                    <div>
+                      <h3 className="verdelo-cards-title">Cards</h3>
+                      <p className="verdelo-cards-sub">Throw the top card aside, or tap it to turn it over</p>
+                    </div>
+                    <Link to="/dashboard/wallet" className="verdelo-cards-link">
+                      All cards
+                    </Link>
+                  </div>
+
+                  {/* 3D Stack Stage */}
+                  <div
+                    className="verdelo-card-stack-stage"
+                    onClick={() => setIsCardFlipped(!isCardFlipped)}
+                    title="Tap to turn over or flip"
+                  >
+                    {/* Layer 3: Backmost card shadow */}
+                    <div className="verdelo-stack-card-layer verdelo-stack-card-layer--back" />
+
+                    {/* Layer 2: Middle card layer with subtle title */}
+                    <div className="verdelo-stack-card-layer verdelo-stack-card-layer--mid">
+                      <span className="verdelo-stack-card-layer--mid-label">
+                        {verdeloOverviewCards[(activeCardIdx + 1) % verdeloOverviewCards.length].title}
+                      </span>
+                    </div>
+
+                    {/* Layer 1: Front Active 3D Card */}
+                    <div
+                      className="verdelo-front-card"
+                      style={{
+                        background: currentTopCard.bg,
+                        transform: isCardFlipped ? 'rotateY(180deg)' : 'none',
+                      }}
+                    >
+                      {!isCardFlipped ? (
+                        <>
+                          <div className="verdelo-front-card-top">
+                            <span className="verdelo-front-card-type">{currentTopCard.title}</span>
+                            <div className="verdelo-contactless-wave" title="Contactless Enabled">
+                              <Wifi size={18} style={{ transform: 'rotate(90deg)' }} />
+                            </div>
+                          </div>
+
+                          <div className="verdelo-gold-chip" />
+
+                          <div className="verdelo-front-card-pan">
+                            {showCardNumber ? currentTopCard.pan.replace(/•/g, '4') : currentTopCard.pan}
+                          </div>
+
+                          <div className="verdelo-front-card-bot">
+                            <div className="verdelo-front-card-meta">
+                              <div className="verdelo-front-card-meta-item">
+                                <span className="verdelo-front-card-meta-lbl">Holder</span>
+                                <span className="verdelo-front-card-meta-val">{currentTopCard.holder}</span>
+                              </div>
+                              <div className="verdelo-front-card-meta-item">
+                                <span className="verdelo-front-card-meta-lbl">Exp</span>
+                                <span className="verdelo-front-card-meta-val">{currentTopCard.exp}</span>
+                              </div>
+                            </div>
+                            <div className="verdelo-card-logo-marks" title="Verdelo Card">
+                              <span className="verdelo-card-logo-mark" />
+                              <span className="verdelo-card-logo-mark" />
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <div style={{ transform: 'rotateY(180deg)', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                          <div style={{ height: 38, background: '#05130d', margin: '4px -22px', borderRadius: 2 }} />
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '0 10px' }}>
+                            <div style={{ background: '#fff', color: '#041c12', padding: '4px 10px', borderRadius: 4, fontFamily: 'monospace', fontWeight: 700, fontSize: '0.85rem' }}>
+                              CVV 829
+                            </div>
+                          </div>
+                          <div style={{ fontSize: '0.68rem', color: '#8caba0', textAlign: 'center' }}>
+                            Tap to turn back to front
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Card Controls */}
+                  <div className="verdelo-card-controls">
+                    <div className="verdelo-card-pagination">
+                      <button
+                        type="button"
+                        className="verdelo-card-arrow-btn"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setZestoCardDeckIndex((prev) => (prev > 0 ? prev - 1 : verdeloOverviewCards.length - 1))
+                        }}
+                        title="Previous Card"
+                      >
+                        ‹
+                      </button>
+                      <div className="verdelo-card-dots">
+                        {verdeloOverviewCards.map((_, dotIdx) => (
+                          <span
+                            key={dotIdx}
+                            className={`verdelo-card-dot ${dotIdx === activeCardIdx ? 'is-active' : ''}`}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setZestoCardDeckIndex(dotIdx)
+                            }}
+                            style={{ cursor: 'pointer' }}
+                          />
+                        ))}
                       </div>
                       <button
                         type="button"
-                        className="zesto-green-hero-arrow"
-                        onClick={() => handleOpenTopUpModal()}
-                        title="Top up / Move money"
+                        className="verdelo-card-arrow-btn"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setZestoCardDeckIndex((prev) => prev + 1)
+                        }}
+                        title="Next Card"
                       >
-                        <ArrowUpRight size={16} />
+                        ›
                       </button>
                     </div>
 
-                    <div className="zesto-green-hero-amount">
-                      €{balanceWhole}
-                      <span style={{ fontSize: '0.62em', opacity: 0.85, fontWeight: 700 }}>{balanceCents}</span>
+                    <div className="verdelo-card-action-btns">
+                      <button
+                        type="button"
+                        className="verdelo-card-icon-btn"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setIsCardFlipped(!isCardFlipped)
+                        }}
+                        title="Turn Over Card"
+                      >
+                        <RotateCw size={14} />
+                      </button>
+                      <button
+                        type="button"
+                        className={`verdelo-btn-freeze ${isCardFrozen ? 'is-frozen' : ''}`}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          const nextFrozen = !isCardFrozen
+                          setCardsFrozen((prev) => ({ ...prev, [currentTopCard.id]: nextFrozen }))
+                          flash(nextFrozen ? `${currentTopCard.title} has been frozen.` : `${currentTopCard.title} is now active.`)
+                        }}
+                        title={isCardFrozen ? 'Unfreeze Card' : 'Freeze Card'}
+                      >
+                        <Snowflake size={13} />
+                        <span>{isCardFrozen ? 'Unfreeze' : 'Freeze'}</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── Column 2: Right Side 2 Panels ── */}
+                <div className="verdelo-overview-right-col">
+                  {/* Top Right Panel: Joint Balance & Line Chart */}
+                  <div className="verdelo-joint-balance-panel">
+                    <div className="verdelo-joint-head">
+                      <div>
+                        <h3 className="verdelo-joint-title">Joint balance</h3>
+                        <p className="verdelo-joint-sub">Everyday account · ... 0457</p>
+                      </div>
+                      <button
+                        type="button"
+                        className="verdelo-eye-toggle"
+                        onClick={() => {
+                          const next = !hideBalance
+                          setHideBalance(next)
+                          try {
+                            localStorage.setItem('inferxe_hide_balance', next ? 'true' : 'false')
+                            window.dispatchEvent(new CustomEvent('inferxe_balance_visibility', { detail: { hide: next } }))
+                          } catch {}
+                        }}
+                        title={hideBalance ? 'Show balance' : 'Hide balance'}
+                      >
+                        {hideBalance ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
                     </div>
 
-                    <div className="zesto-green-hero-badges">
-                      <span className="zesto-green-badge-pill">
-                        ↑ €7,824 in since payday
-                      </span>
-                      <span className="zesto-green-badge-pill">
-                        €{savingsTotal.toLocaleString('en-US')} put away
-                      </span>
+                    <div className="verdelo-joint-amount-row">
+                      <div className="verdelo-joint-big-val">
+                        ${displayBalance}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span className="verdelo-joint-trend-badge">
+                          ↑ 3.8%
+                        </span>
+                        <span className="verdelo-joint-trend-sub">
+                          against a month ago
+                        </span>
+                      </div>
                     </div>
 
-                    {/* Smooth Wave SVG */}
-                    <div className="zesto-green-hero-wave">
-                      <svg width="100%" height="100%" viewBox="0 0 340 38" fill="none" preserveAspectRatio="none">
+                    {/* 4 Mini Stat Pills in a row */}
+                    <div className="verdelo-stat-pills-row">
+                      <div className="verdelo-stat-pill-item">
+                        <span className="verdelo-stat-pill-lbl">Today</span>
+                        <span className="verdelo-stat-pill-val">$95</span>
+                      </div>
+                      <div className="verdelo-stat-pill-item">
+                        <span className="verdelo-stat-pill-lbl">This week</span>
+                        <span className="verdelo-stat-pill-val">$516</span>
+                      </div>
+                      <div className="verdelo-stat-pill-item">
+                        <span className="verdelo-stat-pill-lbl">This month</span>
+                        <span className="verdelo-stat-pill-val">$4,951</span>
+                      </div>
+                      <div className="verdelo-stat-pill-item">
+                        <span className="verdelo-stat-pill-lbl">This year</span>
+                        <span className="verdelo-stat-pill-val">$81,740</span>
+                      </div>
+                    </div>
+
+                    {/* Balance Line Chart & Dotted Forecast */}
+                    <div className="verdelo-line-chart-container">
+                      <svg className="verdelo-line-chart-svg" viewBox="0 0 520 120" preserveAspectRatio="none">
+                        <defs>
+                          <linearGradient id="verdeloLineGlow" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="0%" stopColor="#50e396" stopOpacity="0.28" />
+                            <stop offset="100%" stopColor="#50e396" stopOpacity="0" />
+                          </linearGradient>
+                        </defs>
+
+                        {/* Shaded Area under solid curve */}
                         <path
-                          d="M0,28 C40,28 60,8 100,6 C130,5 150,22 190,20 C230,18 280,24 340,22 L340,38 L0,38 Z"
-                          fill="rgba(11,13,12,0.06)"
+                          d="M 0,95 L 35,92 L 70,82 L 105,86 L 135,58 L 170,62 L 200,42 L 235,90 L 265,70 L 300,75 L 340,65 L 380,88 L 380,120 L 0,120 Z"
+                          fill="url(#verdeloLineGlow)"
                         />
+
+                        {/* Solid Green Balance Line up to Today (X: 380) */}
                         <path
-                          d="M0,28 C40,28 60,8 100,6 C130,5 150,22 190,20 C230,18 280,24 340,22"
-                          stroke="#0b0d0c"
+                          d="M 0,95 L 35,92 L 70,82 L 105,86 L 135,58 L 170,62 L 200,42 L 235,90 L 265,70 L 300,75 L 340,65 L 380,88"
+                          fill="none"
+                          stroke="#50e396"
                           strokeWidth="2.4"
                           strokeLinecap="round"
+                          strokeLinejoin="round"
                         />
+
+                        {/* Dotted Forecast Line from Today (X: 380) to Nov 30 (X: 510, Y: 35) */}
+                        <path
+                          d="M 380,88 L 415,65 L 440,70 L 470,42 L 510,35"
+                          fill="none"
+                          stroke="#50e396"
+                          strokeWidth="2.2"
+                          strokeDasharray="4 4"
+                          strokeLinecap="round"
+                        />
+
+                        {/* Payday dots (amber / gold) */}
+                        <circle cx="380" cy="88" r="4.5" fill="#f59e0b" />
+                        <circle cx="395" cy="85" r="4" fill="#f59e0b" />
+
+                        {/* Forecast Dots */}
+                        <circle cx="415" cy="65" r="3.5" fill="#50e396" />
+                        <circle cx="440" cy="70" r="3.5" fill="#50e396" />
+                        <circle cx="470" cy="42" r="3.5" fill="#50e396" />
+                        <circle cx="510" cy="35" r="4.5" fill="#50e396" />
+                        <circle cx="510" cy="35" r="7.5" fill="none" stroke="#50e396" strokeWidth="1.2" opacity="0.6" />
                       </svg>
+
+                      {/* Floating marker tag: Today */}
+                      <div className="verdelo-chart-tag-today">Today</div>
+
+                      {/* Endpoint marker label: Nov 30 $29,321 */}
+                      <div className="verdelo-chart-tag-nov30">
+                        Nov 30 <strong>$29,321</strong>
+                      </div>
                     </div>
 
-                    {/* 4 Category Breakdown */}
-                    <div className="zesto-green-hero-categories">
-                      <div className="zesto-green-cat-item">
-                        <span className="zesto-green-cat-label">
-                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#0b0d0c' }} />
-                          Everyday
-                        </span>
-                        <span className="zesto-green-cat-val">€3.4k</span>
-                      </div>
-                      <div className="zesto-green-cat-item">
-                        <span className="zesto-green-cat-label">
-                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#0b0d0c' }} />
-                          Savings
-                        </span>
-                        <span className="zesto-green-cat-val">€15k</span>
-                      </div>
-                      <div className="zesto-green-cat-item">
-                        <span className="zesto-green-cat-label">
-                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#0b0d0c' }} />
-                          Goals
-                        </span>
-                        <span className="zesto-green-cat-val">€11k</span>
-                      </div>
-                      <div className="zesto-green-cat-item">
-                        <span className="zesto-green-cat-label">
-                          <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'currentColor' }} />
-                          Vault
-                        </span>
-                        <span className="zesto-green-cat-val">€247</span>
-                      </div>
+                    {/* Bottom Chart Legend */}
+                    <div className="verdelo-overview-legend">
+                      <span className="verdelo-overview-legend-item">
+                        <span className="verdelo-legend-line-solid" />
+                        <span>Balance</span>
+                      </span>
+                      <span className="verdelo-overview-legend-item">
+                        <span className="verdelo-legend-line-dashed" />
+                        <span>Forecast</span>
+                      </span>
+                      <span className="verdelo-overview-legend-item">
+                        <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#50e396' }} />
+                        <span>Payday</span>
+                      </span>
+                      <span className="verdelo-overview-legend-item">
+                        <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#f59e0b' }} />
+                        <span>Bill</span>
+                      </span>
                     </div>
                   </div>
 
-                  {/* 4 Frosted Action Buttons */}
-                  <div className="zesto-green-hero-buttons">
-                    <button
-                      type="button"
-                      className="zesto-green-action-btn"
-                      onClick={() => setShowSendModal(true)}
-                    >
-                      <Send size={13} />
-                      <span>Send</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="zesto-green-action-btn"
-                      onClick={() => {
-                        window.dispatchEvent(
-                          new CustomEvent('inferxe_open_bot', {
-                            detail: { prompt: 'What is our upcoming bill schedule for this week?' },
-                          })
-                        )
-                        flash('Inferxe AI assistant opened.')
-                      }}
-                    >
-                      <Sparkles size={13} />
-                      <span>Ask</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="zesto-green-action-btn"
-                      onClick={() => handleOpenTopUpModal()}
-                    >
-                      <Plus size={13} />
-                      <span>Top up</span>
-                    </button>
-                    <button
-                      type="button"
-                      className="zesto-green-action-btn"
-                      onClick={() => setShowSaveModal(true)}
-                    >
-                      <PiggyBank size={13} />
-                      <span>Save</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* 2. Right Dark 30-Day Chart Card */}
-                <div className="zesto-dark-chart-card">
-                  <div>
-                    <div className="zesto-dark-chart-head">
+                  {/* Bottom Right Panel: Money In & Out */}
+                  <div className="verdelo-chart-card">
+                    <div className="verdelo-chart-header">
                       <div>
-                        <h3 className="zesto-dark-chart-title">The last 30 days</h3>
-                        <p className="zesto-dark-chart-sub">
-                          Everyday spending by category · bills left out · the line is Everyday's balance
-                        </p>
+                        <h3 className="verdelo-chart-title">Money in & out</h3>
+                        <p className="verdelo-chart-sub">The last twelve months</p>
                       </div>
-                      <div className="zesto-member-pills">
-                        {(['All', 'Sahith', 'Personal', 'Savings', 'Vault'] as const).map((m) => (
-                          <button
-                            key={m}
-                            type="button"
-                            className={`zesto-member-pill ${zestoMember === m ? 'is-active' : ''}`}
-                            onClick={() => setZestoMember(m)}
-                          >
-                            {m}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Stacked Bars + Balance Spline Curve Container */}
-                    <div className="zesto-stacked-bars-container">
-                      <div className="zesto-chart-y-axis">
-                        <span>€200</span>
-                        <span>€100</span>
-                        <span>€0</span>
-                      </div>
-                      <div className="zesto-stacked-bars-area">
-                        {/* Overlay Balance Spline SVG */}
-                        <svg
-                          style={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            width: '100%',
-                            height: '100%',
-                            pointerEvents: 'none',
-                            zIndex: 2,
-                          }}
-                          viewBox="0 0 400 100"
-                          preserveAspectRatio="none"
+                      <div className="verdelo-time-pills">
+                        <button
+                          type="button"
+                          className={`verdelo-time-pill ${verdeloMoneyFilter === 'quarter' ? 'is-active' : ''}`}
+                          onClick={() => setVerdeloMoneyFilter('quarter')}
                         >
-                          <path
-                            className="zesto-spline-curve"
-                            d="M 10,75 C 60,78 120,72 180,68 C 240,65 300,55 350,22 C 370,23 390,26 400,28"
-                            fill="none"
-                            strokeWidth="1.8"
-                            strokeLinecap="round"
-                            opacity="0.85"
-                          />
-                          {/* Highlight dot near 15 Nov */}
-                          <circle cx="350" cy="22" r="3.5" fill="#facc15" />
-                        </svg>
-
-                        {/* 30 Stacked Bar Columns */}
-                        {barDays.map((b, idx) => {
-                          const total = b.shopping + b.groceries + b.health + b.transport
-                          const scale = 1.3
-                          return (
-                            <div
-                              key={idx}
-                              className="zesto-stacked-bar-col"
-                              title={`${b.day}: Shopping €${b.shopping}, Groceries €${b.groceries}, Health €${b.health}, Transport €${b.transport}`}
-                            >
-                              {total === 0 ? (
-                                <div style={{ height: 2, width: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 1 }} />
-                              ) : (
-                                <>
-                                  {b.shopping > 0 && (
-                                    <div
-                                      className="zesto-bar-slice"
-                                      style={{ height: `${b.shopping * scale}px`, background: '#f43f5e' }}
-                                    />
-                                  )}
-                                  {b.groceries > 0 && (
-                                    <div
-                                      className="zesto-bar-slice"
-                                      style={{ height: `${b.groceries * scale}px`, background: '#38bdf8' }}
-                                    />
-                                  )}
-                                  {b.health > 0 && (
-                                    <div
-                                      className="zesto-bar-slice"
-                                      style={{ height: `${b.health * scale}px`, background: '#06b6d4' }}
-                                    />
-                                  )}
-                                  {b.transport > 0 && (
-                                    <div
-                                      className="zesto-bar-slice"
-                                      style={{ height: `${b.transport * scale}px`, background: '#f97316' }}
-                                    />
-                                  )}
-                                </>
-                              )}
-                            </div>
-                          )
-                        })}
+                          Quarter
+                        </button>
+                        <button
+                          type="button"
+                          className={`verdelo-time-pill ${verdeloMoneyFilter === '6months' ? 'is-active' : ''}`}
+                          onClick={() => setVerdeloMoneyFilter('6months')}
+                        >
+                          6 months
+                        </button>
+                        <button
+                          type="button"
+                          className={`verdelo-time-pill ${verdeloMoneyFilter === 'year' ? 'is-active' : ''}`}
+                          onClick={() => setVerdeloMoneyFilter('year')}
+                        >
+                          Year
+                        </button>
                       </div>
                     </div>
 
-                    <div className="zesto-chart-x-labels">
-                      <span>19</span>
-                      <span>26</span>
-                      <span>30</span>
-                      <span>4</span>
-                      <span>7</span>
-                      <span>11</span>
-                      <span>14</span>
-                      <span style={{ fontWeight: 700, color: '#e5e7eb' }}>Today</span>
-                    </div>
-                  </div>
-
-                  {/* Bottom Stats & Legend */}
-                  <div className="zesto-dark-chart-foot">
-                    <div className="zesto-chart-stats-group">
-                      <span className="zesto-chart-stat-item">
-                        Spent <strong>€1,488</strong>
+                    {/* Legend */}
+                    <div className="verdelo-chart-legend">
+                      <span className="verdelo-legend-item">
+                        <span className="verdelo-legend-dot verdelo-legend-dot--in" />
+                        <span>In $123,052</span>
                       </span>
-                      <span className="zesto-chart-stat-item">
-                        A day <strong>€50</strong>
+                      <span className="verdelo-legend-item">
+                        <span className="verdelo-legend-dot verdelo-legend-dot--out" />
+                        <span>Out $89,229</span>
                       </span>
-                      <span className="zesto-chart-stat-item">
-                        Biggest day <strong>15 Nov</strong>
-                      </span>
-                    </div>
-                    <div className="zesto-chart-legend">
-                      <span className="zesto-legend-item">
-                        <span className="zesto-legend-dot" style={{ background: '#f43f5e' }} />
-                        Shopping
-                      </span>
-                      <span className="zesto-legend-item">
-                        <span className="zesto-legend-dot" style={{ background: '#38bdf8' }} />
-                        Groceries
-                      </span>
-                      <span className="zesto-legend-item">
-                        <span className="zesto-legend-dot" style={{ background: '#06b6d4' }} />
-                        Health
-                      </span>
-                      <span className="zesto-legend-item">
-                        <span className="zesto-legend-dot" style={{ background: '#f97316' }} />
-                        Transport
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Middle 4 Stat Cards */}
-              <div className="zesto-four-stat-cards">
-                {/* 1. Spent this month */}
-                <div className="zesto-mini-stat-card">
-                  <div className="zesto-mini-stat-top">
-                    <span className="zesto-mini-stat-label">
-                      <ArrowDown size={13} style={{ color: '#8c9692' }} />
-                      Spent this month
-                    </span>
-                    <span className="zesto-mini-stat-pill">+4.1%</span>
-                  </div>
-                  <div className="zesto-mini-stat-val">€3,106.62</div>
-                  <div className="zesto-mini-stat-bottom">
-                    <span>vs €2,314 by the 19th last month</span>
-                    <svg width="42" height="14" viewBox="0 0 42 14" fill="none">
-                      <path d="M1,12 Q10,4 20,8 T41,2" stroke="#0ea5e9" strokeWidth="1.8" fill="none" />
-                    </svg>
-                  </div>
-                </div>
-
-                {/* 2. Come in since payday */}
-                <div className="zesto-mini-stat-card">
-                  <div className="zesto-mini-stat-top">
-                    <span className="zesto-mini-stat-label">
-                      <ArrowUp size={13} style={{ color: '#8c9692' }} />
-                      Come in since payday
-                    </span>
-                  </div>
-                  <div className="zesto-mini-stat-val">€7,818.26</div>
-                  <div className="zesto-mini-stat-bottom">
-                    <span>Next: both salaries on the 25th</span>
-                  </div>
-                </div>
-
-                {/* 3. Safe to spend a day */}
-                <div className="zesto-mini-stat-card">
-                  <div className="zesto-mini-stat-top">
-                    <span className="zesto-mini-stat-label">
-                      <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: '#38bdf8' }} />
-                      Safe to spend a day
-                    </span>
-                  </div>
-                  <div className="zesto-mini-stat-val">€222.06</div>
-                  <div className="zesto-mini-stat-bottom">
-                    <span>€84 of bills still to land</span>
-                  </div>
-                </div>
-
-                {/* 4. In goals */}
-                <div className="zesto-mini-stat-card">
-                  <div className="zesto-mini-stat-top">
-                    <span className="zesto-mini-stat-label">
-                      <PiggyBank size={13} style={{ color: '#8c9692' }} />
-                      In goals
-                    </span>
-                  </div>
-                  <div className="zesto-mini-stat-val">€11,062.16</div>
-                  <div className="zesto-mini-stat-bottom">
-                    <span>3 goals · €84 a week</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Bottom 3 Panels Grid */}
-              <div className="zesto-three-bottom-grid">
-                {/* Panel 1: Budget pace */}
-                <div className="zesto-panel-card">
-                  <div>
-                    <div className="zesto-panel-head">
-                      <div>
-                        <h4 className="zesto-panel-title">Budget pace</h4>
-                        <p className="zesto-panel-sub">The tick is today · 63% of November</p>
-                      </div>
-                      <span className="zesto-panel-link" onClick={() => flash('All household budgets on track.')}>
-                        All budgets
+                      <span className="verdelo-legend-text">
+                        Kept $33,823
                       </span>
                     </div>
 
-                    <div className="zesto-budget-item">
-                      <div className="zesto-budget-info">
-                        <span className="zesto-budget-cat">Transport</span>
-                        <span className="zesto-budget-figures">
-                          €216 of €80
-                          <span className="zesto-budget-status-pill zesto-budget-status-pill--over">Over</span>
-                        </span>
-                      </div>
-                      <div className="zesto-budget-track">
-                        <div className="zesto-budget-fill" style={{ width: '92%', background: '#ef4444' }} />
-                        <div className="zesto-budget-tick" style={{ left: '63%' }} title="Today (63%)" />
-                      </div>
-                    </div>
-
-                    <div className="zesto-budget-item">
-                      <div className="zesto-budget-info">
-                        <span className="zesto-budget-cat">Shopping</span>
-                        <span className="zesto-budget-figures">
-                          €432 of €600
-                          <span className="zesto-budget-status-pill zesto-budget-status-pill--track">On track</span>
-                        </span>
-                      </div>
-                      <div className="zesto-budget-track">
-                        <div className="zesto-budget-fill" style={{ width: '48%', background: '#0ea5e9' }} />
-                        <div className="zesto-budget-tick" style={{ left: '63%' }} title="Today (63%)" />
-                      </div>
-                    </div>
-
-                    <div className="zesto-budget-item">
-                      <div className="zesto-budget-info">
-                        <span className="zesto-budget-cat">Groceries</span>
-                        <span className="zesto-budget-figures">
-                          €520 of €750
-                          <span className="zesto-budget-status-pill zesto-budget-status-pill--track">On track</span>
-                        </span>
-                      </div>
-                      <div className="zesto-budget-track">
-                        <div className="zesto-budget-fill" style={{ width: '54%', background: '#0ea5e9' }} />
-                        <div className="zesto-budget-tick" style={{ left: '63%' }} title="Today (63%)" />
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Panel 2: Family cards 3D Stack */}
-                <div className="zesto-panel-card">
-                  <div>
-                    <div className="zesto-panel-head">
-                      <div>
-                        <h4 className="zesto-panel-title">Family cards</h4>
-                        <p className="zesto-panel-sub">Tap the stack to deal the next one</p>
-                      </div>
-                      <Link to="/dashboard/cards" className="zesto-panel-link">
-                        Wallet
-                      </Link>
-                    </div>
-
-                    <div
-                      className="zesto-deck-stage"
-                      onClick={() => setZestoCardDeckIndex((prev) => prev + 1)}
-                      title="Click to deal next family card"
-                    >
-                      {/* Back card */}
-                      <div className="zesto-deck-card zesto-deck-card--back" style={{ background: backCard.bg }} />
-                      {/* Mid card */}
-                      <div className="zesto-deck-card zesto-deck-card--mid" style={{ background: midCard.bg }} />
-                      {/* Front card */}
-                      <div className="zesto-deck-card zesto-deck-card--front" style={{ background: topCard.bg }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontWeight: 800, fontSize: '1.05rem', letterSpacing: '-0.02em' }}>
-                            {topCard.title}
-                          </span>
-                          <span
-                            style={{
-                              fontSize: '0.62rem',
-                              fontWeight: 800,
-                              background: 'rgba(255,255,255,0.22)',
-                              padding: '2px 8px',
-                              borderRadius: 999,
-                              letterSpacing: '0.04em',
-                            }}
-                          >
-                            {topCard.type}
-                          </span>
-                        </div>
-                        <div style={{ margin: '14px 0 6px' }}>
-                          <div style={{ fontFamily: 'monospace', fontSize: '0.98rem', letterSpacing: '0.12em', fontWeight: 600 }}>
-                            {topCard.pan}
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', fontSize: '0.72rem' }}>
-                          <span style={{ fontWeight: 600 }}>{topCard.holder}</span>
-                          <span style={{ opacity: 0.85, fontFamily: 'monospace' }}>{topCard.expiry}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Panel 3: Coming up */}
-                <div className="zesto-panel-card">
-                  <div>
-                    <div className="zesto-panel-head">
-                      <div>
-                        <h4 className="zesto-panel-title">Coming up</h4>
-                        <p className="zesto-panel-sub">The rest of November</p>
-                      </div>
-                      <span className="zesto-panel-link" onClick={() => flash('Household upcoming calendar opened.')}>
-                        Calendar
-                      </span>
-                    </div>
-
-                    <div className="zesto-coming-list">
-                      <div className="zesto-coming-row">
-                        <div className="zesto-coming-left">
-                          <div className="zesto-date-badge">
-                            20
-                            <span>Nov</span>
-                          </div>
-                          <div className="zesto-coming-info">
-                            <span className="zesto-coming-name">Polder Gym</span>
-                            <span className="zesto-coming-sub">Pays itself</span>
-                          </div>
-                        </div>
-                        <div className="zesto-coming-right">
-                          <span className="zesto-coming-amount">-€39.00</span>
-                        </div>
+                    {/* Dual Bars Visualization */}
+                    <div className="verdelo-bars-container">
+                      <div className="verdelo-y-axis">
+                        <span>$20k</span>
+                        <span>$15k</span>
+                        <span>$10k</span>
+                        <span>$5.0k</span>
+                        <span>$0</span>
                       </div>
 
-                      <div className="zesto-coming-row">
-                        <div className="zesto-coming-left">
-                          <div className="zesto-date-badge">
-                            22
-                            <span>Nov</span>
-                          </div>
-                          <div className="zesto-coming-info">
-                            <span className="zesto-coming-name">Maasstad Music School</span>
-                            <span className="zesto-coming-sub">Due in 3 days</span>
-                          </div>
+                      <div className="verdelo-bars-content">
+                        <div className="verdelo-grid-lines">
+                          <div className="verdelo-grid-line" style={{ top: '0%' }} />
+                          <div className="verdelo-grid-line" style={{ top: '25%' }} />
+                          <div className="verdelo-grid-line" style={{ top: '50%' }} />
+                          <div className="verdelo-grid-line" style={{ top: '75%' }} />
+                          <div className="verdelo-grid-line" style={{ top: '100%' }} />
                         </div>
-                        <div className="zesto-coming-right">
-                          <span className="zesto-coming-amount">-€45.00</span>
-                          {zestoPaidBills['bill-music'] ? (
-                            <span style={{ fontSize: '0.72rem', color: '#0ea5e9', fontWeight: 700 }}>Paid ✓</span>
-                          ) : (
-                            <button
-                              type="button"
-                              className="zesto-coming-pay-btn"
-                              onClick={() => handlePayBill('bill-music', 45, 'Maasstad Music School')}
-                            >
-                              Pay
-                            </button>
-                          )}
-                        </div>
-                      </div>
 
-                      <div className="zesto-coming-row">
-                        <div className="zesto-coming-left">
-                          <div className="zesto-date-badge">
-                            25
-                            <span>Nov</span>
-                          </div>
-                          <div className="zesto-coming-info">
-                            <span className="zesto-coming-name">Health Insurance</span>
-                            <span className="zesto-coming-sub">Automatic debit</span>
-                          </div>
-                        </div>
-                        <div className="zesto-coming-right">
-                          <span className="zesto-coming-amount">-€142.50</span>
-                        </div>
-                      </div>
+                        <div className="verdelo-bars-track">
+                          {verdeloTwelveMonthBars.map((m, idx) => {
+                            const isNov = idx === 11 || m.month === 'Nov'
+                            const isHovered = verdeloHoveredBar === idx
+                            const showTooltip = isHovered || (verdeloHoveredBar === null && isNov)
 
-                      <div className="zesto-coming-row">
-                        <div className="zesto-coming-left">
-                          <div className="zesto-date-badge">
-                            28
-                            <span>Nov</span>
-                          </div>
-                          <div className="zesto-coming-info">
-                            <span className="zesto-coming-name">Netflix & Spotify</span>
-                            <span className="zesto-coming-sub">Family plan</span>
-                          </div>
-                        </div>
-                        <div className="zesto-coming-right">
-                          <span className="zesto-coming-amount">-€28.98</span>
+                            return (
+                              <div
+                                key={m.month}
+                                className="verdelo-month-col"
+                                onMouseEnter={() => setVerdeloHoveredBar(idx)}
+                                onMouseLeave={() => setVerdeloHoveredBar(null)}
+                              >
+                                {showTooltip && (
+                                  <div className="verdelo-bar-tooltip">
+                                    <div className="verdelo-bar-tooltip-val">${m.inVal}</div>
+                                    <div className="verdelo-bar-tooltip-sub">out ${m.outVal}</div>
+                                    <div className="verdelo-bar-tooltip-stem" />
+                                  </div>
+                                )}
+                                <div className="verdelo-bar-pair">
+                                  <div
+                                    className="verdelo-bar verdelo-bar--in"
+                                    style={{ height: `${m.inPct}%` }}
+                                    title={`${m.month} In: $${m.inVal}`}
+                                  />
+                                  <div
+                                    className="verdelo-bar verdelo-bar--out"
+                                    style={{ height: `${m.outPct}%` }}
+                                    title={`${m.month} Out: $${m.outVal}`}
+                                  />
+                                </div>
+                                <span className="verdelo-month-label">{m.month}</span>
+                              </div>
+                            )
+                          })}
                         </div>
                       </div>
                     </div>
@@ -2982,14 +2816,14 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                       <button
                         type="button"
                         onClick={() => setShowSendModal(false)}
-                        style={{ background: 'none', border: 'none', color: '#8c9692', cursor: 'pointer' }}
+                        style={{ background: 'none', border: 'none', color: '#8caba0', cursor: 'pointer' }}
                       >
                         <X size={18} />
                       </button>
                     </div>
                     <form onSubmit={handleSendMoney}>
                       <div style={{ marginBottom: 14 }}>
-                        <label style={{ display: 'block', fontSize: '0.78rem', color: '#8c9692', marginBottom: 6 }}>
+                        <label style={{ display: 'block', fontSize: '0.78rem', color: '#8caba0', marginBottom: 6 }}>
                           Recipient
                         </label>
                         <select
@@ -2999,21 +2833,21 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                             width: '100%',
                             padding: '10px 12px',
                             borderRadius: 10,
-                            background: '#1a1f1d',
-                            border: '1px solid rgba(255,255,255,0.12)',
+                            background: '#091f18',
+                            border: '1px solid rgba(80,227,150,0.2)',
                             color: '#fff',
                             fontSize: '0.86rem',
                           }}
                         >
                           <option value="Sahith (Primary Account)">Sahith (Primary Account)</option>
                           <option value="Sahith (Savings Vault)">Sahith (Savings Vault)</option>
-                          <option value="Sahith (Business Reserve)">Sahith (Business Reserve)</option>
-                          <option value="External Bank Account">External IBAN Account</option>
+                          <option value="Ada (Travel Card)">Ada (Travel Card)</option>
+                          <option value="External Account">External IBAN Account</option>
                         </select>
                       </div>
                       <div style={{ marginBottom: 18 }}>
-                        <label style={{ display: 'block', fontSize: '0.78rem', color: '#8c9692', marginBottom: 6 }}>
-                          Amount (€)
+                        <label style={{ display: 'block', fontSize: '0.78rem', color: '#8caba0', marginBottom: 6 }}>
+                          Amount ($)
                         </label>
                         <input
                           type="number"
@@ -3025,8 +2859,8 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                             width: '100%',
                             padding: '10px 12px',
                             borderRadius: 10,
-                            background: '#1a1f1d',
-                            border: '1px solid rgba(255,255,255,0.12)',
+                            background: '#091f18',
+                            border: '1px solid rgba(80,227,150,0.2)',
                             color: '#fff',
                             fontSize: '0.86rem',
                           }}
@@ -3043,68 +2877,10 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                         </button>
                         <button
                           type="submit"
-                          className="zesto-exact-btn-send"
+                          className="verdelo-btn-send"
                           style={{ padding: '8px 22px' }}
                         >
-                          Send €{sendAmount}
-                        </button>
-                      </div>
-                    </form>
-                  </div>
-                </div>
-              )}
-
-              {/* Save to Reserve Modal */}
-              {showSaveModal && (
-                <div className="mw-modal-backdrop" onClick={() => setShowSaveModal(false)}>
-                  <div className="mw-modal-window" style={{ maxWidth: 440 }} onClick={(e) => e.stopPropagation()}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                      <h3 style={{ margin: 0, fontSize: '1.15rem', color: '#fff', fontWeight: 700 }}>Put Away to Savings</h3>
-                      <button
-                        type="button"
-                        onClick={() => setShowSaveModal(false)}
-                        style={{ background: 'none', border: 'none', color: '#8c9692', cursor: 'pointer' }}
-                      >
-                        <X size={18} />
-                      </button>
-                    </div>
-                    <form onSubmit={handleSaveToReserve}>
-                      <div style={{ marginBottom: 18 }}>
-                        <label style={{ display: 'block', fontSize: '0.78rem', color: '#8c9692', marginBottom: 6 }}>
-                          Amount to Put Away (€)
-                        </label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          min="1"
-                          value={saveAmount}
-                          onChange={(e) => setSaveAmount(e.target.value)}
-                          style={{
-                            width: '100%',
-                            padding: '10px 12px',
-                            borderRadius: 10,
-                            background: '#1a1f1d',
-                            border: '1px solid rgba(255,255,255,0.12)',
-                            color: '#fff',
-                            fontSize: '0.86rem',
-                          }}
-                          placeholder="e.g. 100.00"
-                        />
-                      </div>
-                      <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-                        <button
-                          type="button"
-                          className="mw-btn mw-btn-ghost"
-                          onClick={() => setShowSaveModal(false)}
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="submit"
-                          className="zesto-exact-btn-send"
-                          style={{ padding: '8px 22px' }}
-                        >
-                          Save €{saveAmount}
+                          Send ${sendAmount}
                         </button>
                       </div>
                     </form>
@@ -3114,7 +2890,6 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
             </div>
           )
         })()}
-
 
         {/* ───────────────────────────────────────────────────────────
             2. MODELS & SPECIFICATIONS (route === 'models')

@@ -3,7 +3,7 @@
   width: 100%;
   height: auto;
   overflow: visible;
-  filter: drop-shadow(0 44px 50px rgba(0, 0, 0, 0.75)) drop-shadow(0 0 60px rgba(14, 165, 233, 0.12));
+  filter: drop-shadow(0 44px 50px rgba(0, 0, 0, 0.75)) drop-shadow(0 0 60px rgba(80, 227, 150, 0.12));
 }
 .gpu-fan {
   transform-box: view-box;
@@ -79,7 +79,7 @@
 .dial__label.is-on {
   color: var(--brand-hi2);
   text-shadow: 0 0 12px rgba(155, 224, 21, 0.6);
-  background: rgba(14, 165, 233, 0.1);
+  background: rgba(80, 227, 150, 0.1);
 }
 .dial__well {
   position: absolute;
@@ -132,7 +132,7 @@
   height: 20px;
   margin-left: -3px;
   border-radius: 3px;
-  background: linear-gradient(#e0f2fe, #0ea5e9);
+  background: linear-gradient(#e0f2fe, #50e396);
   box-shadow: 0 0 12px var(--brand-glow), 0 0 2px #fff;
 }
 
@@ -236,7 +236,7 @@
   display: block;
   height: 100%;
 }
-.membar__w { background: linear-gradient(180deg, #7dd3fc, #0ea5e9); }
+.membar__w { background: linear-gradient(180deg, #a7f3d0, #50e396); }
 .membar__k { background: linear-gradient(180deg, #7ef0e0, #2fb3a2); }
 .membar__o { background: linear-gradient(180deg, #ffd88a, #d9962a); }
 .membar__legend {
@@ -327,12 +327,12 @@
   color: var(--ink-3);
 }
 .cand__row--recommended {
-  background: linear-gradient(90deg, rgba(14, 165, 233, 0.16), rgba(14, 165, 233, 0.04));
-  border-color: rgba(14, 165, 233, 0.5);
+  background: linear-gradient(90deg, rgba(80, 227, 150, 0.16), rgba(80, 227, 150, 0.04));
+  border-color: rgba(80, 227, 150, 0.5);
   box-shadow: 0 0 30px -10px var(--brand-glow);
 }
 .cand__row--recommended .cand__bar i {
-  background: linear-gradient(180deg, #bae6fd, #0ea5e9);
+  background: linear-gradient(180deg, #d1fae5, #50e396);
   box-shadow: 0 0 12px var(--brand-glow);
 }
 .cand__state--recommended {
@@ -363,8 +363,8 @@
   gap: 14px;
   padding: 22px 24px;
   border-radius: var(--r-m);
-  background: linear-gradient(145deg, rgba(14, 165, 233, 0.17), rgba(14, 165, 233, 0.04));
-  border: 1px solid rgba(14, 165, 233, 0.4);
+  background: linear-gradient(145deg, rgba(80, 227, 150, 0.17), rgba(80, 227, 150, 0.04));
+  border: 1px solid rgba(80, 227, 150, 0.4);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 .studio__verdict--none {
@@ -522,7 +522,7 @@
 }
 .slot--live {
   color: var(--brand-hi2);
-  border-color: rgba(14, 165, 233, 0.5);
+  border-color: rgba(80, 227, 150, 0.5);
 }
 .slot--future {
   color: var(--ink-3);
@@ -563,7 +563,7 @@
   left: 0;
   right: 0;
   height: 14px;
-  background: linear-gradient(transparent, #38bdf8, transparent);
+  background: linear-gradient(transparent, #6ee7b7, transparent);
   animation: pulse-down 1.8s linear infinite;
 }
 .rack__link i:nth-child(2)::after { animation-delay: 0.6s; }
@@ -672,11 +672,11 @@
 }
 .pipe__steps li.is-done .pipe__node {
   color: var(--brand);
-  border-color: rgba(14, 165, 233, 0.4);
+  border-color: rgba(80, 227, 150, 0.4);
 }
 .pipe__steps li.is-active .pipe__node {
   color: var(--brand-ink);
-  background: radial-gradient(circle at 35% 30%, #bae6fd, #0ea5e9 70%);
+  background: radial-gradient(circle at 35% 30%, #d1fae5, #50e396 70%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), inset 0 -3px 6px rgba(0, 0, 0, 0.3), 0 0 0 5px rgba(6, 10, 7, 0.95), 0 0 34px 2px var(--brand-glow);
   transform: scale(1.12);
 }
@@ -773,8 +773,8 @@
 }
 .console__side span.is-on {
   color: var(--brand-hi2);
-  background: rgba(14, 165, 233, 0.14);
-  box-shadow: inset 0 0 0 1px rgba(14, 165, 233, 0.4);
+  background: rgba(80, 227, 150, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(80, 227, 150, 0.4);
 }
 .console__side svg {
   width: 18px;
@@ -842,8 +842,8 @@
   font-size: 0.82rem;
   line-height: 1.55;
   color: #dff5a8;
-  background: rgba(14, 165, 233, 0.1);
-  border: 1px solid rgba(14, 165, 233, 0.25);
+  background: rgba(80, 227, 150, 0.1);
+  border: 1px solid rgba(80, 227, 150, 0.25);
 }
 .console__caret {
   display: inline-block;

@@ -1,44 +1,44 @@
 /* ───────────────────────────────────────────────────────────
-   Inferxe design tokens
-   Palette is lifted from the pitch deck: graphite-green neutrals
-   (#0F1511 / #18211B) + signal green (#0ea5e9).
+   Inferxe design tokens — Verdelo Obsidian-Emerald & Mint Palette
+   Palette is lifted from Verdelo dark theme: deep forest obsidian
+   neutrals (#030d09 / #061510 / #091f18) + mint signal (#50e396).
    ─────────────────────────────────────────────────────────── */
 :root {
   color-scheme: dark;
 
-  /* Surfaces */
-  --bg-0: #060a07;
-  --bg-1: #0a100c;
-  --bg-2: #0f1511;
-  --bg-3: #131b16;
-  --bg-4: #18211b;
-  --bg-5: #202c24;
+  /* Surfaces: Deep obsidian forest glass */
+  --bg-0: #030d09;
+  --bg-1: #061510;
+  --bg-2: #091f18;
+  --bg-3: #0e2a20;
+  --bg-4: #13382c;
+  --bg-5: #1a4738;
 
   /* Ink */
   --ink: #ffffff;
-  --ink-2: #e0f2f1;
-  --ink-3: #80cbc4;
-  --ink-4: #4db6ac;
+  --ink-2: #e2f5ee;
+  --ink-3: #8caba0;
+  --ink-4: #567468;
 
   /* Lines */
-  --line: rgba(238, 242, 234, 0.08);
-  --line-2: rgba(238, 242, 234, 0.15);
-  --line-3: rgba(238, 242, 234, 0.26);
+  --line: rgba(80, 227, 150, 0.12);
+  --line-2: rgba(80, 227, 150, 0.20);
+  --line-3: rgba(80, 227, 150, 0.32);
 
-  /* Brand (Bermuda #80CBC4) */
-  --brand: #26a69a;
-  --brand-hi: #80cbc4;
-  --brand-hi2: #b2dfdb;
-  --brand-lo: #00796b;
-  --brand-ink: #00332c;
-  --brand-glow: rgba(128, 203, 196, 0.45);
-  --brand-soft: rgba(128, 203, 196, 0.18);
+  /* Brand (Verdelo Spring Mint #50e396) */
+  --brand: #50e396;
+  --brand-hi: #50e396;
+  --brand-hi2: #6ee7b7;
+  --brand-lo: #1f6448;
+  --brand-ink: #041c12;
+  --brand-glow: rgba(80, 227, 150, 0.45);
+  --brand-soft: rgba(80, 227, 150, 0.16);
 
   /* Supporting signals (data-viz only) */
-  --amber: #f2b84b;
-  --cyan: #47d7c5;
+  --amber: #f59e0b;
+  --cyan: #50e396;
   --red: #ff6b5e;
-  --violet: #9b8cff;
+  --violet: #a78bfa;
 
   /* Paper (light sections) */
   --paper: #f3f4ee;
@@ -70,6 +70,5 @@
   /* Elevation */
   --shadow-1: 0 2px 6px rgba(0, 0, 0, 0.35), 0 10px 24px -10px rgba(0, 0, 0, 0.6);
   --shadow-2: 0 4px 10px rgba(0, 0, 0, 0.35), 0 30px 60px -24px rgba(0, 0, 0, 0.75);
-  --shadow-glow: 0 0 0 1px rgba(56, 189, 248, 0.35), 0 0 40px -6px var(--brand-glow);
+  --shadow-glow: 0 0 0 1px rgba(80, 227, 150, 0.35), 0 0 40px -6px var(--brand-glow);
 }
-
