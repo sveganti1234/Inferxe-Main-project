@@ -1,4 +1,4 @@
-﻿"""
+"""
 Generates a cleaned, validated, and stratified Supervised Fine-Tuning (SFT)
 dataset in JSONL Chat format for the Inferxe AI Assistant.
 

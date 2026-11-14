@@ -1,4 +1,4 @@
-﻿"""
+"""
 Supervised Fine-Tuning (SFT) script using Hugging Face Transformers and PEFT (LoRA).
 Fine-tunes Qwen2.5-0.5B-Instruct on the prepared Inferxe dataset.
 """

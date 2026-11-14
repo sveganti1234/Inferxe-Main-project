@@ -5453,7 +5453,7 @@ html[data-theme='dark'],
     radial-gradient(ellipse 75% 55% at 85% 15%, rgba(128, 203, 196, 0.28) 0%, transparent 60%),
     radial-gradient(ellipse 65% 65% at 15% 85%, rgba(38, 166, 154, 0.22) 0%, transparent 55%),
     radial-gradient(circle at 50% 50%, rgba(9, 44, 40, 0.45) 0%, transparent 70%),
-    url('/bermuda-marble.svg') !important;
+    linear-gradient(180deg, rgba(2, 9, 8, 0.35) 0%, rgba(2, 9, 8, 0.55) 100%), url('/customer-bg.jpg') !important;
   background-attachment: fixed !important;
   background-size: cover !important;
   background-position: center !important;
@@ -5798,7 +5798,7 @@ html[data-theme='dark'],
     radial-gradient(ellipse 75% 55% at 85% 15%, rgba(128, 203, 196, 0.28) 0%, transparent 60%),
     radial-gradient(ellipse 65% 65% at 15% 85%, rgba(38, 166, 154, 0.22) 0%, transparent 55%),
     radial-gradient(circle at 50% 50%, rgba(9, 44, 40, 0.45) 0%, transparent 70%),
-    url('/bermuda-marble.svg') !important;
+    linear-gradient(180deg, rgba(2, 9, 8, 0.35) 0%, rgba(2, 9, 8, 0.55) 100%), url('/customer-bg.jpg') !important;
   background-attachment: fixed !important;
   background-size: cover !important;
   background-position: center !important;
@@ -6009,7 +6009,7 @@ html[data-theme='dark'],
     radial-gradient(ellipse 75% 55% at 85% 15%, rgba(128, 203, 196, 0.28) 0%, transparent 60%),
     radial-gradient(ellipse 65% 65% at 15% 85%, rgba(38, 166, 154, 0.22) 0%, transparent 55%),
     radial-gradient(circle at 50% 50%, rgba(9, 44, 40, 0.45) 0%, transparent 70%),
-    url('/bermuda-marble.svg') !important;
+    linear-gradient(180deg, rgba(2, 9, 8, 0.35) 0%, rgba(2, 9, 8, 0.55) 100%), url('/customer-bg.jpg') !important;
   background-attachment: fixed !important;
   background-size: cover !important;
   background-position: center !important;
