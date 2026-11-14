@@ -7884,3 +7884,557 @@ html[data-theme='dark'],
   height: 2px;
   background: repeating-linear-gradient(90deg, #50e396 0, #50e396 3px, transparent 3px, transparent 6px);
 }
+
+/* ── Verdelo Top Hero Grid (Joint Balance & Money In & Out Side-by-Side) ──── */
+.verdelo-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.18fr);
+  gap: 20px;
+  align-items: stretch;
+  width: 100%;
+}
+@media (max-width: 1100px) {
+  .verdelo-hero-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.verdelo-chart-card--hero {
+  margin: 0 !important;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.verdelo-legend-text--kept {
+  color: #50e396 !important;
+  font-weight: 700;
+}
+
+/* Capsule Slot Track behind 12-month dual bars */
+.verdelo-month-capsule-slot {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 3px;
+  right: 3px;
+  background: rgba(255, 255, 255, 0.032);
+  border-radius: 999px;
+  pointer-events: none;
+  transition: all 0.2s ease;
+  z-index: 0;
+}
+.verdelo-month-col.is-active-col .verdelo-month-capsule-slot {
+  border: 1px solid rgba(80, 227, 150, 0.42);
+  background: rgba(80, 227, 150, 0.07);
+}
+.verdelo-month-label.is-active-lbl {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+/* ── Verdelo Lower 4-Column Responsive Grid (Photos 3 & 4) ─────────────────── */
+.verdelo-lower-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 20px;
+  align-items: stretch;
+  width: 100%;
+}
+@media (max-width: 1420px) {
+  .verdelo-lower-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 768px) {
+  .verdelo-lower-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Base Glass Card for Lower Sections */
+.verdelo-section-card {
+  background: rgba(4, 18, 16, 0.42) !important;
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid rgba(80, 227, 150, 0.2) !important;
+  border-radius: 20px !important;
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.14), 0 14px 34px -8px rgba(0, 0, 0, 0.6) !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.verdelo-section-card:hover {
+  border-color: rgba(80, 227, 150, 0.45) !important;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.22), 0 18px 40px -8px rgba(0, 0, 0, 0.75) !important;
+}
+
+.verdelo-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.verdelo-card-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+  letter-spacing: -0.015em;
+}
+.verdelo-card-sub {
+  font-size: 0.78rem;
+  color: #8caba0;
+  margin-top: 3px;
+}
+.verdelo-link-btn {
+  background: none;
+  border: none;
+  color: #50e396;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 6px;
+  transition: opacity 0.18s ease;
+}
+.verdelo-link-btn:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
+
+/* 1. Where November Went */
+.verdelo-nov-bar-track {
+  height: 10px;
+  border-radius: 999px;
+  display: flex;
+  gap: 4px;
+  overflow: hidden;
+  margin: 8px 0 16px;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 1px;
+}
+.verdelo-nov-bar-seg {
+  height: 100%;
+  border-radius: 999px;
+  transition: opacity 0.18s ease;
+}
+.verdelo-nov-cat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+.verdelo-nov-cat-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
+}
+.verdelo-nov-cat-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.verdelo-nov-cat-icon-wrap {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.verdelo-nov-cat-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+.verdelo-nov-cat-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.verdelo-nov-cat-pct {
+  font-size: 0.82rem;
+  color: #8caba0;
+  min-width: 38px;
+  text-align: right;
+}
+.verdelo-nov-cat-amt {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #ffffff;
+  min-width: 60px;
+  text-align: right;
+}
+.verdelo-nov-alert-box {
+  background: rgba(80, 227, 150, 0.08);
+  border: 1px solid rgba(80, 227, 150, 0.22);
+  border-radius: 12px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+}
+.verdelo-nov-alert-icon {
+  color: #50e396;
+  flex-shrink: 0;
+}
+.verdelo-nov-alert-text {
+  font-size: 0.76rem;
+  color: #8caba0;
+  line-height: 1.4;
+}
+
+/* 2. Latest Payments */
+.verdelo-payments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+}
+.verdelo-payment-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(80, 227, 150, 0.06);
+}
+.verdelo-payment-row:last-child {
+  border-bottom: none;
+}
+.verdelo-payment-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.verdelo-payment-icon-wrap {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.verdelo-payment-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.verdelo-payment-name {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+.verdelo-payment-meta {
+  font-size: 0.74rem;
+  color: #8caba0;
+}
+.verdelo-payment-amount {
+  font-size: 0.94rem;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+}
+
+/* 3. Stacked Column */
+.verdelo-stacked-col {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Noticed Card */
+.verdelo-noticed-card {
+  padding: 18px 20px !important;
+}
+.verdelo-noticed-arrows {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.verdelo-noticed-nav-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #8caba0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.verdelo-noticed-nav-btn:hover {
+  background: rgba(80, 227, 150, 0.15);
+  border-color: rgba(80, 227, 150, 0.35);
+  color: #ffffff;
+}
+.verdelo-noticed-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.verdelo-noticed-icon-row {
+  margin-bottom: 6px;
+}
+.verdelo-noticed-icon-box {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.verdelo-noticed-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+}
+.verdelo-noticed-desc {
+  font-size: 0.78rem;
+  color: #8caba0;
+  margin: 0;
+  line-height: 1.4;
+}
+.verdelo-noticed-link {
+  background: none;
+  border: none;
+  color: #50e396;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  margin-top: 6px;
+  text-align: left;
+  display: inline-block;
+  transition: opacity 0.18s ease;
+}
+.verdelo-noticed-link:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
+.verdelo-noticed-dashes {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+}
+.verdelo-noticed-dash {
+  flex: 1;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  padding: 0;
+}
+.verdelo-noticed-dash.is-active {
+  background: #50e396 !important;
+}
+
+/* Quick Send Card */
+.verdelo-quick-send-card {
+  padding: 18px 20px !important;
+}
+.verdelo-quick-avatars-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.verdelo-quick-contact-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 8px;
+  transition: transform 0.15s ease;
+}
+.verdelo-quick-contact-btn:hover {
+  transform: translateY(-2px);
+}
+.verdelo-quick-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+  border: 2px solid transparent;
+  transition: all 0.18s ease;
+}
+.verdelo-quick-contact-btn.is-selected .verdelo-quick-avatar {
+  border-color: #50e396;
+  box-shadow: 0 0 0 3px rgba(80, 227, 150, 0.35);
+}
+.verdelo-quick-name {
+  font-size: 0.76rem;
+  color: #8caba0;
+}
+.verdelo-quick-contact-btn.is-selected .verdelo-quick-name {
+  color: #ffffff;
+  font-weight: 700;
+}
+.verdelo-quick-amounts-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.verdelo-quick-amt-pill {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(80, 227, 150, 0.2);
+  border-radius: 10px;
+  color: #ffffff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 8px 0;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  text-align: center;
+}
+.verdelo-quick-amt-pill:hover {
+  background: rgba(80, 227, 150, 0.1);
+  border-color: rgba(80, 227, 150, 0.4);
+}
+.verdelo-quick-amt-pill.is-active {
+  background: #50e396 !important;
+  color: #041c12 !important;
+  font-weight: 800;
+  border-color: #50e396 !important;
+  box-shadow: 0 4px 14px rgba(80, 227, 150, 0.4);
+}
+.verdelo-btn-quick-send-submit {
+  width: 100%;
+  height: 42px;
+  border-radius: 12px;
+  background: #50e396;
+  border: none;
+  color: #041c12;
+  font-weight: 700;
+  font-size: 0.88rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  box-shadow: 0 4px 18px rgba(80, 227, 150, 0.35);
+}
+.verdelo-btn-quick-send-submit:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 6px 22px rgba(80, 227, 150, 0.5);
+}
+
+/* 4. Coming Up (Photo 4) */
+.verdelo-bills-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+}
+.verdelo-bill-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(80, 227, 150, 0.06);
+}
+.verdelo-bill-row:last-child {
+  border-bottom: none;
+}
+.verdelo-bill-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.verdelo-bill-date-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  flex-shrink: 0;
+}
+.verdelo-bill-date-day {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1;
+}
+.verdelo-bill-date-month {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: #8caba0;
+  text-transform: uppercase;
+}
+.verdelo-bill-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.verdelo-bill-name {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+.verdelo-bill-sub {
+  font-size: 0.74rem;
+  color: #8caba0;
+}
+.verdelo-bill-amount {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+.verdelo-bill-pay-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  color: #ffffff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 6px 16px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.verdelo-bill-pay-btn:hover {
+  background: rgba(80, 227, 150, 0.15);
+  border-color: rgba(80, 227, 150, 0.5);
+  color: #50e396;
+}
+.verdelo-bill-paid-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(80, 227, 150, 0.15);
+  border: 1px solid rgba(80, 227, 150, 0.35);
+  color: #50e396;
+  font-size: 0.76rem;
+  font-weight: 700;
+}

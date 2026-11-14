@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { useLocation, Link, useNavigate } from 'react-router-dom'
 import {
-  Activity, Archive, Snowflake, Wifi, ArrowDownLeft, ArrowDownToLine, ArrowUpDown, ArrowUpRight, Bell, Check, ChevronDown, ChevronRight,
-  CircleDollarSign, Copy, Cpu, Download, Eye, EyeOff, FileText,
-  Heart, Info, KeyRound, LayoutGrid, List, Lock, MapPin, Play, Plus,
-  RotateCw, Search, Send, Server, Settings2, Share2, ShieldCheck, Star, Terminal,
-  Trash2, TrendingUp, Unlock, User, Users, Wallet, Wrench, X, Zap,
+  Activity, Archive, ArrowDownLeft, ArrowDownToLine, ArrowUpDown, ArrowUpRight, Bell, Check, ChevronDown, ChevronLeft, ChevronRight,
+  CircleDollarSign, Coffee, Copy, Cpu, Download, Eye, EyeOff, FileText,
+  Heart, Home, Info, KeyRound, LayoutGrid, List, Lock, MapPin, Play, Plus,
+  RotateCw, Search, Send, Server, Settings2, Share2, ShieldCheck, ShoppingBag, Sparkles, Star, Tag, Terminal,
+  Trash2, TrendingUp, Truck, Unlock, User, Users, Wallet, Wrench, X, Zap,
 } from 'lucide-react'
 import { DashboardLayout } from '../../components/dashboard/DashboardLayout'
 import { AdminGuard } from '../../components/auth/AdminGuard'
@@ -431,6 +431,7 @@ export default function MarketplaceWorkspace() {
   // Exact Zesto Dashboard Replica UI State (Photo 8)
   const [zestoMember, setZestoMember] = useState<'All' | 'Sahith' | 'Personal' | 'Savings' | 'Vault'>('All')
   const [zestoCardDeckIndex, setZestoCardDeckIndex] = useState<number>(0)
+  void zestoCardDeckIndex; void setZestoCardDeckIndex;
   const [zestoPaidBills, setZestoPaidBills] = useState<Record<string, boolean>>({})
   const [showSendModal, setShowSendModal] = useState<boolean>(false)
   const [sendRecipient, setSendRecipient] = useState<string>('Sahith (Primary Account)')
@@ -439,11 +440,15 @@ export default function MarketplaceWorkspace() {
   const [saveAmount, setSaveAmount] = useState<string>('100')
   const [savingsTotal, setSavingsTotal] = useState<number>(15000)
 
-  // Verdelo Insights UI State (1:1 Match with Reference Screenshot @_code_and_chill_)
+  // Verdelo Insights & Overview UI State (1:1 Match with Reference Screenshots)
   const [verdeloSubtab, setVerdeloSubtab] = useState<'in_out' | 'spending' | 'merchants'>('in_out')
   const [verdeloMoneyFilter, setVerdeloMoneyFilter] = useState<'quarter' | '6months' | 'year'>('year')
   const [verdeloBalanceFilter, setVerdeloBalanceFilter] = useState<'30days' | '90days' | 'year'>('90days')
-  const [verdeloHoveredBar, setVerdeloHoveredBar] = useState<number | null>(11)
+  const [verdeloHoveredBar, setVerdeloHoveredBar] = useState<number | null>(4) // Default to April (index 4) matching Photo 2
+  const [verdeloNoticedIdx, setVerdeloNoticedIdx] = useState<number>(0)
+  const [verdeloQuickRecipient, setVerdeloQuickRecipient] = useState<string>('Jonas')
+  const [verdeloQuickAmount, setVerdeloQuickAmount] = useState<number>(50)
+  const [verdeloPaidBills, setVerdeloPaidBills] = useState<Record<string, boolean>>({})
 
   useEffect(() => {
     const handleSyncHide = () => {
@@ -1624,20 +1629,20 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
           const currentTab = new URLSearchParams(location.search).get('tab')
           const isOverviewTab = currentTab === 'overview'
 
-          // 12 Monthly dual bars for Verdelo 'Money in & out' chart (Dec..Nov)
+          // 12 Monthly dual bars for Verdelo 'Money in & out' chart (Dec..Nov) matching Photo 2
           const verdeloTwelveMonthBars = [
-            { month: 'Dec', inPct: 75, outPct: 52, inVal: '10,240', outVal: '6,800' },
-            { month: 'Jan', inPct: 68, outPct: 48, inVal: '9,400', outVal: '6,200' },
-            { month: 'Feb', inPct: 72, outPct: 55, inVal: '9,800', outVal: '7,100' },
-            { month: 'Mar', inPct: 80, outPct: 60, inVal: '11,100', outVal: '7,800' },
-            { month: 'Apr', inPct: 65, outPct: 45, inVal: '8,900', outVal: '5,900' },
-            { month: 'May', inPct: 88, outPct: 64, inVal: '12,050', outVal: '8,300' },
-            { month: 'Jun', inPct: 78, outPct: 58, inVal: '10,700', outVal: '7,500' },
-            { month: 'Jul', inPct: 70, outPct: 50, inVal: '9,600', outVal: '6,500' },
-            { month: 'Aug', inPct: 62, outPct: 42, inVal: '8,500', outVal: '5,400' },
-            { month: 'Sep', inPct: 85, outPct: 62, inVal: '11,600', outVal: '8,100' },
-            { month: 'Oct', inPct: 92, outPct: 68, inVal: '12,600', outVal: '8,900' },
-            { month: 'Nov', inPct: 45, outPct: 60, inVal: '2,940', outVal: '4,951' },
+            { month: 'Dec', inPct: 62, outPct: 36, inVal: '12,500', outVal: '7,200' },
+            { month: 'Jan', inPct: 54, outPct: 42, inVal: '10,800', outVal: '8,400' },
+            { month: 'Feb', inPct: 55, outPct: 37, inVal: '11,000', outVal: '7,400' },
+            { month: 'Mar', inPct: 56, outPct: 36, inVal: '11,200', outVal: '7,200' },
+            { month: 'Apr', inPct: 49, outPct: 41, inVal: '9,760', outVal: '8,110' },
+            { month: 'May', inPct: 49, outPct: 38, inVal: '9,800', outVal: '7,700' },
+            { month: 'Jun', inPct: 50, outPct: 38, inVal: '9,900', outVal: '7,500' },
+            { month: 'Jul', inPct: 62, outPct: 42, inVal: '12,500', outVal: '8,400' },
+            { month: 'Aug', inPct: 49, outPct: 33, inVal: '9,800', outVal: '6,500' },
+            { month: 'Sep', inPct: 55, outPct: 32, inVal: '11,000', outVal: '6,300' },
+            { month: 'Oct', inPct: 53, outPct: 33, inVal: '10,500', outVal: '6,600' },
+            { month: 'Nov', inPct: 15, outPct: 25, inVal: '2,940', outVal: '4,951' },
           ]
 
           // ── If NOT Overview tab (default /dashboard/customer): Render Verdelo Insights Replica ──
@@ -2326,41 +2331,6 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
           // ── If Overview tab: Render the full Verdelo Overview Screen (1:1 with Reference Image) ──
           const displayBalance = hideBalance ? '••••••' : walletBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
-          // Interactive Family Cards Deck for 3D Stack
-          const verdeloOverviewCards = [
-            {
-              id: 'c1',
-              title: 'Everyday',
-              pan: '•••• •••• 4182',
-              holder: 'Sahith',
-              exp: '09/29',
-              bg: 'linear-gradient(135deg, #1b5e3f 0%, #11422c 50%, #0a291b 100%)',
-              sub: 'Everyday account · ... 0457',
-            },
-            {
-              id: 'c2',
-              title: "Ada's card",
-              pan: '•••• •••• 9214',
-              holder: 'Ada',
-              exp: '11/28',
-              bg: 'linear-gradient(135deg, #164a34 0%, #0d3423 50%, #061e14 100%)',
-              sub: 'Secondary personal card',
-            },
-            {
-              id: 'c3',
-              title: 'Savings Vault',
-              pan: '•••• •••• 7730',
-              holder: 'Sahith',
-              exp: '03/30',
-              bg: 'linear-gradient(135deg, #113c29 0%, #08281a 50%, #04140d 100%)',
-              sub: 'High-yield reserve card',
-            },
-          ]
-
-          const activeCardIdx = zestoCardDeckIndex % verdeloOverviewCards.length
-          const currentTopCard = verdeloOverviewCards[activeCardIdx]
-          const isCardFrozen = Boolean(cardsFrozen[currentTopCard.id])
-
           return (
             <div className="verdelo-overview-view">
               {/* ── Top Header: Date, Greeting, Statement & Send Actions ── */}
@@ -2404,405 +2374,609 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                 </div>
               </div>
 
-              {/* ── Two-Column Main Content Grid ── */}
-              <div className="verdelo-overview-grid">
-                {/* ── Column 1: Left Cards Stack Container ── */}
-                <div className="verdelo-cards-panel">
-                  <div className="verdelo-cards-head">
+              {/* ── Top Hero Grid: Joint balance & Money in & out side-by-side ── */}
+              <div className="verdelo-hero-grid">
+                {/* Left Panel: Joint Balance & Spline Chart */}
+                <div className="verdelo-joint-balance-panel">
+                  <div className="verdelo-joint-head">
                     <div>
-                      <h3 className="verdelo-cards-title">Cards</h3>
-                      <p className="verdelo-cards-sub">Throw the top card aside, or tap it to turn it over</p>
+                      <h3 className="verdelo-joint-title">Joint balance</h3>
+                      <p className="verdelo-joint-sub">Everyday account · ... 0457</p>
                     </div>
-                    <Link to="/dashboard/wallet" className="verdelo-cards-link">
-                      All cards
-                    </Link>
+                    <button
+                      type="button"
+                      className="verdelo-eye-toggle"
+                      onClick={() => {
+                        const next = !hideBalance
+                        setHideBalance(next)
+                        try {
+                          localStorage.setItem('inferxe_hide_balance', next ? 'true' : 'false')
+                          window.dispatchEvent(new CustomEvent('inferxe_balance_visibility', { detail: { hide: next } }))
+                        } catch {}
+                      }}
+                      title={hideBalance ? 'Show balance' : 'Hide balance'}
+                    >
+                      {hideBalance ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
                   </div>
 
-                  {/* 3D Stack Stage */}
-                  <div
-                    className="verdelo-card-stack-stage"
-                    onClick={() => setIsCardFlipped(!isCardFlipped)}
-                    title="Tap to turn over or flip"
-                  >
-                    {/* Layer 3: Backmost card shadow */}
-                    <div className="verdelo-stack-card-layer verdelo-stack-card-layer--back" />
-
-                    {/* Layer 2: Middle card layer with subtle title */}
-                    <div className="verdelo-stack-card-layer verdelo-stack-card-layer--mid">
-                      <span className="verdelo-stack-card-layer--mid-label">
-                        {verdeloOverviewCards[(activeCardIdx + 1) % verdeloOverviewCards.length].title}
+                  <div className="verdelo-joint-amount-row">
+                    <div className="verdelo-joint-big-val">
+                      ${displayBalance}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span className="verdelo-joint-trend-badge">
+                        ↑ 3.8%
+                      </span>
+                      <span className="verdelo-joint-trend-sub">
+                        against a month ago
                       </span>
                     </div>
+                  </div>
 
-                    {/* Layer 1: Front Active 3D Card */}
-                    <div
-                      className="verdelo-front-card"
-                      style={{
-                        background: currentTopCard.bg,
-                        transform: isCardFlipped ? 'rotateY(180deg)' : 'none',
-                      }}
-                    >
-                      {!isCardFlipped ? (
-                        <>
-                          <div className="verdelo-front-card-top">
-                            <span className="verdelo-front-card-type">{currentTopCard.title}</span>
-                            <div className="verdelo-contactless-wave" title="Contactless Enabled">
-                              <Wifi size={18} style={{ transform: 'rotate(90deg)' }} />
-                            </div>
-                          </div>
-
-                          <div className="verdelo-gold-chip" />
-
-                          <div className="verdelo-front-card-pan">
-                            {showCardNumber ? currentTopCard.pan.replace(/•/g, '4') : currentTopCard.pan}
-                          </div>
-
-                          <div className="verdelo-front-card-bot">
-                            <div className="verdelo-front-card-meta">
-                              <div className="verdelo-front-card-meta-item">
-                                <span className="verdelo-front-card-meta-lbl">Holder</span>
-                                <span className="verdelo-front-card-meta-val">{currentTopCard.holder}</span>
-                              </div>
-                              <div className="verdelo-front-card-meta-item">
-                                <span className="verdelo-front-card-meta-lbl">Exp</span>
-                                <span className="verdelo-front-card-meta-val">{currentTopCard.exp}</span>
-                              </div>
-                            </div>
-                            <div className="verdelo-card-logo-marks" title="Verdelo Card">
-                              <span className="verdelo-card-logo-mark" />
-                              <span className="verdelo-card-logo-mark" />
-                            </div>
-                          </div>
-                        </>
-                      ) : (
-                        <div style={{ transform: 'rotateY(180deg)', height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                          <div style={{ height: 38, background: '#05130d', margin: '4px -22px', borderRadius: 2 }} />
-                          <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '0 10px' }}>
-                            <div style={{ background: '#fff', color: '#041c12', padding: '4px 10px', borderRadius: 4, fontFamily: 'monospace', fontWeight: 700, fontSize: '0.85rem' }}>
-                              CVV 829
-                            </div>
-                          </div>
-                          <div style={{ fontSize: '0.68rem', color: '#8caba0', textAlign: 'center' }}>
-                            Tap to turn back to front
-                          </div>
-                        </div>
-                      )}
+                  {/* 4 Mini Stat Pills in a row */}
+                  <div className="verdelo-stat-pills-row">
+                    <div className="verdelo-stat-pill-item">
+                      <span className="verdelo-stat-pill-lbl">Today</span>
+                      <span className="verdelo-stat-pill-val">$95</span>
+                    </div>
+                    <div className="verdelo-stat-pill-item">
+                      <span className="verdelo-stat-pill-lbl">This week</span>
+                      <span className="verdelo-stat-pill-val">$516</span>
+                    </div>
+                    <div className="verdelo-stat-pill-item">
+                      <span className="verdelo-stat-pill-lbl">This month</span>
+                      <span className="verdelo-stat-pill-val">$4,951</span>
+                    </div>
+                    <div className="verdelo-stat-pill-item">
+                      <span className="verdelo-stat-pill-lbl">This year</span>
+                      <span className="verdelo-stat-pill-val">$81,740</span>
                     </div>
                   </div>
 
-                  {/* Card Controls */}
-                  <div className="verdelo-card-controls">
-                    <div className="verdelo-card-pagination">
+                  {/* Balance Line Chart & Dotted Forecast */}
+                  <div className="verdelo-line-chart-container">
+                    <svg className="verdelo-line-chart-svg" viewBox="0 0 520 120" preserveAspectRatio="none">
+                      <defs>
+                        <linearGradient id="verdeloLineGlow" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#50e396" stopOpacity="0.28" />
+                          <stop offset="100%" stopColor="#50e396" stopOpacity="0" />
+                        </linearGradient>
+                      </defs>
+
+                      {/* Shaded Area under solid curve */}
+                      <path
+                        d="M 0,95 L 35,92 L 70,82 L 105,86 L 135,58 L 170,62 L 200,42 L 235,90 L 265,70 L 300,75 L 340,65 L 380,88 L 380,120 L 0,120 Z"
+                        fill="url(#verdeloLineGlow)"
+                      />
+
+                      {/* Solid Green Balance Line up to Today (X: 380) */}
+                      <path
+                        d="M 0,95 L 35,92 L 70,82 L 105,86 L 135,58 L 170,62 L 200,42 L 235,90 L 265,70 L 300,75 L 340,65 L 380,88"
+                        fill="none"
+                        stroke="#50e396"
+                        strokeWidth="2.4"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+
+                      {/* Dotted Forecast Line from Today (X: 380) to Nov 30 (X: 510, Y: 35) */}
+                      <path
+                        d="M 380,88 L 415,65 L 440,70 L 470,42 L 510,35"
+                        fill="none"
+                        stroke="#50e396"
+                        strokeWidth="2.2"
+                        strokeDasharray="4 4"
+                        strokeLinecap="round"
+                      />
+
+                      {/* Payday dots (amber / gold) */}
+                      <circle cx="380" cy="88" r="4.5" fill="#f59e0b" />
+                      <circle cx="395" cy="85" r="4" fill="#f59e0b" />
+
+                      {/* Forecast Dots */}
+                      <circle cx="415" cy="65" r="3.5" fill="#50e396" />
+                      <circle cx="440" cy="70" r="3.5" fill="#50e396" />
+                      <circle cx="470" cy="42" r="3.5" fill="#50e396" />
+                      <circle cx="510" cy="35" r="4.5" fill="#50e396" />
+                      <circle cx="510" cy="35" r="7.5" fill="none" stroke="#50e396" strokeWidth="1.2" opacity="0.6" />
+                    </svg>
+
+                    {/* Floating marker tag: Today */}
+                    <div className="verdelo-chart-tag-today">Today</div>
+
+                    {/* Endpoint marker label: Nov 30 $29,321 */}
+                    <div className="verdelo-chart-tag-nov30">
+                      Nov 30 <strong>$29,321</strong>
+                    </div>
+                  </div>
+
+                  {/* Bottom Chart Legend */}
+                  <div className="verdelo-overview-legend">
+                    <span className="verdelo-overview-legend-item">
+                      <span className="verdelo-legend-line-solid" />
+                      <span>Balance</span>
+                    </span>
+                    <span className="verdelo-overview-legend-item">
+                      <span className="verdelo-legend-line-dashed" />
+                      <span>Forecast</span>
+                    </span>
+                    <span className="verdelo-overview-legend-item">
+                      <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#50e396' }} />
+                      <span>Payday</span>
+                    </span>
+                    <span className="verdelo-overview-legend-item">
+                      <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#f59e0b' }} />
+                      <span>Bill</span>
+                    </span>
+                  </div>
+                </div>
+
+                {/* Right Panel: Money In & Out (Photo 2) */}
+                <div className="verdelo-chart-card verdelo-chart-card--hero">
+                  <div className="verdelo-chart-header">
+                    <div>
+                      <h3 className="verdelo-chart-title">Money in & out</h3>
+                      <p className="verdelo-chart-sub">The last twelve months</p>
+                    </div>
+                    <div className="verdelo-time-pills">
                       <button
                         type="button"
-                        className="verdelo-card-arrow-btn"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setZestoCardDeckIndex((prev) => (prev > 0 ? prev - 1 : verdeloOverviewCards.length - 1))
-                        }}
-                        title="Previous Card"
+                        className={`verdelo-time-pill ${verdeloMoneyFilter === 'quarter' ? 'is-active' : ''}`}
+                        onClick={() => setVerdeloMoneyFilter('quarter')}
                       >
-                        ‹
+                        Quarter
                       </button>
-                      <div className="verdelo-card-dots">
-                        {verdeloOverviewCards.map((_, dotIdx) => (
-                          <span
-                            key={dotIdx}
-                            className={`verdelo-card-dot ${dotIdx === activeCardIdx ? 'is-active' : ''}`}
-                            onClick={(e) => {
-                              e.stopPropagation()
-                              setZestoCardDeckIndex(dotIdx)
-                            }}
-                            style={{ cursor: 'pointer' }}
-                          />
-                        ))}
-                      </div>
                       <button
                         type="button"
-                        className="verdelo-card-arrow-btn"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setZestoCardDeckIndex((prev) => prev + 1)
-                        }}
-                        title="Next Card"
+                        className={`verdelo-time-pill ${verdeloMoneyFilter === '6months' ? 'is-active' : ''}`}
+                        onClick={() => setVerdeloMoneyFilter('6months')}
                       >
-                        ›
+                        6 months
+                      </button>
+                      <button
+                        type="button"
+                        className={`verdelo-time-pill ${verdeloMoneyFilter === 'year' ? 'is-active' : ''}`}
+                        onClick={() => setVerdeloMoneyFilter('year')}
+                      >
+                        Year
                       </button>
                     </div>
+                  </div>
 
-                    <div className="verdelo-card-action-btns">
-                      <button
-                        type="button"
-                        className="verdelo-card-icon-btn"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          setIsCardFlipped(!isCardFlipped)
-                        }}
-                        title="Turn Over Card"
-                      >
-                        <RotateCw size={14} />
-                      </button>
-                      <button
-                        type="button"
-                        className={`verdelo-btn-freeze ${isCardFrozen ? 'is-frozen' : ''}`}
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          const nextFrozen = !isCardFrozen
-                          setCardsFrozen((prev) => ({ ...prev, [currentTopCard.id]: nextFrozen }))
-                          flash(nextFrozen ? `${currentTopCard.title} has been frozen.` : `${currentTopCard.title} is now active.`)
-                        }}
-                        title={isCardFrozen ? 'Unfreeze Card' : 'Freeze Card'}
-                      >
-                        <Snowflake size={13} />
-                        <span>{isCardFrozen ? 'Unfreeze' : 'Freeze'}</span>
-                      </button>
+                  {/* Legend matching Photo 2 */}
+                  <div className="verdelo-chart-legend">
+                    <span className="verdelo-legend-item">
+                      <span className="verdelo-legend-dot verdelo-legend-dot--in" />
+                      <span>In $123,052</span>
+                    </span>
+                    <span className="verdelo-legend-item">
+                      <span className="verdelo-legend-dot verdelo-legend-dot--out" />
+                      <span>Out $89,229</span>
+                    </span>
+                    <span className="verdelo-legend-text verdelo-legend-text--kept">
+                      Kept $33,823
+                    </span>
+                  </div>
+
+                  {/* Dual Bars Visualization matching Photo 2 */}
+                  <div className="verdelo-bars-container">
+                    <div className="verdelo-y-axis">
+                      <span>$20k</span>
+                      <span>$15k</span>
+                      <span>$10k</span>
+                      <span>$5.0k</span>
+                      <span>$0</span>
+                    </div>
+
+                    <div className="verdelo-bars-content">
+                      <div className="verdelo-grid-lines">
+                        <div className="verdelo-grid-line" style={{ top: '0%' }} />
+                        <div className="verdelo-grid-line" style={{ top: '25%' }} />
+                        <div className="verdelo-grid-line" style={{ top: '50%' }} />
+                        <div className="verdelo-grid-line" style={{ top: '75%' }} />
+                        <div className="verdelo-grid-line" style={{ top: '100%' }} />
+                      </div>
+
+                      <div className="verdelo-bars-track">
+                        {verdeloTwelveMonthBars.map((m, idx) => {
+                          const isApr = idx === 4 || m.month === 'Apr'
+                          const isHovered = verdeloHoveredBar === idx
+                          const showTooltip = isHovered || (verdeloHoveredBar === null && isApr) || (verdeloHoveredBar === 4 && isApr)
+                          const isHighlighted = isHovered || (verdeloHoveredBar === null && isApr) || (verdeloHoveredBar === 4 && isApr)
+
+                          return (
+                            <div
+                              key={m.month}
+                              className={`verdelo-month-col ${isHighlighted ? 'is-active-col' : ''}`}
+                              onMouseEnter={() => setVerdeloHoveredBar(idx)}
+                              onMouseLeave={() => setVerdeloHoveredBar(4)}
+                            >
+                              {/* Background pill capsule slot behind bars */}
+                              <div className="verdelo-month-capsule-slot" />
+
+                              {showTooltip && (
+                                <div className="verdelo-bar-tooltip">
+                                  <div className="verdelo-bar-tooltip-val">${m.inVal}</div>
+                                  <div className="verdelo-bar-tooltip-sub">out ${m.outVal}</div>
+                                  <div className="verdelo-bar-tooltip-stem" />
+                                </div>
+                              )}
+                              <div className="verdelo-bar-pair">
+                                <div
+                                  className="verdelo-bar verdelo-bar--in"
+                                  style={{ height: `${m.inPct}%` }}
+                                  title={`${m.month} In: $${m.inVal}`}
+                                />
+                                <div
+                                  className="verdelo-bar verdelo-bar--out"
+                                  style={{ height: `${m.outPct}%` }}
+                                  title={`${m.month} Out: $${m.outVal}`}
+                                />
+                              </div>
+                              <span className={`verdelo-month-label ${isHighlighted ? 'is-active-lbl' : ''}`}>
+                                {m.month}
+                              </span>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Lower Sections Grid (Photos 3 & 4) ── */}
+              <div className="verdelo-lower-grid">
+                {/* 1. Where November went */}
+                <div className="verdelo-section-card verdelo-nov-breakdown">
+                  <div className="verdelo-card-head">
+                    <div>
+                      <h3 className="verdelo-card-title">Where November went</h3>
+                      <p className="verdelo-card-sub">12 of 30 days in · $4,951 spent</p>
+                    </div>
+                    <button
+                      type="button"
+                      className="verdelo-link-btn"
+                      onClick={() => navigate('/dashboard/customer?tab=spending')}
+                    >
+                      Details
+                    </button>
+                  </div>
+
+                  {/* Segmented Color Progress Bar */}
+                  <div className="verdelo-nov-bar-track">
+                    <div className="verdelo-nov-bar-seg" style={{ width: '58%', background: '#8cb88f' }} title="Home 58%" />
+                    <div className="verdelo-nov-bar-seg" style={{ width: '12%', background: '#50e396' }} title="Groceries 12%" />
+                    <div className="verdelo-nov-bar-seg" style={{ width: '8%', background: '#7ea5d9' }} title="Shopping 8%" />
+                    <div className="verdelo-nov-bar-seg" style={{ width: '6%', background: '#eab308' }} title="Eating out 6%" />
+                    <div className="verdelo-nov-bar-seg" style={{ width: '5%', background: '#f97316' }} title="Utilities 5%" />
+                  </div>
+
+                  {/* Category Breakdown Rows */}
+                  <div className="verdelo-nov-cat-list">
+                    {[
+                      { name: 'Home', pct: '58%', amount: '$2,857', color: '#8cb88f', icon: Home },
+                      { name: 'Groceries', pct: '12%', amount: '$580', color: '#50e396', icon: ShoppingBag },
+                      { name: 'Shopping', pct: '8%', amount: '$420', color: '#7ea5d9', icon: Tag },
+                      { name: 'Eating out', pct: '6%', amount: '$292', color: '#eab308', icon: Coffee },
+                      { name: 'Utilities', pct: '5%', amount: '$226', color: '#f97316', icon: Zap },
+                    ].map((item) => {
+                      const IconComp = item.icon
+                      return (
+                        <div key={item.name} className="verdelo-nov-cat-row">
+                          <div className="verdelo-nov-cat-left">
+                            <span className="verdelo-nov-cat-icon-wrap" style={{ color: item.color }}>
+                              <IconComp size={15} />
+                            </span>
+                            <span className="verdelo-nov-cat-name">{item.name}</span>
+                          </div>
+                          <div className="verdelo-nov-cat-right">
+                            <span className="verdelo-nov-cat-pct">{item.pct}</span>
+                            <span className="verdelo-nov-cat-amt">{item.amount}</span>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  {/* Callout Alert Box */}
+                  <div className="verdelo-nov-alert-box">
+                    <Info size={16} className="verdelo-nov-alert-icon" />
+                    <div className="verdelo-nov-alert-text">
+                      At this pace November ends near <strong>$8,091</strong> — October was $6,944.
                     </div>
                   </div>
                 </div>
 
-                {/* ── Column 2: Right Side 2 Panels ── */}
-                <div className="verdelo-overview-right-col">
-                  {/* Top Right Panel: Joint Balance & Line Chart */}
-                  <div className="verdelo-joint-balance-panel">
-                    <div className="verdelo-joint-head">
-                      <div>
-                        <h3 className="verdelo-joint-title">Joint balance</h3>
-                        <p className="verdelo-joint-sub">Everyday account · ... 0457</p>
-                      </div>
-                      <button
-                        type="button"
-                        className="verdelo-eye-toggle"
-                        onClick={() => {
-                          const next = !hideBalance
-                          setHideBalance(next)
-                          try {
-                            localStorage.setItem('inferxe_hide_balance', next ? 'true' : 'false')
-                            window.dispatchEvent(new CustomEvent('inferxe_balance_visibility', { detail: { hide: next } }))
-                          } catch {}
-                        }}
-                        title={hideBalance ? 'Show balance' : 'Hide balance'}
-                      >
-                        {hideBalance ? <EyeOff size={16} /> : <Eye size={16} />}
-                      </button>
+                {/* 2. Latest payments */}
+                <div className="verdelo-section-card verdelo-latest-payments">
+                  <div className="verdelo-card-head">
+                    <div>
+                      <h3 className="verdelo-card-title">Latest payments</h3>
+                      <p className="verdelo-card-sub">Everyone, every card</p>
                     </div>
+                    <button
+                      type="button"
+                      className="verdelo-link-btn"
+                      onClick={() => navigate('/dashboard/customer?tab=payments')}
+                    >
+                      See all
+                    </button>
+                  </div>
 
-                    <div className="verdelo-joint-amount-row">
-                      <div className="verdelo-joint-big-val">
-                        ${displayBalance}
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span className="verdelo-joint-trend-badge">
-                          ↑ 3.8%
+                  <div className="verdelo-payments-list">
+                    {[
+                      { id: '1', title: 'Marlow Market', time: '1 h ago', category: 'Groceries', person: 'Jonas', amount: '-$84.36', icon: ShoppingBag, color: '#50e396', bg: 'rgba(80, 227, 150, 0.12)' },
+                      { id: '2', title: 'Sound Transit', time: '2 h ago', category: 'Transport', person: 'Ada', amount: '-$4.25', icon: Truck, color: '#38bdf8', bg: 'rgba(56, 189, 248, 0.12)' },
+                      { id: '3', title: 'Juniper Café', time: '2 h ago', category: 'Eating out', person: 'Ines', amount: '-$6.40', icon: Coffee, color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)' },
+                      { id: '4', title: 'Arco Fuel', time: 'Yesterday, 8:37 PM', category: 'Transport', person: 'Ines', amount: '-$63.49', icon: Truck, color: '#2dd4bf', bg: 'rgba(45, 212, 191, 0.12)' },
+                      { id: '5', title: 'Arcade Records', time: 'Yesterday, 5:48 PM', category: 'Shopping', person: 'Ada', amount: '-$14.38', icon: Tag, color: '#818cf8', bg: 'rgba(129, 140, 248, 0.12)' },
+                      { id: '6', title: 'Outpost Supply', time: 'Yesterday, 9:57 AM', category: 'Shopping', person: 'Jonas', amount: '-$126.64', icon: Tag, color: '#818cf8', bg: 'rgba(129, 140, 248, 0.12)' },
+                    ].map((tx) => {
+                      const TxIcon = tx.icon
+                      return (
+                        <div key={tx.id} className="verdelo-payment-row">
+                          <div className="verdelo-payment-left">
+                            <div className="verdelo-payment-icon-wrap" style={{ color: tx.color, background: tx.bg }}>
+                              <TxIcon size={16} />
+                            </div>
+                            <div className="verdelo-payment-details">
+                              <div className="verdelo-payment-name">{tx.title}</div>
+                              <div className="verdelo-payment-meta">
+                                {tx.time} · {tx.category} · {tx.person}
+                              </div>
+                            </div>
+                          </div>
+                          <div className="verdelo-payment-amount">
+                            {tx.amount}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* 3. Stacked Column: Noticed & Quick send */}
+                <div className="verdelo-stacked-col">
+                  {/* Noticed */}
+                  <div className="verdelo-section-card verdelo-noticed-card">
+                    <div className="verdelo-card-head" style={{ marginBottom: 10 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                        <Sparkles size={15} style={{ color: '#50e396' }} />
+                        <span className="verdelo-card-title" style={{ fontSize: '0.94rem' }}>Noticed</span>
+                        <span className="verdelo-card-sub" style={{ margin: 0, fontSize: '0.74rem' }}>
+                          {verdeloNoticedIdx + 1} of 4
                         </span>
-                        <span className="verdelo-joint-trend-sub">
-                          against a month ago
-                        </span>
+                      </div>
+                      <div className="verdelo-noticed-arrows">
+                        <button
+                          type="button"
+                          className="verdelo-noticed-nav-btn"
+                          onClick={() => setVerdeloNoticedIdx((prev) => (prev > 0 ? prev - 1 : 3))}
+                          title="Previous insight"
+                        >
+                          <ChevronLeft size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          className="verdelo-noticed-nav-btn"
+                          onClick={() => setVerdeloNoticedIdx((prev) => (prev + 1) % 4)}
+                          title="Next insight"
+                        >
+                          <ChevronRight size={13} />
+                        </button>
                       </div>
                     </div>
 
-                    {/* 4 Mini Stat Pills in a row */}
-                    <div className="verdelo-stat-pills-row">
-                      <div className="verdelo-stat-pill-item">
-                        <span className="verdelo-stat-pill-lbl">Today</span>
-                        <span className="verdelo-stat-pill-val">$95</span>
-                      </div>
-                      <div className="verdelo-stat-pill-item">
-                        <span className="verdelo-stat-pill-lbl">This week</span>
-                        <span className="verdelo-stat-pill-val">$516</span>
-                      </div>
-                      <div className="verdelo-stat-pill-item">
-                        <span className="verdelo-stat-pill-lbl">This month</span>
-                        <span className="verdelo-stat-pill-val">$4,951</span>
-                      </div>
-                      <div className="verdelo-stat-pill-item">
-                        <span className="verdelo-stat-pill-lbl">This year</span>
-                        <span className="verdelo-stat-pill-val">$81,740</span>
-                      </div>
-                    </div>
+                    {/* Active Insight Content */}
+                    {(() => {
+                      const insights = [
+                        {
+                          title: 'Eating out is down 36%',
+                          desc: '$292 so far against $459 by this day in October.',
+                          action: 'See spending →',
+                          icon: Coffee,
+                          color: '#eab308',
+                          bg: 'rgba(234, 179, 8, 0.14)',
+                        },
+                        {
+                          title: 'Groceries pacing steadily',
+                          desc: '$580 spent so far — on track with $1,450 monthly target.',
+                          action: 'View groceries →',
+                          icon: ShoppingBag,
+                          color: '#50e396',
+                          bg: 'rgba(80, 227, 150, 0.14)',
+                        },
+                        {
+                          title: 'Utilities down 12%',
+                          desc: 'Puget Water bill lower than seasonal average.',
+                          action: 'Check utilities →',
+                          icon: Zap,
+                          color: '#f97316',
+                          bg: 'rgba(249, 115, 22, 0.14)',
+                        },
+                        {
+                          title: 'Savings rate up 30%',
+                          desc: '$3,258 kept on average across the last three months.',
+                          action: 'View savings →',
+                          icon: TrendingUp,
+                          color: '#50e396',
+                          bg: 'rgba(80, 227, 150, 0.18)',
+                        },
+                      ]
+                      const cur = insights[verdeloNoticedIdx]
+                      const CurIcon = cur.icon
 
-                    {/* Balance Line Chart & Dotted Forecast */}
-                    <div className="verdelo-line-chart-container">
-                      <svg className="verdelo-line-chart-svg" viewBox="0 0 520 120" preserveAspectRatio="none">
-                        <defs>
-                          <linearGradient id="verdeloLineGlow" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#50e396" stopOpacity="0.28" />
-                            <stop offset="100%" stopColor="#50e396" stopOpacity="0" />
-                          </linearGradient>
-                        </defs>
+                      return (
+                        <div className="verdelo-noticed-body">
+                          <div className="verdelo-noticed-icon-row">
+                            <div className="verdelo-noticed-icon-box" style={{ color: cur.color, background: cur.bg }}>
+                              <CurIcon size={17} />
+                            </div>
+                          </div>
+                          <h4 className="verdelo-noticed-title">{cur.title}</h4>
+                          <p className="verdelo-noticed-desc">{cur.desc}</p>
+                          <button
+                            type="button"
+                            className="verdelo-noticed-link"
+                            onClick={() => navigate('/dashboard/customer?tab=spending')}
+                          >
+                            {cur.action}
+                          </button>
+                        </div>
+                      )
+                    })()}
 
-                        {/* Shaded Area under solid curve */}
-                        <path
-                          d="M 0,95 L 35,92 L 70,82 L 105,86 L 135,58 L 170,62 L 200,42 L 235,90 L 265,70 L 300,75 L 340,65 L 380,88 L 380,120 L 0,120 Z"
-                          fill="url(#verdeloLineGlow)"
+                    {/* Progress Dashes */}
+                    <div className="verdelo-noticed-dashes">
+                      {[0, 1, 2, 3].map((idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          className={`verdelo-noticed-dash ${idx === verdeloNoticedIdx ? 'is-active' : ''}`}
+                          onClick={() => setVerdeloNoticedIdx(idx)}
+                          title={`View insight ${idx + 1}`}
                         />
-
-                        {/* Solid Green Balance Line up to Today (X: 380) */}
-                        <path
-                          d="M 0,95 L 35,92 L 70,82 L 105,86 L 135,58 L 170,62 L 200,42 L 235,90 L 265,70 L 300,75 L 340,65 L 380,88"
-                          fill="none"
-                          stroke="#50e396"
-                          strokeWidth="2.4"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        />
-
-                        {/* Dotted Forecast Line from Today (X: 380) to Nov 30 (X: 510, Y: 35) */}
-                        <path
-                          d="M 380,88 L 415,65 L 440,70 L 470,42 L 510,35"
-                          fill="none"
-                          stroke="#50e396"
-                          strokeWidth="2.2"
-                          strokeDasharray="4 4"
-                          strokeLinecap="round"
-                        />
-
-                        {/* Payday dots (amber / gold) */}
-                        <circle cx="380" cy="88" r="4.5" fill="#f59e0b" />
-                        <circle cx="395" cy="85" r="4" fill="#f59e0b" />
-
-                        {/* Forecast Dots */}
-                        <circle cx="415" cy="65" r="3.5" fill="#50e396" />
-                        <circle cx="440" cy="70" r="3.5" fill="#50e396" />
-                        <circle cx="470" cy="42" r="3.5" fill="#50e396" />
-                        <circle cx="510" cy="35" r="4.5" fill="#50e396" />
-                        <circle cx="510" cy="35" r="7.5" fill="none" stroke="#50e396" strokeWidth="1.2" opacity="0.6" />
-                      </svg>
-
-                      {/* Floating marker tag: Today */}
-                      <div className="verdelo-chart-tag-today">Today</div>
-
-                      {/* Endpoint marker label: Nov 30 $29,321 */}
-                      <div className="verdelo-chart-tag-nov30">
-                        Nov 30 <strong>$29,321</strong>
-                      </div>
-                    </div>
-
-                    {/* Bottom Chart Legend */}
-                    <div className="verdelo-overview-legend">
-                      <span className="verdelo-overview-legend-item">
-                        <span className="verdelo-legend-line-solid" />
-                        <span>Balance</span>
-                      </span>
-                      <span className="verdelo-overview-legend-item">
-                        <span className="verdelo-legend-line-dashed" />
-                        <span>Forecast</span>
-                      </span>
-                      <span className="verdelo-overview-legend-item">
-                        <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#50e396' }} />
-                        <span>Payday</span>
-                      </span>
-                      <span className="verdelo-overview-legend-item">
-                        <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#f59e0b' }} />
-                        <span>Bill</span>
-                      </span>
+                      ))}
                     </div>
                   </div>
 
-                  {/* Bottom Right Panel: Money In & Out */}
-                  <div className="verdelo-chart-card">
-                    <div className="verdelo-chart-header">
+                  {/* Quick send */}
+                  <div className="verdelo-section-card verdelo-quick-send-card">
+                    <div className="verdelo-card-head" style={{ marginBottom: 10 }}>
                       <div>
-                        <h3 className="verdelo-chart-title">Money in & out</h3>
-                        <p className="verdelo-chart-sub">The last twelve months</p>
-                      </div>
-                      <div className="verdelo-time-pills">
-                        <button
-                          type="button"
-                          className={`verdelo-time-pill ${verdeloMoneyFilter === 'quarter' ? 'is-active' : ''}`}
-                          onClick={() => setVerdeloMoneyFilter('quarter')}
-                        >
-                          Quarter
-                        </button>
-                        <button
-                          type="button"
-                          className={`verdelo-time-pill ${verdeloMoneyFilter === '6months' ? 'is-active' : ''}`}
-                          onClick={() => setVerdeloMoneyFilter('6months')}
-                        >
-                          6 months
-                        </button>
-                        <button
-                          type="button"
-                          className={`verdelo-time-pill ${verdeloMoneyFilter === 'year' ? 'is-active' : ''}`}
-                          onClick={() => setVerdeloMoneyFilter('year')}
-                        >
-                          Year
-                        </button>
+                        <h3 className="verdelo-card-title" style={{ fontSize: '1.02rem' }}>Quick send</h3>
+                        <p className="verdelo-card-sub">Arrives instantly in Verdelo</p>
                       </div>
                     </div>
 
-                    {/* Legend */}
-                    <div className="verdelo-chart-legend">
-                      <span className="verdelo-legend-item">
-                        <span className="verdelo-legend-dot verdelo-legend-dot--in" />
-                        <span>In $123,052</span>
-                      </span>
-                      <span className="verdelo-legend-item">
-                        <span className="verdelo-legend-dot verdelo-legend-dot--out" />
-                        <span>Out $89,229</span>
-                      </span>
-                      <span className="verdelo-legend-text">
-                        Kept $33,823
-                      </span>
+                    {/* Recipient Avatars */}
+                    <div className="verdelo-quick-avatars-row">
+                      {[
+                        { name: 'Jonas', initials: 'JL', bg: '#fde2d0', color: '#7c2d12' },
+                        { name: 'Ada', initials: 'AL', bg: '#d1fae5', color: '#064e3b' },
+                        { name: 'Chidi', initials: 'CO', bg: '#fef3c7', color: '#78350f' },
+                        { name: 'Marisol', initials: 'MP', bg: '#fed7aa', color: '#7c2d12' },
+                      ].map((c) => {
+                        const isSelected = verdeloQuickRecipient === c.name
+                        return (
+                          <button
+                            key={c.name}
+                            type="button"
+                            className={`verdelo-quick-contact-btn ${isSelected ? 'is-selected' : ''}`}
+                            onClick={() => setVerdeloQuickRecipient(c.name)}
+                            title={`Select ${c.name}`}
+                          >
+                            <div
+                              className="verdelo-quick-avatar"
+                              style={{ background: c.bg, color: c.color }}
+                            >
+                              {c.initials}
+                            </div>
+                            <span className="verdelo-quick-name">{c.name}</span>
+                          </button>
+                        )
+                      })}
                     </div>
 
-                    {/* Dual Bars Visualization */}
-                    <div className="verdelo-bars-container">
-                      <div className="verdelo-y-axis">
-                        <span>$20k</span>
-                        <span>$15k</span>
-                        <span>$10k</span>
-                        <span>$5.0k</span>
-                        <span>$0</span>
-                      </div>
+                    {/* Amount Presets */}
+                    <div className="verdelo-quick-amounts-row">
+                      {[20, 50, 100].map((amt) => {
+                        const isSelected = verdeloQuickAmount === amt
+                        return (
+                          <button
+                            key={amt}
+                            type="button"
+                            className={`verdelo-quick-amt-pill ${isSelected ? 'is-active' : ''}`}
+                            onClick={() => setVerdeloQuickAmount(amt)}
+                          >
+                            ${amt}
+                          </button>
+                        )
+                      })}
+                      <button
+                        type="button"
+                        className="verdelo-quick-amt-pill verdelo-quick-amt-pill--other"
+                        onClick={() => setShowSendModal(true)}
+                      >
+                        Other...
+                      </button>
+                    </div>
 
-                      <div className="verdelo-bars-content">
-                        <div className="verdelo-grid-lines">
-                          <div className="verdelo-grid-line" style={{ top: '0%' }} />
-                          <div className="verdelo-grid-line" style={{ top: '25%' }} />
-                          <div className="verdelo-grid-line" style={{ top: '50%' }} />
-                          <div className="verdelo-grid-line" style={{ top: '75%' }} />
-                          <div className="verdelo-grid-line" style={{ top: '100%' }} />
-                        </div>
+                    {/* Send Action Button */}
+                    <button
+                      type="button"
+                      className="verdelo-btn-quick-send-submit"
+                      onClick={() => {
+                        flash(`Sent $${verdeloQuickAmount} to ${verdeloQuickRecipient} instantly!`)
+                      }}
+                    >
+                      <Send size={14} />
+                      <span>Send ${verdeloQuickAmount} to {verdeloQuickRecipient}</span>
+                    </button>
+                  </div>
+                </div>
 
-                        <div className="verdelo-bars-track">
-                          {verdeloTwelveMonthBars.map((m, idx) => {
-                            const isNov = idx === 11 || m.month === 'Nov'
-                            const isHovered = verdeloHoveredBar === idx
-                            const showTooltip = isHovered || (verdeloHoveredBar === null && isNov)
+                {/* 4. Coming up (Bills) */}
+                <div className="verdelo-section-card verdelo-coming-up-card">
+                  <div className="verdelo-card-head">
+                    <div>
+                      <h3 className="verdelo-card-title">Coming up</h3>
+                      <p className="verdelo-card-sub">Bills in the next weeks</p>
+                    </div>
+                    <button
+                      type="button"
+                      className="verdelo-link-btn"
+                      onClick={() => navigate('/dashboard/customer?tab=payments')}
+                    >
+                      All bills
+                    </button>
+                  </div>
 
-                            return (
-                              <div
-                                key={m.month}
-                                className="verdelo-month-col"
-                                onMouseEnter={() => setVerdeloHoveredBar(idx)}
-                                onMouseLeave={() => setVerdeloHoveredBar(null)}
-                              >
-                                {showTooltip && (
-                                  <div className="verdelo-bar-tooltip">
-                                    <div className="verdelo-bar-tooltip-val">${m.inVal}</div>
-                                    <div className="verdelo-bar-tooltip-sub">out ${m.outVal}</div>
-                                    <div className="verdelo-bar-tooltip-stem" />
-                                  </div>
-                                )}
-                                <div className="verdelo-bar-pair">
-                                  <div
-                                    className="verdelo-bar verdelo-bar--in"
-                                    style={{ height: `${m.inPct}%` }}
-                                    title={`${m.month} In: $${m.inVal}`}
-                                  />
-                                  <div
-                                    className="verdelo-bar verdelo-bar--out"
-                                    style={{ height: `${m.outPct}%` }}
-                                    title={`${m.month} Out: $${m.outVal}`}
-                                  />
-                                </div>
-                                <span className="verdelo-month-label">{m.month}</span>
+                  <div className="verdelo-bills-list">
+                    {[
+                      { id: 'fulcrum', dateDay: '14', dateMonth: 'Nov', title: 'Fulcrum Gym', sub: 'in 2 days · autopay', amount: '$54.00', isAutopay: true },
+                      { id: 'cascade', dateDay: '20', dateMonth: 'Nov', title: 'Cascade Mutual — car', sub: 'in 8 days · you pay', amount: '$138', isAutopay: false },
+                      { id: 'tunebox', dateDay: '22', dateMonth: 'Nov', title: 'Tune Box', sub: 'in 10 days · autopay', amount: '$11.99', isAutopay: true },
+                      { id: 'puget', dateDay: '27', dateMonth: 'Nov', title: 'Puget Water', sub: 'in 15 days · you pay', amount: '$65', isAutopay: false },
+                    ].map((bill) => {
+                      const isPaid = Boolean(verdeloPaidBills[bill.id])
+                      return (
+                        <div key={bill.id} className="verdelo-bill-row">
+                          <div className="verdelo-bill-left">
+                            <div className="verdelo-bill-date-box">
+                              <span className="verdelo-bill-date-day">{bill.dateDay}</span>
+                              <span className="verdelo-bill-date-month">{bill.dateMonth}</span>
+                            </div>
+                            <div className="verdelo-bill-info">
+                              <div className="verdelo-bill-name">{bill.title}</div>
+                              <div className="verdelo-bill-sub">
+                                {isPaid ? <span style={{ color: '#50e396' }}>Paid successfully ✓</span> : bill.sub}
                               </div>
-                            )
-                          })}
+                            </div>
+                          </div>
+                          <div className="verdelo-bill-right">
+                            {bill.isAutopay ? (
+                              <span className="verdelo-bill-amount">{bill.amount}</span>
+                            ) : isPaid ? (
+                              <span className="verdelo-bill-paid-badge">Paid ✓</span>
+                            ) : (
+                              <button
+                                type="button"
+                                className="verdelo-bill-pay-btn"
+                                onClick={() => {
+                                  setVerdeloPaidBills((prev) => ({ ...prev, [bill.id]: true }))
+                                  flash(`Paid ${bill.amount} for ${bill.title}.`)
+                                }}
+                              >
+                                Pay {bill.amount}
+                              </button>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                    </div>
+                      )
+                    })}
                   </div>
                 </div>
               </div>
