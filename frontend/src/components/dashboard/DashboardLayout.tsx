@@ -823,99 +823,368 @@ export function DashboardLayout({
 
   const portalHomeRoute = portalRole === 'admin' ? '/dashboard' : '/dashboard/customer'
 
+  if (portalRole === 'customer') {
+    return (
+      <div className="dash-shell" data-theme={dashTheme} data-role="customer">
+        <Ambient />
+        <div className="dash-window-frame dash-window-frame--customer">
+          {/* Mobile backdrop overlay */}
+          {mobileMenuOpen && (
+            <div
+              className="dash-sidebar-overlay"
+              onClick={() => setMobileMenuOpen(false)}
+              aria-hidden="true"
+            />
+          )}
+
+          {/* ── Left Sidebar (Full height from top to bottom) ── */}
+          <aside
+            className={`dash-sidebar dash-sidebar--verdelo ${
+              isMobile
+                ? (mobileMenuOpen ? 'is-open' : '')
+                : (isSidebarCollapsed ? 'is-collapsed' : '')
+            }`}
+            aria-label="Dashboard Sidebar"
+          >
+            {/* Top brand header inside the sidebar (Image 5 & Image 6) */}
+            <div className="verdelo-sidebar-brand-row">
+              <Link to="/dashboard/customer" className="verdelo-sidebar-brand-link">
+                <div className="verdelo-brand-logo-leaf" title="Verdelo">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#082417" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 22v-9" />
+                    <path d="M9 10a5 5 0 0 1 5-5c2.5 0 4 2 4 4a5 5 0 0 1-5 5H9z" />
+                    <path d="M15 13a5 5 0 0 1-5 5c-2.5 0-4-2-4-4a5 5 0 0 1 5-5h4z" />
+                  </svg>
+                </div>
+                {!isSidebarCollapsed && (
+                  <div className="verdelo-sidebar-brand-text">
+                    <span className="verdelo-brand-name">Verdelo</span>
+                    <span className="verdelo-brand-sub">Sahith Workspace</span>
+                  </div>
+                )}
+              </Link>
+              <button
+                type="button"
+                className="verdelo-sidebar-toggle"
+                onClick={toggleSidebarCollapse}
+                title={isSidebarCollapsed ? "Expand sidebar (Ctrl+B)" : "Collapse sidebar (Ctrl+B)"}
+                aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              >
+                <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                  <rect x="2" y="2" width="12" height="12" rx="3" stroke="currentColor" strokeWidth="1.5" />
+                  <line x1="6.5" y1="2" x2="6.5" y2="14" stroke="currentColor" strokeWidth="1.5" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Navigation links */}
+            <div ref={sidebarScrollRef} className="dash-sidebar__scroll">
+              <div className="dash-nav-groups">
+                {customerMainNavGroups.map(renderCustomerGroup)}
+              </div>
+            </div>
+
+            {/* Sidebar Footer: Safe to spend + User card */}
+            <div className="dash-sidebar__footer">
+              {!isSidebarCollapsed && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {/* Safe to spend today card */}
+                  <div className="verdelo-safe-spend-card">
+                    <div className="verdelo-safe-spend-label">Safe to spend today</div>
+                    <div className="verdelo-safe-spend-amount">$67</div>
+                    <div className="verdelo-safe-spend-sub">$269 of bills still due · 19 days left</div>
+                  </div>
+
+                  {/* Account Owner Card */}
+                  <div
+                    className="verdelo-user-pill"
+                    onClick={() => setAdminMenuOpen(!adminMenuOpen)}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <div className="verdelo-user-avatar">S</div>
+                    <div className="verdelo-user-info">
+                      <span className="verdelo-user-name">Sahith</span>
+                      <span className="verdelo-user-email">sahith@inferxe.com</span>
+                    </div>
+                    <span className="verdelo-user-dots">•••</span>
+                  </div>
+                </div>
+              )}
+
+              <Link
+                to="/"
+                className="dash-sidebar__public-link"
+                title="Back to Public Website"
+                onClick={() => {
+                  setHoveredFlyout(null)
+                  setMobileMenuOpen(false)
+                }}
+              >
+                <ExternalLink size={13} />
+                {!isSidebarCollapsed && <span>Back to Public Website</span>}
+              </Link>
+            </div>
+          </aside>
+
+          {/* ── Right Content Pane ── */}
+          <div className="dash-customer-content-pane">
+            {/* Top action bar: Search capsule + Quick Actions (Image 5 & Image 7) */}
+            <header className="dash-customer-topbar">
+              {isMobile && (
+                <button
+                  className="dash-mobile-burger"
+                  onClick={toggleSidebarCollapse}
+                  aria-label="Toggle navigation menu"
+                >
+                  {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+                </button>
+              )}
+
+              {/* Search Capsule */}
+              <div
+                className="verdelo-search-pill"
+                onClick={() => {
+                  const searchModalTrigger = document.querySelector('.dash-search-btn') as HTMLButtonElement | null
+                  if (searchModalTrigger) searchModalTrigger.click()
+                }}
+                role="button"
+                tabIndex={0}
+                aria-label="Search payments, people, pages"
+              >
+                <Search size={15} className="verdelo-search-icon" />
+                <span className="verdelo-search-text">Search payments, people, pages</span>
+                <kbd className="verdelo-search-kbd">⌘K</kbd>
+              </div>
+
+              {/* Action cluster on right */}
+              <div className="dash-customer-topbar__actions">
+                {/* Green + Action Circle */}
+                <button
+                  type="button"
+                  className="verdelo-btn-circle verdelo-btn-circle--mint"
+                  onClick={() => window.dispatchEvent(new Event('inferxe_open_topup'))}
+                  title="Add / Move money"
+                  aria-label="Add or move money"
+                >
+                  <Plus size={16} strokeWidth={2.8} />
+                </button>
+
+                {/* Dark Glass Send Circle */}
+                <button
+                  type="button"
+                  className="verdelo-btn-circle verdelo-btn-circle--glass"
+                  onClick={() => window.dispatchEvent(new Event('inferxe_open_send'))}
+                  title="Send money"
+                  aria-label="Send money"
+                >
+                  <Send size={14} />
+                </button>
+
+                {/* Vertical Separator */}
+                <span className="verdelo-topbar-sep" aria-hidden="true" />
+
+                {/* Sun / Theme icon */}
+                <button
+                  id="dash-header-theme-toggle"
+                  className="verdelo-topbar-icon-btn"
+                  onClick={(e) => toggleTheme(e)}
+                  title={dashTheme === "light" ? "Switch to dark mode" : "Switch to light mode"}
+                  aria-label="Toggle light / dark mode"
+                >
+                  <Sun size={17} />
+                </button>
+
+                {/* Bell with mint dot & Alerts dropdown (Image 8) */}
+                <div ref={notifRef} style={{ position: 'relative' }}>
+                  <button
+                    className="verdelo-topbar-icon-btn verdelo-bell-btn"
+                    title="Alerts"
+                    aria-label="Alerts"
+                    onClick={() => {
+                      setNotifOpen(!notifOpen)
+                      setAdminMenuOpen(false)
+                    }}
+                  >
+                    <Bell size={18} />
+                    {customerAlerts.some(a => a.unread) && <span className="verdelo-bell-dot" />}
+                  </button>
+
+                  {notifOpen && (
+                    <div className="verdelo-alerts-popup">
+                      <div className="verdelo-alerts-header">
+                        <h3 className="verdelo-alerts-title">Alerts</h3>
+                        <button
+                          type="button"
+                          className="verdelo-alerts-mark-read"
+                          onClick={() => {
+                            setCustomerAlerts(prev => prev.map(a => ({ ...a, hasDot: false, unread: false })))
+                          }}
+                        >
+                          Mark all read
+                        </button>
+                      </div>
+
+                      <div className="verdelo-alerts-list">
+                        {customerAlerts.map(alert => (
+                          <div className="verdelo-alert-row" key={alert.id}>
+                            <div className={`verdelo-alert-icon-box verdelo-alert-icon-box--${alert.type}`}>
+                              {alert.icon === 'check' && <Check size={16} strokeWidth={2.4} />}
+                              {alert.icon === 'card' && <CreditCard size={16} />}
+                              {alert.icon === 'pie' && <PieChart size={16} />}
+                              {alert.icon === 'goal' && <Database size={16} />}
+                              {alert.icon === 'calendar' && <Calendar size={16} />}
+                            </div>
+                            <div className="verdelo-alert-body">
+                              <div className="verdelo-alert-title-line">
+                                <span className="verdelo-alert-name">{alert.title}</span>
+                                {alert.hasDot && <span className="verdelo-alert-dot" />}
+                              </div>
+                              <div className="verdelo-alert-desc">{alert.desc}</div>
+                              <div className="verdelo-alert-time">{alert.time}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* User Avatar Circle */}
+                <div ref={profileMenuRef} style={{ position: 'relative' }}>
+                  <div
+                    className="verdelo-avatar-pill"
+                    onClick={() => {
+                      setAdminMenuOpen(!adminMenuOpen)
+                      setNotifOpen(false)
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    title="Sahith (Account Owner)"
+                  >
+                    <span>S</span>
+                  </div>
+
+                  {adminMenuOpen && (
+                    <div
+                      className="dash-dropdown-popover"
+                      style={{
+                        position: 'absolute',
+                        top: 'calc(100% + 10px)',
+                        right: 0,
+                        width: '270px',
+                        padding: '12px',
+                        zIndex: 1100,
+                      }}
+                    >
+                      <div className="dash-user-head">
+                        <div className="dash-user-name">Sahith</div>
+                        <div className="dash-user-email">sahith@inferxe.com</div>
+                        <div style={{ marginTop: 6, display: 'flex', gap: 6, alignItems: 'center' }}>
+                          <span
+                            className="tag"
+                            style={{
+                              background: 'rgba(80, 227, 150, 0.18)',
+                              color: '#50e396',
+                              borderColor: 'rgba(80, 227, 150, 0.4)',
+                              fontSize: '0.68rem',
+                              fontWeight: 600,
+                            }}
+                          >
+                            Sahith Workspace
+                          </span>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, paddingTop: 6 }}>
+                        <button
+                          type="button"
+                          className="dash-nav-item dash-nav-item--danger"
+                          onClick={async () => {
+                            setAdminMenuOpen(false)
+                            try {
+                              await signOut(getCognitoContext())
+                            } catch (error) {
+                              console.error('[customer-auth] Cognito sign-out failed.', error)
+                            }
+                            clearSession()
+                            window.location.replace('/')
+                          }}
+                        >
+                          <LogOut size={15} /> Sign Out
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </header>
+
+            {/* Main scrollable body */}
+            <main className="dash-main">
+              {children}
+            </main>
+          </div>
+
+          {/* Floating flyout tooltip in collapsed rail mode */}
+          {isSidebarCollapsed && !isMobile && hoveredFlyout && (
+            <div
+              className="dash-sidebar-flyout"
+              style={{
+                position: 'fixed',
+                top: hoveredFlyout.top,
+                left: hoveredFlyout.left,
+                transform: 'translateY(-50%)',
+                zIndex: 9999,
+              }}
+            >
+              <span>{hoveredFlyout.label}</span>
+              {hoveredFlyout.badge && <span className="dash-nav-badge">{hoveredFlyout.badge}</span>}
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
 
   return (
-    <div className="dash-shell" data-theme={dashTheme} data-role={portalRole}>
+    <div className="dash-shell" data-theme={dashTheme} data-role="admin">
       <Ambient />
       <div className="dash-window-frame">
         {/* ── Top Navigation Bar ──────────────────────────────── */}
         <header className="dash-topbar">
           <div className="dash-topbar__left">
-            {portalRole === 'customer' ? (
-              <div className="row" style={{ gap: 12, alignItems: 'center' }}>
-                <Link to="/dashboard/customer" className="row" style={{ gap: 10, alignItems: 'center', textDecoration: 'none' }}>
-                  <div className="verdelo-brand-logo-leaf" title="Verdelo">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#082417" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 22v-9" />
-                      <path d="M9 10a5 5 0 0 1 5-5c2.5 0 4 2 4 4a5 5 0 0 1-5 5H9z" />
-                      <path d="M15 13a5 5 0 0 1-5 5c-2.5 0-4-2-4-4a5 5 0 0 1 5-5h4z" />
-                    </svg>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column' }}>
-                    <span className="verdelo-brand-name" style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.08rem', lineHeight: 1.12, color: '#ffffff', letterSpacing: '-0.02em' }}>
-                      Verdelo
-                    </span>
-                    <span className="verdelo-brand-sub" style={{ fontSize: '0.68rem', lineHeight: 1.15, color: '#8caba0', fontWeight: 500 }}>
-                      Sahith Workspace
-                    </span>
-                  </div>
-                </Link>
-                <button
-                  type="button"
-                  className="verdelo-sidebar-toggle"
-                  onClick={toggleSidebarCollapse}
-                  title={isSidebarCollapsed ? "Expand sidebar (Ctrl+B)" : "Collapse sidebar (Ctrl+B)"}
-                  aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-                >
-                  <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-                    <rect x="2" y="2" width="12" height="12" rx="3" stroke="currentColor" strokeWidth="1.5" />
-                    <line x1="6.5" y1="2" x2="6.5" y2="14" stroke="currentColor" strokeWidth="1.5" />
-                  </svg>
-                </button>
-              </div>
-            ) : (
-              <Link to={portalHomeRoute} className="row" style={{ gap: 10, alignItems: 'center' }}>
-                <LogoMark size={28} theme={dashTheme} />
-                <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.05rem', color: 'var(--ink)' }}>
-                  Infer<span style={{ color: 'var(--brand-hi)' }}>xe</span>
-                </span>
-              </Link>
-            )}
+            <Link to={portalHomeRoute} className="row" style={{ gap: 10, alignItems: 'center' }}>
+              <LogoMark size={28} theme={dashTheme} />
+              <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.05rem', color: 'var(--ink)' }}>
+                Infer<span style={{ color: 'var(--brand-hi)' }}>xe</span>
+              </span>
+            </Link>
 
-            {portalRole === 'admin' && (
-              <>
-                <span className="dash-topbar__divider" aria-hidden />
-                {/* Active Portal Badge */}
-                <span
-                  style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: '0.66rem',
-                    letterSpacing: '0.06em',
-                    textTransform: 'uppercase',
-                    padding: '2px 8px',
-                    borderRadius: 4,
-                    background: dashTheme === 'light' ? 'rgba(14, 165, 233, 0.12)' : 'rgba(14, 165, 233, 0.18)',
-                    color: dashTheme === 'light' ? '#0284c7' : '#38bdf8',
-                    border: `1px solid ${dashTheme === 'light' ? 'rgba(14, 165, 233, 0.35)' : 'rgba(56, 189, 248, 0.3)'}`,
-                    marginLeft: 4,
-                    fontWeight: 600,
-                  }}
-                >
-                  Admin Portal
-                </span>
-              </>
-            )}
+            <span className="dash-topbar__divider" aria-hidden />
+            <span
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.66rem',
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                padding: '2px 8px',
+                borderRadius: 4,
+                background: dashTheme === 'light' ? 'rgba(14, 165, 233, 0.12)' : 'rgba(14, 165, 233, 0.18)',
+                color: dashTheme === 'light' ? '#0284c7' : '#38bdf8',
+                border: `1px solid ${dashTheme === 'light' ? 'rgba(14, 165, 233, 0.35)' : 'rgba(56, 189, 248, 0.3)'}`,
+                marginLeft: 4,
+                fontWeight: 600,
+              }}
+            >
+              Admin Portal
+            </span>
           </div>
 
-        {/* Center: Verdelo Search Capsule for customer / Admin telemetry */}
-        <div className="dash-topbar__center">
-          {portalRole === 'customer' ? (
-            <div
-              className="verdelo-search-pill"
-              onClick={() => {
-                const searchModalTrigger = document.querySelector('.dash-search-btn') as HTMLButtonElement | null
-                if (searchModalTrigger) searchModalTrigger.click()
-              }}
-              role="button"
-              tabIndex={0}
-              aria-label="Search payments, people, pages"
-            >
-              <Search size={15} className="verdelo-search-icon" />
-              <span className="verdelo-search-text">Search payments, people, pages</span>
-              <kbd className="verdelo-search-kbd">⌘K</kbd>
-            </div>
-          ) : (
-            trialTimeLeft !== null ? (
+          {/* Center: Admin telemetry */}
+          <div className="dash-topbar__center">
+            {trialTimeLeft !== null ? (
               trialTimeLeft > 0 ? (
                 <div
                   className={`mw-trial-chip ${trialTimeLeft < 600000 ? 'mw-trial-chip--warning' : ''}`}
@@ -945,465 +1214,295 @@ export function DashboardLayout({
                 <Sparkles size={12} />
                 <span>Start 1-Hr Trial</span>
               </button>
-            )
-          )}
-        </div>
+            )}
+          </div>
 
-        {/* Right: Notifications & Admin Profile Section */}
-        <div className="dash-topbar__right">
-          {portalRole === 'customer' ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              {/* Green + Action Circle (Image 2) */}
-              <button
-                type="button"
-                className="verdelo-btn-circle verdelo-btn-circle--mint"
-                onClick={() => window.dispatchEvent(new Event('inferxe_open_topup'))}
-                title="Add / Move money"
-                aria-label="Add or move money"
-              >
-                <Plus size={16} strokeWidth={2.8} />
-              </button>
-
-              {/* Dark Glass Send Circle (Image 2) */}
-              <button
-                type="button"
-                className="verdelo-btn-circle verdelo-btn-circle--glass"
-                onClick={() => window.dispatchEvent(new Event('inferxe_open_send'))}
-                title="Send money"
-                aria-label="Send money"
-              >
-                <Send size={14} />
-              </button>
-
-              {/* Topbar Vertical Separator (Image 2) */}
-              <span className="verdelo-topbar-sep" aria-hidden="true" />
-
-              {/* Sun / Theme icon (Image 2) */}
-              <button
-                id="dash-header-theme-toggle"
-                className="verdelo-topbar-icon-btn"
-                onClick={(e) => toggleTheme(e)}
-                title={dashTheme === "light" ? "Switch to dark mode" : "Switch to light mode"}
-                aria-label="Toggle light / dark mode"
-              >
-                <Sun size={17} />
-              </button>
-
-              {/* Bell with mint unread dot and Image 3 Alerts popup */}
-              <div ref={notifRef} style={{ position: 'relative' }}>
-                <button
-                  className="verdelo-topbar-icon-btn verdelo-bell-btn"
-                  title="Alerts"
-                  aria-label="Alerts"
-                  onClick={() => {
-                    setNotifOpen(!notifOpen)
-                    setAdminMenuOpen(false)
+          {/* Right: Notifications & Admin Profile */}
+          <div className="dash-topbar__right">
+            <button
+              id="dash-header-theme-toggle"
+              className={`dash-theme-toggle dash-theme-toggle--${dashTheme}`}
+              onClick={(e) => toggleTheme(e)}
+              title={dashTheme === "light" ? "Switch to dark mode" : "Switch to light mode"}
+              aria-label="Toggle light / dark mode"
+            >
+              <AnimatePresence initial={false}>
+                <motion.span
+                  key={dashTheme}
+                  className="dash-theme-icon-wrap"
+                  initial={{
+                    rotate: dashTheme === 'light' ? 90 : -90,
+                    scale: 0.25,
+                    opacity: 0,
+                    color: dashTheme === 'light' ? '#FBBF24' : '#0284c7',
+                  }}
+                  animate={{
+                    rotate: 0,
+                    scale: 1,
+                    opacity: 1,
+                    color: dashTheme === 'light' ? '#0284c7' : '#FBBF24',
+                  }}
+                  exit={{
+                    rotate: dashTheme === 'light' ? -90 : 90,
+                    scale: 0.25,
+                    opacity: 0,
+                    color: dashTheme === 'light' ? '#0284c7' : '#FBBF24',
+                  }}
+                  transition={{
+                    duration: 0.45,
+                    ease: [0.34, 1.3, 0.64, 1],
                   }}
                 >
-                  <Bell size={18} />
-                  {customerAlerts.some(a => a.unread) && <span className="verdelo-bell-dot" />}
-                </button>
+                  {dashTheme === "light" ? (
+                    <Moon size={16} className="dash-theme-icon dash-theme-icon--moon" />
+                  ) : (
+                    <Sun size={16} className="dash-theme-icon dash-theme-icon--sun" />
+                  )}
+                </motion.span>
+              </AnimatePresence>
+            </button>
 
-                {notifOpen && (
-                  <div className="verdelo-alerts-popup">
-                    <div className="verdelo-alerts-header">
-                      <h3 className="verdelo-alerts-title">Alerts</h3>
+            {/* Admin Notifications */}
+            <div ref={notifRef} style={{ position: 'relative' }}>
+              <button
+                className="dash-topbar__btn-icon"
+                title="Notifications"
+                aria-label="Notifications"
+                onClick={() => {
+                  setNotifOpen(!notifOpen)
+                  setAdminMenuOpen(false)
+                }}
+                style={{ position: 'relative' }}
+              >
+                <Bell size={17} />
+                {unreadNotifCount > 0 ? (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: -2,
+                      right: -2,
+                      background: '#ef4444',
+                      color: '#fff',
+                      borderRadius: '50%',
+                      minWidth: 15,
+                      height: 15,
+                      padding: '0 3px',
+                      fontSize: '0.62rem',
+                      fontWeight: 700,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: '1.5px solid var(--surface-1)',
+                    }}
+                  >
+                    {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
+                  </span>
+                ) : null}
+              </button>
+
+              {notifOpen && (
+                <div
+                  className="dash-dropdown-popover"
+                  style={{
+                    width: '350px',
+                    padding: '16px',
+                    maxHeight: '440px',
+                    overflowY: 'auto',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.74rem', color: 'var(--brand-hi)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.06em' }}>
+                      Notifications & Alerts
+                    </span>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      {unreadNotifCount > 0 && (
+                        <span
+                          style={{
+                            fontSize: '0.68rem',
+                            fontWeight: 600,
+                            padding: '2px 8px',
+                            borderRadius: 10,
+                            background: 'rgba(239, 68, 68, 0.16)',
+                            border: '1px solid rgba(239, 68, 68, 0.35)',
+                            color: '#ef4444',
+                          }}
+                        >
+                          {unreadNotifCount} new
+                        </span>
+                      )}
                       <button
                         type="button"
-                        className="verdelo-alerts-mark-read"
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: 'var(--ink-muted)',
+                          fontSize: '0.68rem',
+                          cursor: 'pointer',
+                          textDecoration: 'underline',
+                        }}
                         onClick={() => {
-                          setCustomerAlerts(prev => prev.map(a => ({ ...a, hasDot: false, unread: false })))
+                          const updated = liveNotifs.map((n) => ({ ...n, read: true }))
+                          setLiveNotifs(updated)
+                          localStorage.setItem('inferxe_demo_notifications_v3', JSON.stringify(updated))
+                          window.dispatchEvent(new CustomEvent('inferxe_notifications_change'))
                         }}
                       >
                         Mark all read
                       </button>
                     </div>
-
-                    <div className="verdelo-alerts-list">
-                      {customerAlerts.map(alert => (
-                        <div className="verdelo-alert-row" key={alert.id}>
-                          <div className={`verdelo-alert-icon-box verdelo-alert-icon-box--${alert.type}`}>
-                            {alert.icon === 'check' && <Check size={16} strokeWidth={2.4} />}
-                            {alert.icon === 'card' && <CreditCard size={16} />}
-                            {alert.icon === 'pie' && <PieChart size={16} />}
-                            {alert.icon === 'goal' && <Database size={16} />}
-                            {alert.icon === 'calendar' && <Calendar size={16} />}
-                          </div>
-                          <div className="verdelo-alert-body">
-                            <div className="verdelo-alert-title-line">
-                              <span className="verdelo-alert-name">{alert.title}</span>
-                              {alert.hasDot && <span className="verdelo-alert-dot" />}
-                            </div>
-                            <div className="verdelo-alert-desc">{alert.desc}</div>
-                            <div className="verdelo-alert-time">{alert.time}</div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
                   </div>
-                )}
-              </div>
 
-              {/* User Avatar Circle: Light mint with "S" (Sahith) matching Image 2 */}
-              <div ref={profileMenuRef} style={{ position: 'relative' }}>
-                <div
-                  className="verdelo-avatar-pill"
-                  onClick={() => {
-                    setAdminMenuOpen(!adminMenuOpen)
-                    setNotifOpen(false)
-                  }}
-                  role="button"
-                  tabIndex={0}
-                  title="Sahith (Account Owner)"
-                >
-                  <span>S</span>
-                </div>
-
-                {adminMenuOpen && (
-                  <div
-                    className="dash-dropdown-popover"
-                    style={{
-                      position: 'absolute',
-                      top: 'calc(100% + 10px)',
-                      right: 0,
-                      width: '270px',
-                      padding: '12px',
-                      zIndex: 1100,
-                    }}
-                  >
-                    <div className="dash-user-head">
-                      <div className="dash-user-name">Sahith</div>
-                      <div className="dash-user-email">sahith@inferxe.com</div>
-                      <div style={{ marginTop: 6, display: 'flex', gap: 6, alignItems: 'center' }}>
-                        <span
-                          className="tag"
-                          style={{
-                            background: 'rgba(80, 227, 150, 0.18)',
-                            color: '#50e396',
-                            borderColor: 'rgba(80, 227, 150, 0.4)',
-                            fontSize: '0.68rem',
-                            fontWeight: 600,
-                          }}
-                        >
-                          Sahith Workspace
-                        </span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {liveNotifs.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '16px', color: 'var(--ink-muted)', fontSize: '0.82rem' }}>
+                        No notifications yet.
                       </div>
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2, paddingTop: 6 }}>
-                      <button
-                        type="button"
-                        className="dash-nav-item dash-nav-item--danger"
-                        onClick={async () => {
-                          setAdminMenuOpen(false)
-                          try {
-                            await signOut(getCognitoContext())
-                          } catch (error) {
-                            console.error('[customer-auth] Cognito sign-out failed.', error)
-                          }
-                          clearSession()
-                          window.location.replace('/')
-                        }}
-                      >
-                        <LogOut size={15} /> Sign Out
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : (
-            <>
-              <button
-                id="dash-header-theme-toggle"
-                className={`dash-theme-toggle dash-theme-toggle--${dashTheme}`}
-                onClick={(e) => toggleTheme(e)}
-                title={dashTheme === "light" ? "Switch to dark mode" : "Switch to light mode"}
-                aria-label="Toggle light / dark mode"
-              >
-                <AnimatePresence initial={false}>
-                  <motion.span
-                    key={dashTheme}
-                    className="dash-theme-icon-wrap"
-                    initial={{
-                      rotate: dashTheme === 'light' ? 90 : -90,
-                      scale: 0.25,
-                      opacity: 0,
-                      color: dashTheme === 'light' ? '#FBBF24' : '#0284c7',
-                    }}
-                    animate={{
-                      rotate: 0,
-                      scale: 1,
-                      opacity: 1,
-                      color: dashTheme === 'light' ? '#0284c7' : '#FBBF24',
-                    }}
-                    exit={{
-                      rotate: dashTheme === 'light' ? -90 : 90,
-                      scale: 0.25,
-                      opacity: 0,
-                      color: dashTheme === 'light' ? '#0284c7' : '#FBBF24',
-                    }}
-                    transition={{
-                      duration: 0.45,
-                      ease: [0.34, 1.3, 0.64, 1],
-                    }}
-                  >
-                    {dashTheme === "light" ? (
-                      <Moon size={16} className="dash-theme-icon dash-theme-icon--moon" />
                     ) : (
-                      <Sun size={16} className="dash-theme-icon dash-theme-icon--sun" />
-                    )}
-                  </motion.span>
-                </AnimatePresence>
-              </button>
-
-              {/* Admin Notifications */}
-              <div ref={notifRef} style={{ position: 'relative' }}>
-                <button
-                  className="dash-topbar__btn-icon"
-                  title="Notifications"
-                  aria-label="Notifications"
-                  onClick={() => {
-                    setNotifOpen(!notifOpen)
-                    setAdminMenuOpen(false)
-                  }}
-                  style={{ position: 'relative' }}
-                >
-                  <Bell size={17} />
-                  {unreadNotifCount > 0 ? (
-                    <span
-                      style={{
-                        position: 'absolute',
-                        top: -2,
-                        right: -2,
-                        background: '#ef4444',
-                        color: '#fff',
-                        borderRadius: '50%',
-                        minWidth: 15,
-                        height: 15,
-                        padding: '0 3px',
-                        fontSize: '0.62rem',
-                        fontWeight: 700,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        border: '1.5px solid var(--surface-1)',
-                      }}
-                    >
-                      {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
-                    </span>
-                  ) : null}
-                </button>
-
-                {notifOpen && (
-                  <div
-                    className="dash-dropdown-popover"
-                    style={{
-                      width: '350px',
-                      padding: '16px',
-                      maxHeight: '440px',
-                      overflowY: 'auto',
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.74rem', color: 'var(--brand-hi)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.06em' }}>
-                        Notifications & Alerts
-                      </span>
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                        {unreadNotifCount > 0 && (
-                          <span
-                            style={{
-                              fontSize: '0.68rem',
-                              fontWeight: 600,
-                              padding: '2px 8px',
-                              borderRadius: 10,
-                              background: 'rgba(239, 68, 68, 0.16)',
-                              border: '1px solid rgba(239, 68, 68, 0.35)',
-                              color: '#ef4444',
-                            }}
-                          >
-                            {unreadNotifCount} new
-                          </span>
-                        )}
-                        <button
-                          type="button"
-                          style={{
-                            background: 'transparent',
-                            border: 'none',
-                            color: 'var(--ink-muted)',
-                            fontSize: '0.68rem',
-                            cursor: 'pointer',
-                            textDecoration: 'underline',
-                          }}
+                      liveNotifs.slice(0, 5).map((n) => (
+                        <div
+                          key={n.id}
+                          className={`dash-notif-card ${!n.read ? 'dash-notif-card--accent' : 'dash-notif-card--standard'}`}
+                          style={{ cursor: 'pointer' }}
                           onClick={() => {
-                            const updated = liveNotifs.map((n) => ({ ...n, read: true }))
+                            const updated = liveNotifs.map((item) => item.id === n.id ? { ...item, read: true } : item)
                             setLiveNotifs(updated)
                             localStorage.setItem('inferxe_demo_notifications_v3', JSON.stringify(updated))
                             window.dispatchEvent(new CustomEvent('inferxe_notifications_change'))
+                            setNotifOpen(false)
+                            navigate('/dashboard/notifications')
                           }}
                         >
-                          Mark all read
-                        </button>
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                      {liveNotifs.length === 0 ? (
-                        <div style={{ textAlign: 'center', padding: '16px', color: 'var(--ink-muted)', fontSize: '0.82rem' }}>
-                          No notifications yet.
-                        </div>
-                      ) : (
-                        liveNotifs.slice(0, 5).map((n) => (
-                          <div
-                            key={n.id}
-                            className={`dash-notif-card ${!n.read ? 'dash-notif-card--accent' : 'dash-notif-card--standard'}`}
-                            style={{ cursor: 'pointer' }}
-                            onClick={() => {
-                              const updated = liveNotifs.map((item) => item.id === n.id ? { ...item, read: true } : item)
-                              setLiveNotifs(updated)
-                              localStorage.setItem('inferxe_demo_notifications_v3', JSON.stringify(updated))
-                              window.dispatchEvent(new CustomEvent('inferxe_notifications_change'))
-                              setNotifOpen(false)
-                              navigate('/dashboard/notifications')
-                            }}
-                          >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
-                              <span
-                                style={{
-                                  fontSize: '0.66rem',
-                                  textTransform: 'uppercase',
-                                  fontWeight: 700,
-                                  color: n.type === 'Billing' ? '#10b981' : n.type === 'Deployment' ? '#06b6d4' : 'var(--brand-hi)',
-                                }}
-                              >
-                                {n.type}
-                              </span>
-                              <span style={{ fontSize: '0.64rem', color: 'var(--ink-muted)' }}>{n.time}</span>
-                            </div>
-                            <div className="dash-notif-card__title" style={{ fontWeight: !n.read ? 700 : 500 }}>
-                              {n.title}
-                            </div>
-                            <div className="dash-notif-card__desc">{n.detail}</div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
+                            <span
+                              style={{
+                                fontSize: '0.66rem',
+                                textTransform: 'uppercase',
+                                fontWeight: 700,
+                                color: n.type === 'Billing' ? '#10b981' : n.type === 'Deployment' ? '#06b6d4' : 'var(--brand-hi)',
+                              }}
+                            >
+                              {n.type}
+                            </span>
+                            <span style={{ fontSize: '0.64rem', color: 'var(--ink-muted)' }}>{n.time}</span>
                           </div>
-                        ))
-                      )}
-                    </div>
-
-                    <div style={{ marginTop: 12, borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 10, textAlign: 'center' }}>
-                      <Link
-                        to="/dashboard/notifications"
-                        style={{ fontSize: '0.74rem', color: 'var(--brand-hi)', textDecoration: 'none', fontWeight: 600 }}
-                        onClick={() => setNotifOpen(false)}
-                      >
-                        View All Notifications →
-                      </Link>
-                    </div>
+                          <div className="dash-notif-card__title" style={{ fontWeight: !n.read ? 700 : 500 }}>
+                            {n.title}
+                          </div>
+                          <div className="dash-notif-card__desc">{n.detail}</div>
+                        </div>
+                      ))
+                    )}
                   </div>
-                )}
+
+                  <div style={{ marginTop: 12, borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 10, textAlign: 'center' }}>
+                    <Link
+                      to="/dashboard/notifications"
+                      style={{ fontSize: '0.74rem', color: 'var(--brand-hi)', textDecoration: 'none', fontWeight: 600 }}
+                      onClick={() => setNotifOpen(false)}
+                    >
+                      View All Notifications →
+                    </Link>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Admin Profile */}
+            <div ref={profileMenuRef} style={{ position: 'relative' }}>
+              <div
+                className="dash-admin-profile"
+                onClick={() => {
+                  setAdminMenuOpen(!adminMenuOpen)
+                  setNotifOpen(false)
+                }}
+                role="button"
+                tabIndex={0}
+                aria-label="User Profile Menu"
+              >
+                <div className="dash-admin-avatar">
+                  {initials}
+                  <span className="dash-admin-avatar__online" />
+                </div>
+                <div className="dash-admin-info">
+                  <span className="dash-admin-name">{user.fullName}</span>
+                  <span className="dash-admin-role">{roleLabel}</span>
+                </div>
+                <ChevronDown size={14} style={{ color: 'var(--ink-3)' }} />
               </div>
 
-              {/* Admin Profile */}
-              <div ref={profileMenuRef} style={{ position: 'relative' }}>
+              {adminMenuOpen && (
                 <div
-                  className="dash-admin-profile"
-                  onClick={() => {
-                    setAdminMenuOpen(!adminMenuOpen)
-                    setNotifOpen(false)
+                  className="dash-dropdown-popover"
+                  style={{
+                    width: '270px',
+                    padding: '12px',
                   }}
-                  role="button"
-                  tabIndex={0}
-                  aria-label="User Profile Menu"
                 >
-                  <div className="dash-admin-avatar">
-                    {initials}
-                    <span className="dash-admin-avatar__online" />
-                  </div>
-                  <div className="dash-admin-info">
-                    <span className="dash-admin-name">{user.fullName}</span>
-                    <span className="dash-admin-role">{roleLabel}</span>
-                  </div>
-                  <ChevronDown size={14} style={{ color: 'var(--ink-3)' }} />
-                </div>
-
-                {adminMenuOpen && (
-                  <div
-                    className="dash-dropdown-popover"
-                    style={{
-                      width: '270px',
-                      padding: '12px',
-                    }}
-                  >
-                    <div className="dash-user-head">
-                      <div className="dash-user-name">{user.fullName}</div>
-                      <div className="dash-user-email">{user.email}</div>
-                      <div style={{ marginTop: 6, display: 'flex', gap: 6, alignItems: 'center' }}>
-                        <span
-                          className="tag"
-                          style={{
-                            background: 'rgba(118, 185, 0, 0.18)',
-                            color: 'var(--brand-hi)',
-                            borderColor: 'var(--brand)',
-                            fontSize: '0.68rem',
-                            fontWeight: 600,
-                          }}
-                        >
-                          {roleLabel}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2, paddingTop: 4 }}>
-                      <button
-                        type="button"
-                        className="dash-nav-item dash-nav-item--danger"
-                        onClick={async () => {
-                          setAdminMenuOpen(false)
-                          clearSession()
-                          window.location.replace('/')
+                  <div className="dash-user-head">
+                    <div className="dash-user-name">{user.fullName}</div>
+                    <div className="dash-user-email">{user.email}</div>
+                    <div style={{ marginTop: 6, display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <span
+                        className="tag"
+                        style={{
+                          background: 'rgba(118, 185, 0, 0.18)',
+                          color: 'var(--brand-hi)',
+                          borderColor: 'var(--brand)',
+                          fontSize: '0.68rem',
+                          fontWeight: 600,
                         }}
                       >
-                        <LogOut size={15} /> Sign Out
-                      </button>
+                        {roleLabel}
+                      </span>
                     </div>
                   </div>
-                )}
-              </div>
-            </>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2, paddingTop: 4 }}>
+                    <button
+                      type="button"
+                      className="dash-nav-item dash-nav-item--danger"
+                      onClick={async () => {
+                        setAdminMenuOpen(false)
+                        clearSession()
+                        window.location.replace('/')
+                      }}
+                    >
+                      <LogOut size={15} /> Sign Out
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Mobile hamburger */}
+            <button
+              className="dash-mobile-burger"
+              onClick={toggleSidebarCollapse}
+              aria-label="Toggle navigation menu"
+            >
+              {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
+          </div>
+        </header>
+
+        {/* ── Layout Body (Sidebar + Content) ─────────────────── */}
+        <div className="dash-body">
+          {mobileMenuOpen && (
+            <div
+              className="dash-sidebar-overlay"
+              onClick={() => setMobileMenuOpen(false)}
+              aria-hidden="true"
+            />
           )}
 
-          {/* Mobile hamburger */}
-          <button
-            className="dash-mobile-burger"
-            onClick={toggleSidebarCollapse}
-            aria-label="Toggle navigation menu"
+          <aside
+            className={`dash-sidebar ${
+              isMobile
+                ? (mobileMenuOpen ? 'is-open' : '')
+                : (isSidebarCollapsed ? 'is-collapsed' : '')
+            }`}
+            aria-label="Dashboard Sidebar"
           >
-            {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
-          </button>
-        </div>
-      </header>
-
-      {/* ── Layout Body (Sidebar + Content) ─────────────────── */}
-      <div className="dash-body">
-        {/* Mobile backdrop overlay */}
-        {mobileMenuOpen && (
-          <div
-            className="dash-sidebar-overlay"
-            onClick={() => setMobileMenuOpen(false)}
-            aria-hidden="true"
-          />
-        )}
-
-        {/* Left Sidebar: pill / rail style matching reference video */}
-        <aside
-          className={`dash-sidebar ${
-            isMobile
-              ? (mobileMenuOpen ? 'is-open' : '')
-              : (isSidebarCollapsed ? 'is-collapsed' : '')
-          }`}
-          aria-label="Dashboard Sidebar"
-        >
-          {/* Top header row: Admin tag (Customer portal displays brand in integrated master topbar) */}
-          {portalRole === 'admin' && (
             <div className="dash-sidebar__top">
               {!isSidebarCollapsed && (
                 <span className="dash-sidebar__workspace-tag">
@@ -1426,18 +1525,8 @@ export function DashboardLayout({
                 />
               </button>
             </div>
-          )}
 
-          <div ref={sidebarScrollRef} className="dash-sidebar__scroll">
-            {/* ── 1A. CUSTOMER PORTAL MAIN NAVIGATION (Scrollable Upper Section) ── */}
-            {portalRole === 'customer' && (
-              <div className="dash-nav-groups">
-                {customerMainNavGroups.map(renderCustomerGroup)}
-              </div>
-            )}
-
-            {/* ── 2. ADMIN PORTAL NAVIGATION (Administration & Provider Management) ── */}
-            {portalRole === 'admin' && (
+            <div ref={sidebarScrollRef} className="dash-sidebar__scroll">
               <div>
                 {/* Section A: Administration */}
                 <button
@@ -1477,18 +1566,6 @@ export function DashboardLayout({
                               setHoveredFlyout(null)
                               setMobileMenuOpen(false)
                             }}
-                            onMouseEnter={(e) => {
-                              if (isSidebarCollapsed && !isMobile) {
-                                const rect = e.currentTarget.getBoundingClientRect()
-                                setHoveredFlyout({
-                                  label: item.label,
-                                  badge: item.badge,
-                                  top: rect.top + rect.height / 2,
-                                  left: rect.right + 12,
-                                })
-                              }
-                            }}
-                            onMouseLeave={() => setHoveredFlyout(null)}
                           >
                             <item.icon />
                             <span>{item.label}</span>
@@ -1500,7 +1577,7 @@ export function DashboardLayout({
                   )}
                 </AnimatePresence>
 
-                {/* Section B: Provider Management (Moved into Admin Portal) */}
+                {/* Section B: Provider Management */}
                 <button
                   type="button"
                   className="dash-nav-section-title dash-nav-section-btn"
@@ -1539,18 +1616,6 @@ export function DashboardLayout({
                               setHoveredFlyout(null)
                               setMobileMenuOpen(false)
                             }}
-                            onMouseEnter={(e) => {
-                              if (isSidebarCollapsed && !isMobile) {
-                                const rect = e.currentTarget.getBoundingClientRect()
-                                setHoveredFlyout({
-                                  label: item.label,
-                                  badge: item.badge,
-                                  top: rect.top + rect.height / 2,
-                                  left: rect.right + 12,
-                                })
-                              }
-                            }}
-                            onMouseLeave={() => setHoveredFlyout(null)}
                           >
                             <item.icon />
                             <span>{item.label}</span>
@@ -1562,47 +1627,10 @@ export function DashboardLayout({
                   )}
                 </AnimatePresence>
               </div>
-            )}
-          </div>
-
-          {/* ── 1B. CUSTOMER PORTAL BOTTOM NAVIGATION (Fixed Support & Settings) ── */}
-          {portalRole === 'customer' && (
-            <div className="dash-sidebar__bottom-nav" aria-label="Support and Settings">
-              <div className="dash-nav-groups">
-                {customerBottomNavGroups.map(renderCustomerGroup)}
-              </div>
             </div>
-          )}
 
-          {/* Quota & Organization Footer */}
-          <div className="dash-sidebar__footer">
-            {portalRole === 'customer' ? (
-              !isSidebarCollapsed && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {/* Safe to spend floating card (Exact Verdelo replica) */}
-                  <div className="verdelo-safe-spend-card">
-                    <div className="verdelo-safe-spend-label">Safe to spend today</div>
-                    <div className="verdelo-safe-spend-amount">$67</div>
-                    <div className="verdelo-safe-spend-sub">$269 of bills still due · 19 days left</div>
-                  </div>
-
-                  {/* Account Owner Card (Sahith) */}
-                  <div
-                    className="verdelo-user-pill"
-                    onClick={() => setAdminMenuOpen(!adminMenuOpen)}
-                    role="button"
-                    tabIndex={0}
-                  >
-                    <div className="verdelo-user-avatar">S</div>
-                    <div className="verdelo-user-info">
-                      <span className="verdelo-user-name">Sahith</span>
-                      <span className="verdelo-user-email">sahith@inferxe.com</span>
-                    </div>
-                    <span className="verdelo-user-dots">•••</span>
-                  </div>
-                </div>
-              )
-            ) : (
+            {/* Quota & Organization Footer */}
+            <div className="dash-sidebar__footer">
               <div className="dash-quota-card plate plate--dark" title="Cluster Fleet: 4 Nodes · 14 Users (64% capacity)">
                 <div className="dash-quota-card__header">
                   <span className="dash-quota-card__label engrave" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -1617,90 +1645,76 @@ export function DashboardLayout({
                   Enterprise Sovereign Control · Tier IV Infrastructure
                 </div>
               </div>
-            )}
 
-            <Link
-              to="/"
-              className="dash-sidebar__public-link"
-              title="Back to Public Website"
-              onClick={() => {
-                setHoveredFlyout(null)
-                setMobileMenuOpen(false)
+              <Link
+                to="/"
+                className="dash-sidebar__public-link"
+                title="Back to Public Website"
+                onClick={() => {
+                  setHoveredFlyout(null)
+                  setMobileMenuOpen(false)
+                }}
+              >
+                <ExternalLink size={13} />
+                <span>Back to Public Website</span>
+              </Link>
+            </div>
+          </aside>
+
+          {/* Floating flyout tooltip in collapsed rail mode */}
+          {isSidebarCollapsed && !isMobile && hoveredFlyout && (
+            <div
+              className="dash-sidebar-flyout"
+              style={{
+                position: 'fixed',
+                top: hoveredFlyout.top,
+                left: hoveredFlyout.left,
+                transform: 'translateY(-50%)',
+                zIndex: 9999,
               }}
-              onMouseEnter={(e) => {
-                if (isSidebarCollapsed && !isMobile) {
-                  const rect = e.currentTarget.getBoundingClientRect()
-                  setHoveredFlyout({
-                    label: 'Back to Public Website',
-                    top: rect.top + rect.height / 2,
-                    left: rect.right + 12,
-                  })
-                }
-              }}
-              onMouseLeave={() => setHoveredFlyout(null)}
             >
-              <ExternalLink size={13} />
-              <span>Back to Public Website</span>
-            </Link>
-          </div>
-        </aside>
-
-        {/* Floating flyout tooltip in collapsed rail mode (matching video) */}
-        {isSidebarCollapsed && !isMobile && hoveredFlyout && (
-          <div
-            className="dash-sidebar-flyout"
-            style={{
-              position: 'fixed',
-              top: hoveredFlyout.top,
-              left: hoveredFlyout.left,
-              transform: 'translateY(-50%)',
-              zIndex: 9999,
-            }}
-          >
-            <span>{hoveredFlyout.label}</span>
-            {hoveredFlyout.badge && <span className="dash-nav-badge">{hoveredFlyout.badge}</span>}
-          </div>
-        )}
-
-        {/* Main Content Area */}
-        <main className="dash-main">
-          {/* Breadcrumb */}
-          {breadcrumb && breadcrumb.length > 0 && (
-            <nav className="dash-breadcrumb" aria-label="Breadcrumb">
-              {breadcrumb.map((bc, idx) => (
-                <span key={bc.label} className="row" style={{ gap: 8, alignItems: 'center' }}>
-                  {idx > 0 && <span className="dash-breadcrumb__sep">/</span>}
-                  {bc.to ? (
-                    <Link to={bc.to}>{bc.label}</Link>
-                  ) : (
-                    <span className="dash-breadcrumb__current">{bc.label}</span>
-                  )}
-                </span>
-              ))}
-            </nav>
-          )}
-
-          {/* Header Row */}
-          {!hideHeader && (heading || backButtonLabel) && (
-            <div className="dash-header-row">
-              <div>
-                <h1 className="dash-header-title">{heading}</h1>
-                {description && <p className="dash-header-desc">{description}</p>}
-              </div>
-
-              {backButtonLabel && (
-                <button type="button" className="dash-back-btn" onClick={handleBack} aria-label={backButtonLabel}>
-                  <ChevronLeft />
-                  <span>{backButtonLabel}</span>
-                </button>
-              )}
+              <span>{hoveredFlyout.label}</span>
+              {hoveredFlyout.badge && <span className="dash-nav-badge">{hoveredFlyout.badge}</span>}
             </div>
           )}
 
-          {children}
-        </main>
+          {/* Main Content Area */}
+          <main className="dash-main">
+            {breadcrumb && breadcrumb.length > 0 && (
+              <nav className="dash-breadcrumb" aria-label="Breadcrumb">
+                {breadcrumb.map((bc, idx) => (
+                  <span key={bc.label} className="row" style={{ gap: 8, alignItems: 'center' }}>
+                    {idx > 0 && <span className="dash-breadcrumb__sep">/</span>}
+                    {bc.to ? (
+                      <Link to={bc.to}>{bc.label}</Link>
+                    ) : (
+                      <span className="dash-breadcrumb__current">{bc.label}</span>
+                    )}
+                  </span>
+                ))}
+              </nav>
+            )}
+
+            {!hideHeader && (heading || backButtonLabel) && (
+              <div className="dash-header-row">
+                <div>
+                  <h1 className="dash-header-title">{heading}</h1>
+                  {description && <p className="dash-header-desc">{description}</p>}
+                </div>
+
+                {backButtonLabel && (
+                  <button type="button" className="dash-back-btn" onClick={handleBack} aria-label={backButtonLabel}>
+                    <ChevronLeft />
+                    <span>{backButtonLabel}</span>
+                  </button>
+                )}
+              </div>
+            )}
+
+            {children}
+          </main>
+        </div>
       </div>
     </div>
-  </div>
-)
+  )
 }
