@@ -1,7 +1,6 @@
 import { useEffect, useState, useRef, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { signOut } from 'aws-amplify/auth'
 import {
   Activity as ActivityIcon,
   BarChart3,
@@ -33,8 +32,7 @@ import {
 } from 'lucide-react'
 import { LogoMark } from '../Logo'
 import { Ambient } from '../layout/Ambient'
-import { getSession, clearSession, getPortalRole, type AuthSession, type PortalRole } from '../../lib/authStore'
-import { getCognitoContext } from '../../lib/cognitoContext'
+import { getSession, getPortalRole, performSignOut, type AuthSession, type PortalRole } from '../../lib/authStore'
 import { fetchWalletBalance } from '../../lib/walletService'
 interface BreadcrumbItem {
   label: string
@@ -83,6 +81,7 @@ export function DashboardLayout({
   const navigate = useNavigate()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [adminMenuOpen, setAdminMenuOpen] = useState(false)
+  const [sidebarMenuOpen, setSidebarMenuOpen] = useState(false)
   const [notifOpen, setNotifOpen] = useState(false)
   const [customerAlerts, setCustomerAlerts] = useState([
     {
@@ -139,6 +138,7 @@ export function DashboardLayout({
 
   const notifRef = useRef<HTMLDivElement>(null)
   const profileMenuRef = useRef<HTMLDivElement>(null)
+  const sidebarMenuRef = useRef<HTMLDivElement>(null)
   const sidebarScrollRef = useRef<HTMLDivElement>(null)
 
   // Sidebar collapsed state (desktop: false = expanded 286px, true = collapsed 70px rail)
@@ -329,16 +329,20 @@ export function DashboardLayout({
       if (profileMenuRef.current && !profileMenuRef.current.contains(target)) {
         setAdminMenuOpen(false)
       }
+      if (sidebarMenuRef.current && !sidebarMenuRef.current.contains(target)) {
+        setSidebarMenuOpen(false)
+      }
     }
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setNotifOpen(false)
         setAdminMenuOpen(false)
+        setSidebarMenuOpen(false)
       }
     }
 
-    if (notifOpen || adminMenuOpen) {
+    if (notifOpen || adminMenuOpen || sidebarMenuOpen) {
       document.addEventListener('mousedown', handleClickOutside)
       document.addEventListener('touchstart', handleClickOutside)
       document.addEventListener('keydown', handleKeyDown)
@@ -349,7 +353,7 @@ export function DashboardLayout({
       document.removeEventListener('touchstart', handleClickOutside)
       document.removeEventListener('keydown', handleKeyDown)
     }
-  }, [notifOpen, adminMenuOpen])
+  }, [notifOpen, adminMenuOpen, sidebarMenuOpen])
 
   // Light / dark mode (persisted per browser)
   const [dashTheme, setDashTheme] = useState<'light' | 'dark'>(() => {
@@ -928,18 +932,67 @@ export function DashboardLayout({
                   </div>
 
                   {/* Account Owner Card */}
-                  <div
-                    className="verdelo-user-pill"
-                    onClick={() => setAdminMenuOpen(!adminMenuOpen)}
-                    role="button"
-                    tabIndex={0}
-                  >
-                    <div className="verdelo-user-avatar">S</div>
-                    <div className="verdelo-user-info">
-                      <span className="verdelo-user-name">Sahith</span>
-                      <span className="verdelo-user-email">sahith@inferxe.com</span>
+                  <div ref={sidebarMenuRef} style={{ position: 'relative' }}>
+                    <div
+                      className="verdelo-user-pill"
+                      onClick={() => setSidebarMenuOpen(!sidebarMenuOpen)}
+                      role="button"
+                      tabIndex={0}
+                      title={`${user.fullName} (${roleLabel})`}
+                    >
+                      <div className="verdelo-user-avatar">{initials}</div>
+                      <div className="verdelo-user-info">
+                        <span className="verdelo-user-name">{user.fullName}</span>
+                        <span className="verdelo-user-email">{user.email}</span>
+                      </div>
+                      <span className="verdelo-user-dots">•••</span>
                     </div>
-                    <span className="verdelo-user-dots">•••</span>
+
+                    {sidebarMenuOpen && (
+                      <div
+                        className="dash-dropdown-popover"
+                        style={{
+                          position: 'absolute',
+                          bottom: 'calc(100% + 8px)',
+                          left: 0,
+                          right: 0,
+                          padding: '12px',
+                          zIndex: 1200,
+                        }}
+                      >
+                        <div className="dash-user-head">
+                          <div className="dash-user-name">{user.fullName}</div>
+                          <div className="dash-user-email">{user.email}</div>
+                          <div style={{ marginTop: 6, display: 'flex', gap: 6, alignItems: 'center' }}>
+                            <span
+                              className="tag"
+                              style={{
+                                background: 'rgba(80, 227, 150, 0.18)',
+                                color: '#50e396',
+                                borderColor: 'rgba(80, 227, 150, 0.4)',
+                                fontSize: '0.68rem',
+                                fontWeight: 600,
+                              }}
+                            >
+                              {user.organization || 'Customer Workspace'}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, paddingTop: 6 }}>
+                          <button
+                            type="button"
+                            className="dash-nav-item dash-nav-item--danger"
+                            onClick={async () => {
+                              setSidebarMenuOpen(false)
+                              await performSignOut('/')
+                            }}
+                          >
+                            <LogOut size={15} /> Sign Out
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -1092,9 +1145,9 @@ export function DashboardLayout({
                     }}
                     role="button"
                     tabIndex={0}
-                    title="Sahith (Account Owner)"
+                    title={`${user.fullName} (${roleLabel})`}
                   >
-                    <span>S</span>
+                    <span>{initials.charAt(0)}</span>
                   </div>
 
                   {adminMenuOpen && (
@@ -1110,8 +1163,8 @@ export function DashboardLayout({
                       }}
                     >
                       <div className="dash-user-head">
-                        <div className="dash-user-name">Sahith</div>
-                        <div className="dash-user-email">sahith@inferxe.com</div>
+                        <div className="dash-user-name">{user.fullName}</div>
+                        <div className="dash-user-email">{user.email}</div>
                         <div style={{ marginTop: 6, display: 'flex', gap: 6, alignItems: 'center' }}>
                           <span
                             className="tag"
@@ -1123,7 +1176,7 @@ export function DashboardLayout({
                               fontWeight: 600,
                             }}
                           >
-                            Sahith Workspace
+                            {user.organization || 'Customer Workspace'}
                           </span>
                         </div>
                       </div>
@@ -1134,13 +1187,7 @@ export function DashboardLayout({
                           className="dash-nav-item dash-nav-item--danger"
                           onClick={async () => {
                             setAdminMenuOpen(false)
-                            try {
-                              await signOut(getCognitoContext())
-                            } catch (error) {
-                              console.error('[customer-auth] Cognito sign-out failed.', error)
-                            }
-                            clearSession()
-                            window.location.replace('/')
+                            await performSignOut('/')
                           }}
                         >
                           <LogOut size={15} /> Sign Out
@@ -1495,8 +1542,7 @@ export function DashboardLayout({
                       className="dash-nav-item dash-nav-item--danger"
                       onClick={async () => {
                         setAdminMenuOpen(false)
-                        clearSession()
-                        window.location.replace('/')
+                        await performSignOut('/')
                       }}
                     >
                       <LogOut size={15} /> Sign Out
