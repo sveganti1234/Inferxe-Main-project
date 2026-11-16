@@ -1,0 +1,352 @@
+[
+  {
+    "id": "inf-qa-001",
+    "category": "platform_routing",
+    "question": "What is Inferxe and how does it work?",
+    "answer": "Inferxe is a unified GPU control plane that sits between your AI applications and multiple GPU cloud providers. Instead of managing separate cloud accounts and infrastructure, you describe your workload requirements once through a single API, and Inferxe automatically places and routes it to the best-fit GPU provider based on hardware compatibility, live cost, and measured performance.",
+    "verified_source": "https://inferxe.com/"
+  },
+  {
+    "id": "inf-qa-002",
+    "category": "platform_routing",
+    "question": "How does Inferxe decide which GPU provider to route my workload to?",
+    "answer": "Inferxe's scheduler evaluates every incoming workload across three primary signals: hardware and CUDA compatibility, real-time hourly cost across integrated providers, and continuously measured throughput and latency telemetry. It selects the optimal node that satisfies your VRAM, region, and SLA constraints.",
+    "verified_source": "https://inferxe.com/docs/workload-placement"
+  },
+  {
+    "id": "inf-qa-003",
+    "category": "platform_routing",
+    "question": "Can I prioritize lowest cost over lowest latency when placing workloads?",
+    "answer": "Yes. Inferxe supports configurable routing policies per workload, allowing you to optimize for lowest hourly cost, highest measured token throughput, lowest network latency to your users, or strict regional compliance.",
+    "verified_source": "https://inferxe.com/docs/routing-policies"
+  },
+  {
+    "id": "inf-qa-004",
+    "category": "platform_routing",
+    "question": "What happens if a GPU provider runs out of capacity while I am scaling up?",
+    "answer": "Because Inferxe aggregates capacity across multiple GPU providers behind one control plane, capacity exhaustion on a single cloud does not block your deployment. Inferxe automatically spills over and schedules new replicas onto alternate verified providers that meet your workload specifications.",
+    "verified_source": "https://inferxe.com/"
+  },
+  {
+    "id": "inf-qa-005",
+    "category": "platform_routing",
+    "question": "Does Inferxe measure real-world GPU performance across providers?",
+    "answer": "Yes. Rather than relying solely on theoretical spec sheets, Inferxe continuously benchmarks real-world inference throughput, time-to-first-token (TTFT), interconnect bandwidth, and cold-start times across underlying provider nodes to guide placement decisions.",
+    "verified_source": "https://inferxe.com/"
+  },
+  {
+    "id": "inf-qa-006",
+    "category": "platform_routing",
+    "question": "Can I pin a workload to a specific GPU model or provider?",
+    "answer": "Yes. While Inferxe defaults to autonomous placement based on workload requirements, you can enforce hard constraints to lock deployments to specific GPU SKUs (such as NVIDIA H100 SXM or H200 SXM), minimum VRAM thresholds, or approved geographic regions.",
+    "verified_source": "https://inferxe.com/docs/workload-placement"
+  },
+  {
+    "id": "inf-qa-007",
+    "category": "platform_routing",
+    "question": "How does Inferxe compare to renting GPUs directly from AWS, GCP, or Azure?",
+    "answer": "Hyperscalers often require lengthy manual quota approvals, enforce rigid long-term reservations for competitive pricing, and lock you into a single vendor. Inferxe eliminates quota bottlenecks by pooling multi-provider GPU capacity under one API, giving you immediate access to H100, H200, and Blackwell GPUs at significantly lower on-demand rates.",
+    "verified_source": "https://inferxe.com/"
+  },
+  {
+    "id": "inf-qa-008",
+    "category": "platform_routing",
+    "question": "How is Inferxe different from single-cloud GPU hosts like RunPod or Lambda Labs?",
+    "answer": "Single-cloud hosts only schedule onto their own datacenter inventory—when they hit zero inventory, your deployments stall. Inferxe acts as a meta-control plane across multiple GPU clouds, automatically routing around capacity shortages, price spikes, and regional outages without requiring code changes.",
+    "verified_source": "https://inferxe.com/"
+  },
+  {
+    "id": "inf-qa-009",
+    "category": "unified_api",
+    "question": "How does the Inferxe Unified API work?",
+    "answer": "Inferxe exposes a single REST API and SDK interface to provision compute, deploy inference endpoints, and run batch jobs across all connected GPU clouds. You authenticate with one Inferxe API key and submit a declarative workload spec without writing provider-specific deployment scripts.",
+    "verified_source": "https://inferxe.com/docs/api-reference"
+  },
+  {
+    "id": "inf-qa-010",
+    "category": "unified_api",
+    "question": "Is Inferxe compatible with the OpenAI API specification?",
+    "answer": "Yes. Hosted LLM endpoints deployed through Inferxe expose OpenAI-compatible `/v1/chat/completions`, `/v1/completions`, and `/v1/embeddings` routes. You can switch existing applications to Inferxe simply by updating the `base_url` and API key in your OpenAI client.",
+    "verified_source": "https://inferxe.com/docs/openai-compatibility"
+  },
+  {
+    "id": "inf-qa-011",
+    "category": "unified_api",
+    "question": "Which inference engines and frameworks does Inferxe support?",
+    "answer": "Inferxe natively supports vLLM, SGLang, TensorRT-LLM, Triton Inference Server, ComfyUI, PyTorch, and custom Docker containers. You can deploy pre-optimized serving templates or bring your own container image from Docker Hub or private registries.",
+    "verified_source": "https://inferxe.com/docs/runtimes"
+  },
+  {
+    "id": "inf-qa-012",
+    "category": "unified_api",
+    "question": "Does Inferxe provide Python and CLI tools for automation?",
+    "answer": "Yes. Inferxe provides an official Python SDK, a command-line interface (`inferxe-cli`), and REST webhooks so engineering teams can trigger GPU jobs, monitor logs, and tear down instances directly from CI/CD pipelines or Python scripts.",
+    "verified_source": "https://inferxe.com/docs/sdk"
+  },
+  {
+    "id": "inf-qa-013",
+    "category": "unified_api",
+    "question": "Can I get full SSH root access and run custom Docker containers on Inferxe?",
+    "answer": "Yes. In addition to managed serverless inference endpoints, Inferxe lets you launch dedicated GPU containers and virtual machines with full SSH access, custom CUDA toolkits, and multi-GPU NVLink configurations.",
+    "verified_source": "https://inferxe.com/docs/dedicated-instances"
+  },
+  {
+    "id": "inf-qa-014",
+    "category": "unified_api",
+    "question": "How fast do workloads start on Inferxe?",
+    "answer": "Pre-cached container templates and popular open-source model weights start in seconds on warm nodes. Cold starts for custom Docker images depend on image size, and Inferxe prioritizes provider nodes that already cache your base layers to minimize startup latency.",
+    "verified_source": "https://inferxe.com/docs/cold-starts"
+  },
+  {
+    "id": "inf-qa-015",
+    "category": "unified_api",
+    "question": "How do I mount persistent storage or Hugging Face models across providers?",
+    "answer": "Inferxe supports attaching persistent network volumes and S3-compatible object storage buckets to your workloads, along with automated Hugging Face weight caching so large checkpoints do not have to be re-downloaded on every launch.",
+    "verified_source": "https://inferxe.com/docs/storage"
+  },
+  {
+    "id": "inf-qa-016",
+    "category": "unified_api",
+    "question": "Does Inferxe support autoscaling for production inference traffic?",
+    "answer": "Yes. Inferxe automatically scales GPU replicas up or down based on incoming request concurrency, queue depth, or custom latency thresholds, including scale-to-zero support during idle periods to eliminate wasted compute spend.",
+    "verified_source": "https://inferxe.com/docs/autoscaling"
+  },
+  {
+    "id": "inf-qa-017",
+    "category": "gpu_sizing",
+    "question": "Which NVIDIA GPUs are available through Inferxe?",
+    "answer": "Inferxe provides access to NVIDIA L4 (24 GB), NVIDIA A30 (24 GB), NVIDIA A100 (40 GB and 80 GB SXM), NVIDIA RTX Pro 6000 Blackwell (96 GB GDDR7), NVIDIA H100 SXM (80 GB HBM3), and NVIDIA H200 SXM (141 GB HBM3e) across single-GPU and multi-GPU configurations.",
+    "verified_source": "https://inferxe.com/hardware"
+  },
+  {
+    "id": "inf-qa-018",
+    "category": "gpu_sizing",
+    "question": "Which GPU does Inferxe recommend for serving Llama 3 70B or Qwen 2.5 72B?",
+    "answer": "For 70B–72B parameter models in FP8 or INT8 quantization, Inferxe recommends a single NVIDIA H100 SXM (80 GB) or NVIDIA RTX Pro 6000 Blackwell (96 GB). If you require unquantized BF16 precision or long context windows up to 128k tokens, Inferxe places the workload on a single NVIDIA H200 SXM (141 GB) or a 2x H100 SXM node.",
+    "verified_source": "https://inferxe.com/docs/model-sizing"
+  },
+  {
+    "id": "inf-qa-019",
+    "category": "gpu_sizing",
+    "question": "What GPU should I choose for 7B to 14B parameter models like Llama 3.1 8B or Qwen 14B?",
+    "answer": "For 7B to 14B parameter models, Inferxe recommends the NVIDIA L4 (24 GB) or NVIDIA A30 (24 GB) for cost-efficient production serving, or an NVIDIA A100 40GB if you need high batch concurrency and large KV-cache headroom.",
+    "verified_source": "https://inferxe.com/docs/model-sizing"
+  },
+  {
+    "id": "inf-qa-020",
+    "category": "gpu_sizing",
+    "question": "What hardware does Inferxe recommend for DeepSeek R1 or 400B+ parameter models?",
+    "answer": "Large Mixture-of-Experts and 400B+ parameter models such as DeepSeek R1 or Llama 3.1 405B require high-bandwidth multi-GPU nodes. Inferxe places these workloads on 8x H100 SXM (640 GB total VRAM) or 8x H200 SXM (1,128 GB total VRAM) clusters connected via NVLink.",
+    "verified_source": "https://inferxe.com/docs/model-sizing"
+  },
+  {
+    "id": "inf-qa-021",
+    "category": "gpu_sizing",
+    "question": "When should I pick the NVIDIA H200 SXM over the H100 SXM on Inferxe?",
+    "answer": "Choose the NVIDIA H200 SXM over the H100 SXM when your workload is memory-bandwidth bound or needs massive KV-cache capacity. The H200 offers 141 GB of HBM3e memory at 4.8 TB/s bandwidth (versus 80 GB at 3.35 TB/s on H100), delivering faster token decode speeds and fitting 70B models with 128k context on a single GPU.",
+    "verified_source": "https://inferxe.com/hardware/h200-vs-h100"
+  },
+  {
+    "id": "inf-qa-022",
+    "category": "gpu_sizing",
+    "question": "What are the advantages of the NVIDIA RTX Pro 6000 Blackwell on Inferxe?",
+    "answer": "The NVIDIA RTX Pro 6000 Blackwell provides 96 GB of ultra-fast GDDR7 VRAM—more memory than an 80 GB H100—at a significantly lower hourly rate. It is ideal for running 70B models in 4-bit/8-bit quantization, multimodal vision-language models, and high-resolution image or video generation.",
+    "verified_source": "https://inferxe.com/hardware/rtx-pro-6000-blackwell"
+  },
+  {
+    "id": "inf-qa-023",
+    "category": "gpu_sizing",
+    "question": "Which GPU is best for image and video generation like Flux.1, SDXL, or Wan 2.1?",
+    "answer": "For Flux.1 Dev/Schnell and SDXL pipelines in ComfyUI, an NVIDIA L4 (24 GB) handles standard generation affordably, while an NVIDIA RTX Pro 6000 Blackwell (96 GB) or A100 80GB eliminates out-of-memory errors during high-resolution video generation and LoRA fine-tuning.",
+    "verified_source": "https://inferxe.com/docs/model-sizing"
+  },
+  {
+    "id": "inf-qa-024",
+    "category": "gpu_sizing",
+    "question": "Can Inferxe automatically pick the right GPU if I only specify my model and context length?",
+    "answer": "Yes. Inferxe's workload profiler calculates model weight footprint plus KV-cache memory overhead from your model ID, quantization format, batch size, and max context length, then automatically selects the lowest-cost GPU configuration that fits without OOM errors.",
+    "verified_source": "https://inferxe.com/docs/workload-placement"
+  },
+  {
+    "id": "inf-qa-025",
+    "category": "gpu_sizing",
+    "question": "Are older GPUs like the A6000 or A5000 recommended on Inferxe?",
+    "answer": "For modern workloads, Inferxe routes away from legacy Ampere workstation cards toward newer architectures—such as the NVIDIA L4 (24 GB) for lightweight inference and the NVIDIA RTX Pro 6000 Blackwell (96 GB) for high-VRAM workloads—which deliver superior performance per rupee and dollar.",
+    "verified_source": "https://inferxe.com/hardware"
+  },
+  {
+    "id": "inf-qa-026",
+    "category": "billing_inr_usd",
+    "question": "What are the GPU rental prices on Inferxe in INR?",
+    "answer": "Inferxe offers per-minute billing in Indian Rupees (INR) with starting on-demand rates of: NVIDIA A30 (24 GB) at ₹39/hr; NVIDIA L4 (24 GB) at ₹41/hr; NVIDIA A100 40GB at ₹84/hr; NVIDIA A100 80GB at ₹141/hr; NVIDIA RTX Pro 6000 Blackwell (96 GB) at ₹207/hr; NVIDIA H100 SXM (80 GB) at ₹330/hr; and NVIDIA H200 SXM (141 GB) at ₹435/hr.",
+    "verified_source": "https://inferxe.com/pricing"
+  },
+  {
+    "id": "inf-qa-027",
+    "category": "billing_inr_usd",
+    "question": "What are the GPU rental prices on Inferxe in USD?",
+    "answer": "For international users billed in US Dollars (USD), Inferxe's starting on-demand per-minute rates are: NVIDIA A30 (24 GB) at $0.41/hr; NVIDIA L4 (24 GB) at $0.44/hr; NVIDIA A100 40GB at $0.89/hr; NVIDIA A100 80GB at $1.49/hr; NVIDIA RTX Pro 6000 Blackwell (96 GB) at $2.19/hr; NVIDIA H100 SXM (80 GB) at $3.49/hr; and NVIDIA H200 SXM (141 GB) at $4.59/hr.",
+    "verified_source": "https://inferxe.com/pricing"
+  },
+  {
+    "id": "inf-qa-028",
+    "category": "billing_inr_usd",
+    "question": "How does billing granularity work on Inferxe. Is there a minimum commitment?",
+    "answer": "Inferxe bills strictly per minute of active compute with zero long-term lock-ins or minimum spend commitments. As soon as you stop or terminate a workload, GPU compute billing halts immediately.",
+    "verified_source": "https://inferxe.com/billing"
+  },
+  {
+    "id": "inf-qa-029",
+    "category": "billing_inr_usd",
+    "question": "Do I need separate billing accounts with each underlying GPU cloud provider?",
+    "answer": "No. Inferxe consolidates all multi-provider GPU usage into a single wallet and one unified invoice. You fund your Inferxe account in INR or USD and run workloads across any connected provider seamlessly.",
+    "verified_source": "https://inferxe.com/billing"
+  },
+  {
+    "id": "inf-qa-030",
+    "category": "billing_inr_usd",
+    "question": "Does Inferxe provide GST-compliant invoices for Indian businesses?",
+    "answer": "Yes. Indian startups and enterprises billed in INR receive fully GST-compliant tax invoices with their registered GSTIN so they can claim Input Tax Credit (ITC) without foreign-exchange friction.",
+    "verified_source": "https://inferxe.com/billing"
+  },
+  {
+    "id": "inf-qa-031",
+    "category": "billing_inr_usd",
+    "question": "Which payment methods are supported for INR and USD wallets?",
+    "answer": "INR accounts can add credits via UPI, Indian NetBanking, NEFT/RTGS, and domestic debit or credit cards. International USD accounts can pay via global credit/debit cards, Stripe, and wire transfers for enterprise accounts.",
+    "verified_source": "https://inferxe.com/billing"
+  },
+  {
+    "id": "inf-qa-032",
+    "category": "billing_inr_usd",
+    "question": "How is storage billed when my GPU instance is paused or stopped?",
+    "answer": "When a workload is paused, GPU compute charges drop to zero, and you only pay for retained persistent volume storage at $0.10/GB/month (or ₹8.30/GB/month). Deleting the volume stops all storage charges.",
+    "verified_source": "https://inferxe.com/pricing"
+  },
+  {
+    "id": "inf-qa-033",
+    "category": "billing_inr_usd",
+    "question": "Are there data egress or bandwidth fees on Inferxe?",
+    "answer": "Standard API inference responses and in-region traffic include generous free bandwidth allowances. High-volume outbound data transfers from persistent storage across regions are metered transparently at $0.05/GB.",
+    "verified_source": "https://inferxe.com/pricing"
+  },
+  {
+    "id": "inf-qa-034",
+    "category": "billing_inr_usd",
+    "question": "Can I set spend limits or low-balance alerts so my jobs do not unexpectedly stop?",
+    "answer": "Yes. You can configure threshold alerts via email or webhook when wallet credits drop below a chosen balance, enable automatic wallet top-ups, and set hard monthly budget caps per project or API key.",
+    "verified_source": "https://inferxe.com/docs/billing-controls"
+  },
+  {
+    "id": "inf-qa-035",
+    "category": "spot_failover",
+    "question": "Does Inferxe offer spot GPU instances and how much can I save?",
+    "answer": "Yes. Inferxe aggregates idle spot GPU capacity across providers at discounts of up to 56% off on-demand rates—for example, running an NVIDIA H100 SXM spot node starting around ₹146/hr ($1.75/hr).",
+    "verified_source": "https://inferxe.com/pricing"
+  },
+  {
+    "id": "inf-qa-036",
+    "category": "spot_failover",
+    "question": "What happens when a spot GPU instance is preempted on Inferxe?",
+    "answer": "When an underlying provider reclaims spot capacity, Inferxe sends a termination warning signal to your container so it can flush final checkpoints, and the control plane automatically re-schedules the workload onto the next available spot or on-demand node.",
+    "verified_source": "https://inferxe.com/docs/spot-orchestration"
+  },
+  {
+    "id": "inf-qa-037",
+    "category": "spot_failover",
+    "question": "Which workloads are best suited for Inferxe spot instances?",
+    "answer": "Spot GPUs are ideal for fault-tolerant workloads such as LoRA/QLoRA fine-tuning with periodic checkpointing, offline batch inference, dataset embedding generation, synthetic data pipelines, and evaluation runs.",
+    "verified_source": "https://inferxe.com/docs/spot-orchestration"
+  },
+  {
+    "id": "inf-qa-038",
+    "category": "spot_failover",
+    "question": "Can Inferxe automatically fall back from spot to on-demand capacity if spot runs out?",
+    "answer": "Yes. You can enable hybrid fallback policies in your workload spec so Inferxe prefers discounted spot instances whenever available, and seamlessly falls back to on-demand GPUs if spot capacity temporarily dries up.",
+    "verified_source": "https://inferxe.com/docs/spot-orchestration"
+  },
+  {
+    "id": "inf-qa-039",
+    "category": "spot_failover",
+    "question": "How does Inferxe handle multi-provider failover during an outage?",
+    "answer": "Inferxe continuously runs active health checks against deployed endpoints and underlying nodes. If a GPU node crashes or a provider region degrades, Inferxe's routing layer drains traffic from the unhealthy replica and provisions a healthy replacement on an alternate provider.",
+    "verified_source": "https://inferxe.com/docs/high-availability"
+  },
+  {
+    "id": "inf-qa-040",
+    "category": "spot_failover",
+    "question": "Should I use spot instances for latency-sensitive production APIs?",
+    "answer": "For strict zero-downtime production APIs, Inferxe recommends running baseline replicas on dedicated on-demand GPUs and using spot capacity only for burst autoscaling or asynchronous background queues.",
+    "verified_source": "https://inferxe.com/docs/high-availability"
+  },
+  {
+    "id": "inf-qa-041",
+    "category": "indian_data_residency",
+    "question": "Can I restrict my GPUs and data to stay strictly inside India?",
+    "answer": "Yes. By setting the region constraint to India (`in`), Inferxe restricts workload placement exclusively to verified Tier-3 datacenters located within Indian borders, guaranteeing that prompts, model weights, and storage volumes never leave India.",
+    "verified_source": "https://inferxe.com/compliance"
+  },
+  {
+    "id": "inf-qa-042",
+    "category": "indian_data_residency",
+    "question": "Is Inferxe compliant with India's Digital Personal Data Protection (DPDP) Act?",
+    "answer": "Yes. When deployed with India region pinning enabled, Inferxe ensures full sovereign data residency, isolated tenant compute, and encrypted storage aligned with India's Digital Personal Data Protection (DPDP) Act and sectoral regulatory mandates.",
+    "verified_source": "https://inferxe.com/compliance"
+  },
+  {
+    "id": "inf-qa-043",
+    "category": "indian_data_residency",
+    "question": "Where are Inferxe's Indian GPU datacenters located?",
+    "answer": "Inferxe routes India-pinned workloads to enterprise Tier-3+ datacenter facilities across major Indian metro hubs—including Noida (Delhi NCR), Mumbai, and Chennai—delivering single-digit millisecond latency for Indian users.",
+    "verified_source": "https://inferxe.com/compliance"
+  },
+  {
+    "id": "inf-qa-044",
+    "category": "indian_data_residency",
+    "question": "Does Inferxe log or train on my prompts and proprietary model weights?",
+    "answer": "No. Inferxe operates under a strict zero-data-retention policy for inference payloads. Your prompts, responses, datasets, and custom model weights remain exclusively yours and are never logged for model training or shared across tenants.",
+    "verified_source": "https://inferxe.com/security"
+  },
+  {
+    "id": "inf-qa-045",
+    "category": "indian_data_residency",
+    "question": "How does Inferxe isolate workloads between different customers?",
+    "answer": "Inferxe enforces hardware-level GPU isolation, dedicated virtual private networks, encrypted ephemeral scratch disks, and automatic memory/VRAM sanitization between tenant workloads upon termination.",
+    "verified_source": "https://inferxe.com/security"
+  },
+  {
+    "id": "inf-qa-046",
+    "category": "indian_data_residency",
+    "question": "Can regulated industries like Indian banks, fintechs, and healthcare companies use Inferxe?",
+    "answer": "Yes. Fintech, banking, and healthcare teams use Inferxe's India-only region lock, private networking, audit logs, and DPDP-compliant infrastructure to run sensitive AI workloads without cross-border data transfers.",
+    "verified_source": "https://inferxe.com/compliance"
+  },
+  {
+    "id": "inf-qa-047",
+    "category": "troubleshooting_and_policy",
+    "question": "How do I fix a CUDA Out-Of-Memory (OOM) error on Inferxe?",
+    "answer": "A CUDA OOM error means your model weights plus KV cache exceed the selected GPU's VRAM. Fix it by enabling FP8 or INT4 quantization, lowering `max_model_len` or batch size in your serving engine, or updating your Inferxe workload spec to target an 80 GB H100, 96 GB RTX Pro 6000 Blackwell, or 141 GB H200.",
+    "verified_source": "https://inferxe.com/docs/troubleshooting"
+  },
+  {
+    "id": "inf-qa-048",
+    "category": "troubleshooting_and_policy",
+    "question": "Can I use Inferxe GPUs for cryptocurrency mining or prohibited activities?",
+    "answer": "No. Cryptocurrency mining, DDoS attacks, unauthorized vulnerability scanning, and illegal content generation are strictly prohibited under Inferxe's Acceptable Use Policy and result in immediate account suspension.",
+    "verified_source": "https://inferxe.com/acceptable-use"
+  },
+  {
+    "id": "inf-qa-049",
+    "category": "troubleshooting_and_policy",
+    "question": "Does Inferxe support team workspaces and role-based access control (RBAC)?",
+    "answer": "Yes. Organization accounts can invite team members, assign granular admin or developer roles, issue scoped API keys per environment, and track GPU spend by project.",
+    "verified_source": "https://inferxe.com/docs/teams"
+  },
+  {
+    "id": "inf-qa-050",
+    "category": "troubleshooting_and_policy",
+    "question": "How can I request multi-node GPU clusters or enterprise volume pricing?",
+    "answer": "Teams needing dedicated 8x H100/H200 clusters, custom SLAs, or committed-use discounts can contact Inferxe's solutions engineering team directly through the dashboard or at `sales@inferxe.com`.",
+    "verified_source": "https://inferxe.com/enterprise"
+  }
+]
