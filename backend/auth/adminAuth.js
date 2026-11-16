@@ -135,9 +135,17 @@ async function parseJsonBody(req) {
   })
 }
 
+const TRUSTED_ORIGINS = [
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:3000',
+  'http://127.0.0.1:3000',
+]
+
 function setCorsHeaders(req, res) {
-  const origin = typeof req.headers.origin === 'string' ? req.headers.origin : '*'
-  res.setHeader('Access-Control-Allow-Origin', origin)
+  const origin = typeof req.headers.origin === 'string' ? req.headers.origin : ''
+  const allowedOrigin = TRUSTED_ORIGINS.includes(origin) ? origin : TRUSTED_ORIGINS[0]
+  res.setHeader('Access-Control-Allow-Origin', allowedOrigin)
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, Accept, X-Requested-With')
   res.setHeader('Access-Control-Max-Age', '600')

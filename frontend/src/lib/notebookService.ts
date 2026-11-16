@@ -121,7 +121,7 @@ export async function getBackendNotebook(id: string): Promise<{
       return { ok: false, error: data.detail || 'Notebook not found.' }
     }
 
-    return { ok: true, notebook: data }
+    return { ok: true, notebook: data.notebook }
   } catch (err) {
     return {
       ok: false,
@@ -170,7 +170,7 @@ export async function createBackendNotebook(payload: NotebookCreatePayload): Pro
       return { ok: false, error: data.detail || 'Failed to create notebook instance.' }
     }
 
-    return { ok: true, notebook: data }
+    return { ok: true, notebook: data.notebook }
   } catch (err) {
     return {
       ok: false,

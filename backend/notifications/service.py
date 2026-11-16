@@ -10,6 +10,7 @@ import logging
 import threading
 from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime, timezone
+from decimal import Decimal
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from .db import DBConnection
@@ -577,16 +578,16 @@ class NotificationService:
             if "direction" in tx_cols and "transaction_type" in tx_cols:
                 cur.execute(
                     """
-                    INSERT INTO wallet_transactions (id, user_id, transaction_type, direction, amount, balance_after, currency, status, idempotency_key, description, created_at, updated_at)
-                    VALUES (%s, %s, 'top_up', 'credit', %s, %s, 'INR', 'completed', %s, %s, %s, %s);
+                    INSERT INTO wallet_transactions (id, user_id, transaction_type, direction, amount, balance_after, currency, status, idempotency_key, description, created_at, updated_at, source)
+                    VALUES (%s, %s, 'top_up', 'credit', %s, %s, 'INR', 'completed', %s, %s, %s, %s, 'customer');
                     """,
                     (tx_id, user_id, float(amount), new_balance, idem_key, "Wallet recharge top-up", tx_now, tx_now)
                 )
             else:
                 cur.execute(
                     """
-                    INSERT INTO wallet_transactions (id, user_id, amount, balance_after, currency, status, idempotency_key, description, created_at, updated_at)
-                    VALUES (%s, %s, %s, %s, 'INR', 'completed', %s, %s, %s, %s);
+                    INSERT INTO wallet_transactions (id, user_id, amount, balance_after, currency, status, idempotency_key, description, created_at, updated_at, source)
+                    VALUES (%s, %s, %s, %s, 'INR', 'completed', %s, %s, %s, %s, 'customer');
                     """,
                     (tx_id, user_id, amount, new_balance, idem_key, "Wallet recharge top-up", tx_now, tx_now)
                 )
@@ -696,16 +697,16 @@ class NotificationService:
             if "direction" in tx_cols and "transaction_type" in tx_cols:
                 cur.execute(
                     """
-                    INSERT INTO wallet_transactions (id, user_id, transaction_type, direction, amount, balance_after, currency, status, idempotency_key, description, created_at, updated_at)
-                    VALUES (%s, %s, 'usage_charge', 'debit', %s, %s, 'INR', 'completed', %s, %s, %s, %s);
+                    INSERT INTO wallet_transactions (id, user_id, transaction_type, direction, amount, balance_after, currency, status, idempotency_key, description, created_at, updated_at, source)
+                    VALUES (%s, %s, 'usage_charge', 'debit', %s, %s, 'INR', 'completed', %s, %s, %s, %s, 'customer');
                     """,
                     (tx_id, user_id, abs(float(amount)), new_balance, idem_key, description, tx_now, tx_now)
                 )
             else:
                 cur.execute(
                     """
-                    INSERT INTO wallet_transactions (id, user_id, amount, balance_after, currency, status, idempotency_key, description, created_at, updated_at)
-                    VALUES (%s, %s, %s, %s, 'INR', 'completed', %s, %s, %s, %s);
+                    INSERT INTO wallet_transactions (id, user_id, amount, balance_after, currency, status, idempotency_key, description, created_at, updated_at, source)
+                    VALUES (%s, %s, %s, %s, 'INR', 'completed', %s, %s, %s, %s, 'customer');
                     """,
                     (tx_id, user_id, -abs(float(amount)), new_balance, idem_key, description, tx_now, tx_now)
                 )
@@ -743,6 +744,188 @@ class NotificationService:
                 "low_balance_alert": threshold_alert_needed,
             }
 
+    @classmethod
+    def process_wallet_refund(
+        cls,
+        user_id: str,
+        original_transaction_id: str,
+        amount: Decimal,
+        idempotency_key: Optional[str] = None,
+        description: Optional[str] = "Wallet refund",
+    ) -> Dict[str, Any]:
+        """
+        Scenario E: Customer refunds a prior wallet debit.
+        - Derives user_id strictly from authenticated Cognito JWT (never from request).
+        - Locks wallets row FIRST, then original wallet_transactions row (consistent deadlock-free order).
+        - Verifies original transaction belongs to the same user.
+        - Verifies original transaction is usage_charge/debit (eligible for refund).
+        - Verifies refund does not exceed remaining refundable amount (amount - refunded_amount).
+        - Updates wallet balance, increments refunded_amount on original tx, inserts refund transaction.
+        - All operations atomic in a single autocommit=False transaction.
+        """
+        if amount <= 0:
+            raise ValueError("Refund amount must be greater than zero")
+
+        # Quantize to 2 decimal places to match NUMERIC(14,2)
+        amount = amount.quantize(Decimal("0.01"))
+
+        idem_key = idempotency_key or f"wallet_refund_{user_id}_{original_transaction_id}_{int(datetime.now().timestamp())}"
+
+        with DBConnection(autocommit=False) as conn:
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+
+            # Outbox idempotency check + insert in SAME transaction as wallet update
+            evt_id, is_duplicate = cls.record_outbox_event(
+                event_type="WALLET_REFUND",
+                payload={
+                    "user_id": user_id,
+                    "original_transaction_id": original_transaction_id,
+                    "amount": str(amount),
+                },
+                idempotency_key=idem_key,
+                user_id=user_id,
+                cur=cur,
+            )
+            if is_duplicate:
+                conn.rollback()
+                return {"status": "skipped", "message": "Duplicate wallet refund event ignored."}
+
+            # Lock wallet row FIRST (consistent with recharge/debit lock order)
+            cur.execute("SELECT balance, currency FROM wallets WHERE user_id = %s FOR UPDATE;", (user_id,))
+            wallet = cur.fetchone()
+            if not wallet:
+                conn.rollback()
+                raise ValueError("Wallet not found for user")
+
+            wallet_currency = str(wallet["currency"])
+
+            # Lock original transaction row SECOND (same order as recharge/debit: wallets first, then tx)
+            cur.execute(
+                """
+                SELECT id, user_id, amount, currency, transaction_type, direction, refunded_amount
+                FROM wallet_transactions
+                WHERE id = %s AND user_id = %s
+                FOR UPDATE;
+                """,
+                (original_transaction_id, user_id),
+            )
+            original_tx = cur.fetchone()
+            if not original_tx:
+                conn.rollback()
+                raise ValueError("Original transaction not found or does not belong to this user")
+
+            # Verify original transaction is a debit eligible for refund
+            if str(original_tx["transaction_type"]) != "usage_charge" or str(original_tx["direction"]) != "debit":
+                conn.rollback()
+                raise ValueError("Only usage_charge (debit) transactions are eligible for refund")
+
+            # Verify currency match
+            if str(original_tx["currency"]) != wallet_currency:
+                conn.rollback()
+                raise ValueError("Currency mismatch between wallet and original transaction")
+
+            # Verify refundable amount: original_amount - refunded_amount >= refund_amount
+            original_amount = Decimal(str(original_tx["amount"]))
+            already_refunded = Decimal(str(original_tx.get("refunded_amount") or 0))
+            remaining_refundable = original_amount - already_refunded
+            if amount > remaining_refundable:
+                conn.rollback()
+                raise ValueError(
+                    f"Refund amount {amount} exceeds remaining refundable amount {remaining_refundable}"
+                )
+
+            # Update wallet balance
+            wallet_balance = Decimal(str(wallet["balance"]))
+            new_balance = wallet_balance + amount
+            cur.execute(
+                """
+                UPDATE wallets
+                SET balance = %s, updated_at = %s
+                WHERE user_id = %s;
+                """,
+                (new_balance, now_iso(), user_id)
+            )
+
+            # Increment refunded_amount on original transaction
+            new_refunded_amount = already_refunded + amount
+            cur.execute(
+                """
+                UPDATE wallet_transactions
+                SET refunded_amount = %s, updated_at = %s
+                WHERE id = %s;
+                """,
+                (new_refunded_amount, now_iso(), original_transaction_id)
+            )
+
+            # Insert refund transaction
+            tx_cols = _get_table_columns(cur, "wallet_transactions")
+            tx_id = str(uuid.uuid4()) if tx_cols.get("id") == "uuid" else f"tx_{uuid.uuid4().hex[:10]}"
+            tx_now = now_iso()
+            if "direction" in tx_cols and "transaction_type" in tx_cols:
+                cur.execute(
+                    """
+                    INSERT INTO wallet_transactions (id, user_id, transaction_type, direction, amount, balance_after, currency, status, idempotency_key, description, created_at, updated_at, source, parent_transaction_id)
+                    VALUES (%s, %s, 'refund', 'credit', %s, %s, %s, 'completed', %s, %s, %s, %s, 'customer', %s);
+                    """,
+                    (
+                        tx_id,
+                        user_id,
+                        amount,
+                        new_balance,
+                        wallet_currency,
+                        idem_key,
+                        description,
+                        tx_now,
+                        tx_now,
+                        original_transaction_id,
+                    )
+                )
+            else:
+                cur.execute(
+                    """
+                    INSERT INTO wallet_transactions (id, user_id, amount, balance_after, currency, status, idempotency_key, description, created_at, updated_at, source, parent_transaction_id)
+                    VALUES (%s, %s, %s, %s, %s, 'completed', %s, %s, %s, %s, 'customer', %s);
+                    """,
+                    (
+                        tx_id,
+                        user_id,
+                        amount,
+                        new_balance,
+                        wallet_currency,
+                        idem_key,
+                        description,
+                        tx_now,
+                        tx_now,
+                        original_transaction_id,
+                    )
+                )
+
+            # Create WALLET_REFUND notification
+            cls._create_notification_internal(
+                cur,
+                user_id=user_id,
+                title="Wallet Refund Successful",
+                message=f"₹{amount} has been refunded to your wallet. Updated balance: ₹{new_balance}.",
+                notification_type="WALLET_REFUND",
+                metadata={
+                    "amount": str(amount),
+                    "balance": str(new_balance),
+                    "transaction_id": tx_id,
+                    "original_transaction_id": original_transaction_id,
+                },
+                related_entity_id=tx_id,
+            )
+
+            conn.commit()
+
+            return {
+                "status": "success",
+                "transaction_id": tx_id,
+                "amount": float(amount),
+                "new_balance": float(new_balance),
+                "original_transaction_id": original_transaction_id,
+            }
+
     @staticmethod
     def get_wallet_balance(user_id: str) -> Dict[str, Any]:
         """Returns the wallet balance for the authenticated user. Zero if no wallet record exists."""
@@ -767,6 +950,60 @@ class NotificationService:
                 "currency": row["currency"],
                 "low_balance_alert_level": row["low_balance_alert_level"],
                 "updated_at": row["updated_at"],
+            }
+
+    @staticmethod
+    def fetch_wallet_transaction_history(
+        user_id: str,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> Dict[str, Any]:
+        """
+        Returns wallet transaction history for the authenticated user.
+        Enforces customer tenant isolation: only returns rows where user_id matches.
+        Sorted newest-first (created_at DESC).
+        Supports pagination via limit/offset.
+        """
+        limit = max(1, min(limit, 200))
+        offset = max(0, offset)
+
+        with DBConnection(autocommit=True) as conn:
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+
+            cur.execute(
+                """
+                SELECT id, user_id, amount, balance_after, currency, status,
+                       idempotency_key, description, created_at, updated_at,
+                       transaction_type, direction
+                FROM wallet_transactions
+                WHERE user_id = %s
+                ORDER BY created_at DESC
+                LIMIT %s OFFSET %s;
+                """,
+                (user_id, limit, offset),
+            )
+            rows = cur.fetchall() or []
+
+            transactions = []
+            for row in rows:
+                transactions.append({
+                    "id": row["id"],
+                    "type": row["transaction_type"],
+                    "direction": row["direction"],
+                    "amount": float(row["amount"]) if row["amount"] is not None else 0.0,
+                    "currency": row["currency"],
+                    "status": row["status"],
+                    "description": row["description"] or "",
+                    "balance_after": float(row["balance_after"]) if row["balance_after"] is not None else None,
+                    "created_at": row["created_at"],
+                })
+
+            return {
+                "user_id": user_id,
+                "transactions": transactions,
+                "count": len(transactions),
+                "limit": limit,
+                "offset": offset,
             }
 
     @classmethod
@@ -1262,8 +1499,8 @@ class NotificationService:
             """)
             cur.execute("SELECT * FROM workspace_settings WHERE user_id = %s;", (user_id,))
             row = cur.fetchone()
+            now = datetime.now(timezone.utc).isoformat()
             if not row:
-                now = datetime.now(timezone.utc).isoformat()
                 cur.execute("""
                     INSERT INTO workspace_settings (user_id, monthly_budget, spending_alerts_enabled, weekly_report_enabled, cors_origins, updated_at)
                     VALUES (%s, 10000.0, TRUE, FALSE, %s, %s)
@@ -1275,16 +1512,26 @@ class NotificationService:
                     "spending_alerts_enabled": True,
                     "weekly_report_enabled": False,
                     "cors_origins": "https://app.novatech.ai, http://localhost:3000",
-                    "current_month_spend": 4820.0,
+                    "current_month_spend": 0.0,
                     "updated_at": now,
                 }
+            # Compute current_month_spend from actual wallet transactions (debits only, current month)
+            cur.execute("""
+                SELECT COALESCE(SUM(amount), 0) AS total_spent
+                FROM wallet_transactions
+                WHERE user_id = %s
+                  AND direction = 'debit'
+                  AND created_at >= %s;
+            """, (user_id, now[:7] + '-01T00:00:00+00:00'))
+            month_row = cur.fetchone()
+            current_month_spend = float(month_row["total_spent"]) if month_row else 0.0
             return {
                 "user_id": row["user_id"],
                 "monthly_budget": float(row["monthly_budget"]),
                 "spending_alerts_enabled": bool(row["spending_alerts_enabled"]),
                 "weekly_report_enabled": bool(row["weekly_report_enabled"]),
                 "cors_origins": str(row["cors_origins"]),
-                "current_month_spend": 4820.0,
+                "current_month_spend": current_month_spend,
                 "updated_at": str(row["updated_at"]),
             }
 
@@ -1325,6 +1572,17 @@ class NotificationService:
                     updated_at = EXCLUDED.updated_at;
             """, (user_id, monthly_budget, spending_alerts_enabled, weekly_report_enabled, cors_origins, now))
 
+            # Compute current_month_spend from actual wallet transactions
+            cur.execute("""
+                SELECT COALESCE(SUM(amount), 0) AS total_spent
+                FROM wallet_transactions
+                WHERE user_id = %s
+                  AND direction = 'debit'
+                  AND created_at >= %s;
+            """, (user_id, now[:7] + '-01T00:00:00+00:00'))
+            month_row = cur.fetchone()
+            current_month_spend = float(month_row["total_spent"]) if month_row else 0.0
+
             return {
                 "status": "success",
                 "user_id": user_id,
@@ -1332,7 +1590,7 @@ class NotificationService:
                 "spending_alerts_enabled": spending_alerts_enabled,
                 "weekly_report_enabled": weekly_report_enabled,
                 "cors_origins": cors_origins,
-                "current_month_spend": 4820.0,
+                "current_month_spend": current_month_spend,
                 "updated_at": now,
             }
 

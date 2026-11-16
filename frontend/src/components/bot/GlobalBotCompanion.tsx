@@ -17,10 +17,14 @@ import {
   checkDomainGatekeeper,
   OUT_OF_SCOPE_REFUSAL,
 } from '../../lib/llmService'
+import { fetchWalletBalance } from '../../lib/walletService'
 
 function readWallet(): number {
   try {
-    const raw = localStorage.getItem('inferxe_demo_wallet_balance_v1')
+    const session = getSession()
+    const sub = session?.user?.id || ''
+    const key = sub ? `inferxe_demo_wallet_balance_v1_${sub}` : 'inferxe_demo_wallet_balance_v1'
+    const raw = localStorage.getItem(key)
     return raw ? Number(JSON.parse(raw)) : 10000
   } catch {
     return 10000
@@ -38,8 +42,13 @@ function readBurnPerHour(): number {
   }
 }
 
+// Latest balance fetched from the wallet backend (source of truth). Kept at module
+// scope so the module-level reply builders (getBotReply → walletSummary) can read it.
+// Updated by GlobalBotCompanion's syncBotWalletBalance; null until synced / when signed out.
+let latestBackendWalletBalance: number | null = null
+
 function walletSummary(): string {
-  const balance = readWallet()
+  const balance = latestBackendWalletBalance ?? readWallet()
   const burn = readBurnPerHour()
   const hrs = burn > 0 ? balance / burn : null
   return `Your wallet balance is ₹${balance.toLocaleString('en-IN')}. ${
@@ -162,7 +171,7 @@ function getBotReply(query: string, currentPath: string = '/'): string {
     q.includes('assist me') ||
     q === 'help'
   ) {
-    return "Hi there! I am your Inferxe AI Assistant. Ask me anything about:\n• **Project & Architecture**: Overview of Inferxe, the multi-provider orchestration, and what was built.\n• **GPU Specs & Pricing**: Live hourly rates and sizing for NVIDIA H100, L40S, and L4.\n• **Wallet & Top-Up**: How to add funds, top up your compute credits, and manage 3D virtual cards.\n• **Customer Dashboard**: Real-time telemetry, ₹60/hr burn rate, and the 3-column Kanban deployment board.\n• **Model Inference & API**: Deploying Llama 3, Qwen 2.5, or Mistral with OpenAI SDK compatibility.\n• **Authentication**: Customer and Admin login with AWS Cognito.\n\nWhat would you like to know?"
+    return "Hi! How can I help you with Inferxe today—are you looking for GPU pricing, model sizing, or API setup?"
   }
 
   const isInsideDashboard = currentPath.startsWith('/dashboard')
@@ -198,12 +207,31 @@ function getBotReply(query: string, currentPath: string = '/'): string {
   }
 
   // 3c. Account Login / Registration Guidance
-  if (q.includes('login') || q.includes('sign in') || q.includes('signup') || q.includes('register') || q.includes('create account')) {
+  if (
+    q.includes('login') ||
+    q.includes('sign in') ||
+    q.includes('signup') ||
+    q.includes('sign up') ||
+    q.includes('register') ||
+    q.includes('create account') ||
+    q.includes('forgot password') ||
+    q.includes('reset password') ||
+    q.includes('api key')
+  ) {
+    if (q.includes('create account') || q.includes('signup') || q.includes('sign up') || q.includes('register')) {
+      return "Go to [inferxe.com](https://inferxe.com), click **Get Started** or **Sign Up**, and register with your work email or GitHub/Google account. Once verified, you can add credits and generate an API key immediately—no manual GPU quota approval required."
+    }
+    if (q.includes('forgot password') || q.includes('reset password') || q.includes('cannot access')) {
+      return "On the Inferxe login page, click **Forgot Password** to receive a reset link via email. If you signed up using Google or GitHub, use that same sign-in button instead of a password. For locked accounts, contact Inferxe support through the dashboard or website."
+    }
+    if (q.includes('api key') || q.includes('api keys') || q.includes('find my key') || q.includes('where do i find')) {
+      return "After logging into your Inferxe dashboard, open the **API Keys** tab in the left navigation menu and click **Create New Key**. Copy and store the key immediately, as it is only displayed once."
+    }
     const session = getSession()
     if (session) {
-      return `You are currently logged in as **${session.user.fullName}** (${session.user.email}) with role **${session.user.role}**. You have full access to your Dashboard, GPU Marketplace, and Wallet.`
+      return `You are currently logged in as **${session.user.fullName}** (${session.user.email}). Click the **Dashboard** button to access your GPU Marketplace, Deployments, and API Keys.`
     }
-    return "To access the GPU Marketplace, launch instances, or manage your wallet, please visit the **[Sign In](/login)** page to log in or create your free account."
+    return "Click the **Sign In** or **Login** button in the top-right corner of [inferxe.com](https://inferxe.com). You can sign in using your registered email and password or your linked OAuth provider (such as Google or GitHub) to open your Inferxe dashboard."
   }
 
   // 3d. Project & Platform Overview / What is Inferxe
@@ -496,6 +524,35 @@ export function GlobalBotCompanion() {
   const [messages, setMessages] = useState<ChatMessage[]>(() => loadScopeMessages(activeScope))
   const [isTyping, setIsTyping] = useState(false)
 
+  const [botWalletBalance, setBotWalletBalance] = useState<number | null>(null)
+  const [botWalletLoading, setBotWalletLoading] = useState<boolean>(true)
+
+  const syncBotWalletBalance = async () => {
+    const session = getSession()
+    if (!session?.token) {
+      latestBackendWalletBalance = null
+      setBotWalletBalance(null)
+      setBotWalletLoading(false)
+      return
+    }
+    try {
+      const res = await fetchWalletBalance()
+      if (res.ok && res.balance) {
+        latestBackendWalletBalance = res.balance.balance
+        setBotWalletBalance(res.balance.balance)
+        try {
+          const sub = session.user?.id || ''
+          const key = sub ? `inferxe_demo_wallet_balance_v1_${sub}` : 'inferxe_demo_wallet_balance_v1'
+          localStorage.setItem(key, JSON.stringify(res.balance.balance))
+        } catch {}
+      }
+    } catch {
+      /* keep existing localStorage balance */
+    } finally {
+      setBotWalletLoading(false)
+    }
+  }
+
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const chatWindowRef = useRef<HTMLDivElement>(null)
@@ -542,6 +599,22 @@ export function GlobalBotCompanion() {
     }
   }, [location.pathname])
 
+  // Sync wallet balance from backend on mount and on wallet change events
+  useEffect(() => {
+    syncBotWalletBalance()
+
+    const handleWalletChange = () => {
+      void syncBotWalletBalance()
+    }
+
+    window.addEventListener('inferxe_wallet_change', handleWalletChange)
+    window.addEventListener('storage', handleWalletChange)
+    return () => {
+      window.removeEventListener('inferxe_wallet_change', handleWalletChange)
+      window.removeEventListener('storage', handleWalletChange)
+    }
+  }, [])
+
   // Automatically save messages for the active scope whenever they change
   useEffect(() => {
     if (messages && messages.length > 0) {
@@ -581,12 +654,14 @@ export function GlobalBotCompanion() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
-  // Proactive wallet / GPU notification from the bot (once per browser session)
+  // Proactive wallet / GPU notification from the bot (once per browser session).
+  // Waits for the backend balance sync so the alert isn't based on a stale cached value.
   useEffect(() => {
+    if (botWalletLoading) return
     const check = () => {
       try {
         if (sessionStorage.getItem('inferxe_bot_wallet_alert') === '1') return
-        const balance = readWallet()
+        const balance = botWalletBalance ?? readWallet()
         const burn = readBurnPerHour()
         if (balance < 2000 || (burn > 0 && balance / burn < 6)) {
           sessionStorage.setItem('inferxe_bot_wallet_alert', '1')
@@ -609,7 +684,7 @@ export function GlobalBotCompanion() {
     check()
     const t = setInterval(check, 60000)
     return () => clearInterval(t)
-  }, [])
+  }, [botWalletLoading, botWalletBalance])
 
   useEffect(() => {
     if (isOpen) {
