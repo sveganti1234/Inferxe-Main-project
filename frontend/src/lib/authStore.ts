@@ -104,20 +104,33 @@ export async function syncCustomerProfile(idToken: string): Promise<CustomerProf
     if (response.ok && result.ok && result.profile) {
       return result.profile as CustomerProfile
     }
+    console.warn('[customer-auth] Backend profile sync returned error, falling back to ID token claims:', result?.error)
   } catch (err) {
-    console.warn('[customer-auth] Profile sync network call failed, falling back to token claims:', err)
+    console.warn('[customer-auth] Backend profile sync unreachable, falling back to ID token claims:', err)
   }
 
+  // Graceful fallback to verified Cognito ID token claims
   const claims = decodeJwt(idToken) || {}
   const email = (claims.email as string) || ''
-  const name = (claims.name as string) || (claims['cognito:username'] as string) || email.split('@')[0] || 'Customer'
-  const username = (claims['cognito:username'] as string) || email.split('@')[0] || 'customer'
+  const fullName =
+    (claims.name as string) ||
+    (claims.preferred_username as string) ||
+    (claims['cognito:username'] as string) ||
+    email.split('@')[0] ||
+    'Customer'
+  const username =
+    (claims['cognito:username'] as string) ||
+    (claims.preferred_username as string) ||
+    email.split('@')[0] ||
+    'customer'
+  const role = (claims['cognito:groups']?.includes('admin') ? 'admin' : 'customer') as UserRole
+
   return {
     id: (claims.sub as string) || `usr_cog_${Math.random().toString(36).substring(2, 9)}`,
-    fullName: name,
+    fullName,
     email,
     username,
-    role: 'customer',
+    role,
     status: 'active',
     organizationId: null,
   }
@@ -160,17 +173,26 @@ async function cognitoLogin(email: string, password: string): Promise<{ ok: bool
   return { ok: true, session }
 }
 
+export function emailToCognitoUsername(email: string): string {
+  const clean = email.trim().toLowerCase()
+  return clean.replace(/@/g, '_at_').replace(/[^a-zA-Z0-9_]/g, '_')
+}
+
 async function cognitoRegister(fullName: string, email: string, password: string): Promise<{ ok: boolean; error?: string }> {
-  // Cognito User Pool is configured with email as a sign-in alias, not the username attribute.
-  // The Username parameter must be a non-email unique identifier; the email is stored as a user attribute.
-  const cognitoUsername = `cust_${crypto.randomUUID().replace(/-/g, '')}`
+  const cleanEmail = email.trim().toLowerCase()
+  const username = emailToCognitoUsername(cleanEmail)
+  const preferredUsername =
+    cleanEmail.split('@')[0].replace(/[^a-zA-Z0-9_.-]/g, '') ||
+    fullName.trim().replace(/\s+/g, '_') ||
+    'user'
 
   const r = await cognitoCall('SignUp', {
-    Username: cognitoUsername,
+    Username: username,
     Password: password,
     UserAttributes: [
-      { Name: 'email', Value: email.trim() },
+      { Name: 'email', Value: cleanEmail },
       { Name: 'name', Value: fullName.trim() },
+      { Name: 'preferred_username', Value: preferredUsername },
     ],
   })
   return r.ok ? { ok: true } : { ok: false, error: r.error }
