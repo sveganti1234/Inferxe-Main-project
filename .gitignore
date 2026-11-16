@@ -35,4 +35,6 @@ database/backups/
 
 #backend 
 backend/.env
+backend/*_old.txt
+*_old.txt
 scratch/
