@@ -1,15 +1,15 @@
 <!doctype html>
-<!-- Verdelo — money for the whole household -->
+<!-- Inferxe — money for the whole household -->
 <html lang="en" data-theme="dark">
 <head>
   <meta name="robots" content="noindex, nofollow">
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-  <title>Verdelo — money for the whole household</title>
-  <meta name="description" content="Verdelo is the household money app of the Okafor–Lindqvist home, in smoked glass with a mint glow: a wallet of cards you flip and freeze, money in and out as glass tubes that morph between quarter, six months and a year, payments, bills, budgets, savings pots and the family's own cards — light and dark, fully animated." />
+  <title>Inferxe — money for the whole household</title>
+  <meta name="description" content="Inferxe is the household money app, in smoked glass with a mint glow: a wallet of cards you flip and freeze, money in and out as glass tubes that morph between quarter, six months and a year, payments, bills, budgets, savings pots and the family's own cards — light and dark, fully animated." />
   <meta name="theme-color" content="#0c1210" />
   <meta property="og:type" content="website" />
-  <meta property="og:title" content="Verdelo — money for the whole household" />
+  <meta property="og:title" content="Inferxe — money for the whole household" />
   <meta property="og:description" content="Cards, payments, bills, budgets and savings pots for one family, in one glass money app." />
   <link rel="preload" as="image" href="/verdelo/photos/284-verdelo/room-blur.jpg" />
   <link rel="preload" as="image" href="/verdelo/photos/284-verdelo/room.jpg" />
@@ -23,7 +23,26 @@
       if (rec) d.classList.add('is-record');
       if (rec && /[?&]theme=light\b/.test(location.search)) d.dataset.theme = 'light';
       try {
+        try {
         var rawData = localStorage.getItem('verdelo:data');
+        if (rawData) {
+          rawData = rawData
+            .replace(/Okafor[–\-]Lindqvist\s*(home)?/gi, '')
+            .replace(/@okafor-lindqvist\.family/gi, '@inferxe.io')
+            .replace(/Okafor/gi, '')
+            .replace(/Verdelo/gi, 'Inferxe');
+          localStorage.setItem('verdelo:data', rawData);
+        }
+      } catch(e) {}
+        if (rawData) {
+          try {
+            var _p = JSON.parse(rawData);
+            if (_p && _p.s) {
+              _p.s.signedIn = true;
+              localStorage.setItem('verdelo:data', JSON.stringify(_p));
+            }
+          } catch(e) {}
+        }
         if (rawData && rawData.indexOf('Ines') !== -1) {
           rawData = rawData.replace(/Ines Okafor/g, 'Sahith').replace(/Ines/g, 'Sahith');
           localStorage.setItem('verdelo:data', rawData);

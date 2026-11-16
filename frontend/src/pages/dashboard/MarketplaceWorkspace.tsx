@@ -27,7 +27,6 @@ import {
 import { NotebooksSection, ReviewsSection, RewardsSection, UsageDetail } from './ExtraSections'
 import { SovereignNodesMap } from '../../components/dashboard/SovereignNodesMap'
 import { InteractivePriceHistoryChart, type PriceHistoryRange, type GpuModel } from '../../components/dashboard/InteractivePriceHistoryChart'
-import { CustomerVerdeloWorkspace } from '../../components/dashboard/CustomerVerdeloWorkspace'
 
 type Listing = {
   id: string
@@ -1348,17 +1347,6 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
             </div>
           </div>
         )}
-
-        {/* ───────────────────────────────────────────────────────────
-            1. CUSTOMER PORTAL OVERVIEW & CARDS (route === 'customer')
-            1:1 Pixel-Perfect Replica of Verdelo Dark Fintech UI
-            ─────────────────────────────────────────────────────────── */}
-        {(() => {
-          if (route === 'customer' || route === 'wallet') {
-            return <CustomerVerdeloWorkspace />
-          }
-          return null
-        })()}
 
         {/* ───────────────────────────────────────────────────────────
             2. MODELS & SPECIFICATIONS (route === 'models')

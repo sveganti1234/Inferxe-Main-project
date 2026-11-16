@@ -54,7 +54,7 @@ export function CustomerVerdeloWorkspace() {
       <iframe
         ref={iframeRef}
         src={`/verdelo/${initialHash}`}
-        title="Verdelo — money for the whole household"
+        title="Inferxe — money for the whole household"
         style={{
           width: '100%',
           height: '100%',
@@ -68,3 +68,4 @@ export function CustomerVerdeloWorkspace() {
 }
 
 export default CustomerVerdeloWorkspace
+
