@@ -1,5 +1,5 @@
 /* ───────────────────────────────────────────────────────────
-   Inferxe — Circular Reveal Transitions & Dark Mode Overhaul
+   Inferxe — Circular Reveal Transitions & Verdelo Dark Mode Theme
    ─────────────────────────────────────────────────────────── */
 
 /* ── 1. 🌊 Theme Change Animation (Circular Reveal & Ripple Wave) ── */
@@ -33,72 +33,78 @@
   will-change: transform, opacity;
 }
 
+html,
+body,
+.dash-shell,
 html[data-theme='dark'],
-body:has(.dash-shell:not([data-theme='light'])),
-body:has(.dash-shell[data-theme='dark']) {
-  background-color: #060a07 !important;
+body:has(.dash-shell),
+.dash-shell[data-theme='dark'] {
+  background-color: #030d09 !important;
+  background-image: 
+    radial-gradient(ellipse 75% 55% at 85% 15%, rgba(80, 227, 150, 0.22) 0%, transparent 60%),
+    radial-gradient(ellipse 65% 65% at 15% 85%, rgba(31, 100, 72, 0.20) 0%, transparent 55%),
+    linear-gradient(180deg, rgba(3, 13, 9, 0.40) 0%, rgba(3, 13, 9, 0.65) 100%),
+    url('/customer-bg.jpg') !important;
+  background-attachment: fixed !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
 }
 
-html[data-theme='light'],
-body:has(.dash-shell[data-theme='light']) {
-  background-color: #f4f6f1 !important;
-}
-
-/* ── Animated Icon Morphing (Golden Sun #FBBF24 & Indigo Moon #6366F1) ── */
 .dash-theme-icon--sun {
   color: #FBBF24 !important;
   filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.6));
 }
 
 .dash-theme-icon--moon {
-  color: #6366F1 !important;
-  filter: drop-shadow(0 0 6px rgba(99, 102, 241, 0.6));
+  color: #50e396 !important;
+  filter: drop-shadow(0 0 6px rgba(80, 227, 150, 0.6));
 }
 
-/* ── 2. 🎨 Dark Mode: Authentic Inferxe Graphite-Green & Glassmorphic Surfaces ── */
+/* ── 2. 🎨 Dark Mode: Authentic Verdelo Obsidian-Emerald & Glassmorphic Surfaces ── */
 
-/* Signature Graphite-Green Base Palette from tokens.css */
 .dash-shell:not([data-theme='light']),
 .dash-shell[data-theme='dark'] {
   background-color: transparent !important;
-  color: #eef2ea;
-  --bg-0: #060a07;
-  --bg-1: #0a100c;
-  --bg-2: #0f1511;
-  --bg-3: #131b16;
-  --bg-4: #18211b;
-  --bg-5: #202c24;
-  --ink: #eef2ea;
-  --ink-2: #b4c0b2;
-  --ink-3: #8e9c8c;
-  --ink-4: #6d7a6a;
-  --line: rgba(238, 242, 234, 0.08);
-  --line-2: rgba(238, 242, 234, 0.15);
-  --line-3: rgba(238, 242, 234, 0.26);
-  --brand: #76b900;
-  --brand-hi: #9be015;
-  --brand-hi2: #b6f23a;
-  --brand-lo: #3e6b00;
-  --brand-glow: rgba(118, 185, 0, 0.35);
-  --brand-soft: rgba(118, 185, 0, 0.12);
+  color: #ffffff;
+  --bg-0: #030d09;
+  --bg-1: #061510;
+  --bg-2: #091f18;
+  --bg-3: #0e2a20;
+  --bg-4: #13382c;
+  --bg-5: #1a4738;
+  --ink: #ffffff;
+  --ink-2: #e2f5ee;
+  --ink-3: #8caba0;
+  --ink-4: #567468;
+  --line: rgba(80, 227, 150, 0.12);
+  --line-2: rgba(80, 227, 150, 0.20);
+  --line-3: rgba(80, 227, 150, 0.32);
+  --brand: #50e396;
+  --brand-hi: #50e396;
+  --brand-hi2: #6ee7b7;
+  --brand-lo: #1f6448;
+  --brand-ink: #041c12;
+  --brand-glow: rgba(80, 227, 150, 0.45);
+  --brand-soft: rgba(80, 227, 150, 0.16);
 }
 
-/* Glassmorphic Top Header matching Home.tsx nav */
+/* Glassmorphic Top Header matching Verdelo palette */
 .dash-shell:not([data-theme='light']) .dash-topbar,
 .dash-shell[data-theme='dark'] .dash-topbar {
-  background: rgba(10, 16, 12, 0.88) !important;
+  background: rgba(6, 21, 16, 0.88) !important;
   -webkit-backdrop-filter: blur(20px) saturate(140%) !important;
   backdrop-filter: blur(20px) saturate(140%) !important;
-  border-bottom: 1px solid rgba(238, 242, 234, 0.08) !important;
+  border-bottom: 1px solid rgba(80, 227, 150, 0.14) !important;
 }
 
 /* Dedicated Sidebar Surface with crisp boundary */
 .dash-shell:not([data-theme='light']) .dash-sidebar,
 .dash-shell[data-theme='dark'] .dash-sidebar {
-  background: rgba(10, 16, 12, 0.94) !important;
+  background: rgba(6, 21, 16, 0.94) !important;
   -webkit-backdrop-filter: blur(20px) saturate(140%) !important;
   backdrop-filter: blur(20px) saturate(140%) !important;
-  border: 1px solid rgba(238, 242, 234, 0.08) !important;
+  border: 1px solid rgba(80, 227, 150, 0.14) !important;
 }
 
 /* Glassmorphic Elevated Surfaces with Specular Reflection & Border Highlights */
@@ -130,10 +136,10 @@ body:has(.dash-shell[data-theme='light']) {
 .dash-shell[data-theme='dark'] .mw-model-card,
 .dash-shell[data-theme='dark'] .mw-modal,
 .dash-shell[data-theme='dark'] .xs-card {
-  background: linear-gradient(145deg, rgba(24, 33, 27, 0.72) 0%, rgba(15, 21, 17, 0.82) 100%) !important;
+  background: linear-gradient(145deg, rgba(9, 28, 20, 0.72) 0%, rgba(6, 20, 15, 0.85) 100%) !important;
   -webkit-backdrop-filter: blur(20px) saturate(140%) !important;
   backdrop-filter: blur(20px) saturate(140%) !important;
-  border: 1px solid rgba(238, 242, 234, 0.09) !important;
+  border: 1px solid rgba(80, 227, 150, 0.14) !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.08),
     0 4px 16px rgba(0, 0, 0, 0.45) !important;
@@ -142,12 +148,12 @@ body:has(.dash-shell[data-theme='light']) {
 
 .dash-shell:not([data-theme='light']) .dash-modal,
 .dash-shell[data-theme='dark'] .dash-modal {
-  background: #0d1510 !important;
-  border: 1px solid rgba(118, 185, 0, 0.35) !important;
+  background: #061510 !important;
+  border: 1px solid rgba(80, 227, 150, 0.35) !important;
   box-shadow:
     0 24px 60px rgba(0, 0, 0, 0.95),
     0 0 0 1px rgba(255, 255, 255, 0.08),
-    0 8px 24px rgba(118, 185, 0, 0.08) !important;
+    0 8px 24px rgba(80, 227, 150, 0.15) !important;
 }
 
 .dash-shell:not([data-theme='light']) .dash-stat-card:hover,
@@ -156,8 +162,8 @@ body:has(.dash-shell[data-theme='light']) {
 .dash-shell[data-theme='dark'] .dash-stat-card:hover,
 .dash-shell[data-theme='dark'] .dash-panel-card:hover,
 .dash-shell[data-theme='dark'] .dash-deploy-row:hover {
-  background: linear-gradient(145deg, rgba(32, 44, 36, 0.8) 0%, rgba(19, 27, 22, 0.9) 100%) !important;
-  border-color: rgba(118, 185, 0, 0.35) !important;
+  background: linear-gradient(145deg, rgba(14, 38, 28, 0.82) 0%, rgba(9, 28, 20, 0.92) 100%) !important;
+  border-color: rgba(80, 227, 150, 0.38) !important;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.14),
     0 16px 36px -12px rgba(0, 0, 0, 0.7),
@@ -179,11 +185,11 @@ body:has(.dash-shell[data-theme='light']) {
 .dash-shell[data-theme='dark'] .dash-admin-profile,
 .dash-shell[data-theme='dark'] .dash-theme-toggle,
 .dash-shell[data-theme='dark'] .dash-topbar__status {
-  background: rgba(15, 21, 17, 0.85) !important;
-  border: 1px solid rgba(238, 242, 234, 0.1) !important;
+  background: rgba(9, 28, 20, 0.85) !important;
+  border: 1px solid rgba(80, 227, 150, 0.16) !important;
 }
 
-/* Typography Hierarchy matching Home.tsx */
+/* Typography Hierarchy */
 .dash-shell:not([data-theme='light']) .dash-header-title,
 .dash-shell:not([data-theme='light']) .dash-form-title,
 .dash-shell:not([data-theme='light']) .dash-modal-title,
@@ -214,7 +220,7 @@ body:has(.dash-shell[data-theme='light']) {
 .dash-shell[data-theme='dark'] .mw-table td,
 .dash-shell[data-theme='dark'] .mw-list-main strong,
 .dash-shell[data-theme='dark'] .xs-card__head strong {
-  color: #eef2ea !important;
+  color: #ffffff !important;
 }
 
 /* Secondary Crisp Text */
@@ -246,7 +252,7 @@ body:has(.dash-shell[data-theme='light']) {
 .dash-shell[data-theme='dark'] .mw-metric-lbl,
 .dash-shell[data-theme='dark'] .xs-label,
 .dash-shell[data-theme='dark'] .xs-note {
-  color: #b4c0b2 !important;
+  color: #e2f5ee !important;
 }
 
 /* Tertiary Metadata / Timestamps */
@@ -274,6 +280,6 @@ body:has(.dash-shell[data-theme='light']) {
 .dash-shell[data-theme='dark'] .mw-list-main small,
 .dash-shell[data-theme='dark'] .mw-notification small,
 .dash-shell[data-theme='dark'] .xs-card__head small {
-  color: #8e9c8c !important;
+  color: #8caba0 !important;
   font-weight: 500 !important;
 }

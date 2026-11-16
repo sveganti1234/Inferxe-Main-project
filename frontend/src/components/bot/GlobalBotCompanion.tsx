@@ -525,9 +525,18 @@ export function GlobalBotCompanion() {
       setIsTyping(false)
     }
 
+    const handleOpenBot = () => {
+      setIsOpen(true)
+      try {
+        sessionStorage.setItem('inferxe_chat_open', '1')
+      } catch {}
+    }
+
+    window.addEventListener('inferxe_open_bot', handleOpenBot)
     window.addEventListener('inferxe-auth-change', handleAuthChange)
     window.addEventListener('storage', handleAuthChange)
     return () => {
+      window.removeEventListener('inferxe_open_bot', handleOpenBot)
       window.removeEventListener('inferxe-auth-change', handleAuthChange)
       window.removeEventListener('storage', handleAuthChange)
     }

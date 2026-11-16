@@ -1,0 +1,51 @@
+<!doctype html>
+<!-- Verdelo — money for the whole household -->
+<html lang="en" data-theme="dark">
+<head>
+  <meta name="robots" content="noindex, nofollow">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Verdelo — money for the whole household</title>
+  <meta name="description" content="Verdelo is the household money app of the Okafor–Lindqvist home, in smoked glass with a mint glow: a wallet of cards you flip and freeze, money in and out as glass tubes that morph between quarter, six months and a year, payments, bills, budgets, savings pots and the family's own cards — light and dark, fully animated." />
+  <meta name="theme-color" content="#0c1210" />
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="Verdelo — money for the whole household" />
+  <meta property="og:description" content="Cards, payments, bills, budgets and savings pots for one family, in one glass money app." />
+  <link rel="preload" as="image" href="/verdelo/photos/284-verdelo/room-blur.jpg" />
+  <link rel="preload" as="image" href="/verdelo/photos/284-verdelo/room.jpg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Urbanist:wght@400..700&display=swap" rel="stylesheet" />
+  <script>
+    (function (d) {
+      d.classList.add('js');
+      var rec = /[?&]record\b/.test(location.search);
+      if (rec) d.classList.add('is-record');
+      if (rec && /[?&]theme=light\b/.test(location.search)) d.dataset.theme = 'light';
+      try {
+        var rawData = localStorage.getItem('verdelo:data');
+        if (rawData && rawData.indexOf('Ines') !== -1) {
+          rawData = rawData.replace(/Ines Okafor/g, 'Sahith').replace(/Ines/g, 'Sahith');
+          localStorage.setItem('verdelo:data', rawData);
+        }
+        if (!rec) {
+          var t = JSON.parse(localStorage.getItem('verdelo:theme') || '"dark"');
+          d.dataset.theme = t === 'system' ? (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : t;
+          var f = localStorage.getItem('verdelo:frost');
+          if (f) d.style.setProperty('--frost', f);
+          if (localStorage.getItem('verdelo:rail') === '1') d.classList.add('is-rail');
+        }
+      } catch (e) {}
+      if (d.dataset.theme === 'light') document.querySelector('meta[name="theme-color"]').setAttribute('content', '#dfe6e1');
+    })(document.documentElement);
+  </script>
+  <script type="module" crossorigin src="/verdelo/assets/index-csctyUIG.js"></script>
+  <link rel="modulepreload" crossorigin href="/verdelo/assets/kit-Belqqmzb.js">
+  <link rel="stylesheet" crossorigin href="/verdelo/assets/index-DRnFl7gh.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+  <div id="root"></div>
+  <noscript><p style="padding:24px">Verdelo needs JavaScript to run.</p></noscript>
+</body>
+</html>

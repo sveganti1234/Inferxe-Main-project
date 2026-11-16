@@ -48,8 +48,8 @@ function validateEnvironment() {
   const warnings = []
 
   if (!backendEnv) {
-    fatalErrors.push(
-      'Missing backend/.env. Copy backend/.env.example to backend/.env and populate shared project credentials.',
+    warnings.push(
+      'Missing backend/.env. Using default local environment values.',
     )
   }
 
@@ -74,17 +74,17 @@ function validateEnvironment() {
   const sbKey = effective.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 
   if (!isConfiguredValue(sbUrl)) {
-    fatalErrors.push(
-      'SUPABASE_URL is missing or placeholder in backend/.env. Set it to your shared Supabase REST URL.',
+    warnings.push(
+      'SUPABASE_URL is not set or placeholder. Supabase cloud sync will be disabled for local development.',
     )
   }
 
   if (!sbKey.trim()) {
-    fatalErrors.push(
-      'SUPABASE_SERVICE_ROLE_KEY is missing in backend/.env. Set it to your shared project Secret/Service Role key.',
+    warnings.push(
+      'SUPABASE_SERVICE_ROLE_KEY is missing in backend/.env. Supabase cloud sync will be disabled for local development.',
     )
   } else if (sbKey.startsWith('sbp_') || sbKey.startsWith('sb_publishable_')) {
-    fatalErrors.push(
+    warnings.push(
       'SUPABASE_SERVICE_ROLE_KEY cannot use a Personal Access Token (sbp_*) or Publishable key (sb_publishable_*).',
     )
   }

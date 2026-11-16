@@ -35,3 +35,4 @@ database/backups/
 
 #backend 
 backend/.env
+scratch/
