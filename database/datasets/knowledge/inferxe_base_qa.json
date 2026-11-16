@@ -348,5 +348,40 @@
     "question": "How can I request multi-node GPU clusters or enterprise volume pricing?",
     "answer": "Teams needing dedicated 8x H100/H200 clusters, custom SLAs, or committed-use discounts can contact Inferxe's solutions engineering team directly through the dashboard or at `sales@inferxe.com`.",
     "verified_source": "https://inferxe.com/enterprise"
+  },
+  {
+    "id": "inf-qa-051",
+    "category": "account_navigation",
+    "question": "How can I log in to this website?",
+    "answer": "Click the **Sign In** or **Login** button in the top-right corner of [inferxe.com](https://inferxe.com). You can sign in using your registered email and password or your linked OAuth provider (such as Google or GitHub) to open your Inferxe dashboard.",
+    "verified_source": "https://inferxe.com/"
+  },
+  {
+    "id": "inf-qa-052",
+    "category": "account_navigation",
+    "question": "How do I create a new account on Inferxe?",
+    "answer": "Go to [inferxe.com](https://inferxe.com), click **Get Started** or **Sign Up**, and register with your work email or GitHub/Google account. Once verified, you can add credits and generate an API key immediately—no manual GPU quota approval required.",
+    "verified_source": "https://inferxe.com/"
+  },
+  {
+    "id": "inf-qa-053",
+    "category": "account_navigation",
+    "question": "I forgot my password or cannot access my Inferxe account. What should I do?",
+    "answer": "On the Inferxe login page, click **Forgot Password** to receive a reset link via email. If you signed up using Google or GitHub, use that same sign-in button instead of a password. For locked accounts, contact Inferxe support through the dashboard or website.",
+    "verified_source": "https://inferxe.com/"
+  },
+  {
+    "id": "inf-qa-054",
+    "category": "account_navigation",
+    "question": "Where do I find my Inferxe API key after logging in?",
+    "answer": "After logging into your Inferxe dashboard, open the **API Keys** tab in the left navigation menu and click **Create New Key**. Copy and store the key immediately, as it is only displayed once.",
+    "verified_source": "https://inferxe.com/"
+  },
+  {
+    "id": "inf-qa-055",
+    "category": "greetings_and_general",
+    "question": "Hello",
+    "answer": "Hi! How can I help you with Inferxe today—are you looking for GPU pricing, model sizing, or API setup?",
+    "verified_source": "https://inferxe.com/"
   }
 ]
