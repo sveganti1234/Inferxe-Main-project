@@ -45,8 +45,8 @@ def run_tests():
     assert data["spending_alerts_enabled"] is True
     assert data["weekly_report_enabled"] is False
     assert "https://app.novatech.ai" in data["cors_origins"]
-    assert data["current_month_spend"] == 4820.0
-    print("      Default settings retrieved successfully (Budget: ₹10,000, Spend: ₹4,820)")
+    assert data["current_month_spend"] == 0.0
+    print("      Default settings retrieved successfully (Budget: ₹10,000, Spend: ₹0 - computed from transactions)")
 
     # 2. Test POST update settings
     print("\n[TEST 2] Updating workspace budget and preferences for User A...")

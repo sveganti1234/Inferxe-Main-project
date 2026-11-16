@@ -281,7 +281,7 @@ def get_pool() -> ThreadedConnectionPool:
 
         # ── STAGE 5: ThreadedConnectionPool creation ──────────────────
         try:
-            _pool = ThreadedConnectionPool(minconn=1, maxconn=10, **params)
+            _pool = ThreadedConnectionPool(minconn=1, maxconn=15, **params)
         except Exception as e:
             logger.error(
                 "Failed to initialize PostgreSQL pool at stage 'ThreadedConnectionPool': %s",
@@ -343,6 +343,9 @@ def init_db():
         ("notification_outbox", "error"),
         ("notification_outbox", "processed_at"),
         ("wallets", "low_balance_alert_level"),
+        ("wallet_transactions", "parent_transaction_id"),
+        ("wallet_transactions", "refunded_amount"),
+        ("wallet_transactions", "source"),
     }
     expected_indexes = {
         "idx_notifications_user_id",
@@ -353,6 +356,9 @@ def init_db():
         "idx_wallet_tx_user_id",
         "idx_gpu_dep_user_id",
     }
+    expected_fk_constraints = {
+        ("wallet_transactions", "fk_wallet_tx_parent"),
+    }
 
     with DBConnection(autocommit=True) as conn:
         cur = conn.cursor()
@@ -360,7 +366,7 @@ def init_db():
         try:
             cur.execute(
                 """
-                SELECT table_name, column_name
+                SELECT table_name, column_name, data_type, character_maximum_length
                 FROM information_schema.columns
                 WHERE table_schema = 'public'
                   AND table_name = ANY(%s);
@@ -369,6 +375,7 @@ def init_db():
             )
             col_pairs = {(r[0], r[1]) for r in cur.fetchall()}
             existing_tables = {t for (t, _) in col_pairs}
+            col_types = {(r[0], r[1]): (r[2], r[3]) for r in cur.fetchall()}
 
             cur.execute(
                 """
@@ -381,10 +388,34 @@ def init_db():
             )
             existing_indexes = {r[0] for r in cur.fetchall()}
 
+            cur.execute(
+                """
+                SELECT conrelid::regclass::text, conname
+                FROM pg_constraint
+                WHERE contype = 'f'
+                  AND (conrelid::regclass::text, conname) = ANY(%s);
+                """,
+                (list(expected_fk_constraints),),
+            )
+            existing_fks = {(r[0], r[1]) for r in cur.fetchall()}
+
+            # Verify column types for critical columns
+            expected_col_types = {
+                ("wallet_transactions", "id"): ("uuid", None),
+                ("wallet_transactions", "parent_transaction_id"): ("uuid", None),
+                ("wallet_transactions", "refunded_amount"): ("numeric", None),
+                ("wallet_transactions", "source"): ("character varying", 32),
+            }
+            types_match = all(
+                col_types.get(k) == v for k, v in expected_col_types.items()
+            )
+
             if (
                 expected_tables.issubset(existing_tables)
                 and expected_migrated_cols.issubset(col_pairs)
                 and expected_indexes.issubset(existing_indexes)
+                and expected_fk_constraints.issubset(existing_fks)
+                and types_match
             ):
                 logger.info("PostgreSQL schema already verified (%d tables ready).", len(existing_tables))
                 return
@@ -472,7 +503,7 @@ def init_db():
         # 5. wallet_transactions table
         cur.execute("""
             CREATE TABLE IF NOT EXISTS wallet_transactions (
-                id VARCHAR(64) PRIMARY KEY,
+                id UUID PRIMARY KEY,
                 user_id VARCHAR(128) NOT NULL,
                 amount NUMERIC(14,2) NOT NULL,
                 balance_after NUMERIC(14,2),
@@ -491,6 +522,41 @@ def init_db():
         cur.execute("ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS updated_at TEXT NOT NULL DEFAULT '';")
         cur.execute("ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS transaction_type VARCHAR(32) NOT NULL DEFAULT 'top_up';")
         cur.execute("ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS direction VARCHAR(16) NOT NULL DEFAULT 'credit';")
+        cur.execute("ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS parent_transaction_id UUID;")
+        cur.execute("ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS refunded_amount NUMERIC(14,2) NOT NULL DEFAULT 0;")
+        cur.execute("ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS source VARCHAR(32) NOT NULL DEFAULT 'legacy';")
+
+        # Conditionally convert parent_transaction_id from VARCHAR(64) to UUID if needed
+        cur.execute("""
+            SELECT data_type FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND table_name = 'wallet_transactions'
+              AND column_name = 'parent_transaction_id'
+        """)
+        col_row = cur.fetchone()
+        if col_row is not None and col_row[0] != 'uuid':
+            cur.execute("""
+                ALTER TABLE wallet_transactions
+                    ALTER COLUMN parent_transaction_id TYPE UUID
+                    USING parent_transaction_id::UUID
+            """)
+
+        # Idempotent self-referential FK: schema-aware check before adding
+        cur.execute("""
+            SELECT 1 FROM information_schema.table_constraints
+            WHERE table_schema = 'public'
+              AND table_name = 'wallet_transactions'
+              AND constraint_name = 'fk_wallet_tx_parent'
+              AND constraint_type = 'FOREIGN KEY'
+        """)
+        if cur.fetchone() is None:
+            cur.execute("""
+                ALTER TABLE wallet_transactions
+                    ADD CONSTRAINT fk_wallet_tx_parent
+                    FOREIGN KEY (parent_transaction_id)
+                    REFERENCES wallet_transactions(id)
+                    ON DELETE RESTRICT
+            """)
 
         # 6. gpu_inventory table
         cur.execute("""

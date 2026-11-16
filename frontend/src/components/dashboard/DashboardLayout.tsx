@@ -35,6 +35,7 @@ import { LogoMark } from '../Logo'
 import { Ambient } from '../layout/Ambient'
 import { getSession, clearSession, getPortalRole, type AuthSession, type PortalRole } from '../../lib/authStore'
 import { getCognitoContext } from '../../lib/cognitoContext'
+import { fetchWalletBalance } from '../../lib/walletService'
 interface BreadcrumbItem {
   label: string
   to?: string
@@ -502,11 +503,36 @@ export function DashboardLayout({
       const sub = currentSession?.user?.id || ''
       const key = sub ? `inferxe_demo_wallet_balance_v1_${sub}` : 'inferxe_demo_wallet_balance_v1'
       const val = localStorage.getItem(key)
-      return val ? JSON.parse(val) : 29053
+      return val ? JSON.parse(val) : 0
     } catch {
-      return 29053
+      return 0
     }
   })
+
+  const [dashWalletLoading, setDashWalletLoading] = useState<boolean>(true)
+
+  const syncDashWalletBalance = async () => {
+    const session = getSession()
+    if (!session?.token) {
+      setDashWalletLoading(false)
+      return
+    }
+    try {
+      const res = await fetchWalletBalance()
+      if (res.ok && res.balance) {
+        setDashWalletBalance(res.balance.balance)
+        try {
+          const sub = session.user?.id || ''
+          const key = sub ? `inferxe_demo_wallet_balance_v1_${sub}` : 'inferxe_demo_wallet_balance_v1'
+          localStorage.setItem(key, JSON.stringify(res.balance.balance))
+        } catch {}
+      }
+    } catch {
+      /* keep existing localStorage balance */
+    } finally {
+      setDashWalletLoading(false)
+    }
+  }
 
   const [hideBalance, setHideBalance] = useState<boolean>(() => {
     try {
@@ -517,9 +543,12 @@ export function DashboardLayout({
   })
 
   void dashWalletBalance;
+  void dashWalletLoading;
   void hideBalance;
 
   useEffect(() => {
+    syncDashWalletBalance()
+
     const handleSync = () => {
       try {
         const sub = currentSession?.user?.id || ''

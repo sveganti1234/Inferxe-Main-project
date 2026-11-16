@@ -17,10 +17,14 @@ import {
   checkDomainGatekeeper,
   OUT_OF_SCOPE_REFUSAL,
 } from '../../lib/llmService'
+import { fetchWalletBalance } from '../../lib/walletService'
 
 function readWallet(): number {
   try {
-    const raw = localStorage.getItem('inferxe_demo_wallet_balance_v1')
+    const session = getSession()
+    const sub = session?.user?.id || ''
+    const key = sub ? `inferxe_demo_wallet_balance_v1_${sub}` : 'inferxe_demo_wallet_balance_v1'
+    const raw = localStorage.getItem(key)
     return raw ? Number(JSON.parse(raw)) : 10000
   } catch {
     return 10000
@@ -38,8 +42,13 @@ function readBurnPerHour(): number {
   }
 }
 
+// Latest balance fetched from the wallet backend (source of truth). Kept at module
+// scope so the module-level reply builders (getBotReply → walletSummary) can read it.
+// Updated by GlobalBotCompanion's syncBotWalletBalance; null until synced / when signed out.
+let latestBackendWalletBalance: number | null = null
+
 function walletSummary(): string {
-  const balance = readWallet()
+  const balance = latestBackendWalletBalance ?? readWallet()
   const burn = readBurnPerHour()
   const hrs = burn > 0 ? balance / burn : null
   return `Your wallet balance is ₹${balance.toLocaleString('en-IN')}. ${
@@ -496,6 +505,35 @@ export function GlobalBotCompanion() {
   const [messages, setMessages] = useState<ChatMessage[]>(() => loadScopeMessages(activeScope))
   const [isTyping, setIsTyping] = useState(false)
 
+  const [botWalletBalance, setBotWalletBalance] = useState<number | null>(null)
+  const [botWalletLoading, setBotWalletLoading] = useState<boolean>(true)
+
+  const syncBotWalletBalance = async () => {
+    const session = getSession()
+    if (!session?.token) {
+      latestBackendWalletBalance = null
+      setBotWalletBalance(null)
+      setBotWalletLoading(false)
+      return
+    }
+    try {
+      const res = await fetchWalletBalance()
+      if (res.ok && res.balance) {
+        latestBackendWalletBalance = res.balance.balance
+        setBotWalletBalance(res.balance.balance)
+        try {
+          const sub = session.user?.id || ''
+          const key = sub ? `inferxe_demo_wallet_balance_v1_${sub}` : 'inferxe_demo_wallet_balance_v1'
+          localStorage.setItem(key, JSON.stringify(res.balance.balance))
+        } catch {}
+      }
+    } catch {
+      /* keep existing localStorage balance */
+    } finally {
+      setBotWalletLoading(false)
+    }
+  }
+
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const chatWindowRef = useRef<HTMLDivElement>(null)
@@ -542,6 +580,22 @@ export function GlobalBotCompanion() {
     }
   }, [location.pathname])
 
+  // Sync wallet balance from backend on mount and on wallet change events
+  useEffect(() => {
+    syncBotWalletBalance()
+
+    const handleWalletChange = () => {
+      void syncBotWalletBalance()
+    }
+
+    window.addEventListener('inferxe_wallet_change', handleWalletChange)
+    window.addEventListener('storage', handleWalletChange)
+    return () => {
+      window.removeEventListener('inferxe_wallet_change', handleWalletChange)
+      window.removeEventListener('storage', handleWalletChange)
+    }
+  }, [])
+
   // Automatically save messages for the active scope whenever they change
   useEffect(() => {
     if (messages && messages.length > 0) {
@@ -581,12 +635,14 @@ export function GlobalBotCompanion() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
-  // Proactive wallet / GPU notification from the bot (once per browser session)
+  // Proactive wallet / GPU notification from the bot (once per browser session).
+  // Waits for the backend balance sync so the alert isn't based on a stale cached value.
   useEffect(() => {
+    if (botWalletLoading) return
     const check = () => {
       try {
         if (sessionStorage.getItem('inferxe_bot_wallet_alert') === '1') return
-        const balance = readWallet()
+        const balance = botWalletBalance ?? readWallet()
         const burn = readBurnPerHour()
         if (balance < 2000 || (burn > 0 && balance / burn < 6)) {
           sessionStorage.setItem('inferxe_bot_wallet_alert', '1')
@@ -609,7 +665,7 @@ export function GlobalBotCompanion() {
     check()
     const t = setInterval(check, 60000)
     return () => clearInterval(t)
-  }, [])
+  }, [botWalletLoading, botWalletBalance])
 
   useEffect(() => {
     if (isOpen) {
