@@ -295,11 +295,70 @@ export function clearSession(): void {
   try {
     signOut().catch(() => {})
   } catch {}
+
   try {
+    // 1. Remove standard Inferxe session storage key
     localStorage.removeItem(AUTH_STORAGE_KEY)
+
+    // 2. Clear all Amplify / Cognito token entries from localStorage to prevent session resurrection
+    const localKeysToRemove: string[] = []
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (
+        key &&
+        (key.startsWith('CognitoIdentityServiceProvider') ||
+          key.startsWith('amplify') ||
+          key.startsWith('inferxe_auth') ||
+          key.includes('LastAuthUser') ||
+          key.includes('.idToken') ||
+          key.includes('.accessToken') ||
+          key.includes('.refreshToken'))
+      ) {
+        localKeysToRemove.push(key)
+      }
+    }
+    for (const key of localKeysToRemove) {
+      try {
+        localStorage.removeItem(key)
+      } catch {}
+    }
+
+    // 3. Clear all Amplify / Cognito token entries from sessionStorage
+    const sessionKeysToRemove: string[] = []
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const key = sessionStorage.key(i)
+      if (
+        key &&
+        (key.startsWith('CognitoIdentityServiceProvider') ||
+          key.startsWith('amplify') ||
+          key.startsWith('inferxe_auth') ||
+          key.includes('LastAuthUser') ||
+          key.includes('.idToken') ||
+          key.includes('.accessToken') ||
+          key.includes('.refreshToken'))
+      ) {
+        sessionKeysToRemove.push(key)
+      }
+    }
+    for (const key of sessionKeysToRemove) {
+      try {
+        sessionStorage.removeItem(key)
+      } catch {}
+    }
+
     window.dispatchEvent(new Event('inferxe_auth_change'))
   } catch (err) {
     console.error('Failed to clear auth session', err)
+  }
+}
+
+export async function performSignOut(redirectUrl = '/'): Promise<void> {
+  try {
+    await signOut().catch(() => {})
+  } catch {}
+  clearSession()
+  if (typeof window !== 'undefined') {
+    window.location.replace(redirectUrl)
   }
 }
 
