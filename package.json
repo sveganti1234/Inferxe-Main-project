@@ -16,7 +16,10 @@
     "build": "npm --prefix frontend run build",
     "preview": "npm --prefix frontend run preview",
     "typecheck": "npm --prefix frontend run typecheck",
-    "server:admin": "node backend/auth/adminAuthServer.mjs"
+    "test": "npm --prefix frontend test",
+    "server:admin": "node backend/auth/adminAuthServer.mjs",
+    "dataset:validate": "py -3 database/scripts/validate_dataset.py",
+    "dataset:expand": "py -3 database/scripts/expand_inferxe_dataset.py"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",
