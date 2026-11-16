@@ -35,7 +35,7 @@
   inset: 0;
   z-index: -2;
   background:
-    radial-gradient(1000px 640px at 78% 38%, rgba(118, 185, 0, 0.24), transparent 62%),
+    radial-gradient(1000px 640px at 78% 38%, rgba(14, 165, 233, 0.24), transparent 62%),
     linear-gradient(90deg, rgba(6, 10, 7, 0.97) 0%, rgba(6, 10, 7, 0.82) 46%, rgba(6, 10, 7, 0.45) 100%),
     linear-gradient(180deg, rgba(6, 10, 7, 0.55), transparent 28%, rgba(6, 10, 7, 0.4) 72%, var(--bg-0) 100%);
 }
@@ -117,7 +117,7 @@
   position: absolute;
   inset: 8% -6% 8%;
   border-radius: 50%;
-  background: radial-gradient(closest-side, rgba(118, 185, 0, 0.4), transparent 72%);
+  background: radial-gradient(closest-side, rgba(14, 165, 233, 0.4), transparent 72%);
   filter: blur(46px);
   animation: halo 6s ease-in-out infinite alternate;
 }
@@ -339,7 +339,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(circle at 50% 0%, rgba(118, 185, 0, 0.08) 0%, transparent 60%);
+  background: radial-gradient(circle at 50% 0%, rgba(14, 165, 233, 0.08) 0%, transparent 60%);
   pointer-events: none;
 }
 .strip__head {
@@ -370,9 +370,9 @@
 }
 .strip__provider:hover {
   opacity: 1;
-  background: rgba(118, 185, 0, 0.09);
-  border-color: rgba(118, 185, 0, 0.4);
-  box-shadow: 0 0 20px rgba(118, 185, 0, 0.18), inset 0 0 12px rgba(118, 185, 0, 0.08);
+  background: rgba(14, 165, 233, 0.09);
+  border-color: rgba(14, 165, 233, 0.4);
+  box-shadow: 0 0 20px rgba(14, 165, 233, 0.18), inset 0 0 12px rgba(14, 165, 233, 0.08);
   transform: translateY(-2px);
 }
 .strip__logo {
@@ -386,7 +386,7 @@
 }
 .strip__provider:hover .strip__logo {
   transform: scale(1.12);
-  color: #b6f23a;
+  color: #7dd3fc;
 }
 .strip__name {
   font-family: var(--font-sans);
@@ -403,9 +403,9 @@
   text-transform: uppercase;
   padding: 2px 8px;
   border-radius: 999px;
-  background: rgba(118, 185, 0, 0.14);
+  background: rgba(14, 165, 233, 0.14);
   color: var(--brand-hi2);
-  border: 1px solid rgba(118, 185, 0, 0.3);
+  border: 1px solid rgba(14, 165, 233, 0.3);
 }
 .strip__badge--dim {
   background: rgba(255, 255, 255, 0.04);
@@ -549,7 +549,7 @@
   inset: 0;
   z-index: -1;
   background:
-    radial-gradient(900px 500px at 80% 20%, rgba(118, 185, 0, 0.15), transparent 65%),
+    radial-gradient(900px 500px at 80% 20%, rgba(14, 165, 233, 0.15), transparent 65%),
     linear-gradient(180deg, var(--bg-0), rgba(6, 10, 7, 0.55) 22%, rgba(6, 10, 7, 0.72) 75%, var(--bg-0));
 }
 .gcard {
@@ -658,7 +658,7 @@
   inset: 0;
   z-index: -1;
   background:
-    radial-gradient(800px 400px at 0% 100%, rgba(118, 185, 0, 0.22), transparent 65%),
+    radial-gradient(800px 400px at 0% 100%, rgba(14, 165, 233, 0.22), transparent 65%),
     linear-gradient(95deg, rgba(6, 10, 7, 0.96) 18%, rgba(6, 10, 7, 0.55) 70%, rgba(6, 10, 7, 0.3));
 }
 .india__body {
@@ -776,7 +776,7 @@
   display: block;
   height: 100%;
   border-radius: 8px;
-  background: linear-gradient(90deg, #9bd10f, #3e6b00);
+  background: linear-gradient(90deg, #9bd10f, #0369a1);
 }
 .rate p {
   font-size: 0.9rem;
