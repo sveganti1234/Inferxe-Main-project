@@ -86,6 +86,7 @@ export default function CustomerManagement() {
   const [error, setError] = useState<string | null>(null)
 
   // Filters & Pagination
+  const [accountTypeTab, setAccountTypeTab] = useState<'real' | 'all' | 'test'>('real')
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'online' | 'active' | 'inactive'>('all')
   const [sortBy, setSortBy] = useState<'registration_date' | 'last_active' | 'full_name'>('registration_date')
@@ -118,8 +119,9 @@ export default function CustomerManagement() {
           sortOrder,
           page,
           limit: pageSize,
+          accountType: accountTypeTab,
         }),
-        fetchCustomerSummary(),
+        fetchCustomerSummary(accountTypeTab),
       ])
 
       setCustomers(listRes.customers || [])
@@ -131,7 +133,7 @@ export default function CustomerManagement() {
     } finally {
       if (showLoadingSpinner) setLoading(false)
     }
-  }, [searchQuery, statusFilter, sortBy, sortOrder, page, pageSize])
+  }, [searchQuery, statusFilter, sortBy, sortOrder, page, pageSize, accountTypeTab])
 
   useEffect(() => {
     void loadData(true)
@@ -197,7 +199,7 @@ export default function CustomerManagement() {
   const handleExportCsv = async () => {
     try {
       setIsExporting(true)
-      await exportCustomersCsv()
+      await exportCustomersCsv(accountTypeTab)
     } catch (err: unknown) {
       setError(err instanceof Error ? `Export failed: ${err.message}` : 'Export failed')
     } finally {
@@ -289,14 +291,16 @@ export default function CustomerManagement() {
         <Tilt max={5} className="dash-stat-tilt">
           <div className="dash-stat-card glass glass--lift">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-              <span className="dash-stat-label engrave">Total Customers</span>
+              <span className="dash-stat-label engrave">
+                {accountTypeTab === 'real' ? 'Real Customers' : accountTypeTab === 'test' ? 'Test Accounts' : 'Total Customers'}
+              </span>
               <Users size={16} style={{ color: 'var(--brand-hi)', opacity: 0.8 }} />
             </div>
             <div className="dash-stat-value readout">
-              <Counter to={summary.total} />
+              <Counter to={accountTypeTab === 'real' ? (summary.total_real ?? summary.active_count ?? summary.total) : accountTypeTab === 'test' ? (summary.total_test ?? summary.active_count ?? summary.total) : summary.total} />
             </div>
             <small style={{ color: 'var(--ink-4)', fontSize: '0.74rem', marginTop: 4, display: 'block' }}>
-              Persistent SQLite Database Records
+              Persistent Database Records
             </small>
           </div>
         </Tilt>
@@ -340,14 +344,14 @@ export default function CustomerManagement() {
         <Tilt max={5} className="dash-stat-tilt">
           <div className="dash-stat-card glass glass--lift" style={{ borderLeft: '3px solid #f59e0b' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-              <span className="dash-stat-label engrave">Inactive (5d+)</span>
+              <span className="dash-stat-label engrave">Inactive</span>
               <UserX size={16} style={{ color: '#f59e0b' }} />
             </div>
             <div className="dash-stat-value readout" style={{ color: '#fbbf24' }}>
               <Counter to={summary.inactive} />
             </div>
             <small style={{ color: 'var(--ink-4)', fontSize: '0.74rem', marginTop: 4, display: 'block' }}>
-              Never hidden · Automatically retained
+              Never logged in or inactive &gt; 5 days
             </small>
           </div>
         </Tilt>
@@ -401,6 +405,66 @@ export default function CustomerManagement() {
         </div>
       </div>
 
+      {/* ── Account Classification Tabs: Real Customers | All Customers | Test Accounts ── */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          marginBottom: 16,
+          flexWrap: 'wrap',
+        }}
+      >
+        {[
+          { id: 'real' as const, label: 'Real Customers', count: summary.total_real ?? 7, icon: UserCheck },
+          { id: 'all' as const, label: 'All Customers', count: summary.total ?? 26, icon: Users },
+          { id: 'test' as const, label: 'Test Accounts', count: summary.total_test ?? 19, icon: UserX },
+        ].map((tab) => {
+          const isActive = accountTypeTab === tab.id
+          const Icon = tab.icon
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => {
+                setAccountTypeTab(tab.id)
+                setPage(1)
+              }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '8px 16px',
+                borderRadius: 8,
+                fontSize: '0.84rem',
+                fontWeight: isActive ? 600 : 500,
+                color: isActive ? '#a3e635' : 'var(--ink-3)',
+                background: isActive ? 'rgba(118, 185, 0, 0.12)' : 'rgba(255, 255, 255, 0.03)',
+                border: isActive ? '1px solid rgba(163, 230, 53, 0.4)' : '1px solid rgba(255, 255, 255, 0.08)',
+                cursor: 'pointer',
+                transition: 'all 0.18s ease',
+              }}
+            >
+              <Icon size={15} style={{ color: isActive ? '#a3e635' : 'var(--ink-4)' }} />
+              <span>{tab.label}</span>
+              <span
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.72rem',
+                  padding: '2px 7px',
+                  borderRadius: 10,
+                  background: isActive ? 'rgba(163, 230, 53, 0.22)' : 'rgba(255, 255, 255, 0.06)',
+                  color: isActive ? '#a3e635' : 'var(--ink-4)',
+                  fontWeight: 600,
+                }}
+              >
+                {tab.count}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+
       {/* ── Toolbar: Search, Status Tabs & Sorting ── */}
       <div
         style={{
@@ -435,7 +499,7 @@ export default function CustomerManagement() {
           {/* Filter Chips */}
           <div className="dash-presets-row" style={{ marginTop: 0 }}>
             {[
-              { key: 'all', label: `All Customers (${summary.total})` },
+              { key: 'all', label: `All Statuses (${summary.active_count ?? summary.total})` },
               { key: 'online', label: `Online (${summary.online})` },
               { key: 'active', label: `Active (${summary.active})` },
               { key: 'inactive', label: `Inactive (${summary.inactive})` },
@@ -577,7 +641,26 @@ export default function CustomerManagement() {
                             {initials}
                           </div>
                           <div>
-                            <div style={{ fontWeight: 600, color: 'var(--ink)' }}>{fallbackName}</div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{fallbackName}</span>
+                              {c.is_test_account && (
+                                <span
+                                  className="tag tag--clay"
+                                  style={{
+                                    fontSize: '0.66rem',
+                                    padding: '1px 6px',
+                                    borderRadius: 4,
+                                    color: '#f59e0b',
+                                    borderColor: 'rgba(245, 158, 11, 0.3)',
+                                    background: 'rgba(245, 158, 11, 0.1)',
+                                    fontWeight: 600,
+                                  }}
+                                  title="Synthetic automated test profile"
+                                >
+                                  Test Profile
+                                </span>
+                              )}
+                            </div>
                             <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.74rem', color: 'var(--ink-3)' }}>
                               {c.email}
                             </div>
@@ -586,8 +669,17 @@ export default function CustomerManagement() {
                       </td>
 
                       <td>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.74rem', color: 'var(--ink-3)' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} title={`Cognito Member ID: ${c.cognito_sub}`}>
+                          <span
+                            style={{
+                              fontFamily: 'var(--font-mono)',
+                              fontSize: '0.74rem',
+                              color: 'var(--ink-3)',
+                              cursor: 'help',
+                              borderBottom: '1px dotted rgba(255, 255, 255, 0.25)',
+                            }}
+                            title={`Cognito Member ID: ${c.cognito_sub}`}
+                          >
                             {c.customer_id.length > 16 ? `${c.customer_id.slice(0, 16)}...` : c.customer_id}
                           </span>
                           <button
@@ -596,9 +688,9 @@ export default function CustomerManagement() {
                             style={{ padding: 4, borderRadius: 4 }}
                             onClick={(e) => {
                               e.stopPropagation()
-                              handleCopy(c.customer_id, `cid-${c.customer_id}`)
+                              handleCopy(c.cognito_sub, `cid-${c.customer_id}`)
                             }}
-                            title="Copy Customer ID"
+                            title="Copy Cognito Member ID"
                           >
                             {copiedId === `cid-${c.customer_id}` ? <Check size={12} style={{ color: '#76b900' }} /> : <Copy size={12} />}
                           </button>
@@ -607,7 +699,7 @@ export default function CustomerManagement() {
 
                       <td>
                         <div style={{ fontSize: '0.84rem', color: c.organization ? 'var(--ink)' : 'var(--ink-4)', fontWeight: c.organization ? 500 : 400 }}>
-                          {c.organization || '—'}
+                          {c.organization || 'Not assigned'}
                         </div>
                       </td>
 
@@ -739,7 +831,25 @@ export default function CustomerManagement() {
                       .toUpperCase()}
                   </div>
                   <div>
-                    <div style={{ fontSize: '1.15rem', fontWeight: 600, color: 'var(--ink)' }}>{detailsRecord.full_name || 'Name not provided'}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: '1.15rem', fontWeight: 600, color: 'var(--ink)' }}>{detailsRecord.full_name || 'Name not provided'}</span>
+                      {detailsRecord.is_test_account && (
+                        <span
+                          className="tag tag--clay"
+                          style={{
+                            fontSize: '0.68rem',
+                            padding: '2px 8px',
+                            borderRadius: 4,
+                            color: '#f59e0b',
+                            borderColor: 'rgba(245, 158, 11, 0.3)',
+                            background: 'rgba(245, 158, 11, 0.1)',
+                            fontWeight: 600,
+                          }}
+                        >
+                          Test Profile
+                        </span>
+                      )}
+                    </div>
                     <div style={{ fontSize: '0.84rem', color: 'var(--ink-3)', fontFamily: 'var(--font-mono)' }}>{detailsRecord.email}</div>
                   </div>
                   <div style={{ marginLeft: 'auto' }}>
@@ -757,25 +867,6 @@ export default function CustomerManagement() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                       <span style={{ color: 'var(--ink-4)' }}>Customer Name:</span>
                       <strong style={{ color: 'var(--ink)', fontSize: '0.86rem' }}>{detailsRecord.full_name || 'Name not provided'}</strong>
-                    </div>
-
-                    {/* Customer ID */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                      <span style={{ color: 'var(--ink-4)' }}>Customer ID:</span>
-                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--ink)' }}>
-                          {detailsRecord.customer_id}
-                        </span>
-                        <button
-                          type="button"
-                          className="dash-btn-ghost"
-                          style={{ padding: '2px 5px', borderRadius: 4 }}
-                          onClick={() => handleCopy(detailsRecord.customer_id, `drawer-cid-${detailsRecord.customer_id}`)}
-                          title="Copy Customer ID"
-                        >
-                          {copiedId === `drawer-cid-${detailsRecord.customer_id}` ? <Check size={12} style={{ color: '#76b900' }} /> : <Copy size={12} />}
-                        </button>
-                      </div>
                     </div>
 
                     {/* Email Address */}
@@ -797,14 +888,77 @@ export default function CustomerManagement() {
                       </div>
                     </div>
 
+                    {/* Cognito Member ID */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                      <span style={{ color: 'var(--ink-4)' }}>Cognito Member ID:</span>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: '#a3e635', fontWeight: 600 }}>
+                          {detailsRecord.cognito_sub}
+                        </span>
+                        <button
+                          type="button"
+                          className="dash-btn-ghost"
+                          style={{ padding: '2px 5px', borderRadius: 4 }}
+                          onClick={() => handleCopy(detailsRecord.cognito_sub, `drawer-sub-${detailsRecord.cognito_sub}`)}
+                          title="Copy Cognito Member ID"
+                        >
+                          {copiedId === `drawer-sub-${detailsRecord.cognito_sub}` ? <Check size={12} style={{ color: '#76b900' }} /> : <Copy size={12} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Display Customer ID */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                      <span style={{ color: 'var(--ink-4)' }}>Display Customer ID:</span>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--ink-3)' }}>
+                          {detailsRecord.customer_id}
+                        </span>
+                        <button
+                          type="button"
+                          className="dash-btn-ghost"
+                          style={{ padding: '2px 5px', borderRadius: 4 }}
+                          onClick={() => handleCopy(detailsRecord.customer_id, `drawer-cid-${detailsRecord.customer_id}`)}
+                          title="Copy Display Customer ID"
+                        >
+                          {copiedId === `drawer-cid-${detailsRecord.customer_id}` ? <Check size={12} style={{ color: '#76b900' }} /> : <Copy size={12} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Account Classification */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                      <span style={{ color: 'var(--ink-4)' }}>Account Classification:</span>
+                      <span
+                        className={detailsRecord.is_test_account ? 'tag tag--clay' : 'tag tag--emerald'}
+                        style={{ textTransform: 'none', fontWeight: 600 }}
+                      >
+                        {detailsRecord.is_test_account ? 'Test Profile (Synthetic automated fixture)' : 'Real Customer (Cognito Directory)'}
+                      </span>
+                    </div>
+
                     {/* Organization */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                       <span style={{ color: 'var(--ink-4)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                         <Building2 size={13} /> Organization:
                       </span>
                       <span style={{ fontWeight: 500, color: detailsRecord.organization ? 'var(--ink)' : 'var(--ink-4)' }}>
-                        {detailsRecord.organization || 'Not provided'}
+                        {detailsRecord.organization || 'Not assigned'}
                       </span>
+                    </div>
+
+                    {/* Account Status */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                      <span style={{ color: 'var(--ink-4)' }}>Account Status:</span>
+                      <span className="tag tag--clay" style={{ textTransform: 'capitalize' }}>{detailsRecord.account_status}</span>
+                    </div>
+
+                    {/* Activity Status */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                      <span style={{ color: 'var(--ink-4)' }}>Activity Status:</span>
+                      <div>
+                        {renderStatusBadge(detailsRecord.activity_status)}
+                      </div>
                     </div>
 
                     {/* Registration Date */}
@@ -818,25 +972,40 @@ export default function CustomerManagement() {
                       </div>
                     </div>
 
+                    {/* Last Login */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                      <span style={{ color: 'var(--ink-4)' }}>Last Login:</span>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontWeight: 500, color: detailsRecord.last_login_at ? 'var(--ink)' : 'var(--ink-4)' }}>
+                          {detailsRecord.last_login_at ? formatDateTime(detailsRecord.last_login_at) : 'Never'}
+                        </div>
+                        {detailsRecord.last_login_at && (
+                          <div style={{ fontSize: '0.72rem', color: 'var(--ink-4)' }}>{formatRelativeTime(detailsRecord.last_login_at)}</div>
+                        )}
+                      </div>
+                    </div>
+
                     {/* Last Active */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                       <span style={{ color: 'var(--ink-4)' }}>Last Active:</span>
                       <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontWeight: 600, color: detailsRecord.activity_status === 'Online' ? '#a3e635' : (detailsRecord.activity_status === 'Active' ? '#22d3ee' : '#fbbf24') }}>
-                          {formatRelativeTime(detailsRecord.last_active_at)}
+                        <div style={{ fontWeight: 600, color: detailsRecord.last_active_at ? (detailsRecord.activity_status === 'Online' ? '#a3e635' : (detailsRecord.activity_status === 'Active' ? '#22d3ee' : '#fbbf24')) : 'var(--ink-4)' }}>
+                          {detailsRecord.last_active_at ? formatRelativeTime(detailsRecord.last_active_at) : 'No activity recorded'}
                         </div>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--ink-4)', fontFamily: 'var(--font-mono)' }}>
-                          {formatDateTime(detailsRecord.last_active_at)}
-                        </div>
+                        {detailsRecord.last_active_at && (
+                          <div style={{ fontSize: '0.72rem', color: 'var(--ink-4)', fontFamily: 'var(--font-mono)' }}>
+                            {formatDateTime(detailsRecord.last_active_at)}
+                          </div>
+                        )}
                       </div>
                     </div>
 
-                    {/* Activity Status */}
+                    {/* Login Count */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ color: 'var(--ink-4)' }}>Activity Status:</span>
-                      <div>
-                        {renderStatusBadge(detailsRecord.activity_status)}
-                      </div>
+                      <span style={{ color: 'var(--ink-4)' }}>Login Count:</span>
+                      <span className="tag tag--emerald" style={{ fontWeight: 600 }}>
+                        {detailsRecord.login_count || 0} {detailsRecord.login_count === 1 ? 'login' : 'logins'}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -849,7 +1018,22 @@ export default function CustomerManagement() {
                   <div className="well" style={{ padding: '12px 14px', borderRadius: 8, display: 'flex', flexDirection: 'column', gap: 8, fontSize: '0.8rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ color: 'var(--ink-4)' }}>AWS Cognito Sub:</span>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.76rem', color: '#a3e635' }}>{detailsRecord.cognito_sub}</span>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.76rem', color: '#a3e635' }}>{detailsRecord.cognito_sub}</span>
+                        <button
+                          type="button"
+                          className="dash-btn-ghost"
+                          style={{ padding: '2px 5px', borderRadius: 4 }}
+                          onClick={() => handleCopy(detailsRecord.cognito_sub, `tech-sub-${detailsRecord.cognito_sub}`)}
+                          title="Copy Cognito Member ID"
+                        >
+                          {copiedId === `tech-sub-${detailsRecord.cognito_sub}` ? <Check size={12} style={{ color: '#76b900' }} /> : <Copy size={12} />}
+                        </button>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ color: 'var(--ink-4)' }}>Display Customer ID:</span>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.76rem', color: 'var(--ink-3)' }}>{detailsRecord.customer_id}</span>
                     </div>
                     {detailsRecord.phone_number && (
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -865,7 +1049,9 @@ export default function CustomerManagement() {
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ color: 'var(--ink-4)' }}>Last Heartbeat Received:</span>
-                      <span style={{ color: 'var(--ink)' }}>{formatRelativeTime(detailsRecord.last_heartbeat_at)}</span>
+                      <span style={{ color: detailsRecord.last_heartbeat_at ? 'var(--ink)' : 'var(--ink-4)' }}>
+                        {detailsRecord.last_heartbeat_at ? formatRelativeTime(detailsRecord.last_heartbeat_at) : 'Never'}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -879,7 +1065,7 @@ export default function CustomerManagement() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ color: 'var(--ink-4)' }}>Total Recorded Logins:</span>
                       <span className="tag tag--emerald" style={{ fontWeight: 600 }}>
-                        {detailsRecord.login_count || 1} logins
+                        {detailsRecord.login_count ?? 0} {detailsRecord.login_count === 1 ? 'login' : 'logins'}
                       </span>
                     </div>
 
@@ -911,11 +1097,15 @@ export default function CustomerManagement() {
                   <div className="well" style={{ padding: '12px 14px', borderRadius: 8, fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: 8 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ color: 'var(--ink-4)' }}>Last Heartbeat Received:</span>
-                      <span style={{ color: 'var(--ink)' }}>{formatRelativeTime(detailsRecord.last_heartbeat_at)} ({formatDateTime(detailsRecord.last_heartbeat_at)})</span>
+                      <span style={{ color: detailsRecord.last_heartbeat_at ? 'var(--ink)' : 'var(--ink-4)' }}>
+                        {detailsRecord.last_heartbeat_at ? `${formatRelativeTime(detailsRecord.last_heartbeat_at)} (${formatDateTime(detailsRecord.last_heartbeat_at)})` : 'Never'}
+                      </span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ color: 'var(--ink-4)' }}>Last Recorded Activity:</span>
-                      <span style={{ color: 'var(--ink)' }}>{formatRelativeTime(detailsRecord.last_active_at)}</span>
+                      <span style={{ color: detailsRecord.last_active_at ? 'var(--ink)' : 'var(--ink-4)' }}>
+                        {detailsRecord.last_active_at ? formatRelativeTime(detailsRecord.last_active_at) : 'No activity recorded'}
+                      </span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ color: 'var(--ink-4)' }}>Calculated Activity State:</span>

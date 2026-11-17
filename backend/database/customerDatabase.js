@@ -21,9 +21,31 @@ if (!fs.existsSync(BACKUP_DIR)) {
 
 let dbInstance = null
 
+export function getDatabasePath() {
+  return process.env.CUSTOMER_DB_PATH || DB_PATH
+}
+
+export function closeDatabase() {
+  if (dbInstance) {
+    try {
+      dbInstance.exec('PRAGMA wal_checkpoint(FULL);')
+      dbInstance.close()
+    } catch {}
+    dbInstance = null
+  }
+}
+
 export function getDatabase() {
-  if (!dbInstance) {
-    dbInstance = new DatabaseSync(DB_PATH)
+  const currentPath = getDatabasePath()
+  if (!dbInstance || dbInstance.currentPath !== currentPath) {
+    if (dbInstance) {
+      try {
+        dbInstance.exec('PRAGMA wal_checkpoint(FULL);')
+        dbInstance.close()
+      } catch {}
+    }
+    dbInstance = new DatabaseSync(currentPath)
+    dbInstance.currentPath = currentPath
     // Enable Write-Ahead Logging (WAL) for high concurrency and resilience
     dbInstance.exec('PRAGMA journal_mode = WAL;')
     dbInstance.exec('PRAGMA synchronous = NORMAL;')
@@ -111,6 +133,112 @@ function runMigrations(db) {
       new Date().toISOString(),
     )
   }
+
+  // Migration 3: Add customer_sessions table for multi-session and restart persistence
+  if (!applied.has(3)) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS customer_sessions (
+        session_id TEXT PRIMARY KEY,
+        cognito_sub TEXT,
+        email TEXT,
+        last_seen_at TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_customer_sessions_sub ON customer_sessions(cognito_sub);
+      CREATE INDEX IF NOT EXISTS idx_customer_sessions_email ON customer_sessions(email);
+      CREATE INDEX IF NOT EXISTS idx_customer_sessions_last_seen ON customer_sessions(last_seen_at);
+    `)
+
+    db.prepare('INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)').run(
+      3,
+      '003_customer_sessions',
+      new Date().toISOString(),
+    )
+  }
+}
+
+/**
+ * Record or update a customer session heartbeat in SQLite.
+ */
+export function recordSessionHeartbeat({ session_id, cognito_sub, email, last_seen_at }) {
+  if (!session_id) return
+  try {
+    const db = getDatabase()
+    const nowIso = last_seen_at || new Date().toISOString()
+    const cleanSub = cognito_sub ? String(cognito_sub).trim() : null
+    const cleanEmail = email ? String(email).trim().toLowerCase() : null
+
+    db.prepare(`
+      INSERT INTO customer_sessions (session_id, cognito_sub, email, last_seen_at, created_at)
+      VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(session_id) DO UPDATE SET
+        last_seen_at = excluded.last_seen_at,
+        cognito_sub = COALESCE(excluded.cognito_sub, customer_sessions.cognito_sub),
+        email = COALESCE(excluded.email, customer_sessions.email)
+    `).run(String(session_id).trim(), cleanSub, cleanEmail, nowIso, nowIso)
+  } catch (err) {
+    // Non-blocking log
+  }
+}
+
+/**
+ * Remove customer session on tab close / logout from SQLite.
+ */
+export function removeSession({ session_id, cognito_sub, email }) {
+  try {
+    const db = getDatabase()
+    if (session_id) {
+      db.prepare('DELETE FROM customer_sessions WHERE session_id = ?').run(String(session_id).trim())
+    } else if (cognito_sub || email) {
+      db.prepare('DELETE FROM customer_sessions WHERE cognito_sub = ? OR email = ?').run(
+        cognito_sub || '',
+        email ? String(email).trim().toLowerCase() : ''
+      )
+    }
+  } catch (err) {}
+}
+
+/**
+ * Prune expired sessions older than the retention window from SQLite.
+ */
+export function cleanExpiredSessionsDb(olderThanMs = 24 * 60 * 60 * 1000) {
+  try {
+    const db = getDatabase()
+    const cutoffIso = new Date(Date.now() - olderThanMs).toISOString()
+    const result = db.prepare('DELETE FROM customer_sessions WHERE last_seen_at < ?').run(cutoffIso)
+    return result.changes
+  } catch {
+    return 0
+  }
+}
+
+/**
+ * Check if the customer has any other active session within the online threshold in SQLite.
+ */
+export function hasOtherActiveSessionsDb({ cognito_sub, email, excluded_session_id, windowMs = 120000 }) {
+  if (!cognito_sub && !email) return false
+  try {
+    const db = getDatabase()
+    const thresholdIso = new Date(Date.now() - windowMs).toISOString()
+    const cleanSub = cognito_sub ? String(cognito_sub).trim() : null
+    const cleanEmail = email ? String(email).trim().toLowerCase() : null
+    const excludedId = excluded_session_id ? String(excluded_session_id).trim() : ''
+
+    const row = db.prepare(`
+      SELECT session_id, last_seen_at FROM customer_sessions
+      WHERE (
+        (? IS NOT NULL AND cognito_sub = ?) OR
+        (? IS NOT NULL AND email = ?)
+      )
+      AND session_id != ?
+      AND last_seen_at >= ?
+      LIMIT 1
+    `).get(cleanSub, cleanSub, cleanEmail, cleanEmail, excludedId, thresholdIso)
+
+    return Boolean(row)
+  } catch {
+    return false
+  }
 }
 
 /**
@@ -125,17 +253,17 @@ export function computeActivityStatus(lastActiveAt, lastHeartbeatAt) {
   const activeTime = lastActiveAt ? new Date(lastActiveAt).getTime() : 0
 
   // 1. Online: Heartbeat within previous 2 minutes (120,000 ms)
-  if (heartbeatTime > 0 && now - heartbeatTime <= 2 * 60 * 1000) {
+  if (heartbeatTime > 0 && !isNaN(heartbeatTime) && now - heartbeatTime <= 2 * 60 * 1000) {
     return 'Online'
   }
 
-  // 2. Active: Not Online, but activity occurred within 5 consecutive days
+  // 2. Active: Not Online, but genuine activity occurred within 5 consecutive days
   const fiveDaysMs = 5 * 24 * 60 * 60 * 1000
-  if (activeTime > 0 && now - activeTime < fiveDaysMs) {
+  if (activeTime > 0 && !isNaN(activeTime) && now - activeTime < fiveDaysMs) {
     return 'Active'
   }
 
-  // 3. Inactive: 5 consecutive days or more without activity
+  // 3. Inactive: No genuine activity recorded or 5 consecutive days or more without activity
   return 'Inactive'
 }
 
@@ -186,7 +314,7 @@ export function registerOrUpdateCustomer({
     const updatedOrg = organization || existing.organization
     const updatedRole = role || existing.role || 'customer'
     const lastLogin = isLogin ? nowIso : existing.last_login_at
-    const lastActive = nowIso
+    const lastActive = isLogin ? nowIso : existing.last_active_at
     const lastHeartbeat = isLogin ? nowIso : existing.last_heartbeat_at
 
     db.prepare(`
@@ -272,8 +400,8 @@ export function registerOrUpdateCustomer({
       role,
       nowIso,
       isLogin ? nowIso : null,
-      nowIso,
-      nowIso,
+      isLogin ? nowIso : '',
+      isLogin ? nowIso : '',
       account_status,
       isLogin ? 1 : 0,
       nowIso,
@@ -684,6 +812,9 @@ export function getCustomerDetails(idOrSubOrEmail) {
 
   return {
     ...customer,
+    last_login_at: customer.last_login_at || null,
+    last_active_at: customer.last_active_at || null,
+    last_heartbeat_at: customer.last_heartbeat_at || null,
     login_count: totalLogins,
     previous_logins: previousLogins,
     activity_status: activityStatus,
@@ -768,7 +899,8 @@ export function backupDatabase() {
     db.exec('PRAGMA wal_checkpoint(FULL);')
   } catch {}
 
-  fs.copyFileSync(DB_PATH, backupFilePath)
+  const activePath = getDatabasePath()
+  fs.copyFileSync(activePath, backupFilePath)
   const stats = fs.statSync(backupFilePath)
 
   return {
@@ -805,14 +937,15 @@ export function restoreDatabase(backupFileName) {
     dbInstance = null
   }
 
+  const activePath = getDatabasePath()
   // Remove existing WAL & SHM files to ensure clean state
   try {
-    if (fs.existsSync(DB_PATH + '-wal')) fs.unlinkSync(DB_PATH + '-wal')
-    if (fs.existsSync(DB_PATH + '-shm')) fs.unlinkSync(DB_PATH + '-shm')
+    if (fs.existsSync(activePath + '-wal')) fs.unlinkSync(activePath + '-wal')
+    if (fs.existsSync(activePath + '-shm')) fs.unlinkSync(activePath + '-shm')
   } catch {}
 
-  // Overwrite DB_PATH with backup file
-  fs.copyFileSync(backupFilePath, DB_PATH)
+  // Overwrite active database with backup file
+  fs.copyFileSync(backupFilePath, activePath)
 
   // Re-open and verify restored database
   const restoredDb = getDatabase()
