@@ -1,7 +1,7 @@
 import { updatePassword, signOut } from 'aws-amplify/auth'
 
-export type PortalRole = 'customer' | 'admin'
-export type UserRole = 'customer' | 'provider' | 'admin' | 'developer' | 'viewer'
+export type PortalRole = 'customer' | 'admin' | 'superadmin'
+export type UserRole = 'customer' | 'provider' | 'admin' | 'superadmin' | 'super_admin' | 'developer' | 'viewer'
 
 export interface AuthSession {
   token: string
@@ -179,7 +179,8 @@ async function cognitoRegister(fullName: string, email: string, password: string
 export function getPortalRole(role?: string): PortalRole {
   if (!role) return 'customer'
   const r = role.toLowerCase().trim()
-  if (r === 'admin' || r === 'super_admin') return 'admin'
+  if (r === 'superadmin' || r === 'super_admin') return 'superadmin'
+  if (r === 'admin') return 'admin'
   return 'customer'
 }
 
@@ -307,10 +308,22 @@ const ADMIN_API_BASE =
   (import.meta.env.VITE_ADMIN_AUTH_ENDPOINT as string | undefined)?.replace(/\/$/, '') ||
   '/api/admin'
 
+export const SUPERADMIN_EMAILS = [
+  'bhumireddy@inferxe.com',
+  'superadmin@inferxe.com',
+]
+
+export function isSuperAdminEmail(email?: string): boolean {
+  if (!email) return false
+  const clean = email.trim().toLowerCase()
+  return SUPERADMIN_EMAILS.includes(clean)
+}
+
 export const ADMIN_EMAILS = [
   'admin@inferxe.com',
   'alex.chen@inferxe.internal',
   'bhumireddy@inferxe.com',
+  'superadmin@inferxe.com',
 ]
 
 export function isAdministratorEmail(email: string): boolean {
@@ -318,6 +331,7 @@ export function isAdministratorEmail(email: string): boolean {
   const clean = email.trim().toLowerCase()
   return (
     ADMIN_EMAILS.includes(clean) ||
+    SUPERADMIN_EMAILS.includes(clean) ||
     clean.startsWith('admin@') ||
     clean.endsWith('@inferxe.internal')
   )
@@ -362,7 +376,9 @@ export async function loginAdminBackend(
         saveSession(session)
         return { ok: true, isAdmin: true, session }
       }
-      // If server rejected password, check fallback below before rejecting
+      if (!res.ok && data.error) {
+        return { ok: false, isAdmin: true, error: data.error }
+      }
     }
 
     if (data.isAdmin === false) {
@@ -386,14 +402,16 @@ export async function loginAdminBackend(
       'admin2026',
     ]
     if (allowedAdminPasswords.includes(password) || import.meta.env.DEV) {
+      const isSuper = isSuperAdminEmail(cleanEmail)
+      const role = isSuper ? 'superadmin' : 'admin'
       const session: AuthSession = {
         token: 'ix-tok-' + Math.random().toString(36).substring(2, 12),
         user: {
-          id: 'usr_admin',
-          fullName: 'Inferxe Administrator',
+          id: isSuper ? 'usr_superadmin' : 'usr_admin',
+          fullName: isSuper ? 'Bhumi Reddy' : 'Inferxe Administrator',
           email: cleanEmail,
           username: cleanEmail.split('@')[0],
-          role: 'admin',
+          role,
           organization: 'Inferxe Platform Org',
         },
         expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
@@ -528,3 +546,210 @@ export async function changeUserPassword(
     return { ok: false, error: message }
   }
 }
+
+/**
+ * ────────────────────────────────────────────────────────────────
+ * Superadmin API Client Layer
+ * ────────────────────────────────────────────────────────────────
+ */
+
+export interface SuperadminAdminRecord {
+  id: string
+  email: string
+  full_name: string
+  role: 'admin' | 'superadmin'
+  status: 'active' | 'inactive' | 'suspended' | 'pending'
+  created_at: string
+  last_login?: string
+  last_ip?: string
+  activity_count?: number
+}
+
+export interface SuperadminAuditLog {
+  id: string
+  admin_id?: string
+  admin_email: string
+  action: string
+  category: string
+  target_id?: string
+  target_type?: string
+  details: Record<string, unknown>
+  ip_address?: string
+  created_at: string
+}
+
+export interface SuperadminGpuCluster {
+  id: string
+  name: string
+  provider: string
+  region: string
+  status: 'healthy' | 'warning' | 'degraded'
+  uptime: string
+  totalNodes: number
+  activeNodes: number
+  gpus: Array<{
+    type: string
+    total: number
+    allocated: number
+    vramUsedGb: number
+    vramTotalGb: number
+    avgTempC: number
+    powerW: number
+  }>
+  spotRateHour: number
+  onDemandRateHour: number
+  marginPct: number
+}
+
+export interface SuperadminTelemetryData {
+  clusters: SuperadminGpuCluster[]
+  summary: {
+    totalGpuCount: number
+    allocatedGpuCount: number
+    utilizationPct: number
+    totalVramGb: number
+    usedVramGb: number
+    activeClusters: number
+    criticalAlerts: number
+    averageLatencyMs: number
+    globalHealthScore: number
+  }
+}
+
+export interface SuperadminKeyRecord {
+  id: string
+  name: string
+  type: 'API Key' | 'SSH Key'
+  owner_email: string
+  owner_name: string
+  role: string
+  prefix: string
+  created_at: string
+  last_used?: string
+  status: 'active' | 'revoked'
+  fingerprint?: string
+  rate_limit?: string
+}
+
+function getSuperadminAuthHeaders(): HeadersInit {
+  const session = getSession()
+  return {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+    ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {}),
+  }
+}
+
+export async function fetchSuperadminAdmins(): Promise<{ ok: boolean; admins?: SuperadminAdminRecord[]; error?: string }> {
+  try {
+    const res = await fetch('/api/superadmin/admins', {
+      headers: getSuperadminAuthHeaders(),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      return { ok: false, error: data.error || `HTTP ${res.status}` }
+    }
+    return { ok: true, admins: data.admins || [] }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Failed to fetch admin accounts.' }
+  }
+}
+
+export async function updateAdminAccountStatus(
+  adminId: string,
+  status: 'active' | 'inactive' | 'suspended',
+  reason?: string,
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetch('/api/superadmin/admins/status', {
+      method: 'POST',
+      headers: getSuperadminAuthHeaders(),
+      body: JSON.stringify({ admin_id: adminId, status, reason }),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      return { ok: false, error: data.error || `HTTP ${res.status}` }
+    }
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Failed to update admin account status.' }
+  }
+}
+
+export async function fetchSuperadminAuditLogs(params?: {
+  category?: string
+  search?: string
+  limit?: number
+  offset?: number
+}): Promise<{ ok: boolean; logs?: SuperadminAuditLog[]; total?: number; error?: string }> {
+  try {
+    const q = new URLSearchParams()
+    if (params?.category) q.set('category', params.category)
+    if (params?.search) q.set('search', params.search)
+    if (params?.limit) q.set('limit', String(params.limit))
+    if (params?.offset) q.set('offset', String(params.offset))
+
+    const res = await fetch(`/api/superadmin/audit-logs?${q.toString()}`, {
+      headers: getSuperadminAuthHeaders(),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      return { ok: false, error: data.error || `HTTP ${res.status}` }
+    }
+    return { ok: true, logs: data.logs || [], total: data.total || 0 }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Failed to fetch audit logs.' }
+  }
+}
+
+export async function fetchSuperadminTelemetry(): Promise<{ ok: boolean; telemetry?: SuperadminTelemetryData; error?: string }> {
+  try {
+    const res = await fetch('/api/superadmin/telemetry', {
+      headers: getSuperadminAuthHeaders(),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      return { ok: false, error: data.error || `HTTP ${res.status}` }
+    }
+    return { ok: true, telemetry: data.telemetry }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Failed to fetch GPU telemetry.' }
+  }
+}
+
+export async function fetchSuperadminKeys(): Promise<{ ok: boolean; keys?: SuperadminKeyRecord[]; error?: string }> {
+  try {
+    const res = await fetch('/api/superadmin/keys', {
+      headers: getSuperadminAuthHeaders(),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      return { ok: false, error: data.error || `HTTP ${res.status}` }
+    }
+    return { ok: true, keys: data.keys || [] }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Failed to fetch keys.' }
+  }
+}
+
+export async function revokeSuperadminKey(
+  keyId: string,
+  keyType: 'api' | 'ssh',
+  reason?: string,
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetch('/api/superadmin/keys/revoke', {
+      method: 'POST',
+      headers: getSuperadminAuthHeaders(),
+      body: JSON.stringify({ key_id: keyId, key_type: keyType, reason }),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      return { ok: false, error: data.error || `HTTP ${res.status}` }
+    }
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Failed to revoke key.' }
+  }
+}
+

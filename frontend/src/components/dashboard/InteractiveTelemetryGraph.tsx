@@ -375,7 +375,7 @@ export function InteractiveTelemetryGraph() {
             color: 'var(--ink-3)',
           }}
         >
-          <CheckCircle2 size={11} style={{ color: '#76b900' }} />
+          <CheckCircle2 size={11} style={{ color: '#50e396' }} />
           <span>Cluster SLA: <strong style={{ color: 'var(--ink)' }}>99.98%</strong></span>
         </div>
       </div>
@@ -397,16 +397,16 @@ export function InteractiveTelemetryGraph() {
           style={{ width: '100%', height: '125px', display: 'block' }}
         >
           <defs>
-            {/* Neon green gradient fill under the curve */}
+            {/* Mint / Emerald gradient fill matching Verdelo customer forecast */}
             <linearGradient id="marketplace-usage-grad" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#76b900" stopOpacity="0.32" />
-              <stop offset="45%" stopColor="#76b900" stopOpacity="0.10" />
-              <stop offset="100%" stopColor="#76b900" stopOpacity="0.00" />
+              <stop offset="0%" stopColor="var(--brand-hi, #50e396)" stopOpacity="0.28" />
+              <stop offset="45%" stopColor="var(--brand-hi, #50e396)" stopOpacity="0.08" />
+              <stop offset="100%" stopColor="var(--brand-hi, #50e396)" stopOpacity="0.00" />
             </linearGradient>
 
             {/* Glow filter for the stroke line */}
             <filter id="line-glow" x="-10%" y="-10%" width="120%" height="120%">
-              <feDropShadow dx="0" dy="0" stdDeviation="2.5" floodColor="#76b900" floodOpacity="0.75" />
+              <feDropShadow dx="0" dy="0" stdDeviation="2.5" floodColor="var(--brand-hi, #50e396)" floodOpacity="0.65" />
             </filter>
           </defs>
 
@@ -419,18 +419,18 @@ export function InteractiveTelemetryGraph() {
           <path
             d={areaPath}
             fill="url(#marketplace-usage-grad)"
-            style={{ transition: 'd 0.35s ease-out' }}
+            style={{ transition: 'd 0.45s cubic-bezier(0.22, 1, 0.36, 1)' }}
           />
 
           {/* Ascending Wave Curve Stroke */}
           <path
             d={linePath}
             fill="none"
-            stroke="#a3e635"
+            stroke="var(--brand-hi, #50e396)"
             strokeWidth="2.2"
             strokeLinecap="round"
             filter="url(#line-glow)"
-            style={{ transition: 'd 0.35s ease-out' }}
+            style={{ transition: 'd 0.45s cubic-bezier(0.22, 1, 0.36, 1)' }}
           />
 
           {/* Vertical Crosshair Guide on Hover */}
@@ -440,7 +440,7 @@ export function InteractiveTelemetryGraph() {
               y1="6"
               x2={activePoint.x}
               y2="114"
-              stroke="#a3e635"
+              stroke="var(--brand-hi2, #6ee0a1)"
               strokeWidth="1.2"
               strokeDasharray="3 3"
               opacity="0.85"
@@ -456,11 +456,11 @@ export function InteractiveTelemetryGraph() {
                   cx={pt.x}
                   cy={pt.y}
                   r={isHovered ? 4.5 : 2}
-                  fill={isHovered ? '#ffffff' : '#a3e635'}
-                  stroke="#76b900"
+                  fill={isHovered ? '#ffffff' : 'var(--brand-hi2, #6ee0a1)'}
+                  stroke="var(--brand-hi, #50e396)"
                   strokeWidth={isHovered ? 1.8 : 0.8}
                   opacity={isHovered ? 1 : 0.6}
-                  style={{ transition: 'r 0.15s ease, opacity 0.15s ease' }}
+                  style={{ transition: 'r 0.18s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.18s ease' }}
                 />
               </g>
             )
@@ -473,14 +473,14 @@ export function InteractiveTelemetryGraph() {
                 cx={points[points.length - 1].x}
                 cy={points[points.length - 1].y}
                 r="3"
-                fill="#a3e635"
+                fill="var(--brand-hi, #50e396)"
               />
               <circle
                 cx={points[points.length - 1].x}
                 cy={points[points.length - 1].y}
                 r="7"
                 fill="none"
-                stroke="#76b900"
+                stroke="var(--brand-hi, #50e396)"
                 opacity="0.6"
               >
                 <animate attributeName="r" values="3;9;3" dur="2.2s" repeatCount="indefinite" />
@@ -496,7 +496,7 @@ export function InteractiveTelemetryGraph() {
               cy={activePoint.y}
               r="7"
               fill="none"
-              stroke="#a3e635"
+              stroke="var(--brand-hi, #50e396)"
               strokeWidth="1.8"
               opacity="0.9"
             />

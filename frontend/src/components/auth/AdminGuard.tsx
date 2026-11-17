@@ -1,9 +1,9 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { Navigate, useLocation } from 'react-router-dom'
+import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { getSession, getPortalRole, clearSession, verifyAdminSessionServer } from '../../lib/authStore'
 
 interface AdminGuardProps {
-  children: ReactNode
+  children?: ReactNode
 }
 
 /**
@@ -13,7 +13,13 @@ interface AdminGuardProps {
  */
 export function AdminGuard({ children }: AdminGuardProps) {
   const location = useLocation()
-  const [authState, setAuthState] = useState<'checking' | 'authorized' | 'unauthorized'>('checking')
+  const [authState, setAuthState] = useState<'checking' | 'authorized' | 'unauthorized'>(() => {
+    const session = getSession()
+    if (!session || !session.token) return 'unauthorized'
+    const portalRole = getPortalRole(session.user?.role)
+    if (portalRole !== 'admin' && portalRole !== 'superadmin') return 'unauthorized'
+    return 'authorized'
+  })
 
   useEffect(() => {
     let isMounted = true
@@ -27,9 +33,9 @@ export function AdminGuard({ children }: AdminGuardProps) {
         return
       }
 
-      // 2. Must hold an admin role
+      // 2. Must hold an admin or superadmin role
       const portalRole = getPortalRole(session.user?.role)
-      if (portalRole !== 'admin') {
+      if (portalRole !== 'admin' && portalRole !== 'superadmin') {
         if (isMounted) setAuthState('unauthorized')
         return
       }
@@ -70,5 +76,5 @@ export function AdminGuard({ children }: AdminGuardProps) {
     return <Navigate to="/login" replace />
   }
 
-  return <>{children}</>
+  return <>{children ?? <Outlet />}</>
 }

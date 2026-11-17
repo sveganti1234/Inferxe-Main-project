@@ -25,5 +25,8 @@
   "include": [
     "src",
     "vite.config.ts"
+  ],
+  "exclude": [
+    "src/tests"
   ]
 }

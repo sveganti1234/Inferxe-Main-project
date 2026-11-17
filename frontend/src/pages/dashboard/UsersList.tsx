@@ -299,7 +299,7 @@ export default function UsersList() {
                               display: 'inline-block',
                               backgroundColor:
                                 (u.successRate ?? 100) >= 99.5
-                                  ? 'var(--brand-hi, #76b900)'
+                                  ? 'var(--brand-hi, #50e396)'
                                   : (u.successRate ?? 100) >= 98.0
                                   ? '#38bdf8'
                                   : '#f59e0b',
@@ -312,7 +312,7 @@ export default function UsersList() {
                               fontWeight: 600,
                               color:
                                 (u.successRate ?? 100) >= 99.5
-                                  ? 'var(--brand-hi, #76b900)'
+                                  ? 'var(--brand-hi, #50e396)'
                                   : (u.successRate ?? 100) >= 98.0
                                   ? '#38bdf8'
                                   : '#f59e0b',
