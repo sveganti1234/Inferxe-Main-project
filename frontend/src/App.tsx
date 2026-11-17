@@ -28,6 +28,13 @@ const DashboardOverview = lazy(() => import('./pages/dashboard/DashboardOverview
 const MarketplaceWorkspace = lazy(() => import('./pages/dashboard/MarketplaceWorkspace'))
 const CustomerManagement = lazy(() => import('./pages/dashboard/CustomerManagement'))
 const CustomerVerdeloWorkspace = lazy(() => import('./components/dashboard/CustomerVerdeloWorkspace'))
+const SuperAdminOverview = lazy(() => import('./pages/dashboard/SuperAdminOverview'))
+const AdminAccounts = lazy(() => import('./pages/dashboard/AdminAccounts'))
+const AdminRoles = lazy(() => import('./pages/dashboard/AdminRoles'))
+const AdminPermissions = lazy(() => import('./pages/dashboard/AdminPermissions'))
+const AdminActivity = lazy(() => import('./pages/dashboard/AdminActivity'))
+const AdminAudit = lazy(() => import('./pages/dashboard/AdminAudit'))
+const SuperAdminFutureModule = lazy(() => import('./pages/dashboard/SuperAdminFutureModule'))
 import { CustomerHeartbeat } from './components/dashboard/CustomerHeartbeat'
 const Login = lazy(() => import('./pages/Login'))
 import { AdminGuard } from './components/auth/AdminGuard'
@@ -78,6 +85,62 @@ export default function App() {
               element={
                 <AdminGuard>
                   <DashboardOverview />
+                </AdminGuard>
+              }
+            />
+            <Route
+              path="/dashboard/super-admin"
+              element={
+                <AdminGuard>
+                  <SuperAdminOverview />
+                </AdminGuard>
+              }
+            />
+            <Route
+              path="/dashboard/super-admin/accounts"
+              element={
+                <AdminGuard>
+                  <AdminAccounts />
+                </AdminGuard>
+              }
+            />
+            <Route
+              path="/dashboard/super-admin/roles"
+              element={
+                <AdminGuard>
+                  <AdminRoles />
+                </AdminGuard>
+              }
+            />
+            <Route
+              path="/dashboard/super-admin/permissions"
+              element={
+                <AdminGuard>
+                  <AdminPermissions />
+                </AdminGuard>
+              }
+            />
+            <Route
+              path="/dashboard/super-admin/activity"
+              element={
+                <AdminGuard>
+                  <AdminActivity />
+                </AdminGuard>
+              }
+            />
+            <Route
+              path="/dashboard/super-admin/audit"
+              element={
+                <AdminGuard>
+                  <AdminAudit />
+                </AdminGuard>
+              }
+            />
+            <Route
+              path="/dashboard/super-admin/:module"
+              element={
+                <AdminGuard>
+                  <SuperAdminFutureModule />
                 </AdminGuard>
               }
             />

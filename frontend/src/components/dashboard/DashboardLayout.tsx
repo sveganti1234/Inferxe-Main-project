@@ -29,11 +29,18 @@ import {
   Wallet,
   Wrench,
   X,
+  ShieldCheck,
+  UserCheck,
+  KeyRound,
+  Sliders,
+  FileText,
 } from 'lucide-react'
 import { LogoMark } from '../Logo'
 import { Ambient } from '../layout/Ambient'
 import { getSession, getPortalRole, performSignOut, type AuthSession, type PortalRole } from '../../lib/authStore'
 import { fetchWalletBalance } from '../../lib/walletService'
+import { getAdminAccounts } from '../../lib/adminAccountStore'
+import { getAllRoles } from '../../lib/adminRoleStore'
 interface BreadcrumbItem {
   label: string
   to?: string
@@ -156,6 +163,78 @@ export function DashboardLayout({
   const [adminOverviewOpen, setAdminOverviewOpen] = useState(true)
   const [adminInfrastructureOpen, setAdminInfrastructureOpen] = useState(true)
   const [adminFinanceOpen, setAdminFinanceOpen] = useState(true)
+  const [adminSuperAdminOpen, setAdminSuperAdminOpen] = useState(true)
+
+  // Dev preview mode for Super Admin vs Normal Admin view
+  const [devSuperAdminMode, setDevSuperAdminMode] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('inferxe_dev_super_admin_mode')
+      return saved === null ? true : saved === 'true'
+    } catch {
+      return true
+    }
+  })
+
+  useEffect(() => {
+    const handleRoleToggle = () => {
+      try {
+        const saved = localStorage.getItem('inferxe_dev_super_admin_mode')
+        setDevSuperAdminMode(saved === null ? true : saved === 'true')
+      } catch {}
+    }
+    window.addEventListener('inferxe_admin_role_toggle', handleRoleToggle)
+    window.addEventListener('storage', handleRoleToggle)
+    return () => {
+      window.removeEventListener('inferxe_admin_role_toggle', handleRoleToggle)
+      window.removeEventListener('storage', handleRoleToggle)
+    }
+  }, [])
+
+  // Live Admin Accounts Count State (synced dynamically with adminAccountStore)
+  const [adminAccountsCount, setAdminAccountsCount] = useState<number>(() => {
+    try {
+      return getAdminAccounts().length
+    } catch {
+      return 10
+    }
+  })
+
+  useEffect(() => {
+    const syncAdminCount = () => {
+      try {
+        setAdminAccountsCount(getAdminAccounts().length)
+      } catch {}
+    }
+    window.addEventListener('inferxe_admin_accounts_change', syncAdminCount)
+    window.addEventListener('storage', syncAdminCount)
+    return () => {
+      window.removeEventListener('inferxe_admin_accounts_change', syncAdminCount)
+      window.removeEventListener('storage', syncAdminCount)
+    }
+  }, [])
+
+  // Live Admin Roles Count State (synced dynamically with adminRoleStore)
+  const [adminRolesCount, setAdminRolesCount] = useState<number>(() => {
+    try {
+      return getAllRoles().length
+    } catch {
+      return 6
+    }
+  })
+
+  useEffect(() => {
+    const syncRoleCount = () => {
+      try {
+        setAdminRolesCount(getAllRoles().length)
+      } catch {}
+    }
+    window.addEventListener('inferxe_admin_roles_change', syncRoleCount)
+    window.addEventListener('storage', syncRoleCount)
+    return () => {
+      window.removeEventListener('inferxe_admin_roles_change', syncRoleCount)
+      window.removeEventListener('storage', syncRoleCount)
+    }
+  }, [])
 
   // Floating flyout tooltip state for collapsed rail mode (matching video)
   const [hoveredFlyout, setHoveredFlyout] = useState<{
@@ -595,7 +674,13 @@ export function DashboardLayout({
     .substring(0, 2)
     .toUpperCase() || 'IX'
 
-  const roleLabel = portalRole === 'admin' ? 'Super Admin' : 'Customer'
+  // Access control gating for Super Admin module
+  const isSuperAdmin = Boolean(
+    user.role === 'super_admin' ||
+    (import.meta.env.DEV && (devSuperAdminMode || location.pathname.startsWith('/dashboard/super-admin')))
+  )
+
+  const roleLabel = portalRole === 'admin' ? (isSuperAdmin ? 'Super Admin' : 'Admin') : 'Customer'
 
   // 1A. Customer Portal Main Navigation Groups (Matching Zesto hierarchy)
   const customerMainNavGroups: NavGroup[] = [
@@ -624,7 +709,17 @@ export function DashboardLayout({
 
   const customerNavGroups: NavGroup[] = [...customerMainNavGroups, ...customerBottomNavGroups]
 
-  // Admin Portal Navigation items organized into 3 sections:
+  // Admin Portal Navigation items organized into sections:
+  // 0. SUPER ADMIN (Phase 1 Governance & Administrator Accounts)
+  const adminSuperAdminItems: NavItem[] = [
+    { label: 'Super Admin Overview', to: '/dashboard/super-admin', icon: ShieldCheck, matchExact: true },
+    { label: 'Admin Accounts', to: '/dashboard/super-admin/accounts', icon: UserCheck, matchExact: true, badge: String(adminAccountsCount), badgeType: 'count' },
+    { label: 'Role Management', to: '/dashboard/super-admin/roles', icon: KeyRound, matchExact: true, badge: String(adminRolesCount), badgeType: 'count' },
+    { label: 'Permission Management', to: '/dashboard/super-admin/permissions', icon: Sliders, matchExact: true, badge: '25', badgeType: 'count' },
+    { label: 'Activity Monitoring', to: '/dashboard/super-admin/activity', icon: ActivityIcon, matchExact: true },
+    { label: 'Audit Logs', to: '/dashboard/super-admin/audit', icon: FileText, matchExact: true },
+  ]
+
   // 1. OVERVIEW
   const adminOverviewItems: NavItem[] = [
     { label: 'Admin Console', to: '/dashboard', icon: LayoutDashboard, matchExact: true },
@@ -671,6 +766,9 @@ export function DashboardLayout({
     }
     if (item.to === '/dashboard') {
       return path === '/dashboard'
+    }
+    if (item.to === '/dashboard/super-admin') {
+      return path === '/dashboard/super-admin'
     }
     return path === item.to || path.startsWith(`${item.to}/`)
   }
@@ -1543,6 +1641,29 @@ export function DashboardLayout({
                   </div>
 
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 2, paddingTop: 4 }}>
+                    {import.meta.env.DEV && (
+                      <div style={{ padding: '8px 0', borderTop: '1px solid rgba(255,255,255,0.08)', margin: '6px 0 2px' }}>
+                        <div style={{ fontSize: '0.66rem', color: 'var(--ink-3)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                          Dev RBAC Preview:
+                        </div>
+                        <button
+                          type="button"
+                          className="dash-filter-btn"
+                          style={{ width: '100%', justifyContent: 'center', fontSize: '0.74rem', padding: '6px 8px' }}
+                          onClick={() => {
+                            const next = !devSuperAdminMode
+                            setDevSuperAdminMode(next)
+                            try {
+                              localStorage.setItem('inferxe_dev_super_admin_mode', String(next))
+                              window.dispatchEvent(new Event('inferxe_admin_role_toggle'))
+                            } catch {}
+                          }}
+                        >
+                          <ShieldCheck size={13} style={{ color: devSuperAdminMode ? '#50e396' : 'var(--ink-3)' }} />
+                          <span>{devSuperAdminMode ? 'Switch to Normal Admin' : 'Switch to Super Admin'}</span>
+                        </button>
+                      </div>
+                    )}
                     <button
                       type="button"
                       className="dash-nav-item dash-nav-item--danger"
@@ -1612,6 +1733,78 @@ export function DashboardLayout({
 
             <div ref={sidebarScrollRef} className="dash-sidebar__scroll">
               <div className="dash-admin-nav-sections">
+                {/* Section 0: SUPER ADMIN (Phase 1 RBAC Governance & Administrator Accounts) */}
+                {isSuperAdmin && (
+                  <div className="dash-nav-group-section" style={{ marginBottom: 14 }}>
+                    <button
+                      type="button"
+                      className="dash-nav-section-title dash-nav-section-btn"
+                      onClick={() => setAdminSuperAdminOpen(!adminSuperAdminOpen)}
+                      aria-expanded={adminSuperAdminOpen}
+                    >
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <ShieldCheck size={13} style={{ color: '#50e396' }} />
+                        <span>SUPER ADMIN</span>
+                      </span>
+                      <ChevronDown
+                        size={13}
+                        style={{
+                          transition: 'transform 0.24s cubic-bezier(0.25, 1, 0.5, 1)',
+                          transform: adminSuperAdminOpen ? 'rotate(0deg)' : 'rotate(-90deg)',
+                        }}
+                      />
+                    </button>
+                    <AnimatePresence initial={false}>
+                      {adminSuperAdminOpen && (
+                        <motion.nav
+                          className="dash-nav-list"
+                          aria-label="Super Admin Navigation"
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.24, ease: [0.25, 1, 0.5, 1] }}
+                          style={{ overflow: 'hidden' }}
+                        >
+                          {adminSuperAdminItems.map((item) => {
+                            const active = isItemActive(item)
+                            return (
+                              <Link
+                                key={item.label}
+                                to={item.to}
+                                className={`dash-nav-item ${active ? 'is-active' : ''}`}
+                                onClick={() => {
+                                  setHoveredFlyout(null)
+                                  setMobileMenuOpen(false)
+                                }}
+                                onMouseEnter={(e) => {
+                                  if (isSidebarCollapsed && !isMobile) {
+                                    const rect = e.currentTarget.getBoundingClientRect()
+                                    setHoveredFlyout({
+                                      label: item.label,
+                                      badge: item.badge,
+                                      top: rect.top + rect.height / 2,
+                                      left: rect.right + 12,
+                                    })
+                                  }
+                                }}
+                                onMouseLeave={() => setHoveredFlyout(null)}
+                              >
+                                <item.icon />
+                                <span>{item.label}</span>
+                                {item.badge && (
+                                  <span className={`dash-nav-badge ${item.badgeType === 'count' ? 'dash-nav-badge--count' : ''}`}>
+                                    {item.badge}
+                                  </span>
+                                )}
+                              </Link>
+                            )
+                          })}
+                        </motion.nav>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                )}
+
                 {/* Section 1: OVERVIEW */}
                 <div className="dash-nav-group-section">
                   <button
