@@ -31,6 +31,7 @@ import {
   User,
 } from 'lucide-react'
 import { Logo } from '../components/Logo'
+import { Ambient } from '../components/layout/Ambient'
 import { usePageMeta } from '../lib/hooks'
 import { OtpVerification } from '../components/auth/OtpVerification'
 
@@ -715,13 +716,7 @@ export default function Login({ initialMode }: LoginProps) {
 
   return (
     <div className="auth-page">
-      <img
-        className="auth-page__bg"
-        src="/images/gpu-cards.webp"
-        alt=""
-        loading="lazy"
-        aria-hidden="true"
-      />
+      <Ambient />
       <div className="auth-page__shade" />
 
       <div className="auth-container">
