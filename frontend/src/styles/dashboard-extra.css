@@ -6270,18 +6270,17 @@ html[data-theme='dark'],
    - In & Out transaction stream and upcoming bills calendar
    ══════════════════════════════════════════════════════════════════════ */
 
-/* Diagonal specular gloss reflection on top of the master glass window */
-.dash-window-frame::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 220px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.10) 0%, rgba(80, 227, 150, 0.04) 30%, transparent 60%);
-  pointer-events: none;
-  z-index: 10;
-  border-radius: 22px 22px 0 0;
+/* Diagonal specular gloss reflection removed to prevent unwanted horizontal shadow/black band cutoff across sidebar */
+.dash-window-frame::before,
+.dash-window-frame::after {
+  display: none !important;
+  content: none !important;
+}
+
+.dash-sidebar::before,
+.dash-sidebar::after {
+  display: none !important;
+  content: none !important;
 }
 
 /* Active Insights Navigation Pill: Exact Mint Match */
