@@ -371,16 +371,29 @@ async def chat_endpoint(payload: ChatRequest):
 
     # Step 2: Polite Greeting Check
     if is_greeting(user_query):
-        greeting_text = (
-            "Hello! I am the Inferxe AI Assistant. I can assist you with NVIDIA GPU specifications, "
-            "cloud infrastructure pricing (on-demand and spot rates), LLM model sizing and VRAM calculation, "
-            "vLLM inference optimization, and verified Inferxe platform architecture and marketplace features. "
-            "How can I help you today?"
-        )
+        greeting_text = "Hi! How can I help you with Inferxe today—are you looking for GPU pricing, model sizing, or API setup?"
         return build_chat_response(greeting_text, True, "greeting_acknowledged")
 
-    # Step 3: Context-Aware Privacy & RBAC Policy
     q_norm = user_query.lower().strip()
+
+    # Step 2b: Basic Account & Navigation Answers
+    if any(k in q_norm for k in ["how can i login", "how do i login", "how to login", "how can i log in", "how do i log in", "how to log in"]) or (("login" in q_norm or "sign in" in q_norm) and ("website" in q_norm or "web site" in q_norm or "how" in q_norm)):
+        ans = "Click the **Sign In** or **Login** button in the top-right corner of [inferxe.com](https://inferxe.com). You can sign in using your registered email and password or your linked OAuth provider (such as Google or GitHub) to open your Inferxe dashboard."
+        return build_chat_response(ans, True, "account_navigation")
+
+    if any(k in q_norm for k in ["create account", "create a new account", "how do i sign up", "how to signup", "how to register"]):
+        ans = "Go to [inferxe.com](https://inferxe.com), click **Get Started** or **Sign Up**, and register with your work email or GitHub/Google account. Once verified, you can add credits and generate an API key immediately—no manual GPU quota approval required."
+        return build_chat_response(ans, True, "account_navigation")
+
+    if any(k in q_norm for k in ["forgot password", "reset password", "cannot access my inferxe account", "locked account"]):
+        ans = "On the Inferxe login page, click **Forgot Password** to receive a reset link via email. If you signed up using Google or GitHub, use that same sign-in button instead of a password. For locked accounts, contact Inferxe support through the dashboard or website."
+        return build_chat_response(ans, True, "account_navigation")
+
+    if any(k in q_norm for k in ["find my inferxe api key", "find my api key", "where do i find my api key", "where is my api key"]):
+        ans = "After logging into your Inferxe dashboard, open the **API Keys** tab in the left navigation menu and click **Create New Key**. Copy and store the key immediately, as it is only displayed once."
+        return build_chat_response(ans, True, "account_navigation")
+
+    # Step 3: Context-Aware Privacy & RBAC Policy
     is_inside_dashboard = bool(payload.current_path and payload.current_path.startswith("/dashboard"))
     user_role = payload.user_role or "guest"
     is_admin = user_role == "admin"
@@ -481,7 +494,7 @@ async def chat_endpoint(payload: ChatRequest):
         if any(w in q_norm for w in ["feature", "inferxe provide", "marketplace", "what is inferxe", "platform"]):
             ans = "Documented features of the Inferxe platform:\n1. GPU Marketplace Catalog: Discover and filter GPUs across sovereign Indian clouds and JarvisLabs.\n2. GPU Sizing Calculator: Calculates weights and KV cache memory to recommend the most cost-effective GPU.\n3. Simulated Wallet & Burn Rate: Tracks runtime spend, hourly burn rates, and low-balance warnings.\n4. Sovereign Indian Data Residency: Tier-IV datacenters in Navi Mumbai and Noida compliant with DPDP Act and MeitY.\n5. OpenAI-Compatible API: Drop-in SDK endpoint pointing base_url to https://api.inferxe.com/v1.\n6. Intermediary Orchestration: Intermediary software routing layer across heterogeneous GPU providers."
             return build_chat_response(ans, True, "grounded_local_dataset")
-        ans = "Inferxe routes LLM inference across low-latency sovereign NVIDIA L4, L40S, and H100 clusters with FP8 FlashAttention and an OpenAI-compatible API at https://api.inferxe.com/v1. What model or token throughput target are you looking for?"
+        ans = "I couldn't find verified information about that in the available documentation, so I don't want to guess. For assistance with Inferxe accounts, platform features, or GPU infrastructure, please visit https://inferxe.com or contact support@inferxe.com."
         return build_chat_response(ans, True, "grounded_local_dataset")
 
     col = get_chroma_collection()
@@ -568,11 +581,16 @@ async def chat_endpoint(payload: ChatRequest):
     context_str = "\n\n---\n\n".join(relevant_chunks)
 
     system_prompt = (
-        "You are the official Inferxe AI Assistant, specialized in India's sovereign cloud GPU infrastructure and the Inferxe platform.\n\n"
-        "COMMUNICATION STYLE (ChatGPT / Claude AI Standard):\n"
-        "- Friendly, professional, articulate, direct, and helpful.\n"
-        "- Clean formatting: Structure responses with bold titles, neat bullet points, or numbered steps.\n"
-        "- Keep answers concise (2 to 4 bullet points max) or a clear 2-3 sentence summary.\n\n"
+        "You are the Inferxe AI Assistant for inferxe.com—a unified GPU control plane "
+        "(\"One API, many GPU providers\") that routes AI workloads across GPU clouds based on compatibility, cost, and measured performance.\n\n"
+        "COMMUNICATION RULES:\n"
+        "1. Answer the user's exact question in the very first sentence. Never dodge a simple question with a sales pitch or technical buzzwords.\n"
+        "2. Match response length to the question:\n"
+        "   - Greetings (\"hi\", \"hello\"): Reply in 1–2 short, friendly sentences. Do not list every platform feature.\n"
+        "   - Simple \"how-to\" or account questions (login, billing, API keys): Give brief, direct steps.\n"
+        "   - Technical/pricing questions: Use clear bullet points or compact tables with exact numbers.\n"
+        "3. No filler openers or closers: Never start with \"Hello! I am the Inferxe AI Assistant. I can assist you with...\" and never end with generic pitch paragraphs unless relevant.\n"
+        "4. Honesty over guessing: If a specific page URL, account action, or pricing figure is not in your verified knowledge base, state clearly what you do know and direct the user to https://inferxe.com or support@inferxe.com—never invent technical details to fill space.\n\n"
         "SPECIAL WALLET & PAYMENT POLICY (STRICT PUBLIC PRIVACY):\n"
         "- If the user asks 'how to use wallet in this web site', 'how to use wallet', or asks about payments or adding funds:\n"
         "  Respond strictly and ONLY with:\n"

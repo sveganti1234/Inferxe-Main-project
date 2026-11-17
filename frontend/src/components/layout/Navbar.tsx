@@ -5,7 +5,7 @@ import { Link, NavLink, useLocation } from 'react-router-dom'
 import { NAV } from '../../data/site'
 import { Logo } from '../Logo'
 import { LinkButton } from '../ui/Button'
-import { getSession, clearSession } from '../../lib/authStore'
+import { getSession, performSignOut } from '../../lib/authStore'
 
 export function Navbar() {
   const [scrolled, setScrolled] = useState(false)
@@ -136,7 +136,7 @@ export function Navbar() {
                 <span className="nav__profile-avatar">{session.user.fullName.charAt(0).toUpperCase()}</span>
                 <span className="nav__profile-name">{session.user.fullName}</span>
               </Link>
-              <button className="nav__signout" onClick={() => { clearSession(); window.location.replace('/') }}>
+              <button className="nav__signout" onClick={() => { void performSignOut('/') }}>
                 <LogOut size={14} /> Sign out
               </button>
             </>
@@ -185,7 +185,7 @@ export function Navbar() {
                     <span>{session.user.fullName}</span>
                     <small>{session.user.email}</small>
                   </div>
-                  <button className="btn btn--glass btn--block mt-2" onClick={() => { clearSession(); setMobile(false); window.location.replace('/') }}>
+                  <button className="btn btn--glass btn--block mt-2" onClick={() => { setMobile(false); void performSignOut('/') }}>
                     <LogOut size={16} /> Sign out
                   </button>
                 </>

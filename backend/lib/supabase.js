@@ -4,7 +4,7 @@ let adminClient
 
 export function getSupabaseAdminClient() {
   const url = process.env.SUPABASE_URL?.trim()
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
+  const serviceRoleKey = (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY)?.trim()
 
   if (!url || !serviceRoleKey) {
     throw new Error('SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be configured on the backend.')

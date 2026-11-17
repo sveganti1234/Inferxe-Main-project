@@ -1,9 +1,24 @@
 import { useEffect, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
+import { performSignOut } from '../../lib/authStore'
 
 export function CustomerVerdeloWorkspace() {
   const location = useLocation()
   const iframeRef = useRef<HTMLIFrameElement>(null)
+
+  // Listen for signout messages sent from inside the iframe
+  useEffect(() => {
+    const handleMessage = (e: MessageEvent) => {
+      if (
+        e.data === 'inferxe:signout' ||
+        (typeof e.data === 'object' && e.data !== null && (e.data as { type?: string }).type === 'inferxe:signout')
+      ) {
+        void performSignOut('/')
+      }
+    }
+    window.addEventListener('message', handleMessage)
+    return () => window.removeEventListener('message', handleMessage)
+  }, [])
 
   // Determine target hash from URL search query (?tab=...) or path
   const getTargetHash = () => {
