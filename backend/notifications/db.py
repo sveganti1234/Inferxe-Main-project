@@ -6,21 +6,80 @@ Handles connection pooling, queries with RealDictCursor, and idempotent migratio
 import os
 import json
 import logging
+import traceback
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
-from urllib.parse import unquote, urlsplit
+from urllib.parse import parse_qs, unquote, urlsplit, urlunsplit
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from psycopg2.pool import ThreadedConnectionPool
 from dotenv import load_dotenv
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
-load_dotenv(ROOT_DIR / ".env", override=False)
-
+BACKEND_DIR = ROOT_DIR / "backend"
+if (ROOT_DIR / ".env").is_file():
+    load_dotenv(ROOT_DIR / ".env", override=False)
+if (BACKEND_DIR / ".env").is_file():
+    load_dotenv(BACKEND_DIR / ".env", override=False)
 logger = logging.getLogger("inferxe.notifications.db")
 
-DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
+
+def _normalize_psycopg2_dsn(raw_url: str) -> str:
+    cleaned = (raw_url or "").strip()
+    if not cleaned:
+        return ""
+    if cleaned.startswith("postgresql+psycopg2://"):
+        return "postgresql://" + cleaned[len("postgresql+psycopg2://"):]
+    if cleaned.startswith("postgres://"):
+        return "postgresql://" + cleaned[len("postgres://"):]
+    return cleaned
+
+
+def _is_placeholder_or_empty(dsn: str) -> bool:
+    cleaned = (dsn or "").strip()
+    return (
+        not cleaned
+        or "YOUR_PASSWORD" in cleaned
+        or "your-project" in cleaned
+    )
+
+
+def _is_local_host_dsn(dsn: str) -> bool:
+    try:
+        host = (urlsplit(dsn).hostname or "").lower()
+        return host in {"localhost", "127.0.0.1", "::1"}
+    except ValueError:
+        return False
+
+
+def _resolve_notifications_dsn() -> str:
+    """
+    Resolve PostgreSQL DSN for notifications/wallet/GPU service in priority order:
+      1. Explicit NOTIFICATIONS_DATABASE_URL
+      2. Non-local DATABASE_URL (e.g., Supabase Postgres URL in root .env)
+      3. Shared SUPABASE_DATABASE_URL (from backend/.env or env)
+      4. Fallback DATABASE_URL (e.g., local Postgres if intentionally configured)
+    """
+    explicit = _normalize_psycopg2_dsn(os.environ.get("NOTIFICATIONS_DATABASE_URL", ""))
+    if not _is_placeholder_or_empty(explicit):
+        return explicit
+
+    primary_db = _normalize_psycopg2_dsn(os.environ.get("DATABASE_URL", ""))
+    if not _is_placeholder_or_empty(primary_db) and not _is_local_host_dsn(primary_db):
+        return primary_db
+
+    supabase_db = _normalize_psycopg2_dsn(os.environ.get("SUPABASE_DATABASE_URL", ""))
+    if not _is_placeholder_or_empty(supabase_db):
+        return supabase_db
+
+    if not _is_placeholder_or_empty(primary_db):
+        return primary_db
+
+    return ""
+
+
+DATABASE_URL = _resolve_notifications_dsn()
 
 try:
     _database_url = urlsplit(DATABASE_URL)
@@ -34,32 +93,205 @@ except ValueError:
 
 _pool: Optional[ThreadedConnectionPool] = None
 
-def get_connection_params() -> Dict[str, Any]:
-    if not DATABASE_URL:
-        raise RuntimeError(
-            "DATABASE_URL is required. Set it in the repository root .env to the "
-            "Supabase PostgreSQL connection string."
-        )
+def _mask_connection_params(params: Dict[str, Any]) -> Dict[str, Any]:
+    """Return a copy of params with credential fields masked so secrets are never logged."""
+    masked = dict(params)
+    sensitive_keys = {"user", "password", "host", "dbname"}
+    for key in sensitive_keys:
+        if key in masked:
+            masked[key] = "<redacted>"
+    return masked
 
-    parsed_url = urlsplit(DATABASE_URL)
-    if parsed_url.scheme not in {"postgres", "postgresql"} or not parsed_url.hostname or not parsed_url.path.strip("/"):
-        raise RuntimeError(
-            "DATABASE_URL must be a PostgreSQL connection string for the existing Supabase database."
-        )
+
+def _sanitize_error_message(message: str) -> str:
+    """Mask any PostgreSQL connection strings or credentials that may appear in an error message."""
+    import re
+    # Mask postgresql:// URLs that may appear in psycopg2 error messages
+    message = re.sub(r"postgresql://[^\s'\"\)]+", "postgresql://<redacted>", message)
+    # Mask password= parameters
+    message = re.sub(r"password=[^\s'\"\)]+", "password=<redacted>", message)
+    # Mask host= parameters (hostnames may appear in error messages)
+    message = re.sub(r"host=[^\s'\"\)]+", "host=<redacted>", message)
+    # Mask user= parameters
+    message = re.sub(r"user=[^\s'\"\)]+", "user=<redacted>", message)
+    # Mask dbname= parameters
+    message = re.sub(r"dbname=[^\s'\"\)]+", "dbname=<redacted>", message)
+    # Mask quoted hostname values that psycopg2 may include in error text
+    message = re.sub(r"'[^']*\.[^']*'", "'<redacted-host>'", message)
+    # Mask single-quoted values containing '@' (credentials/emails in error text)
+    message = re.sub(r"'[^']*@[^']*'", "'<redacted-cred>'", message)
+    return message
+
+
+def _extract_url_components(parsed_url) -> Dict[str, Any]:
+    """Extract connection components from a parsed URL, URL-decoding credentials.
+
+    urlsplit already decodes percent-encoded characters, but we apply unquote()
+    explicitly for defense-in-depth against double-encoded or unusual formats.
+    """
+    import re
+
+    # Extract hostname safely; some Python versions may validate IP addresses
+    # when accessing hostname on certain URL formats.
+    hostname = None
+    try:
+        hostname = parsed_url.hostname
+    except Exception:
+        # Fallback: manually extract from netloc
+        netloc = parsed_url.netloc or ""
+        # Strip userinfo (everything before last @)
+        if "@" in netloc:
+            netloc = netloc.rsplit("@", 1)[-1]
+        # Strip port
+        if ":" in netloc:
+            netloc = netloc.rsplit(":", 1)[0]
+        # Strip IPv6 brackets
+        hostname = netloc.strip("[]") or None
+
+    # Extract port
+    port = None
+    try:
+        port = parsed_url.port
+    except Exception:
+        netloc = parsed_url.netloc or ""
+        if "@" in netloc:
+            netloc = netloc.rsplit("@", 1)[-1]
+        if ":" in netloc:
+            try:
+                port = int(netloc.rsplit(":", 1)[-1])
+            except ValueError:
+                port = None
+    if port is None:
+        port = 5432
+
+    # Extract path (dbname)
+    dbname = ""
+    try:
+        dbname = (parsed_url.path or "").lstrip("/")
+    except Exception:
+        dbname = ""
+
+    # Extract username and password with explicit URL decoding
+    username = None
+    user_password = None
+    try:
+        username = parsed_url.username
+        if username:
+            username = unquote(username)
+    except Exception:
+        username = None
+
+    try:
+        user_password = parsed_url.password
+        if user_password:
+            user_password = unquote(user_password)
+    except Exception:
+        user_password = None
 
     return {
-        "dsn": DATABASE_URL,
-        "connect_timeout": 3,
+        "host": hostname,
+        "port": port,
+        "dbname": dbname,
+        "user": username,
+        "password": user_password,
     }
+
+
+def get_connection_params() -> Dict[str, Any]:
+    dsn = _resolve_notifications_dsn() or DATABASE_URL
+    if not dsn:
+        raise RuntimeError(
+            "SUPABASE_DATABASE_URL (or DATABASE_URL) is required in backend/.env or root .env "
+            "pointing to the shared Supabase PostgreSQL connection string."
+        )
+
+    # ── STAGE 1: URL parsing ──────────────────────────────────────────
+    try:
+        parsed_url = urlsplit(dsn)
+    except Exception as e:
+        logger.error(
+            "URL parsing failed at stage 'urlsplit': %s",
+            _sanitize_error_message(str(e)),
+        )
+        logger.debug("URL parsing traceback:\n%s", traceback.format_exc())
+        raise
+
+    # ── STAGE 2: URL validation ───────────────────────────────────────
+    try:
+        scheme = parsed_url.scheme
+        scheme_valid = scheme in {"postgres", "postgresql"}
+        # Validate hostname presence without triggering IP validation
+        netloc = parsed_url.netloc or ""
+        hostname_present = bool(netloc)
+        path_present = bool((parsed_url.path or "").strip("/"))
+        if not scheme_valid or not hostname_present or not path_present:
+            logger.error(
+                "URL validation failed: scheme=%s hostname_present=%s path_present=%s",
+                scheme, hostname_present, path_present,
+            )
+            raise RuntimeError(
+                "DATABASE_URL must be a PostgreSQL connection string for the existing Supabase database."
+            )
+    except Exception as e:
+        logger.error("URL validation failed: %s", _sanitize_error_message(str(e)))
+        raise
+
+    # ── STAGE 3: Component extraction ─────────────────────────────────
+    try:
+        components = _extract_url_components(parsed_url)
+    except Exception as e:
+        logger.error(
+            "Component extraction failed at stage 'parsed_url properties': %s",
+            _sanitize_error_message(str(e)),
+        )
+        logger.debug("Component extraction traceback:\n%s", traceback.format_exc())
+        raise
+
+    params: Dict[str, Any] = {
+        "host": components["host"],
+        "port": components["port"],
+        "dbname": components["dbname"],
+        "connect_timeout": 8,
+    }
+
+    if components["user"]:
+        params["user"] = components["user"]
+    if components["password"]:
+        params["password"] = components["password"]
+
+    # Supabase requires SSL. Add sslmode=require unless already present in the URL query string.
+    try:
+        query_params = parse_qs(parsed_url.query)
+    except Exception:
+        query_params = {}
+    if "sslmode" not in query_params:
+        params["sslmode"] = "require"
+
+    return params
 
 def get_pool() -> ThreadedConnectionPool:
     global _pool
     if _pool is None or _pool.closed:
-        params = get_connection_params()
+        # ── STAGE 4: Connection parameter resolution ──────────────────
         try:
-            _pool = ThreadedConnectionPool(minconn=1, maxconn=10, **params)
+            params = get_connection_params()
+        except Exception:
+            # get_connection_params already logged stage-specific diagnostics
+            raise
+
+        # ── STAGE 5: ThreadedConnectionPool creation ──────────────────
+        try:
+            _pool = ThreadedConnectionPool(minconn=1, maxconn=15, **params)
         except Exception as e:
-            logger.error("Failed to initialize PostgreSQL pool (%s).", type(e).__name__)
+            logger.error(
+                "Failed to initialize PostgreSQL pool at stage 'ThreadedConnectionPool': %s",
+                _sanitize_error_message(str(e)),
+            )
+            logger.debug(
+                "Pool creation traceback:\n%s",
+                traceback.format_exc(),
+            )
+            logger.debug("Connection params (masked): %s", _mask_connection_params(params))
             raise
     return _pool
 
@@ -87,10 +319,108 @@ class DBConnection:
 def init_db():
     """
     Idempotent, non-destructive migration ensuring all tables and required columns exist.
+    Fast-paths cleanly when the shared Supabase database already contains all required
+    tables, migrated columns, and indexes to avoid redundant DDL roundtrips on reload.
     """
-    logger.info("Running safe database migrations on the configured PostgreSQL database.")
+    logger.info("Verifying PostgreSQL schema for notifications/wallet/GPU service...")
+    expected_tables = {
+        "users",
+        "notifications",
+        "notification_outbox",
+        "wallets",
+        "wallet_transactions",
+        "gpu_inventory",
+        "gpu_deployments",
+        "gpu_maintenance_schedules",
+    }
+    expected_migrated_cols = {
+        ("notifications", "metadata"),
+        ("notifications", "related_entity_id"),
+        ("notifications", "read_at"),
+        ("notification_outbox", "user_id"),
+        ("notification_outbox", "idempotency_key"),
+        ("notification_outbox", "retry_count"),
+        ("notification_outbox", "error"),
+        ("notification_outbox", "processed_at"),
+        ("wallets", "low_balance_alert_level"),
+        ("wallet_transactions", "parent_transaction_id"),
+        ("wallet_transactions", "refunded_amount"),
+        ("wallet_transactions", "source"),
+    }
+    expected_indexes = {
+        "idx_notifications_user_id",
+        "idx_notifications_is_read",
+        "idx_notifications_created_at",
+        "idx_outbox_idempotency_key",
+        "idx_outbox_status",
+        "idx_wallet_tx_user_id",
+        "idx_gpu_dep_user_id",
+    }
+    expected_fk_constraints = {
+        ("wallet_transactions", "fk_wallet_tx_parent"),
+    }
+
     with DBConnection(autocommit=True) as conn:
         cur = conn.cursor()
+
+        try:
+            cur.execute(
+                """
+                SELECT table_name, column_name, data_type, character_maximum_length
+                FROM information_schema.columns
+                WHERE table_schema = 'public'
+                  AND table_name = ANY(%s);
+                """,
+                (list(expected_tables),),
+            )
+            col_pairs = {(r[0], r[1]) for r in cur.fetchall()}
+            existing_tables = {t for (t, _) in col_pairs}
+            col_types = {(r[0], r[1]): (r[2], r[3]) for r in cur.fetchall()}
+
+            cur.execute(
+                """
+                SELECT indexname
+                FROM pg_indexes
+                WHERE schemaname = 'public'
+                  AND indexname = ANY(%s);
+                """,
+                (list(expected_indexes),),
+            )
+            existing_indexes = {r[0] for r in cur.fetchall()}
+
+            cur.execute(
+                """
+                SELECT conrelid::regclass::text, conname
+                FROM pg_constraint
+                WHERE contype = 'f'
+                  AND (conrelid::regclass::text, conname) = ANY(%s);
+                """,
+                (list(expected_fk_constraints),),
+            )
+            existing_fks = {(r[0], r[1]) for r in cur.fetchall()}
+
+            # Verify column types for critical columns
+            expected_col_types = {
+                ("wallet_transactions", "id"): ("uuid", None),
+                ("wallet_transactions", "parent_transaction_id"): ("uuid", None),
+                ("wallet_transactions", "refunded_amount"): ("numeric", None),
+                ("wallet_transactions", "source"): ("character varying", 32),
+            }
+            types_match = all(
+                col_types.get(k) == v for k, v in expected_col_types.items()
+            )
+
+            if (
+                expected_tables.issubset(existing_tables)
+                and expected_migrated_cols.issubset(col_pairs)
+                and expected_indexes.issubset(existing_indexes)
+                and expected_fk_constraints.issubset(existing_fks)
+                and types_match
+            ):
+                logger.info("PostgreSQL schema already verified (%d tables ready).", len(existing_tables))
+                return
+        except Exception:
+            pass
 
         # 1. users table
         cur.execute("""
@@ -123,6 +453,18 @@ def init_db():
         cur.execute("ALTER TABLE notifications ADD COLUMN IF NOT EXISTS metadata TEXT DEFAULT '{}';")
         cur.execute("ALTER TABLE notifications ADD COLUMN IF NOT EXISTS related_entity_id VARCHAR(128);")
         cur.execute("ALTER TABLE notifications ADD COLUMN IF NOT EXISTS read_at TEXT;")
+        # Ensure message column exists (schema source of truth). Backfill from detail
+        # for databases created before the detail->message rename.
+        cur.execute("ALTER TABLE notifications ADD COLUMN IF NOT EXISTS message TEXT DEFAULT '';")
+        cur.execute(
+            """
+            UPDATE notifications
+            SET message = detail
+            WHERE (message IS NULL OR message = '')
+              AND detail IS NOT NULL
+              AND detail != '';
+            """
+        )
 
         # 3. notification_outbox table
         cur.execute("""
@@ -161,7 +503,7 @@ def init_db():
         # 5. wallet_transactions table
         cur.execute("""
             CREATE TABLE IF NOT EXISTS wallet_transactions (
-                id VARCHAR(64) PRIMARY KEY,
+                id UUID PRIMARY KEY,
                 user_id VARCHAR(128) NOT NULL,
                 amount NUMERIC(14,2) NOT NULL,
                 balance_after NUMERIC(14,2),
@@ -173,6 +515,48 @@ def init_db():
                 updated_at TEXT NOT NULL
             );
         """)
+        cur.execute("ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS balance_after NUMERIC(14,2);")
+        cur.execute("ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS idempotency_key VARCHAR(255);")
+        cur.execute("ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS description TEXT;")
+        cur.execute("ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS created_at TEXT NOT NULL DEFAULT '';")
+        cur.execute("ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS updated_at TEXT NOT NULL DEFAULT '';")
+        cur.execute("ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS transaction_type VARCHAR(32) NOT NULL DEFAULT 'top_up';")
+        cur.execute("ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS direction VARCHAR(16) NOT NULL DEFAULT 'credit';")
+        cur.execute("ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS parent_transaction_id UUID;")
+        cur.execute("ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS refunded_amount NUMERIC(14,2) NOT NULL DEFAULT 0;")
+        cur.execute("ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS source VARCHAR(32) NOT NULL DEFAULT 'legacy';")
+
+        # Conditionally convert parent_transaction_id from VARCHAR(64) to UUID if needed
+        cur.execute("""
+            SELECT data_type FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND table_name = 'wallet_transactions'
+              AND column_name = 'parent_transaction_id'
+        """)
+        col_row = cur.fetchone()
+        if col_row is not None and col_row[0] != 'uuid':
+            cur.execute("""
+                ALTER TABLE wallet_transactions
+                    ALTER COLUMN parent_transaction_id TYPE UUID
+                    USING parent_transaction_id::UUID
+            """)
+
+        # Idempotent self-referential FK: schema-aware check before adding
+        cur.execute("""
+            SELECT 1 FROM information_schema.table_constraints
+            WHERE table_schema = 'public'
+              AND table_name = 'wallet_transactions'
+              AND constraint_name = 'fk_wallet_tx_parent'
+              AND constraint_type = 'FOREIGN KEY'
+        """)
+        if cur.fetchone() is None:
+            cur.execute("""
+                ALTER TABLE wallet_transactions
+                    ADD CONSTRAINT fk_wallet_tx_parent
+                    FOREIGN KEY (parent_transaction_id)
+                    REFERENCES wallet_transactions(id)
+                    ON DELETE RESTRICT
+            """)
 
         # 6. gpu_inventory table
         cur.execute("""

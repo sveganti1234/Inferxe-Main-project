@@ -32,3 +32,11 @@ database/*.db
 database/*.db-wal
 database/*.db-shm
 database/backups/
+
+#backend 
+backend/.env
+backend/*_old.txt
+*_old.txt
+scratch/
+validation_report.json
+inferxe_finetune_clean.jsonl

@@ -16,12 +16,25 @@ import urllib.request
 import urllib.error
 from typing import List, Dict, Any, Optional
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException, Header, Depends, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
-# Ensure UTF-8 output
-sys.stdout.reconfigure(encoding='utf-8')
+# Ensure UTF-8 output safely
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding='utf-8')
+    except Exception:
+        pass
+
+# Load root .env and backend/.env without overriding existing process vars
+_SERVER_DIR = os.path.dirname(os.path.abspath(__file__))
+_ROOT_DIR = os.path.abspath(os.path.join(_SERVER_DIR, "../.."))
+if os.path.isfile(os.path.join(_ROOT_DIR, ".env")):
+    load_dotenv(os.path.join(_ROOT_DIR, ".env"), override=False)
+if os.path.isfile(os.path.join(_ROOT_DIR, "backend", ".env")):
+    load_dotenv(os.path.join(_ROOT_DIR, "backend", ".env"), override=False)
 
 app = FastAPI(
     title="Inferxe AI Chatbot RAG Service",
@@ -74,7 +87,7 @@ COLLECTION_NAME = "inferxe_knowledge_base"
 EMBEDDING_MODEL = "nomic-embed-text"
 LLM_MODEL = "inferxe-qwen-ft:latest"
 FALLBACK_LLM_MODEL = "qwen2.5:0.5b"
-OLLAMA_BASE_URL = "http://127.0.0.1:11434"
+OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
 ADMIN_API_KEY = os.environ.get("INFERXE_RAG_ADMIN_KEY", "")
 
 # Strict Guardrail Refusal Strings (Mandated by Section 7)
@@ -358,16 +371,29 @@ async def chat_endpoint(payload: ChatRequest):
 
     # Step 2: Polite Greeting Check
     if is_greeting(user_query):
-        greeting_text = (
-            "Hello! I am the Inferxe AI Assistant. I can assist you with NVIDIA GPU specifications, "
-            "cloud infrastructure pricing (on-demand and spot rates), LLM model sizing and VRAM calculation, "
-            "vLLM inference optimization, and verified Inferxe platform architecture and marketplace features. "
-            "How can I help you today?"
-        )
+        greeting_text = "Hi! How can I help you with Inferxe today—are you looking for GPU pricing, model sizing, or API setup?"
         return build_chat_response(greeting_text, True, "greeting_acknowledged")
 
-    # Step 3: Context-Aware Privacy & RBAC Policy
     q_norm = user_query.lower().strip()
+
+    # Step 2b: Basic Account & Navigation Answers
+    if any(k in q_norm for k in ["how can i login", "how do i login", "how to login", "how can i log in", "how do i log in", "how to log in"]) or (("login" in q_norm or "sign in" in q_norm) and ("website" in q_norm or "web site" in q_norm or "how" in q_norm)):
+        ans = "Click the **Sign In** or **Login** button in the top-right corner of [inferxe.com](https://inferxe.com). You can sign in using your registered email and password or your linked OAuth provider (such as Google or GitHub) to open your Inferxe dashboard."
+        return build_chat_response(ans, True, "account_navigation")
+
+    if any(k in q_norm for k in ["create account", "create a new account", "how do i sign up", "how to signup", "how to register"]):
+        ans = "Go to [inferxe.com](https://inferxe.com), click **Get Started** or **Sign Up**, and register with your work email or GitHub/Google account. Once verified, you can add credits and generate an API key immediately—no manual GPU quota approval required."
+        return build_chat_response(ans, True, "account_navigation")
+
+    if any(k in q_norm for k in ["forgot password", "reset password", "cannot access my inferxe account", "locked account"]):
+        ans = "On the Inferxe login page, click **Forgot Password** to receive a reset link via email. If you signed up using Google or GitHub, use that same sign-in button instead of a password. For locked accounts, contact Inferxe support through the dashboard or website."
+        return build_chat_response(ans, True, "account_navigation")
+
+    if any(k in q_norm for k in ["find my inferxe api key", "find my api key", "where do i find my api key", "where is my api key"]):
+        ans = "After logging into your Inferxe dashboard, open the **API Keys** tab in the left navigation menu and click **Create New Key**. Copy and store the key immediately, as it is only displayed once."
+        return build_chat_response(ans, True, "account_navigation")
+
+    # Step 3: Context-Aware Privacy & RBAC Policy
     is_inside_dashboard = bool(payload.current_path and payload.current_path.startswith("/dashboard"))
     user_role = payload.user_role or "guest"
     is_admin = user_role == "admin"
@@ -454,11 +480,22 @@ async def chat_endpoint(payload: ChatRequest):
     # Step 4: Semantic Retrieval & Hybrid Ranking via ChromaDB
     query_emb = get_query_embedding(user_query)
     if not query_emb:
-        elapsed = int((time.time() - start_time) * 1000)
-        raise HTTPException(
-            status_code=503,
-            detail="Embedding service unavailable. Please ensure Ollama is running with nomic-embed-text."
-        )
+        # Graceful fallback to verified local dataset when Ollama embedding service is not running
+        q_norm = user_query.lower()
+        if any(w in q_norm for w in ["rate", "price", "cost", "pricing", "hourly", "inr", "₹", "$"]):
+            ans = "Inferxe sovereign GPU rates:\n• NVIDIA L4 (24 GB): ₹60/hr\n• NVIDIA L40S (48 GB): ₹100/hr\n• NVIDIA H100 SXM5 (80 GB): ₹280/hr\nSpot routing provides up to 65% automatic discount with zero lock-in contracts."
+            return build_chat_response(ans, True, "grounded_local_dataset")
+        if any(w in q_norm for w in ["l4", "specs", "specification"]) and "l40" not in q_norm:
+            ans = "The NVIDIA L4 is built on NVIDIA's Ada Lovelace architecture. It features 24 GB of GDDR6 memory with 300 GB/s bandwidth. Compute throughput delivers 485 FP8 TFLOPS and 242 FP16/BF16 Tensor TFLOPS at a low 72W TDP in a single-slot PCIe form factor."
+            return build_chat_response(ans, True, "grounded_local_dataset")
+        if "compare" in q_norm and "l4" in q_norm and "l40s" in q_norm:
+            ans = "Both NVIDIA L4 and L40S are based on Ada Lovelace architecture:\n• Memory: L4 has 24 GB GDDR6 (300 GB/s); L40S has 48 GB GDDR6 with ECC (864 GB/s).\n• Compute: L4 delivers 485 FP8 / 242 FP16 TFLOPS; L40S delivers 1,466 FP8 / 733 FP16 TFLOPS (3x compute).\n• Power: L4 requires 72W; L40S requires 350W.\n• Pricing: On JarvisLabs, L4 is ₹41/hr on-demand vs ₹18/hr spot. L40S is ₹118/hr on-demand vs ₹61/hr spot. Inferxe marketplace retail rates are ₹60/hr for L4 and ₹100/hr for L40S."
+            return build_chat_response(ans, True, "grounded_local_dataset")
+        if any(w in q_norm for w in ["feature", "inferxe provide", "marketplace", "what is inferxe", "platform"]):
+            ans = "Documented features of the Inferxe platform:\n1. GPU Marketplace Catalog: Discover and filter GPUs across sovereign Indian clouds and JarvisLabs.\n2. GPU Sizing Calculator: Calculates weights and KV cache memory to recommend the most cost-effective GPU.\n3. Simulated Wallet & Burn Rate: Tracks runtime spend, hourly burn rates, and low-balance warnings.\n4. Sovereign Indian Data Residency: Tier-IV datacenters in Navi Mumbai and Noida compliant with DPDP Act and MeitY.\n5. OpenAI-Compatible API: Drop-in SDK endpoint pointing base_url to https://api.inferxe.com/v1.\n6. Intermediary Orchestration: Intermediary software routing layer across heterogeneous GPU providers."
+            return build_chat_response(ans, True, "grounded_local_dataset")
+        ans = "I couldn't find verified information about that in the available documentation, so I don't want to guess. For assistance with Inferxe accounts, platform features, or GPU infrastructure, please visit https://inferxe.com or contact support@inferxe.com."
+        return build_chat_response(ans, True, "grounded_local_dataset")
 
     col = get_chroma_collection()
     results = col.query(
@@ -544,11 +581,16 @@ async def chat_endpoint(payload: ChatRequest):
     context_str = "\n\n---\n\n".join(relevant_chunks)
 
     system_prompt = (
-        "You are the official Inferxe AI Assistant, specialized in India's sovereign cloud GPU infrastructure and the Inferxe platform.\n\n"
-        "COMMUNICATION STYLE (ChatGPT / Claude AI Standard):\n"
-        "- Friendly, professional, articulate, direct, and helpful.\n"
-        "- Clean formatting: Structure responses with bold titles, neat bullet points, or numbered steps.\n"
-        "- Keep answers concise (2 to 4 bullet points max) or a clear 2-3 sentence summary.\n\n"
+        "You are the Inferxe AI Assistant for inferxe.com—a unified GPU control plane "
+        "(\"One API, many GPU providers\") that routes AI workloads across GPU clouds based on compatibility, cost, and measured performance.\n\n"
+        "COMMUNICATION RULES:\n"
+        "1. Answer the user's exact question in the very first sentence. Never dodge a simple question with a sales pitch or technical buzzwords.\n"
+        "2. Match response length to the question:\n"
+        "   - Greetings (\"hi\", \"hello\"): Reply in 1–2 short, friendly sentences. Do not list every platform feature.\n"
+        "   - Simple \"how-to\" or account questions (login, billing, API keys): Give brief, direct steps.\n"
+        "   - Technical/pricing questions: Use clear bullet points or compact tables with exact numbers.\n"
+        "3. No filler openers or closers: Never start with \"Hello! I am the Inferxe AI Assistant. I can assist you with...\" and never end with generic pitch paragraphs unless relevant.\n"
+        "4. Honesty over guessing: If a specific page URL, account action, or pricing figure is not in your verified knowledge base, state clearly what you do know and direct the user to https://inferxe.com or support@inferxe.com—never invent technical details to fill space.\n\n"
         "SPECIAL WALLET & PAYMENT POLICY (STRICT PUBLIC PRIVACY):\n"
         "- If the user asks 'how to use wallet in this web site', 'how to use wallet', or asks about payments or adding funds:\n"
         "  Respond strictly and ONLY with:\n"

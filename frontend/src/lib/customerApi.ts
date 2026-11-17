@@ -10,7 +10,7 @@ export interface CustomerWorkspace {
   deployments: CustomerApiRecord[]
   orders: CustomerApiRecord[]
   usage_records: CustomerApiRecord[]
-  wallet_accounts: CustomerApiRecord[]
+  wallet: CustomerApiRecord | null
   wallet_transactions: CustomerApiRecord[]
   api_keys: CustomerApiRecord[]
   ssh_public_keys: CustomerApiRecord[]
@@ -67,7 +67,7 @@ export async function getCustomerWorkspace(): Promise<CustomerWorkspace> {
     deployments: requireRecordArray(workspace.deployments, 'deployments'),
     orders: requireRecordArray(workspace.orders, 'orders'),
     usage_records: requireRecordArray(workspace.usage_records, 'usage records'),
-    wallet_accounts: requireRecordArray(workspace.wallet_accounts, 'wallet accounts'),
+    wallet: isRecord(workspace.wallet) ? workspace.wallet : null,
     wallet_transactions: requireRecordArray(workspace.wallet_transactions, 'wallet transactions'),
     api_keys: requireRecordArray(workspace.api_keys, 'API keys'),
     ssh_public_keys: requireRecordArray(workspace.ssh_public_keys, 'SSH keys'),

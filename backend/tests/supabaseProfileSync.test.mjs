@@ -2,8 +2,8 @@ import assert from 'node:assert/strict'
 import crypto from 'node:crypto'
 import test from 'node:test'
 import { verifyCognitoIdToken } from '../auth/cognitoIdToken.js'
+import { createCustomerAuthMiddleware } from '../auth/customerAuth.js'
 import { upsertCognitoProfile } from '../database/supabaseProfiles.js'
-import { createAdminAuthMiddleware } from '../auth/adminAuth.js'
 
 function encodeBase64Url(value) {
   return Buffer.from(value).toString('base64url')
@@ -120,7 +120,7 @@ test('loads Cognito verification settings from the frontend Vite environment nam
   }
 })
 
-test('upserts only profile fields from the verified Cognito subject', async () => {
+test('uses the Supabase Secret key as apikey without treating it as a JWT', async () => {
   let request
   await upsertCognitoProfile({
     sub: 'cognito-sub-123',
@@ -129,7 +129,7 @@ test('upserts only profile fields from the verified Cognito subject', async () =
     preferred_username: 'verified-customer',
   }, {
     supabaseUrl: 'https://supabase.example.test',
-    serviceRoleKey: 'server-only-key',
+    secretKey: 'sb_secret_test_dummy_key',
     fetchImpl: async (url, options) => {
       request = { url: String(url), options }
       return new Response(null, { status: 204 })
@@ -138,7 +138,8 @@ test('upserts only profile fields from the verified Cognito subject', async () =
 
   assert.equal(request.url, 'https://supabase.example.test/rest/v1/profiles?on_conflict=user_id')
   assert.equal(request.options.method, 'POST')
-  assert.equal(request.options.headers.apikey, 'server-only-key')
+  assert.equal(request.options.headers.apikey, 'sb_secret_test_dummy_key')
+  assert.equal(request.options.headers.Authorization, undefined)
   assert.equal(request.options.headers.Prefer, 'resolution=merge-duplicates,return=minimal')
   assert.deepEqual(JSON.parse(request.options.body), {
     user_id: 'cognito-sub-123',
@@ -146,6 +147,43 @@ test('upserts only profile fields from the verified Cognito subject', async () =
     email: 'customer@example.test',
     username: 'verified-customer',
   })
+})
+
+test('keeps legacy service-role Authorization during migration', async () => {
+  let request
+  await upsertCognitoProfile({
+    sub: 'cognito-sub-legacy',
+    email: 'legacy@example.test',
+  }, {
+    supabaseUrl: 'https://supabase.example.test',
+    serviceRoleKey: 'legacy-test-service-role-key',
+    fetchImpl: async (url, options) => {
+      request = { url: String(url), options }
+      return new Response(null, { status: 204 })
+    },
+  })
+
+  assert.equal(request.options.headers.apikey, 'legacy-test-service-role-key')
+  assert.equal(request.options.headers.Authorization, 'Bearer legacy-test-service-role-key')
+})
+
+test('prefers the Supabase Secret key over the legacy service-role key', async () => {
+  let request
+  await upsertCognitoProfile({
+    sub: 'cognito-sub-preferred',
+    email: 'preferred@example.test',
+  }, {
+    supabaseUrl: 'https://supabase.example.test',
+    secretKey: 'sb_secret_test_preferred_key',
+    serviceRoleKey: 'legacy-test-service-role-key',
+    fetchImpl: async (url, options) => {
+      request = { url: String(url), options }
+      return new Response(null, { status: 204 })
+    },
+  })
+
+  assert.equal(request.options.headers.apikey, 'sb_secret_test_preferred_key')
+  assert.equal(request.options.headers.Authorization, undefined)
 })
 
 test('rejects profile writes without a Cognito subject or email', async () => {
@@ -161,16 +199,50 @@ test('rejects profile writes without a Cognito subject or email', async () => {
 
 test('profile sync endpoint requires a verified Cognito identity and upserts its sub', async () => {
   let upsertedClaims
-  const middleware = createAdminAuthMiddleware({
-    verifyCognitoIdToken: async (authorization) =>
-      authorization === 'Bearer valid-id-token'
-        ? { sub: 'cognito-sub-123', email: 'verified@example.test', email_verified: true }
-        : null,
-    upsertCognitoProfile: async (claims) => {
-      upsertedClaims = claims
-    },
-  })
+  let supabaseCalls = 0
+  const supabaseClient = {
+    from() {
+      supabaseCalls += 1
+      if (supabaseCalls === 1) {
+        return {
+          select: () => ({
+            eq: () => ({
+              maybeSingle: async () => ({ data: null, error: null }),
+            }),
+          }),
+        }
+      }
 
+      return {
+        upsert(profile) {
+          upsertedClaims = { sub: profile.user_id }
+          return {
+            select: () => ({
+              single: async () => ({
+                data: {
+                  ...profile,
+                  role: 'customer',
+                  status: 'active',
+                  organization_id: null,
+                },
+                error: null,
+              }),
+            }),
+          }
+        },
+      }
+    },
+  }
+  const middleware = createCustomerAuthMiddleware({
+    verifyToken: async () => ({
+      sub: 'cognito-sub-123',
+      email: 'verified@example.test',
+      email_verified: true,
+      name: 'Verified Customer',
+      preferred_username: 'verified-customer',
+    }),
+    getSupabaseClient: () => supabaseClient,
+  })
   async function send(authorization) {
     let responseBody = ''
     const response = {
@@ -193,14 +265,13 @@ test('profile sync endpoint requires a verified Cognito identity and upserts its
   const denied = await send()
   assert.equal(denied.status, 401)
   assert.equal(upsertedClaims, undefined)
+  assert.equal(supabaseCalls, 0)
 
-  const unverifiedMiddleware = createAdminAuthMiddleware({
-    verifyCognitoIdToken: async () => ({
-      sub: 'cognito-sub-unverified',
-      email: 'unverified@example.test',
-      email_verified: false,
-    }),
-    upsertCognitoProfile: async () => assert.fail('Unverified customers must not be upserted'),
+  const unverifiedMiddleware = createCustomerAuthMiddleware({
+    verifyToken: async () => {
+      throw new Error('Unverified Cognito identity')
+    },
+    getSupabaseClient: () => assert.fail('Unverified customers must not be upserted'),
   })
   const unverifiedResponse = {
     setHeader() {},
@@ -213,7 +284,7 @@ test('profile sync endpoint requires a verified Cognito identity and upserts its
     method: 'POST',
     headers: { authorization: 'Bearer unverified-token' },
   }, unverifiedResponse, () => assert.fail('Profile route must be handled by the middleware'))
-  assert.equal(unverifiedResponse.statusCode, 403)
+  assert.equal(unverifiedResponse.statusCode, 401)
 
   const accepted = await send('Bearer valid-id-token')
   assert.equal(accepted.status, 200)

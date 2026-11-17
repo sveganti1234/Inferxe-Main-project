@@ -7,6 +7,7 @@ role-based authorization, and real-time polling support.
 import os
 import logging
 from typing import Dict, Any, List, Optional
+from decimal import Decimal
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
@@ -44,6 +45,12 @@ class WalletTransactionRequest(BaseModel):
     status: Optional[str] = "completed"
     type: Optional[str] = None
     description: Optional[str] = "Wallet Transaction"
+    idempotency_key: Optional[str] = None
+
+class WalletRefundRequest(BaseModel):
+    original_transaction_id: str = Field(..., min_length=1, description="ID of the original debit transaction to refund")
+    amount: Decimal = Field(..., gt=0, description="Refund amount (max 2 decimal places)")
+    description: Optional[str] = "Wallet refund"
     idempotency_key: Optional[str] = None
 
 class DeploymentStatusRequest(BaseModel):
@@ -256,6 +263,55 @@ def process_wallet_transaction(
         return result
     except ValueError as ve:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
+
+@router.post("/wallet/refund")
+def process_wallet_refund_endpoint(
+    req: WalletRefundRequest,
+    user: AuthenticatedUser = Depends(get_current_user),
+):
+    """
+    Customer-initiated wallet refund.
+    - Derives user_id strictly from Cognito JWT sub claim.
+    - Links refund to an existing eligible debit transaction.
+    - Prevents over-refunding via refunded_amount tracking.
+    - Idempotent via idempotency_key.
+    - All operations atomic in a single database transaction.
+    """
+    try:
+        result = NotificationService.process_wallet_refund(
+            user_id=user.user_id,
+            original_transaction_id=req.original_transaction_id,
+            amount=req.amount,
+            idempotency_key=req.idempotency_key,
+            description=req.description,
+        )
+        return result
+    except ValueError as ve:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(ve))
+
+@router.get("/wallet/balance")
+def get_wallet_balance(
+    user: AuthenticatedUser = Depends(get_current_user),
+):
+    """Returns the wallet balance for the authenticated user."""
+    return NotificationService.get_wallet_balance(user_id=user.user_id)
+
+@router.get("/wallet/transactions/history")
+def get_wallet_transaction_history(
+    limit: int = Query(50, ge=1, le=200, description="Page limit"),
+    offset: int = Query(0, ge=0, description="Page offset"),
+    user: AuthenticatedUser = Depends(get_current_user),
+):
+    """
+    Returns the wallet transaction history for the authenticated user.
+    Customer A can NEVER view Customer B's transactions.
+    Supports pagination (limit/offset) and newest-first sorting.
+    """
+    return NotificationService.fetch_wallet_transaction_history(
+        user_id=user.user_id,
+        limit=limit,
+        offset=offset,
+    )
 
 @router.post("/deployments/status")
 def update_deployment_status(

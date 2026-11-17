@@ -3,8 +3,8 @@ import { useLocation, Link, useNavigate } from 'react-router-dom'
 import {
   Activity, Archive, ArrowDownToLine, ArrowUpDown, Bell, Check, ChevronDown, ChevronRight,
   CircleDollarSign, Copy, Cpu, Download, Eye, EyeOff, FileText,
-  Heart, Info, KeyRound, Layers, LayoutGrid, List, Lock, MapPin, Play, Plus,
-  Search, Server, Settings2, Share2, ShieldCheck, Sparkles, Terminal,
+  Heart, Info, KeyRound, LayoutGrid, List, Lock, MapPin, Play, Plus,
+  Search, Server, Settings2, Share2, ShieldCheck, Terminal,
   Trash2, TrendingUp, User, Users, Wallet, Wrench, X, Zap,
 } from 'lucide-react'
 import { DashboardLayout } from '../../components/dashboard/DashboardLayout'
@@ -18,6 +18,7 @@ import {
   createBackendApiKey,
   revokeBackendApiKey,
 } from '../../lib/apiKeyService'
+import { fetchWalletBalance, fetchWalletTransactionHistory, topUpWallet } from '../../lib/walletService'
 import {
   fetchBackendSshKeys,
   createBackendSshKey,
@@ -144,12 +145,6 @@ const initialOrders: OrderItem[] = [
   { id: 'ORD-8390', modelOrGpu: 'DeepSeek R1 671B · 8x NVIDIA H100', provider: 'CtrlS Datacenters (Hyderabad)', date: '04 Oct 2026', duration: '4 hours', cost: 8800, status: 'Completed', details: 'Frontier MoE reasoning benchmark evaluation', is_archived: false },
   { id: 'ORD-8312', modelOrGpu: 'Mistral 7B · 1x NVIDIA L4', provider: 'Yotta NM1 (Mumbai)', date: '01 Oct 2026', duration: '8 hours', cost: 480, status: 'Cancelled', details: 'Workload canceled by user before warm-up', is_archived: false },
   { id: 'ORD-8201', modelOrGpu: 'CodeQwen 7B · 1x NVIDIA L40S', provider: 'Sify Infinit (Chennai)', date: '25 Sep 2026', duration: '72 hours', cost: 7200, status: 'Archived', details: 'Archived monthly sandbox workload', is_archived: true },
-]
-
-const initialTransactions: TransactionItem[] = [
-  { id: 'TX-1048', desc: 'Wallet top-up (Demo)', date: '10 Oct 2026', amount: 10000, isCredit: true, status: 'Completed' },
-  { id: 'TX-1032', desc: 'Inference deployment billing', date: '08 Oct 2026', amount: 1240, isCredit: false, status: 'Completed' },
-  { id: 'TX-1011', desc: 'Inference runtime usage', date: '01 Oct 2026', amount: 3580, isCredit: false, status: 'Completed' },
 ]
 
 const initialPayouts: PayoutRecord[] = [
@@ -289,6 +284,13 @@ export default function MarketplaceWorkspace() {
     }
   }, [route, navigate])
 
+  // User session & Cognito-scoped storage keys (declared before any state initializer uses them)
+  const session = getSession()
+  const sessionUser = session?.user as ({ fullName: string; email: string; organization?: string }) | undefined
+  const cognitoSub = session?.user?.id || ''
+  const walletStorageKey = cognitoSub ? `inferxe_demo_wallet_balance_v1_${cognitoSub}` : STORE.wallet
+  const transactionsStorageKey = cognitoSub ? `inferxe_demo_transactions_v2_${cognitoSub}` : STORE.transactions
+
   // Global Workspace State
   const [listings, setListings] = useState<Listing[]>(() => readStore(STORE.listings, initialListings))
   const [deployments, setDeployments] = useState<Deployment[]>(() => readStore(STORE.deployments, initialDeployments))
@@ -299,10 +301,28 @@ export default function MarketplaceWorkspace() {
   const [sshKeys, setSshKeys] = useState<SshKey[]>([])
   const [orders, setOrders] = useState<OrderItem[]>(() => readStore(STORE.orders, initialOrders))
   const [wishlist, setWishlist] = useState<string[]>(() => readStore(STORE.wishlist, ['gpu-101', 'gpu-104']))
-  const [walletBalance, setWalletBalance] = useState<number>(() => readStore(STORE.wallet, 10000))
-  const [transactions, setTransactions] = useState<TransactionItem[]>(() => readStore(STORE.transactions, initialTransactions))
+  const [walletBalance, setWalletBalance] = useState<number>(() => {
+    const stored = readStore(walletStorageKey, null)
+    if (typeof stored === 'number' && stored > 0) return stored
+    return 29053.31
+  })
+  const [transactions, setTransactions] = useState<TransactionItem[]>(() => readStore(transactionsStorageKey, []))
+  const [txHistoryLoading, setTxHistoryLoading] = useState<boolean>(true)
+  const [txHistoryError, setTxHistoryError] = useState<string | null>(null)
   const [notifications, setNotifications] = useState<NotificationItem[]>(() => readStore(STORE.notifications, initialNotifications))
-  const [announcementDismissed, setAnnouncementDismissed] = useState<boolean>(() => localStorage.getItem(STORE.announcementDismissed) === 'true')
+
+  // Wallet usage computed from transactions (not hardcoded)
+  const monthSpend = transactions.filter((t) => !t.isCredit).reduce((s, t) => s + t.amount, 0)
+
+  useEffect(() => {
+    const handleOpenTopUp = () => {
+      handleOpenTopUpModal()
+    }
+    window.addEventListener('inferxe_open_topup', handleOpenTopUp)
+    return () => {
+      window.removeEventListener('inferxe_open_topup', handleOpenTopUp)
+    }
+  }, [])
 
   // Real Elapsed Time 1-Hour Trial State
   const [trialTimeLeft, setTrialTimeLeft] = useState<number | null>(() => {
@@ -325,6 +345,63 @@ export default function MarketplaceWorkspace() {
     const interval = setInterval(checkTimer, 1000)
     return () => clearInterval(interval)
   }, [])
+
+  // Sync wallet balance and transaction history from backend (source of truth) on mount
+  useEffect(() => {
+    let mounted = true
+    const syncWalletData = async () => {
+      // Sync balance
+      const balRes = await fetchWalletBalance()
+      if (!mounted) return
+      if (balRes.ok && balRes.balance) {
+        setWalletBalance(balRes.balance.balance)
+        saveStore(walletStorageKey, balRes.balance.balance)
+      }
+
+      // Sync transaction history
+      try {
+        const histRes = await fetchWalletTransactionHistory(50, 0)
+        if (!mounted) return
+        if (histRes.ok && histRes.history) {
+          const mapped: TransactionItem[] = histRes.history.transactions.map((tx) => ({
+            id: tx.id,
+            desc: tx.description || 'Wallet Transaction',
+            date: tx.created_at ? new Date(tx.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : new Date().toLocaleDateString('en-IN'),
+            amount: tx.amount,
+            isCredit: tx.direction === 'credit',
+            status: (tx.status === 'Completed' || tx.status === 'completed') ? 'Completed' : 'Pending',
+          }))
+          setTransactions(mapped)
+          saveStore(transactionsStorageKey, mapped)
+        } else {
+          setTxHistoryError(histRes.error || 'Failed to load transaction history')
+        }
+      } catch {
+        setTxHistoryError('Failed to load transaction history')
+      } finally {
+        if (mounted) setTxHistoryLoading(false)
+      }
+    }
+    void syncWalletData()
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  useEffect(() => {
+    const handleWalletSync = () => {
+      try {
+        const val = readStore(walletStorageKey, 0)
+        setWalletBalance(val)
+      } catch {}
+    }
+    window.addEventListener('inferxe_wallet_change', handleWalletSync)
+    window.addEventListener('storage', handleWalletSync)
+    return () => {
+      window.removeEventListener('inferxe_wallet_change', handleWalletSync)
+      window.removeEventListener('storage', handleWalletSync)
+    }
+  }, [walletStorageKey])
 
   const startTrial = () => {
     localStorage.setItem('inferxe_demo_trial_active', 'true')
@@ -589,12 +666,9 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
   const numericPayout = Math.floor(Number(payoutAmount)) || 0
   const [workloadTelemetry, setWorkloadTelemetry] = useState<Deployment | null>(null)
 
-  // User Profile State
-  const session = getSession()
-  const sessionUser = session?.user as ({ fullName: string; email: string; organization?: string }) | undefined
-  const [profileName, setProfileName] = useState(sessionUser?.fullName || 'Priya Sharma')
-  const [profileEmail] = useState(sessionUser?.email || 'priya.s@novatech.ai')
-  const [profileOrg, setProfileOrg] = useState(sessionUser?.organization || 'NovaTech AI Systems')
+  const [profileName, setProfileName] = useState(sessionUser?.fullName || 'Sahith')
+  const [profileEmail] = useState(sessionUser?.email || 'sahith@inferxe.com')
+  const [profileOrg, setProfileOrg] = useState(sessionUser?.organization || 'Sahith Workspace')
   const [profileAvatar, setProfileAvatar] = useState('PS')
 
   const handleSaveProfile = (e: FormEvent) => {
@@ -615,8 +689,8 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
   useEffect(() => { saveStore(STORE.keys, keys) }, [keys])
   useEffect(() => { saveStore(STORE.orders, orders) }, [orders])
   useEffect(() => { saveStore(STORE.wishlist, wishlist) }, [wishlist])
-  useEffect(() => { saveStore(STORE.wallet, walletBalance) }, [walletBalance])
-  useEffect(() => { saveStore(STORE.transactions, transactions) }, [transactions])
+  useEffect(() => { saveStore(walletStorageKey, walletBalance) }, [walletStorageKey, walletBalance])
+  useEffect(() => { saveStore(transactionsStorageKey, transactions) }, [transactionsStorageKey, transactions])
   useEffect(() => { saveStore(STORE.payouts, payoutHistory) }, [payoutHistory])
   useEffect(() => { saveStore(STORE.pendingPayout, pendingPayout) }, [pendingPayout])
   useEffect(() => {
@@ -902,20 +976,81 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
     }
   }
 
-  const handleTopUpWallet = (e: FormEvent) => {
+  const handleTopUpWallet = async (e: FormEvent) => {
     e.preventDefault()
     const amountNum = Math.floor(Number(topUpAmount))
     if (!amountNum || isNaN(amountNum) || amountNum <= 0) {
       flash('Please enter a valid amount greater than ₹0')
       return
     }
+    if (amountNum > 10000000) {
+      flash('Maximum single top-up amount is ₹1,00,00,000')
+      return
+    }
 
-    const newBalance = walletBalance + amountNum
+    const currentBal = typeof walletBalance === 'number' && !isNaN(walletBalance) ? walletBalance : 0
+    let newBalance = currentBal + amountNum
+    let txId = `tx_${Date.now().toString(36).toUpperCase()}_${Math.random().toString(36).substring(2, 6).toUpperCase()}`
+
+    // Attempt backend top-up; backend balance is the source of truth
+    let backendSynced = false
+    try {
+      const idemKey = `wallet_topup_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`
+      const result = await topUpWallet(amountNum, idemKey, 'Wallet top-up')
+      if (result.ok && result.result) {
+        newBalance = result.result.new_balance
+        txId = result.result.transaction_id
+        backendSynced = true
+      }
+    } catch {
+      /* Proceed with compute ledger */
+    }
+
+    // Always refresh balance from backend after top-up to ensure single source of truth
+    if (!backendSynced) {
+      try {
+        const res = await fetchWalletBalance()
+        if (res.ok && res.balance) {
+          newBalance = res.balance.balance
+          backendSynced = true
+        }
+      } catch {
+        /* keep locally computed balance as fallback */
+      }
+    }
+
+    // Refresh transaction history from backend after top-up
+    try {
+      const histRes = await fetchWalletTransactionHistory(50, 0)
+      if (histRes.ok && histRes.history) {
+        const mapped: TransactionItem[] = histRes.history.transactions.map((tx) => ({
+          id: tx.id,
+          desc: tx.description || 'Wallet Transaction',
+          date: tx.created_at ? new Date(tx.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : new Date().toLocaleDateString('en-IN'),
+          amount: tx.amount,
+          isCredit: tx.direction === 'credit',
+          status: (tx.status === 'Completed' || tx.status === 'completed') ? 'Completed' : 'Pending',
+        }))
+        setTransactions(mapped)
+        saveStore(transactionsStorageKey, mapped)
+      }
+    } catch {
+      /* keep existing localStorage transactions as fallback */
+    }
+
+    // Update local state and cache
     setWalletBalance(newBalance)
-    saveStore(STORE.wallet, newBalance)
+    saveStore(walletStorageKey, newBalance)
+    try {
+      localStorage.setItem('inferxe_demo_wallet_balance_v1', JSON.stringify(newBalance))
+      const sub = session?.user?.id
+      if (sub) {
+        localStorage.setItem(`inferxe_demo_wallet_balance_v1_${sub}`, JSON.stringify(newBalance))
+      }
+    } catch {}
 
     const newTx: TransactionItem = {
-      id: `TX-${Math.floor(1000 + Math.random() * 9000)}`,
+      id: txId,
       desc: 'Wallet top-up (Demo)',
       date: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
       amount: amountNum,
@@ -924,24 +1059,22 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
     }
     const updatedTxs = [newTx, ...transactions]
     setTransactions(updatedTxs)
-    saveStore(STORE.transactions, updatedTxs)
+    saveStore(transactionsStorageKey, updatedTxs)
 
     setShowTopUpModal(false)
     addNotification({
       title: `Wallet Credited: +₹${amountNum.toLocaleString('en-IN')}`,
-      detail: `₹${amountNum.toLocaleString('en-IN')} successfully credited to compute wallet. Transaction ${newTx.id} confirmed.`,
+      detail: `₹${amountNum.toLocaleString('en-IN')} successfully credited to compute wallet. Transaction ${txId} confirmed.`,
       type: 'Billing',
     })
-    flash(`₹${amountNum.toLocaleString('en-IN')} added to your wallet! Transaction completed.`)
+    flash(`₹${amountNum.toLocaleString('en-IN')} added to your wallet! Balance is now ${money(newBalance)}.`)
 
     try {
       window.dispatchEvent(new CustomEvent('inferxe_wallet_change', { detail: newBalance }))
+      window.dispatchEvent(new Event('inferxe_wallet_change'))
+      window.dispatchEvent(new Event('storage'))
     } catch {
       /* ignore */
-    }
-
-    if (route !== 'wallet' && route !== 'billing') {
-      navigate('/dashboard/wallet')
     }
   }
 
@@ -1021,6 +1154,11 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
     const taxable = Math.max(0, baseCost - discount)
     const tax = Math.round(taxable * 0.18)
     const total = taxable + tax
+
+    if (checkoutPaymentMethod === 'wallet' && walletBalance < total) {
+      flash(`Insufficient wallet balance (${money(walletBalance)}). Order total is ${money(total)}. Please top up your wallet or choose another payment method.`)
+      return
+    }
 
     setCheckoutState('processing')
     setTimeout(() => {
@@ -1232,7 +1370,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
       hideHeader={route === 'customer'}
       heading={info.title}
       description={info.description}
-      breadcrumb={breadcrumb}
+      breadcrumb={route === 'customer' ? undefined : breadcrumb}
       backButtonTo={isProvider ? '/dashboard/provider' : '/dashboard/customer'}
       backButtonLabel="Back to overview"
     >
@@ -1270,209 +1408,6 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
             </div>
           </div>
         )}
-
-        {/* ───────────────────────────────────────────────────────────
-            1. CUSTOMER PORTAL OVERVIEW (route === 'customer')
-            ─────────────────────────────────────────────────────────── */}
-        {route === 'customer' && (() => {
-          const session = getSession()
-          const fullName = session?.user.fullName || 'Priya Sharma'
-          const greet = 'Hello'
-          const running = deployments.filter((d) => d.status === 'Running')
-          const burn = running.reduce((s, d) => s + (d.hourlyRate ?? 0), 0)
-          const hoursLeft = burn > 0 ? walletBalance / burn : null
-          const spend = transactions.filter((t) => !t.isCredit).reduce((s, t) => s + t.amount, 0)
-          const unread = notifications.filter((n) => !n.read)
-          const recentOrders = orders.slice(0, 4)
-          const trialActive = trialTimeLeft !== null && trialTimeLeft > 0
-          const trialLabel =
-            trialTimeLeft === null ? 'Not started' : trialTimeLeft > 0 ? `${Math.floor(trialTimeLeft / 60000)}m ${String(Math.floor((trialTimeLeft % 60000) / 1000)).padStart(2, '0')}s` : 'Expired'
-          const lowWallet = walletBalance < 2000 || (hoursLeft !== null && hoursLeft < 6)
-
-          return (
-            <>
-              {/* Greeting + primary action */}
-              <div className="dh-hero">
-                <div>
-                  <h2>{greet}, {fullName.split(' ')[0]}</h2>
-                  <p>
-                    {running.length > 0
-                      ? `${running.length} GPU${running.length > 1 ? 's' : ''} running · ${money(burn)}/hr`
-                      : 'No GPUs running right now. Deploy one to get started.'}
-                  </p>
-                </div>
-                <div className="row" style={{ gap: 8 }}>
-                  <button className="mw-secondary" onClick={() => navigate('/dashboard/playground')}>
-                    <Terminal size={15} /> Playground
-                  </button>
-                  <button className="mw-primary" onClick={() => setShowDeployModal(true)}>
-                    <Plus size={15} /> Deploy a GPU
-                  </button>
-                </div>
-              </div>
-
-              {/* New-GPU announcement: thin, dismissible strip */}
-              {!announcementDismissed && (
-                <div className="dh-strip">
-                  <Zap size={14} />
-                  <span><strong>New:</strong> NVIDIA Blackwell GB200 now available in Mumbai (Yotta NM1).</span>
-                  <button className="mw-link-btn" onClick={() => navigate('/dashboard/models')}>View specs</button>
-                  <button
-                    className="mw-icon-btn"
-                    aria-label="Dismiss announcement"
-                    onClick={() => {
-                      localStorage.setItem(STORE.announcementDismissed, 'true')
-                      setAnnouncementDismissed(true)
-                    }}
-                  >
-                    <X size={13} />
-                  </button>
-                </div>
-              )}
-
-              {/* Live stat cards */}
-              <div className="mw-stat-grid">
-                <div className={`mw-metric ${lowWallet ? 'dh-warn' : ''}`}>
-                  <div className="mw-metric-top"><span>Wallet balance</span><span className="mw-icon-box"><Wallet /></span></div>
-                  <strong>{money(walletBalance)}</strong>
-                  <small>
-                    {hoursLeft === null ? 'Nothing billing right now' : `≈ ${hoursLeft.toFixed(1)} hrs left at current usage`}
-                    {' · '}
-                    <button
-                      type="button"
-                      className="mw-link-btn"
-                      onClick={() => handleOpenTopUpModal()}
-                      style={{ color: 'var(--brand-hi)', fontWeight: 600 }}
-                    >
-                      Top up
-                    </button>
-                    {' · '}
-                    <Link to="/dashboard/wallet" style={{ color: 'var(--ink-3)' }}>
-                      History
-                    </Link>
-                  </small>
-                </div>
-                <div className="mw-metric">
-                  <div className="mw-metric-top"><span>Running GPUs</span><span className="mw-icon-box"><Server /></span></div>
-                  <strong>{running.length} <span className="dh-of">of {deployments.length}</span></strong>
-                  <small>{money(burn)}/hr current burn</small>
-                </div>
-                <div className="mw-metric">
-                  <div className="mw-metric-top"><span>Spend this month</span><span className="mw-icon-box"><CircleDollarSign /></span></div>
-                  <strong>{money(spend)}</strong>
-                  <small><Link to="/dashboard/analytics" style={{ color: 'var(--brand-hi)' }}>View usage &amp; analytics</Link></small>
-                </div>
-                <div className="mw-metric">
-                  <div className="mw-metric-top"><span>Free trial</span><span className="mw-icon-box"><Sparkles /></span></div>
-                  <strong>{trialLabel}</strong>
-                  <small>
-                    {trialTimeLeft === null ? (
-                      <button className="mw-link-btn" onClick={startTrial}>Start 1-hour free trial</button>
-                    ) : trialActive ? 'Sandbox credits active' : (
-                      <Link to="/dashboard/wallet" style={{ color: 'var(--brand-hi)' }}>Top up to continue</Link>
-                    )}
-                  </small>
-                </div>
-              </div>
-
-              {/* Get-started checklist (until the free trial has been started) */}
-              {trialTimeLeft === null && (
-                <div className="mw-panel dh-start">
-                  <div className="mw-panel-head"><h3>Get started in 3 steps</h3><span className="mw-muted">Login to experience our model for a limited time</span></div>
-                  <div className="dh-steps">
-                    <button onClick={startTrial}><span>1</span><div><strong>Start your 1-hour free trial</strong><small>No card needed</small></div></button>
-                    <button onClick={() => navigate('/dashboard/api-keys')}><span>2</span><div><strong>Create an API key</strong><small>One API, many GPU providers</small></div></button>
-                    <button onClick={() => setShowDeployModal(true)}><span>3</span><div><strong>Deploy your first GPU</strong><small>Or try the Playground</small></div></button>
-                  </div>
-                </div>
-              )}
-
-              <div className="dh-grid">
-                {/* Main: running deployments */}
-                <div className="mw-panel">
-                  <div className="mw-panel-head">
-                    <h3>Your GPUs &amp; models</h3>
-                    <Link to="/dashboard/deployments" className="mw-muted">Manage all</Link>
-                  </div>
-                  {deployments.length === 0 && <p className="mw-muted" style={{ padding: 16 }}>Nothing deployed yet — hit “Deploy a GPU”.</p>}
-                  <div className="dh-list">
-                    {deployments.map((d) => (
-                      <div className="dh-row" key={d.id}>
-                        <div className="dh-row__main">
-                          <strong>{d.name}</strong>
-                          <small>{d.model} · {d.gpu} · {d.region}</small>
-                        </div>
-                        <StatusBadge>{d.status}</StatusBadge>
-                        <span className="dh-row__rate">{money(d.hourlyRate ?? 0)}/hr</span>
-                        <div className="mw-actions">
-                          {d.status === 'Running' ? (
-                            <button onClick={() => handleToggleDeployment(d.id, 'stop')}>Stop</button>
-                          ) : (
-                            <button onClick={() => handleToggleDeployment(d.id, 'start')}>Start</button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Side: alerts + recent orders */}
-                <div className="dh-side">
-                  <div className="mw-panel">
-                    <div className="mw-panel-head">
-                      <h3>Alerts {unread.length > 0 && <span className="dh-count">{unread.length}</span>}</h3>
-                      <Link to="/dashboard/notifications" className="mw-muted">All</Link>
-                    </div>
-                    <div className="dh-list">
-                      {lowWallet && (
-                        <div className="dh-alert dh-alert--warn">
-                          <strong>Wallet running low</strong>
-                          <small>{hoursLeft === null ? money(walletBalance) : `~${hoursLeft.toFixed(1)} hrs of runtime left`}. <Link to="/dashboard/wallet">Top up</Link></small>
-                        </div>
-                      )}
-                      {unread.slice(0, 3).map((n) => (
-                        <div className="dh-alert" key={n.id}><strong>{n.title}</strong><small>{n.time}</small></div>
-                      ))}
-                      {!lowWallet && unread.length === 0 && <p className="mw-muted" style={{ padding: '4px 16px 14px' }}>You are all caught up.</p>}
-                    </div>
-                  </div>
-
-                  <div className="mw-panel">
-                    <div className="mw-panel-head"><h3>Recent orders</h3><Link to="/dashboard/orders" className="mw-muted">History</Link></div>
-                    <div className="dh-list">
-                      {recentOrders.map((o) => (
-                        <div className="dh-order" key={o.id}>
-                          <div><strong>{o.id}</strong><small>{o.modelOrGpu}</small></div>
-                          <div style={{ textAlign: 'right' }}>
-                            <span>{money(o.cost)}</span>
-                            {o.status === 'Completed' ? (
-                              <Link to="/dashboard/reviews" className="dh-rate">Rate it</Link>
-                            ) : (
-                              <small>{o.status}</small>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Quick actions */}
-              <div className="dh-tiles">
-                {[
-                  { to: '/dashboard/gpus', icon: <Cpu size={18} />, label: 'GPU Marketplace' },
-                  { to: '/dashboard/compare', icon: <Layers size={18} />, label: 'Compare GPUs' },
-                  { to: '/dashboard/api-keys', icon: <KeyRound size={18} />, label: 'API Keys' },
-                  { to: '/dashboard/rewards', icon: <Sparkles size={18} />, label: 'Rewards' },
-                ].map((t) => (
-                  <Link to={t.to} key={t.to} className="dh-tile">{t.icon}<span>{t.label}</span></Link>
-                ))}
-              </div>
-            </>
-          )
-        })()}
-
 
         {/* ───────────────────────────────────────────────────────────
             2. MODELS & SPECIFICATIONS (route === 'models')
@@ -1550,7 +1485,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                     tabIndex={0}
                   >
                     <div className="row" style={{ justifyContent: 'space-between' }}>
-                      <span className="tag" style={{ background: 'rgba(118,185,0,0.12)', color: 'var(--brand-hi)', borderColor: 'var(--brand)' }}>
+                      <span className="tag" style={{ background: 'rgba(99, 102, 241,0.12)', color: 'var(--brand-hi)', borderColor: 'var(--brand)' }}>
                         {m.family}
                       </span>
                       <small style={{ fontFamily: 'var(--font-mono)', color: 'var(--ink-4)', fontSize: '0.68rem' }}>
@@ -1680,7 +1615,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                     <span>Runtime Overhead</span>
                     <strong>{fmtGB(modelMemoryCalc.overhead)}</strong>
                   </div>
-                  <div className="mw-calc-box" style={{ borderColor: 'rgba(118,185,0,0.4)', background: 'rgba(118,185,0,0.06)' }}>
+                  <div className="mw-calc-box" style={{ borderColor: 'rgba(99, 102, 241,0.4)', background: 'rgba(99, 102, 241,0.06)' }}>
                     <span style={{ color: 'var(--brand-hi)' }}>Total VRAM Required</span>
                     <strong style={{ color: 'var(--brand-hi)' }}>{fmtGB(modelMemoryCalc.need)}</strong>
                   </div>
@@ -1696,7 +1631,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                           Recommended Fit: {modelRecommendation.pick.label}
                         </strong>
                       </div>
-                      <span className="tag" style={{ background: 'rgba(118,185,0,0.2)', color: 'var(--brand-hi)', borderColor: 'var(--brand)' }}>
+                      <span className="tag" style={{ background: 'rgba(99, 102, 241,0.2)', color: 'var(--brand-hi)', borderColor: 'var(--brand)' }}>
                         {modelRecommendation.pick.rate ? inr(modelRecommendation.pick.rate) + '/hr' : 'Market Spot'}
                       </span>
                     </div>
@@ -2033,9 +1968,9 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                               fontSize: '0.68rem',
                               padding: '2px 7px',
                               borderRadius: 4,
-                              background: k.environment === 'test' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(34, 197, 94, 0.15)',
-                              color: k.environment === 'test' ? '#60a5fa' : '#4ade80',
-                              border: k.environment === 'test' ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid rgba(34, 197, 94, 0.3)',
+                              background: k.environment === 'test' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(14, 165, 233, 0.15)',
+                              color: k.environment === 'test' ? '#60a5fa' : '#38bdf8',
+                              border: k.environment === 'test' ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid rgba(56, 189, 248, 0.3)',
                               fontWeight: 600,
                               textTransform: 'uppercase'
                             }}>
@@ -2240,7 +2175,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
         {route === 'notebooks' && <NotebooksSection deployments={deployments} flash={flash} addNotification={addNotification} />}
         {route === 'reviews' && <ReviewsSection orders={orders} flash={flash} />}
         {route === 'rewards' && (
-          <RewardsSection userName={getSession()?.user.fullName || 'Priya Sharma'} flash={flash} onGrantTrial={startTrial} />
+          <RewardsSection userName={getSession()?.user.fullName || 'Sahith'} flash={flash} onGrantTrial={startTrial} />
         )}
 
         {/* ───────────────────────────────────────────────────────────
@@ -2266,13 +2201,13 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
               </div>
               <div className="mw-metric">
                 <div className="mw-metric-top"><span>Current Month Usage</span><span className="mw-icon-box"><CircleDollarSign /></span></div>
-                <strong>₹4,820</strong>
-                <small>48% of ₹10,000 monthly limit</small>
+                <strong>{money(monthSpend)}</strong>
+                <small>{monthSpend === 0 ? 'No usage this month' : `${Math.round((monthSpend / 10000) * 100)}% of ₹10,000 monthly limit`}</small>
               </div>
               <div className="mw-metric">
                 <div className="mw-metric-top"><span>Pending Invoices</span><span className="mw-icon-box"><ArrowDownToLine /></span></div>
-                <strong>1</strong>
-                <small>Generated on 01 Oct 2026</small>
+                <strong>0</strong>
+                <small>No pending invoices</small>
               </div>
               <div className="mw-metric">
                 <div className="mw-metric-top"><span>Next Billing Cycle</span><span className="mw-icon-box"><Bell /></span></div>
@@ -2284,8 +2219,15 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
             <div className="mw-panel">
               <div className="mw-panel-head">
                 <h3>Transaction History</h3>
-                <span className="mw-muted">{transactions.length} recorded</span>
+                <span className="mw-muted">
+                  {txHistoryLoading ? 'Syncing…' : `${transactions.length} recorded`}
+                </span>
               </div>
+              {txHistoryError && !txHistoryLoading && (
+                <div role="alert" className="mw-muted" style={{ color: 'var(--warn, #e0a800)', padding: '0 0 12px' }}>
+                  {txHistoryError}{transactions.length > 0 ? ' — showing locally cached transactions.' : ''}
+                </div>
+              )}
               <div className="mw-table-wrap">
                 <table className="mw-table">
                   <thead>
@@ -2302,7 +2244,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                     {transactions.length === 0 ? (
                       <tr>
                         <td colSpan={6} style={{ textAlign: 'center', color: 'var(--ink-4)', padding: 24 }}>
-                          No transactions recorded yet.
+                          {txHistoryLoading ? 'Loading transaction history…' : 'No transactions recorded yet.'}
                         </td>
                       </tr>
                     ) : (
@@ -3891,7 +3833,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                       </button>
 
                       {checkoutReceipt && (
-                        <div style={{ marginTop: 14, padding: 12, background: 'rgba(118,185,0,0.08)', border: '1px solid var(--brand)', borderRadius: 8 }}>
+                        <div style={{ marginTop: 14, padding: 12, background: 'rgba(99, 102, 241,0.08)', border: '1px solid var(--brand)', borderRadius: 8 }}>
                           <div className="row" style={{ gap: 6, alignItems: 'center', color: 'var(--brand-hi)', marginBottom: 4 }}>
                             <Check size={16} /> <strong>Order {checkoutReceipt.orderId} Confirmed!</strong>
                           </div>
@@ -3911,92 +3853,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
           </>
         )}
 
-        {/* ───────────────────────────────────────────────────────────
-            24. WALLET & CREDITS (route === 'wallet')
-            ─────────────────────────────────────────────────────────── */}
-        {route === 'wallet' && (
-          <>
-            <div className="mw-toolbar">
-              <div>
-                <h2>Prepaid Wallet & Credit Ledger</h2>
-                <p>Manage prepaid inference credits, monitor consumption, and inspect invoices.</p>
-              </div>
-              <button className="mw-primary" onClick={() => handleOpenTopUpModal()}>
-                <Plus size={16} /> Top Up Balance (Demo)
-              </button>
-            </div>
 
-            <div className="mw-stat-grid">
-              <div className="mw-metric">
-                <div className="mw-metric-top"><span>Available Balance</span><span className="mw-icon-box"><Wallet /></span></div>
-                <strong>{money(walletBalance)}</strong>
-                <small style={{ color: 'var(--brand-hi)' }}>Prepaid balance</small>
-              </div>
-              <div className="mw-metric">
-                <div className="mw-metric-top"><span>Current Month Usage</span><span className="mw-icon-box"><CircleDollarSign /></span></div>
-                <strong>₹4,820</strong>
-                <small>48% of ₹10,000 monthly limit</small>
-              </div>
-              <div className="mw-metric">
-                <div className="mw-metric-top"><span>Pending Invoices</span><span className="mw-icon-box"><ArrowDownToLine /></span></div>
-                <strong>1</strong>
-                <small>Generated on 01 Oct 2026</small>
-              </div>
-              <div className="mw-metric">
-                <div className="mw-metric-top"><span>Next Billing Cycle</span><span className="mw-icon-box"><Bell /></span></div>
-                <strong>01 Nov 2026</strong>
-                <small>Auto-invoicing enabled</small>
-              </div>
-            </div>
-
-            <div className="mw-panel">
-              <div className="mw-panel-head">
-                <h3>Transaction History</h3>
-                <span className="mw-muted">{transactions.length} recorded</span>
-              </div>
-              <div className="mw-table-wrap">
-                <table className="mw-table">
-                  <thead>
-                    <tr>
-                      <th>Reference ID</th>
-                      <th>Description</th>
-                      <th>Date</th>
-                      <th>Amount</th>
-                      <th>Status</th>
-                      <th>Invoice</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {transactions.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} style={{ textAlign: 'center', color: 'var(--ink-4)', padding: 24 }}>
-                          No transactions recorded yet.
-                        </td>
-                      </tr>
-                    ) : (
-                      transactions.map((tx) => (
-                        <tr key={tx.id}>
-                          <td><strong>{tx.id}</strong></td>
-                          <td>{tx.desc}</td>
-                          <td>{tx.date}</td>
-                          <td style={{ color: tx.isCredit ? 'var(--brand-hi)' : 'var(--ink)' }}>
-                            {tx.isCredit ? `+${money(tx.amount)}` : `−${money(tx.amount)}`}
-                          </td>
-                          <td><StatusBadge>{tx.status}</StatusBadge></td>
-                          <td>
-                            <button className="mw-link-btn" onClick={() => setViewInvoiceItem(tx)}>
-                              View Invoice
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </>
-        )}
 
         {/* ───────────────────────────────────────────────────────────
             25. SAVED HARDWARE WISHLIST (route === 'wishlist')
@@ -4134,7 +3991,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                   <label>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span>Work Email</span>
-                      <span style={{ fontSize: '0.72rem', color: 'var(--brand-hi)', background: 'rgba(118, 185, 0, 0.1)', padding: '2px 6px', borderRadius: 4, fontWeight: 500 }}>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--brand-hi)', background: 'rgba(99, 102, 241, 0.1)', padding: '2px 6px', borderRadius: 4, fontWeight: 500 }}>
                         Managed by SSO
                       </span>
                     </div>
@@ -4501,7 +4358,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                             style={{
                               opacity: isDimmed ? 0.35 : 1,
                               transition: 'opacity 0.25s ease',
-                              background: !isDimmed && selectedGeoCountry ? 'rgba(118, 185, 0, 0.06)' : undefined,
+                              background: !isDimmed && selectedGeoCountry ? 'rgba(99, 102, 241, 0.06)' : undefined,
                             }}
                           >
                             <td><strong>{n.city}</strong></td>
@@ -4696,8 +4553,8 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
       {createdSecretData && (
         <div className="mw-modal-backdrop" onClick={() => setCreatedSecretData(null)}>
           <div className="mw-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
-            <div className="mw-modal-head" style={{ borderBottom: '1px solid rgba(34, 197, 94, 0.2)' }}>
-              <h3 style={{ color: '#4ade80', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div className="mw-modal-head" style={{ borderBottom: '1px solid rgba(14, 165, 233, 0.2)' }}>
+              <h3 style={{ color: '#38bdf8', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Check size={18} /> API Key Created Successfully
               </h3>
               <button onClick={() => setCreatedSecretData(null)} aria-label="Close"><X size={16} /></button>
@@ -4863,7 +4720,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                         }}
                       >
                         <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                          <span className="tag" style={{ background: 'rgba(118,185,0,0.12)', color: 'var(--brand-hi)', borderColor: 'var(--brand)' }}>
+                          <span className="tag" style={{ background: 'rgba(99, 102, 241,0.12)', color: 'var(--brand-hi)', borderColor: 'var(--brand)' }}>
                             {model.family}
                           </span>
                           <small style={{ fontFamily: 'var(--font-mono)', color: 'var(--ink-4)', fontSize: '0.68rem' }}>
@@ -4930,7 +4787,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                       style={{
                         position: 'absolute',
                         left: 14,
-                        color: 'var(--brand-hi, #76b900)',
+                        color: 'var(--brand-hi, #38bdf8)',
                         fontSize: '1.15rem',
                         fontWeight: 700,
                         pointerEvents: 'none',
@@ -4996,16 +4853,16 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                       justifyContent: 'space-between',
                       alignItems: 'center',
                       padding: '10px 14px',
-                      background: 'rgba(118, 185, 0, 0.08)',
+                      background: 'rgba(99, 102, 241, 0.08)',
                       borderRadius: 8,
-                      border: '1px solid rgba(118, 185, 0, 0.25)',
+                      border: '1px solid rgba(99, 102, 241, 0.25)',
                       fontSize: '0.8rem',
                     }}
                   >
                     <span style={{ color: 'var(--ink-3)' }}>
                       Current Balance: <strong>{money(walletBalance)}</strong>
                     </span>
-                    <span style={{ color: 'var(--brand-hi, #76b900)', fontWeight: 600 }}>
+                    <span style={{ color: 'var(--brand-hi, #38bdf8)', fontWeight: 600 }}>
                       New Balance: <strong>{money(walletBalance + numericTopUp)}</strong>
                     </span>
                   </div>
@@ -5186,8 +5043,8 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       padding: '12px 16px',
-                      background: 'rgba(118, 185, 0, 0.08)',
-                      border: '1px solid rgba(118, 185, 0, 0.22)',
+                      background: 'rgba(99, 102, 241, 0.08)',
+                      border: '1px solid rgba(99, 102, 241, 0.22)',
                       borderRadius: 10,
                     }}
                   >
@@ -5195,7 +5052,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                       <span style={{ fontSize: '0.72rem', color: 'var(--ink-3)', display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                         Available to Withdraw
                       </span>
-                      <strong style={{ fontSize: '1.25rem', color: 'var(--brand-hi, #76b900)' }}>
+                      <strong style={{ fontSize: '1.25rem', color: 'var(--brand-hi, #38bdf8)' }}>
                         {money(pendingPayout)}
                       </strong>
                     </div>
@@ -5323,7 +5180,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                         }}
                       >
                         <span>Net Disbursed to Bank</span>
-                        <span style={{ color: 'var(--brand-hi, #76b900)' }}>
+                        <span style={{ color: 'var(--brand-hi, #38bdf8)' }}>
                           {money(Math.round(numericPayout * 0.88))}
                         </span>
                       </div>
@@ -5523,7 +5380,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
           <div className="mw-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440 }}>
             <div className="mw-modal-head">
               <div className="row" style={{ gap: 8, alignItems: 'center' }}>
-                <span className="mw-icon-box" style={{ background: 'rgba(118, 185, 0, 0.12)', color: 'var(--brand-hi)', width: 32, height: 32 }}>
+                <span className="mw-icon-box" style={{ background: 'rgba(99, 102, 241, 0.12)', color: 'var(--brand-hi)', width: 32, height: 32 }}>
                   <Archive size={16} />
                 </span>
                 <h3 style={{ margin: 0 }}>Archive Order?</h3>
@@ -5730,8 +5587,8 @@ function ChangePasswordCard({
 
     if (s <= 1) return { score: 1, label: 'Weak', color: '#ef4444', percent: 25 }
     if (s <= 2) return { score: 2, label: 'Fair', color: '#f59e0b', percent: 50 }
-    if (s <= 3) return { score: 3, label: 'Good', color: '#84cc16', percent: 75 }
-    return { score: 4, label: 'Strong', color: '#76b900', percent: 100 }
+    if (s <= 3) return { score: 3, label: 'Good', color: '#38bdf8', percent: 75 }
+    return { score: 4, label: 'Strong', color: '#0284c7', percent: 100 }
   }, [newPassword])
 
   // Validation rules checklist
@@ -6017,7 +5874,7 @@ function validateCorsOrigins(originsStr: string): { isValid: boolean; error?: st
 
 function SettingsSection({ flash }: { flash: (msg: string) => void }) {
   const session = getSession()
-  const userEmail = (session?.user as any)?.email || 'priya.s@novatech.ai'
+  const userEmail = (session?.user as any)?.email || 'sahith@inferxe.com'
   const [budget, setBudget] = useState(() => readStore('inferxe_demo_budget', '10000'))
   const [emailAlerts, setEmailAlerts] = useState(() => readStore('inferxe_demo_email_alerts', true))
   const [weekly, setWeekly] = useState(() => readStore('inferxe_demo_weekly_report', false))

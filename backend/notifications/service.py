@@ -7,13 +7,102 @@ import os
 import json
 import uuid
 import logging
+import threading
 from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime, timezone
+from decimal import Decimal
 import psycopg2
 from psycopg2.extras import RealDictCursor
 from .db import DBConnection
 
 logger = logging.getLogger("inferxe.notifications.service")
+
+_SCHEMA_CACHE: Dict[str, Dict[str, str]] = {}
+_SCHEMA_LOCK = threading.Lock()
+
+
+def clear_schema_cache() -> None:
+    """Clear cached PostgreSQL table column metadata (useful in unit tests)."""
+    with _SCHEMA_LOCK:
+        _SCHEMA_CACHE.clear()
+
+
+def _get_table_columns(cur, table_name: str) -> Dict[str, str]:
+    """
+    Return {column_name: data_type} for public.<table_name>, cached per process.
+    Allows runtime queries to adapt cleanly between Supabase and legacy schemas.
+    """
+    with _SCHEMA_LOCK:
+        cached = _SCHEMA_CACHE.get(table_name)
+    if cached is not None:
+        return cached
+
+    try:
+        cur.execute(
+            """
+            SELECT column_name, data_type
+            FROM information_schema.columns
+            WHERE table_schema = 'public' AND table_name = %s;
+            """,
+            (table_name,),
+        )
+        rows = cur.fetchall() or []
+    except Exception:
+        return {}
+
+    cols: Dict[str, str] = {}
+    for row in rows:
+        if isinstance(row, dict):
+            col_name = row.get("column_name")
+            col_type = row.get("data_type")
+        else:
+            col_name = row[0] if len(row) > 0 else None
+            col_type = row[1] if len(row) > 1 else None
+        if col_name:
+            cols[str(col_name)] = str(col_type or "")
+
+    if cols:
+        with _SCHEMA_LOCK:
+            _SCHEMA_CACHE[table_name] = cols
+    return cols
+
+
+def _coerce_uuid_or_not_found(raw_id: str, id_data_type: Optional[str]) -> str:
+    """Validate UUID strings before querying Postgres UUID columns."""
+    cleaned = str(raw_id or "").strip()
+    if not cleaned:
+        raise KeyError("Notification not found")
+    if id_data_type == "uuid":
+        try:
+            return str(uuid.UUID(cleaned))
+        except ValueError:
+            raise KeyError("Notification not found")
+    return cleaned
+
+
+def _serialize_notification_row(row: Dict[str, Any]) -> Dict[str, Any]:
+    """Normalize Postgres notification row fields into frontend-compatible JSON primitives."""
+    item = dict(row)
+    for key, val in list(item.items()):
+        if isinstance(val, uuid.UUID):
+            item[key] = str(val)
+        elif isinstance(val, datetime):
+            item[key] = val.isoformat()
+
+    if item.get("message") is None:
+        item["message"] = item.get("detail") or ""
+
+    if isinstance(item.get("metadata"), str):
+        try:
+            item["metadata"] = json.loads(item["metadata"])
+        except Exception:
+            item["metadata"] = {}
+    elif item.get("metadata") is None:
+        item["metadata"] = {}
+
+    item["is_read"] = bool(item.get("is_read", False))
+    return item
+
 
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -65,16 +154,8 @@ class NotificationService:
             cur.execute(query, tuple(params))
             rows = cur.fetchall()
 
-            # Parse JSON metadata if present
-            items = []
-            for r in rows:
-                item = dict(r)
-                if isinstance(item.get("metadata"), str):
-                    try:
-                        item["metadata"] = json.loads(item["metadata"])
-                    except Exception:
-                        item["metadata"] = {}
-                items.append(item)
+            # Parse JSON metadata and normalize detail/message + UUID/timestamptz types
+            items = [_serialize_notification_row(r) for r in rows]
 
             return {
                 "total": total,
@@ -90,24 +171,31 @@ class NotificationService:
         """
         with DBConnection(autocommit=True) as conn:
             cur = conn.cursor(cursor_factory=RealDictCursor)
+            cols = _get_table_columns(cur, "notifications")
+            normalized_id = _coerce_uuid_or_not_found(notification_id, cols.get("id"))
 
             # Check existence and ownership
-            cur.execute("SELECT user_id, is_read FROM notifications WHERE id = %s;", (notification_id,))
+            cur.execute("SELECT user_id, is_read FROM notifications WHERE id = %s;", (normalized_id,))
             row = cur.fetchone()
             if not row:
                 raise KeyError("Notification not found")
 
             if row["user_id"] != user_id:
-                logger.warning(f"Cross-user mark-read blocked: User {user_id} tried to read notification {notification_id} of user {row['user_id']}")
+                logger.warning(f"Cross-user mark-read blocked: User {user_id} tried to read notification {normalized_id} of user {row['user_id']}")
                 raise PermissionError("Access forbidden: Cannot modify notifications of another user")
 
             read_time = now_iso()
             cur.execute(
                 "UPDATE notifications SET is_read = TRUE, read_at = %s WHERE id = %s RETURNING id, is_read, read_at;",
-                (read_time, notification_id)
+                (read_time, normalized_id)
             )
             updated = cur.fetchone()
-            return dict(updated)
+            result = dict(updated)
+            if isinstance(result.get("id"), uuid.UUID):
+                result["id"] = str(result["id"])
+            if isinstance(result.get("read_at"), datetime):
+                result["read_at"] = result["read_at"].isoformat()
+            return result
 
     @staticmethod
     def mark_all_as_read(user_id: str) -> int:
@@ -126,17 +214,19 @@ class NotificationService:
         """Deletes a notification, ensuring it belongs to the authenticated user."""
         with DBConnection(autocommit=True) as conn:
             cur = conn.cursor(cursor_factory=RealDictCursor)
+            cols = _get_table_columns(cur, "notifications")
+            normalized_id = _coerce_uuid_or_not_found(notification_id, cols.get("id"))
 
-            cur.execute("SELECT user_id FROM notifications WHERE id = %s;", (notification_id,))
+            cur.execute("SELECT user_id FROM notifications WHERE id = %s;", (normalized_id,))
             row = cur.fetchone()
             if not row:
                 raise KeyError("Notification not found")
 
             if row["user_id"] != user_id:
-                logger.warning(f"Cross-user delete blocked: User {user_id} tried to delete notification {notification_id} of user {row['user_id']}")
+                logger.warning(f"Cross-user delete blocked: User {user_id} tried to delete notification {normalized_id} of user {row['user_id']}")
                 raise PermissionError("Access forbidden: Cannot delete notifications of another user")
 
-            cur.execute("DELETE FROM notifications WHERE id = %s;", (notification_id,))
+            cur.execute("DELETE FROM notifications WHERE id = %s;", (normalized_id,))
             return True
 
     # ── Notification Outbox & Event Generation ──
@@ -151,20 +241,84 @@ class NotificationService:
         metadata: Optional[Dict[str, Any]] = None,
         related_entity_id: Optional[str] = None
     ) -> str:
-        """Inserts a notification record using an active cursor."""
-        notif_id = f"notif_{uuid.uuid4().hex[:12]}"
+        """Inserts a notification record using an active cursor across Supabase or legacy schemas."""
+        cols = _get_table_columns(cur, "notifications")
+        id_is_uuid = cols.get("id") == "uuid"
+        notif_id = str(uuid.uuid4()) if id_is_uuid else f"notif_{uuid.uuid4().hex[:12]}"
         meta_json = json.dumps(metadata or {})
         created_time = now_iso()
 
-        cur.execute(
-            """
-            INSERT INTO notifications (id, user_id, title, message, notification_type, is_read, metadata, related_entity_id, created_at)
-            VALUES (%s, %s, %s, %s, %s, FALSE, %s, %s, %s)
-            RETURNING id;
-            """,
-            (notif_id, user_id, title, message, notification_type, meta_json, related_entity_id, created_time)
+        # Adapt text column (`detail` in Supabase vs `message` in legacy schema)
+        text_cols: List[str] = []
+        if "message" in cols or not cols:
+            text_cols.append("message")
+        if "detail" in cols:
+            text_cols.append("detail")
+
+        insert_cols = ["id", "user_id", "title", *text_cols, "notification_type", "is_read"]
+        insert_vals: List[Any] = [notif_id, user_id, title, *([message] * len(text_cols)), notification_type]
+
+        optional_vals = [
+            ("metadata", meta_json),
+            ("related_entity_id", related_entity_id),
+            ("created_at", created_time),
+        ]
+        for col_name, col_val in optional_vals:
+            if not cols or col_name in cols:
+                insert_cols.append(col_name)
+                insert_vals.append(col_val)
+
+        placeholders = []
+        for c in insert_cols:
+            if c == "is_read":
+                placeholders.append("FALSE")
+            else:
+                placeholders.append("%s")
+
+        sql = (
+            f"INSERT INTO notifications ({', '.join(insert_cols)}) "
+            f"VALUES ({', '.join(placeholders)}) RETURNING id;"
         )
+        cur.execute(sql, tuple(insert_vals))
         return notif_id
+
+    @classmethod
+    def _create_notification_in_broadcast(
+        cls,
+        cur,
+        user_id: str,
+        title: str,
+        message: str,
+        notification_type: str,
+        metadata: Optional[Dict[str, Any]] = None,
+        related_entity_id: Optional[str] = None,
+    ) -> Optional[str]:
+        """Insert broadcast notification safely using a SAVEPOINT so stale user IDs do not abort batch transactions."""
+        sp_name = f"sp_notif_{uuid.uuid4().hex[:8]}"
+        in_tx = not getattr(cur.connection, "autocommit", True)
+        if in_tx:
+            cur.execute(f"SAVEPOINT {sp_name};")
+        try:
+            nid = cls._create_notification_internal(
+                cur,
+                user_id=user_id,
+                title=title,
+                message=message,
+                notification_type=notification_type,
+                metadata=metadata,
+                related_entity_id=related_entity_id,
+            )
+            if in_tx:
+                cur.execute(f"RELEASE SAVEPOINT {sp_name};")
+            return nid
+        except Exception as exc:
+            if in_tx:
+                cur.execute(f"ROLLBACK TO SAVEPOINT {sp_name};")
+            pgcode = getattr(exc, "pgcode", None)
+            if pgcode == "23503":
+                logger.debug("Skipped broadcast notification for user '%s' (no matching profile row).", user_id)
+                return None
+            raise
 
     @classmethod
     def record_outbox_event(
@@ -172,38 +326,60 @@ class NotificationService:
         event_type: str,
         payload: Dict[str, Any],
         idempotency_key: Optional[str] = None,
-        user_id: Optional[str] = None
+        user_id: Optional[str] = None,
+        cur=None,
     ) -> Tuple[str, bool]:
         """
         Records an event into notification_outbox with idempotency check.
         Returns (event_id, is_duplicate).
+
+        If `cur` is provided, uses that cursor within the caller's transaction
+        (no separate connection opened). Otherwise opens its own autocommit
+        connection for backward compatibility with non-wallet callers.
         """
         evt_id = f"evt_{uuid.uuid4().hex[:12]}"
         created_time = now_iso()
         payload_str = json.dumps(payload)
 
-        with DBConnection(autocommit=True) as conn:
-            cur = conn.cursor(cursor_factory=RealDictCursor)
-
+        def _record_with_cursor(c):
             if idempotency_key:
-                cur.execute(
+                c.execute(
                     "SELECT id, status FROM notification_outbox WHERE idempotency_key = %s;",
                     (idempotency_key,)
                 )
-                existing = cur.fetchone()
+                existing = c.fetchone()
                 if existing:
                     logger.info(f"Duplicate outbox event skipped for idempotency key '{idempotency_key}'")
                     return existing["id"], True
 
-            cur.execute(
-                """
-                INSERT INTO notification_outbox (id, event_type, user_id, payload, idempotency_key, status, retry_count, created_at)
-                VALUES (%s, %s, %s, %s, %s, 'PROCESSED', 0, %s)
-                RETURNING id;
-                """,
-                (evt_id, event_type, user_id, payload_str, idempotency_key, created_time)
-            )
+            try:
+                c.execute(
+                    """
+                    INSERT INTO notification_outbox (id, event_type, user_id, payload, idempotency_key, status, retry_count, created_at)
+                    VALUES (%s, %s, %s, %s, %s, 'PROCESSED', 0, %s)
+                    RETURNING id;
+                    """,
+                    (evt_id, event_type, user_id, payload_str, idempotency_key, created_time)
+                )
+            except psycopg2.IntegrityError:
+                # Concurrent duplicate: another transaction inserted same idempotency_key
+                c.execute(
+                    "SELECT id, status FROM notification_outbox WHERE idempotency_key = %s;",
+                    (idempotency_key,)
+                )
+                existing = c.fetchone()
+                if existing:
+                    return existing["id"], True
+                raise
+
             return evt_id, False
+
+        if cur is not None:
+            return _record_with_cursor(cur)
+
+        with DBConnection(autocommit=True) as conn:
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+            return _record_with_cursor(cur)
 
     # ── Notification Scenarios ──
 
@@ -287,7 +463,7 @@ class NotificationService:
 
             cust_created = 0
             for cid in customers:
-                cls._create_notification_internal(
+                if cls._create_notification_in_broadcast(
                     cur,
                     user_id=cid,
                     title=title,
@@ -295,8 +471,8 @@ class NotificationService:
                     notification_type=event_type,
                     metadata=meta,
                     related_entity_id=gpu_id
-                )
-                cust_created += 1
+                ):
+                    cust_created += 1
 
             # Find active admins for audit trail
             cur.execute("SELECT id FROM users WHERE role = 'admin' AND status = 'active';")
@@ -312,7 +488,7 @@ class NotificationService:
             )
             admin_created = 0
             for aid in admins:
-                cls._create_notification_internal(
+                if cls._create_notification_in_broadcast(
                     cur,
                     user_id=aid,
                     title="GPU Price Audit Alert",
@@ -320,8 +496,8 @@ class NotificationService:
                     notification_type="GPU_PRICE_AUDIT",
                     metadata=meta,
                     related_entity_id=gpu_id
-                )
-                admin_created += 1
+                ):
+                    admin_created += 1
 
             conn.commit()
 
@@ -347,22 +523,28 @@ class NotificationService:
         - Updates wallet balance atomically.
         - Creates wallet transaction record.
         - Creates WALLET_RECHARGE notification with updated balance.
+        All operations run in a single database transaction; if any step
+        fails, the entire transaction (including the outbox event) rolls back.
         """
         if amount <= 0:
             raise ValueError("Recharge amount must be greater than zero")
 
         idem_key = idempotency_key or f"wallet_recharge_{user_id}_{int(amount)}_{int(datetime.now().timestamp())}"
-        evt_id, is_duplicate = cls.record_outbox_event(
-            event_type="WALLET_RECHARGE",
-            payload={"user_id": user_id, "amount": amount},
-            idempotency_key=idem_key,
-            user_id=user_id
-        )
-        if is_duplicate:
-            return {"status": "skipped", "message": "Duplicate wallet recharge event ignored."}
 
         with DBConnection(autocommit=False) as conn:
             cur = conn.cursor(cursor_factory=RealDictCursor)
+
+            # Outbox idempotency check + insert in SAME transaction as wallet update
+            evt_id, is_duplicate = cls.record_outbox_event(
+                event_type="WALLET_RECHARGE",
+                payload={"user_id": user_id, "amount": amount},
+                idempotency_key=idem_key,
+                user_id=user_id,
+                cur=cur,
+            )
+            if is_duplicate:
+                conn.rollback()
+                return {"status": "skipped", "message": "Duplicate wallet recharge event ignored."}
 
             cur.execute("SELECT balance, low_balance_alert_level FROM wallets WHERE user_id = %s FOR UPDATE;", (user_id,))
             wallet = cur.fetchone()
@@ -390,14 +572,25 @@ class NotificationService:
                     (new_balance, new_alert_level, now_iso(), user_id)
                 )
 
-            tx_id = f"tx_{uuid.uuid4().hex[:10]}"
-            cur.execute(
-                """
-                INSERT INTO wallet_transactions (id, user_id, amount, balance_after, currency, status, idempotency_key, description, created_at, updated_at)
-                VALUES (%s, %s, %s, %s, 'INR', 'completed', %s, %s, %s, %s);
-                """,
-                (tx_id, user_id, amount, new_balance, idem_key, "Wallet recharge top-up", now_iso(), now_iso())
-            )
+            tx_cols = _get_table_columns(cur, "wallet_transactions")
+            tx_id = str(uuid.uuid4()) if tx_cols.get("id") == "uuid" else f"tx_{uuid.uuid4().hex[:10]}"
+            tx_now = now_iso()
+            if "direction" in tx_cols and "transaction_type" in tx_cols:
+                cur.execute(
+                    """
+                    INSERT INTO wallet_transactions (id, user_id, transaction_type, direction, amount, balance_after, currency, status, idempotency_key, description, created_at, updated_at, source)
+                    VALUES (%s, %s, 'top_up', 'credit', %s, %s, 'INR', 'completed', %s, %s, %s, %s, 'customer');
+                    """,
+                    (tx_id, user_id, float(amount), new_balance, idem_key, "Wallet recharge top-up", tx_now, tx_now)
+                )
+            else:
+                cur.execute(
+                    """
+                    INSERT INTO wallet_transactions (id, user_id, amount, balance_after, currency, status, idempotency_key, description, created_at, updated_at, source)
+                    VALUES (%s, %s, %s, %s, 'INR', 'completed', %s, %s, %s, %s, 'customer');
+                    """,
+                    (tx_id, user_id, amount, new_balance, idem_key, "Wallet recharge top-up", tx_now, tx_now)
+                )
 
             title = "Wallet Recharge Successful"
             message = f"₹{amount:,.0f} has been successfully added to your wallet. Updated balance: ₹{new_balance:,.0f}."
@@ -435,26 +628,33 @@ class NotificationService:
         - Sends WALLET_DEBIT notification.
         - Evaluates Warning (<= 100) and Critical (<= 25) thresholds with state machine:
           only alerts when entering a new alert tier!
+        All operations run in a single database transaction; if any step
+        fails, the entire transaction (including the outbox event) rolls back.
         """
         if amount <= 0:
             raise ValueError("Debit amount must be greater than zero")
 
         idem_key = idempotency_key or f"wallet_debit_{user_id}_{int(amount)}_{int(datetime.now().timestamp())}"
-        evt_id, is_duplicate = cls.record_outbox_event(
-            event_type="WALLET_DEBIT",
-            payload={"user_id": user_id, "amount": amount, "description": description},
-            idempotency_key=idem_key,
-            user_id=user_id
-        )
-        if is_duplicate:
-            return {"status": "skipped", "message": "Duplicate wallet debit event ignored."}
 
         with DBConnection(autocommit=False) as conn:
             cur = conn.cursor(cursor_factory=RealDictCursor)
 
+            # Outbox idempotency check + insert in SAME transaction as wallet update
+            evt_id, is_duplicate = cls.record_outbox_event(
+                event_type="WALLET_DEBIT",
+                payload={"user_id": user_id, "amount": amount, "description": description},
+                idempotency_key=idem_key,
+                user_id=user_id,
+                cur=cur,
+            )
+            if is_duplicate:
+                conn.rollback()
+                return {"status": "skipped", "message": "Duplicate wallet debit event ignored."}
+
             cur.execute("SELECT balance, low_balance_alert_level FROM wallets WHERE user_id = %s FOR UPDATE;", (user_id,))
             wallet = cur.fetchone()
             if not wallet or float(wallet["balance"]) < amount:
+                conn.rollback()
                 raise ValueError("Insufficient wallet balance for this transaction")
 
             curr_balance = float(wallet["balance"])
@@ -491,14 +691,25 @@ class NotificationService:
                 (new_balance, new_alert_level, now_iso(), user_id)
             )
 
-            tx_id = f"tx_{uuid.uuid4().hex[:10]}"
-            cur.execute(
-                """
-                INSERT INTO wallet_transactions (id, user_id, amount, balance_after, currency, status, idempotency_key, description, created_at, updated_at)
-                VALUES (%s, %s, %s, %s, 'INR', 'completed', %s, %s, %s, %s);
-                """,
-                (tx_id, user_id, -amount, new_balance, idem_key, description, now_iso(), now_iso())
-            )
+            tx_cols = _get_table_columns(cur, "wallet_transactions")
+            tx_id = str(uuid.uuid4()) if tx_cols.get("id") == "uuid" else f"tx_{uuid.uuid4().hex[:10]}"
+            tx_now = now_iso()
+            if "direction" in tx_cols and "transaction_type" in tx_cols:
+                cur.execute(
+                    """
+                    INSERT INTO wallet_transactions (id, user_id, transaction_type, direction, amount, balance_after, currency, status, idempotency_key, description, created_at, updated_at, source)
+                    VALUES (%s, %s, 'usage_charge', 'debit', %s, %s, 'INR', 'completed', %s, %s, %s, %s, 'customer');
+                    """,
+                    (tx_id, user_id, abs(float(amount)), new_balance, idem_key, description, tx_now, tx_now)
+                )
+            else:
+                cur.execute(
+                    """
+                    INSERT INTO wallet_transactions (id, user_id, amount, balance_after, currency, status, idempotency_key, description, created_at, updated_at, source)
+                    VALUES (%s, %s, %s, %s, 'INR', 'completed', %s, %s, %s, %s, 'customer');
+                    """,
+                    (tx_id, user_id, -abs(float(amount)), new_balance, idem_key, description, tx_now, tx_now)
+                )
 
             # Standard Debit notification
             cls._create_notification_internal(
@@ -531,6 +742,268 @@ class NotificationService:
                 "amount": amount,
                 "remaining_balance": new_balance,
                 "low_balance_alert": threshold_alert_needed,
+            }
+
+    @classmethod
+    def process_wallet_refund(
+        cls,
+        user_id: str,
+        original_transaction_id: str,
+        amount: Decimal,
+        idempotency_key: Optional[str] = None,
+        description: Optional[str] = "Wallet refund",
+    ) -> Dict[str, Any]:
+        """
+        Scenario E: Customer refunds a prior wallet debit.
+        - Derives user_id strictly from authenticated Cognito JWT (never from request).
+        - Locks wallets row FIRST, then original wallet_transactions row (consistent deadlock-free order).
+        - Verifies original transaction belongs to the same user.
+        - Verifies original transaction is usage_charge/debit (eligible for refund).
+        - Verifies refund does not exceed remaining refundable amount (amount - refunded_amount).
+        - Updates wallet balance, increments refunded_amount on original tx, inserts refund transaction.
+        - All operations atomic in a single autocommit=False transaction.
+        """
+        if amount <= 0:
+            raise ValueError("Refund amount must be greater than zero")
+
+        # Quantize to 2 decimal places to match NUMERIC(14,2)
+        amount = amount.quantize(Decimal("0.01"))
+
+        idem_key = idempotency_key or f"wallet_refund_{user_id}_{original_transaction_id}_{int(datetime.now().timestamp())}"
+
+        with DBConnection(autocommit=False) as conn:
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+
+            # Outbox idempotency check + insert in SAME transaction as wallet update
+            evt_id, is_duplicate = cls.record_outbox_event(
+                event_type="WALLET_REFUND",
+                payload={
+                    "user_id": user_id,
+                    "original_transaction_id": original_transaction_id,
+                    "amount": str(amount),
+                },
+                idempotency_key=idem_key,
+                user_id=user_id,
+                cur=cur,
+            )
+            if is_duplicate:
+                conn.rollback()
+                return {"status": "skipped", "message": "Duplicate wallet refund event ignored."}
+
+            # Lock wallet row FIRST (consistent with recharge/debit lock order)
+            cur.execute("SELECT balance, currency FROM wallets WHERE user_id = %s FOR UPDATE;", (user_id,))
+            wallet = cur.fetchone()
+            if not wallet:
+                conn.rollback()
+                raise ValueError("Wallet not found for user")
+
+            wallet_currency = str(wallet["currency"])
+
+            # Lock original transaction row SECOND (same order as recharge/debit: wallets first, then tx)
+            cur.execute(
+                """
+                SELECT id, user_id, amount, currency, transaction_type, direction, refunded_amount
+                FROM wallet_transactions
+                WHERE id = %s AND user_id = %s
+                FOR UPDATE;
+                """,
+                (original_transaction_id, user_id),
+            )
+            original_tx = cur.fetchone()
+            if not original_tx:
+                conn.rollback()
+                raise ValueError("Original transaction not found or does not belong to this user")
+
+            # Verify original transaction is a debit eligible for refund
+            if str(original_tx["transaction_type"]) != "usage_charge" or str(original_tx["direction"]) != "debit":
+                conn.rollback()
+                raise ValueError("Only usage_charge (debit) transactions are eligible for refund")
+
+            # Verify currency match
+            if str(original_tx["currency"]) != wallet_currency:
+                conn.rollback()
+                raise ValueError("Currency mismatch between wallet and original transaction")
+
+            # Verify refundable amount: original_amount - refunded_amount >= refund_amount
+            original_amount = Decimal(str(original_tx["amount"]))
+            already_refunded = Decimal(str(original_tx.get("refunded_amount") or 0))
+            remaining_refundable = original_amount - already_refunded
+            if amount > remaining_refundable:
+                conn.rollback()
+                raise ValueError(
+                    f"Refund amount {amount} exceeds remaining refundable amount {remaining_refundable}"
+                )
+
+            # Update wallet balance
+            wallet_balance = Decimal(str(wallet["balance"]))
+            new_balance = wallet_balance + amount
+            cur.execute(
+                """
+                UPDATE wallets
+                SET balance = %s, updated_at = %s
+                WHERE user_id = %s;
+                """,
+                (new_balance, now_iso(), user_id)
+            )
+
+            # Increment refunded_amount on original transaction
+            new_refunded_amount = already_refunded + amount
+            cur.execute(
+                """
+                UPDATE wallet_transactions
+                SET refunded_amount = %s, updated_at = %s
+                WHERE id = %s;
+                """,
+                (new_refunded_amount, now_iso(), original_transaction_id)
+            )
+
+            # Insert refund transaction
+            tx_cols = _get_table_columns(cur, "wallet_transactions")
+            tx_id = str(uuid.uuid4()) if tx_cols.get("id") == "uuid" else f"tx_{uuid.uuid4().hex[:10]}"
+            tx_now = now_iso()
+            if "direction" in tx_cols and "transaction_type" in tx_cols:
+                cur.execute(
+                    """
+                    INSERT INTO wallet_transactions (id, user_id, transaction_type, direction, amount, balance_after, currency, status, idempotency_key, description, created_at, updated_at, source, parent_transaction_id)
+                    VALUES (%s, %s, 'refund', 'credit', %s, %s, %s, 'completed', %s, %s, %s, %s, 'customer', %s);
+                    """,
+                    (
+                        tx_id,
+                        user_id,
+                        amount,
+                        new_balance,
+                        wallet_currency,
+                        idem_key,
+                        description,
+                        tx_now,
+                        tx_now,
+                        original_transaction_id,
+                    )
+                )
+            else:
+                cur.execute(
+                    """
+                    INSERT INTO wallet_transactions (id, user_id, amount, balance_after, currency, status, idempotency_key, description, created_at, updated_at, source, parent_transaction_id)
+                    VALUES (%s, %s, %s, %s, %s, 'completed', %s, %s, %s, %s, 'customer', %s);
+                    """,
+                    (
+                        tx_id,
+                        user_id,
+                        amount,
+                        new_balance,
+                        wallet_currency,
+                        idem_key,
+                        description,
+                        tx_now,
+                        tx_now,
+                        original_transaction_id,
+                    )
+                )
+
+            # Create WALLET_REFUND notification
+            cls._create_notification_internal(
+                cur,
+                user_id=user_id,
+                title="Wallet Refund Successful",
+                message=f"₹{amount} has been refunded to your wallet. Updated balance: ₹{new_balance}.",
+                notification_type="WALLET_REFUND",
+                metadata={
+                    "amount": str(amount),
+                    "balance": str(new_balance),
+                    "transaction_id": tx_id,
+                    "original_transaction_id": original_transaction_id,
+                },
+                related_entity_id=tx_id,
+            )
+
+            conn.commit()
+
+            return {
+                "status": "success",
+                "transaction_id": tx_id,
+                "amount": float(amount),
+                "new_balance": float(new_balance),
+                "original_transaction_id": original_transaction_id,
+            }
+
+    @staticmethod
+    def get_wallet_balance(user_id: str) -> Dict[str, Any]:
+        """Returns the wallet balance for the authenticated user. Zero if no wallet record exists."""
+        with DBConnection(autocommit=True) as conn:
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+            cur.execute(
+                "SELECT balance, currency, low_balance_alert_level, updated_at FROM wallets WHERE user_id = %s;",
+                (user_id,),
+            )
+            row = cur.fetchone()
+            if not row:
+                return {
+                    "user_id": user_id,
+                    "balance": 0.0,
+                    "currency": "INR",
+                    "low_balance_alert_level": "NORMAL",
+                    "updated_at": None,
+                }
+            return {
+                "user_id": user_id,
+                "balance": float(row["balance"]),
+                "currency": row["currency"],
+                "low_balance_alert_level": row["low_balance_alert_level"],
+                "updated_at": row["updated_at"],
+            }
+
+    @staticmethod
+    def fetch_wallet_transaction_history(
+        user_id: str,
+        limit: int = 50,
+        offset: int = 0,
+    ) -> Dict[str, Any]:
+        """
+        Returns wallet transaction history for the authenticated user.
+        Enforces customer tenant isolation: only returns rows where user_id matches.
+        Sorted newest-first (created_at DESC).
+        Supports pagination via limit/offset.
+        """
+        limit = max(1, min(limit, 200))
+        offset = max(0, offset)
+
+        with DBConnection(autocommit=True) as conn:
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+
+            cur.execute(
+                """
+                SELECT id, user_id, amount, balance_after, currency, status,
+                       idempotency_key, description, created_at, updated_at,
+                       transaction_type, direction
+                FROM wallet_transactions
+                WHERE user_id = %s
+                ORDER BY created_at DESC
+                LIMIT %s OFFSET %s;
+                """,
+                (user_id, limit, offset),
+            )
+            rows = cur.fetchall() or []
+
+            transactions = []
+            for row in rows:
+                transactions.append({
+                    "id": row["id"],
+                    "type": row["transaction_type"],
+                    "direction": row["direction"],
+                    "amount": float(row["amount"]) if row["amount"] is not None else 0.0,
+                    "currency": row["currency"],
+                    "status": row["status"],
+                    "description": row["description"] or "",
+                    "balance_after": float(row["balance_after"]) if row["balance_after"] is not None else None,
+                    "created_at": row["created_at"],
+                })
+
+            return {
+                "user_id": user_id,
+                "transactions": transactions,
+                "count": len(transactions),
+                "limit": limit,
+                "offset": offset,
             }
 
     @classmethod
@@ -681,8 +1154,9 @@ class NotificationService:
             cur.execute("SELECT id FROM users WHERE role = 'customer' AND status = 'active';")
             customers = [r["id"] for r in cur.fetchall()] or ["usr_demo_customer"]
 
+            notified_count = 0
             for cid in customers:
-                cls._create_notification_internal(
+                if cls._create_notification_in_broadcast(
                     cur,
                     user_id=cid,
                     title=title,
@@ -690,14 +1164,15 @@ class NotificationService:
                     notification_type="MAINTENANCE",
                     metadata={"gpu_model": gpu_model, "region": region, "start": start_time, "end": end_time, "reason": reason},
                     related_entity_id=maint_id
-                )
+                ):
+                    notified_count += 1
 
             conn.commit()
 
             return {
                 "status": "success",
                 "maintenance_id": maint_id,
-                "notified_count": len(customers),
+                "notified_count": notified_count,
             }
 
     @classmethod
@@ -728,22 +1203,24 @@ class NotificationService:
             cur.execute("SELECT id FROM users WHERE status = 'active';")
             recipients = [r["id"] for r in cur.fetchall()] or ["usr_demo_customer", "usr_demo_admin"]
 
+            recipients_count = 0
             for uid in recipients:
-                cls._create_notification_internal(
+                if cls._create_notification_in_broadcast(
                     cur,
                     user_id=uid,
                     title=title,
                     message=message,
                     notification_type="SYSTEM_ANNOUNCEMENT",
                     metadata={"admin_user_id": admin_user_id, "target_group": target_group}
-                )
+                ):
+                    recipients_count += 1
 
             conn.commit()
 
             return {
                 "status": "success",
                 "event_id": evt_id,
-                "recipients_count": len(recipients),
+                "recipients_count": recipients_count,
             }
 
     @classmethod
@@ -1022,8 +1499,8 @@ class NotificationService:
             """)
             cur.execute("SELECT * FROM workspace_settings WHERE user_id = %s;", (user_id,))
             row = cur.fetchone()
+            now = datetime.now(timezone.utc).isoformat()
             if not row:
-                now = datetime.now(timezone.utc).isoformat()
                 cur.execute("""
                     INSERT INTO workspace_settings (user_id, monthly_budget, spending_alerts_enabled, weekly_report_enabled, cors_origins, updated_at)
                     VALUES (%s, 10000.0, TRUE, FALSE, %s, %s)
@@ -1035,16 +1512,26 @@ class NotificationService:
                     "spending_alerts_enabled": True,
                     "weekly_report_enabled": False,
                     "cors_origins": "https://app.novatech.ai, http://localhost:3000",
-                    "current_month_spend": 4820.0,
+                    "current_month_spend": 0.0,
                     "updated_at": now,
                 }
+            # Compute current_month_spend from actual wallet transactions (debits only, current month)
+            cur.execute("""
+                SELECT COALESCE(SUM(amount), 0) AS total_spent
+                FROM wallet_transactions
+                WHERE user_id = %s
+                  AND direction = 'debit'
+                  AND created_at >= %s;
+            """, (user_id, now[:7] + '-01T00:00:00+00:00'))
+            month_row = cur.fetchone()
+            current_month_spend = float(month_row["total_spent"]) if month_row else 0.0
             return {
                 "user_id": row["user_id"],
                 "monthly_budget": float(row["monthly_budget"]),
                 "spending_alerts_enabled": bool(row["spending_alerts_enabled"]),
                 "weekly_report_enabled": bool(row["weekly_report_enabled"]),
                 "cors_origins": str(row["cors_origins"]),
-                "current_month_spend": 4820.0,
+                "current_month_spend": current_month_spend,
                 "updated_at": str(row["updated_at"]),
             }
 
@@ -1085,6 +1572,17 @@ class NotificationService:
                     updated_at = EXCLUDED.updated_at;
             """, (user_id, monthly_budget, spending_alerts_enabled, weekly_report_enabled, cors_origins, now))
 
+            # Compute current_month_spend from actual wallet transactions
+            cur.execute("""
+                SELECT COALESCE(SUM(amount), 0) AS total_spent
+                FROM wallet_transactions
+                WHERE user_id = %s
+                  AND direction = 'debit'
+                  AND created_at >= %s;
+            """, (user_id, now[:7] + '-01T00:00:00+00:00'))
+            month_row = cur.fetchone()
+            current_month_spend = float(month_row["total_spent"]) if month_row else 0.0
+
             return {
                 "status": "success",
                 "user_id": user_id,
@@ -1092,7 +1590,7 @@ class NotificationService:
                 "spending_alerts_enabled": spending_alerts_enabled,
                 "weekly_report_enabled": weekly_report_enabled,
                 "cors_origins": cors_origins,
-                "current_month_spend": 4820.0,
+                "current_month_spend": current_month_spend,
                 "updated_at": now,
             }
 

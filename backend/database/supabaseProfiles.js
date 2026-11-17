@@ -21,16 +21,21 @@ export async function upsertCognitoProfile(
   claims,
   {
     supabaseUrl = process.env.SUPABASE_URL,
+    secretKey = process.env.SUPABASE_SECRET_KEY,
     serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY,
     fetchImpl = globalThis.fetch,
   } = {},
 ) {
-  if (!supabaseUrl || !serviceRoleKey) {
-    throw new Error('Supabase profile synchronization is not configured.')
+  const trimmedSecretKey = String(secretKey || '').trim()
+  const trimmedServiceRoleKey = String(serviceRoleKey || '').trim()
+  const apiKey = trimmedSecretKey || trimmedServiceRoleKey
+  if (!supabaseUrl || !apiKey) {
+    throw new Error(
+      'Supabase profile synchronization requires SUPABASE_URL and SUPABASE_SECRET_KEY or SUPABASE_SERVICE_ROLE_KEY.',
+    )
   }
 
-  const trimmedKey = String(serviceRoleKey).trim()
-  if (trimmedKey.startsWith('sbp_') || trimmedKey.startsWith('sb_publishable_')) {
+  if (apiKey.startsWith('sbp_') || apiKey.startsWith('sb_publishable_')) {
     throw new Error('SUPABASE_SERVICE_ROLE_KEY must be the server-side Supabase secret/service role key.')
   }
 
@@ -40,12 +45,12 @@ export async function upsertCognitoProfile(
   }
 
   const headers = {
-    apikey: trimmedKey,
+    apikey: apiKey,
     'Content-Type': 'application/json',
     Prefer: 'resolution=merge-duplicates,return=minimal',
   }
-  if (!trimmedKey.startsWith('sb_secret_')) {
-    headers.Authorization = `Bearer ${trimmedKey}`
+  if (!apiKey.startsWith('sb_secret_')) {
+    headers.Authorization = `Bearer ${apiKey}`
   }
 
   const endpoint = new URL('/rest/v1/profiles?on_conflict=user_id', baseUrl)

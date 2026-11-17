@@ -17,10 +17,14 @@ import {
   checkDomainGatekeeper,
   OUT_OF_SCOPE_REFUSAL,
 } from '../../lib/llmService'
+import { fetchWalletBalance } from '../../lib/walletService'
 
 function readWallet(): number {
   try {
-    const raw = localStorage.getItem('inferxe_demo_wallet_balance_v1')
+    const session = getSession()
+    const sub = session?.user?.id || ''
+    const key = sub ? `inferxe_demo_wallet_balance_v1_${sub}` : 'inferxe_demo_wallet_balance_v1'
+    const raw = localStorage.getItem(key)
     return raw ? Number(JSON.parse(raw)) : 10000
   } catch {
     return 10000
@@ -38,8 +42,13 @@ function readBurnPerHour(): number {
   }
 }
 
+// Latest balance fetched from the wallet backend (source of truth). Kept at module
+// scope so the module-level reply builders (getBotReply → walletSummary) can read it.
+// Updated by GlobalBotCompanion's syncBotWalletBalance; null until synced / when signed out.
+let latestBackendWalletBalance: number | null = null
+
 function walletSummary(): string {
-  const balance = readWallet()
+  const balance = latestBackendWalletBalance ?? readWallet()
   const burn = readBurnPerHour()
   const hrs = burn > 0 ? balance / burn : null
   return `Your wallet balance is ₹${balance.toLocaleString('en-IN')}. ${
@@ -112,7 +121,11 @@ function isWalletQuery(q: string): boolean {
     q.includes('billing') ||
     q.includes('top up') ||
     q.includes('topup') ||
-    q.includes('recharge')
+    q.includes('recharge') ||
+    q.includes('add money') ||
+    q.includes('deposit') ||
+    q.includes('add fund') ||
+    q.includes('add balance')
   )
 }
 
@@ -148,9 +161,17 @@ function getBotReply(query: string, currentPath: string = '/'): string {
     return OUT_OF_SCOPE_REFUSAL
   }
 
-  // 2. Greetings
-  if (domainStatus === 'greeting') {
-    return "Hi there! I am your Inferxe AI Assistant. Ask me about GPU sizing, cluster pricing, sovereign data residency in India, or deploying models on our marketplace."
+  // 2. Greetings & Assistance Capabilities
+  if (
+    domainStatus === 'greeting' ||
+    q.includes('answer my question') ||
+    q.includes('can you answer') ||
+    q.includes('what can you do') ||
+    q.includes('help me') ||
+    q.includes('assist me') ||
+    q === 'help'
+  ) {
+    return "Hi! How can I help you with Inferxe today—are you looking for GPU pricing, model sizing, or API setup?"
   }
 
   const isInsideDashboard = currentPath.startsWith('/dashboard')
@@ -165,7 +186,7 @@ function getBotReply(query: string, currentPath: string = '/'): string {
 
   // 3a. Wallet Queries
   if (isWalletQuery(q)) {
-    if (!isAuthenticated) {
+    if (!isAuthenticated && q === 'how wallet works in this web site') {
       return PUBLIC_WALLET_REPLY
     }
     return getDashboardWalletReply()
@@ -186,12 +207,116 @@ function getBotReply(query: string, currentPath: string = '/'): string {
   }
 
   // 3c. Account Login / Registration Guidance
-  if (q.includes('login') || q.includes('sign in') || q.includes('signup') || q.includes('register') || q.includes('create account')) {
+  if (
+    q.includes('login') ||
+    q.includes('sign in') ||
+    q.includes('signup') ||
+    q.includes('sign up') ||
+    q.includes('register') ||
+    q.includes('create account') ||
+    q.includes('forgot password') ||
+    q.includes('reset password') ||
+    q.includes('api key')
+  ) {
+    if (q.includes('create account') || q.includes('signup') || q.includes('sign up') || q.includes('register')) {
+      return "Go to [inferxe.com](https://inferxe.com), click **Get Started** or **Sign Up**, and register with your work email or GitHub/Google account. Once verified, you can add credits and generate an API key immediately—no manual GPU quota approval required."
+    }
+    if (q.includes('forgot password') || q.includes('reset password') || q.includes('cannot access')) {
+      return "On the Inferxe login page, click **Forgot Password** to receive a reset link via email. If you signed up using Google or GitHub, use that same sign-in button instead of a password. For locked accounts, contact Inferxe support through the dashboard or website."
+    }
+    if (q.includes('api key') || q.includes('api keys') || q.includes('find my key') || q.includes('where do i find')) {
+      return "After logging into your Inferxe dashboard, open the **API Keys** tab in the left navigation menu and click **Create New Key**. Copy and store the key immediately, as it is only displayed once."
+    }
     const session = getSession()
     if (session) {
-      return `You are currently logged in as **${session.user.fullName}** (${session.user.email}) with role **${session.user.role}**. You have full access to your Dashboard, GPU Marketplace, and Wallet.`
+      return `You are currently logged in as **${session.user.fullName}** (${session.user.email}). Click the **Dashboard** button to access your GPU Marketplace, Deployments, and API Keys.`
     }
-    return "To access the GPU Marketplace, launch instances, or manage your wallet, please visit the **[Sign In](/login)** page to log in or create your free account."
+    return "Click the **Sign In** or **Login** button in the top-right corner of [inferxe.com](https://inferxe.com). You can sign in using your registered email and password or your linked OAuth provider (such as Google or GitHub) to open your Inferxe dashboard."
+  }
+
+  // 3d. Project & Platform Overview / What is Inferxe
+  if (
+    q.includes('what is this project') ||
+    q.includes('project overview') ||
+    q.includes('explain this project') ||
+    q.includes('tell me about this project') ||
+    q.includes('about the project') ||
+    q.includes('what is inferxe') ||
+    q.includes('about inferxe') ||
+    q.includes('website overview') ||
+    q.includes('explain this website') ||
+    q.includes('tell me about this website')
+  ) {
+    return "**Inferxe** is an intelligent, decentralized GPU inference marketplace and compute orchestration platform built on the **'One API, Many GPU Providers'** architecture.\n\n**Core Highlights:**\n1. **Unified Marketplace**: Aggregates enterprise GPUs (NVIDIA H100, L40S, L4) across Indian sovereign Tier-IV data centers (Navi Mumbai & Noida) and cloud providers like JarvisLabs.\n2. **Customer Workspace**: Real-time compute telemetry (live balance, ₹60/hr burn rate, remaining runtime) and an interactive 3-column Kanban workflow board.\n3. **3D Virtual Cards & Top-Up**: Interactive digital cards with live flip, security freeze/unfreeze, and an idempotent `+ Top Up` modal with instant balance synchronization.\n4. **Cognito Enterprise Auth**: Strict RBAC for Customer and Admin portals with encrypted JWT token verification.\n5. **Drop-in OpenAI SDK**: Compatible with any OpenAI client pointing to `https://api.inferxe.com/v1`."
+  }
+
+  // 3e. Project Contributions & Author Work
+  if (
+    q.includes('sahith') ||
+    q.includes('who built this') ||
+    q.includes('what did you do in this project') ||
+    q.includes('what did i do in this project') ||
+    q.includes('what is done in this project') ||
+    q.includes('my contributions') ||
+    q.includes('what you done') ||
+    q.includes('what i done')
+  ) {
+    return "In this project, **Sahith** engineered the full-stack architecture for the **Inferxe GPU Marketplace**:\n\n• **Frontend Engineering**: Developed a high-performance, cyber-dark UI using **React 19, TypeScript, and Vite**, with glassmorphism styling and responsive micro-interactions.\n• **AWS Cognito Auth & RBAC**: Integrated Cognito user pools, secure JWT exchange, and persistent sessions for Customer and Admin roles.\n• **Customer Portal & Kanban**: Designed real-time compute telemetry cards and an interactive 3-column Kanban board for managing inference jobs and deployments.\n• **3D Virtual Cards & Top-Up Engine**: Built interactive 3D virtual cards (flip, freeze/unfreeze, number masking) and an idempotent `+ Top Up` workflow with instantaneous balance synchronization (`inferxe_wallet_change`).\n• **FastAPI & Node.js Microservices**: Connected backend services for RAG vector search (ChromaDB), billing idempotency, and model evaluation.\n• **Multi-Remote CI/CD**: Maintained and verified production builds synchronized across both **GitHub (`main`)** and **GitLab (`Main_project`)**."
+  }
+
+  // 3f. Customer Dashboard & Kanban Board
+  if (
+    q.includes('customer dashboard') ||
+    q.includes('customer portal') ||
+    q.includes('kanban') ||
+    q.includes('board') ||
+    q.includes('telemetry') ||
+    q.includes('burn rate') ||
+    q.includes('runtime')
+  ) {
+    return "### Customer Dashboard & Workspace Guide (`/dashboard/customer`):\n\n" +
+      "• **Compute Balance & Credits Hero Card**:\n" +
+      "  - Displays your available balance in INR (e.g. ₹5,000).\n" +
+      "  - Calculates live **hourly burn rate** (e.g. `₹60/hr` for active L4 instances).\n" +
+      "  - Estimates **remaining runtime** (e.g. `≈ 83.3 hrs left`).\n" +
+      "  - Shows active GPU count and Sovereign Tier status.\n" +
+      "  - Features quick-action buttons: `+ Add Funds`, `Playground`, `API Keys`, and `Compare`.\n\n" +
+      "• **3-Column Kanban Workflow Board**:\n" +
+      "  1. **To Do**: Pending inference tasks, prompt engineering jobs, and scheduled runs.\n" +
+      "  2. **Done – Waiting for you**: Finished jobs awaiting authorization or payout.\n" +
+      "  3. **Paid / Active**: Live GPU deployments and fulfilled compute allocations.\n\n" +
+      "• **30-Day Activity Sparklines**: Tracks daily token throughput and cluster consumption."
+  }
+
+  // 3g. Deploying Models & Running Inference
+  if (
+    q.includes('deploy') ||
+    q.includes('run model') ||
+    q.includes('how to use') ||
+    q.includes('how to start') ||
+    q.includes('how does it work') ||
+    q.includes('how it works') ||
+    q.includes('which models') ||
+    q.includes('supported models') ||
+    q.includes('what models')
+  ) {
+    return "### How to Deploy Models and Run Inference on Inferxe:\n\n" +
+      "1. **Sign In**: Log in to your account at [Sign In](/login).\n" +
+      "2. **Check Balance**: Make sure you have compute credits in [Wallet & Cards](/dashboard/wallet). Top up anytime via `+ Top Up`.\n" +
+      "3. **Choose Hardware**: Select an optimal GPU (NVIDIA L4 for ≤8B at ₹60/hr, L40S for 14B–34B at ₹100/hr, or H100 for 70B+ at ₹280/hr).\n" +
+      "4. **Supported Models**: Meta Llama 3.3 70B, Qwen 2.5 14B/72B, Mistral 7B, and DeepSeek distilled models with FP8 FlashAttention.\n" +
+      "5. **Invoke API**: Use the standard OpenAI SDK:\n" +
+      "```python\n" +
+      "from openai import OpenAI\n" +
+      "client = OpenAI(\n" +
+      "    base_url='https://api.inferxe.com/v1',\n" +
+      "    api_key='your_inferxe_api_key'\n" +
+      ")\n" +
+      "response = client.chat.completions.create(\n" +
+      "    model='llama-3.3-70b',\n" +
+      "    messages=[{'role': 'user', 'content': 'Hello Inferxe!'}]\n" +
+      ")\n" +
+      "```"
   }
 
   // 4. Specific Factual Queries
@@ -220,7 +345,7 @@ function getBotReply(query: string, currentPath: string = '/'): string {
     if (rec) return rec
   }
 
-  if (q.includes('features does inferxe provide') || q.includes('inferxe provide') || q.includes('features') || q.includes('tell me about this website')) {
+  if (q.includes('features does inferxe provide') || q.includes('inferxe provide') || q.includes('features')) {
     return 'Documented features of the Inferxe platform:\n1. GPU Marketplace Catalog: Discover and filter GPUs across sovereign Indian clouds and JarvisLabs.\n2. GPU Sizing Calculator: Calculates weights and KV cache memory to recommend the most cost-effective GPU.\n3. Simulated Wallet & Burn Rate: Tracks runtime spend, hourly burn rates, and low-balance warnings.\n4. Sovereign Indian Data Residency: Tier-IV datacenters in Navi Mumbai and Noida compliant with DPDP Act and MeitY.\n5. OpenAI-Compatible API: Drop-in SDK endpoint pointing base_url to https://api.inferxe.com/v1.\n6. Intermediary Orchestration: Intermediary software routing layer (Inferxe does not own physical data centers).'
   }
 
@@ -399,6 +524,35 @@ export function GlobalBotCompanion() {
   const [messages, setMessages] = useState<ChatMessage[]>(() => loadScopeMessages(activeScope))
   const [isTyping, setIsTyping] = useState(false)
 
+  const [botWalletBalance, setBotWalletBalance] = useState<number | null>(null)
+  const [botWalletLoading, setBotWalletLoading] = useState<boolean>(true)
+
+  const syncBotWalletBalance = async () => {
+    const session = getSession()
+    if (!session?.token) {
+      latestBackendWalletBalance = null
+      setBotWalletBalance(null)
+      setBotWalletLoading(false)
+      return
+    }
+    try {
+      const res = await fetchWalletBalance()
+      if (res.ok && res.balance) {
+        latestBackendWalletBalance = res.balance.balance
+        setBotWalletBalance(res.balance.balance)
+        try {
+          const sub = session.user?.id || ''
+          const key = sub ? `inferxe_demo_wallet_balance_v1_${sub}` : 'inferxe_demo_wallet_balance_v1'
+          localStorage.setItem(key, JSON.stringify(res.balance.balance))
+        } catch {}
+      }
+    } catch {
+      /* keep existing localStorage balance */
+    } finally {
+      setBotWalletLoading(false)
+    }
+  }
+
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const chatWindowRef = useRef<HTMLDivElement>(null)
@@ -428,13 +582,38 @@ export function GlobalBotCompanion() {
       setIsTyping(false)
     }
 
+    const handleOpenBot = () => {
+      setIsOpen(true)
+      try {
+        sessionStorage.setItem('inferxe_chat_open', '1')
+      } catch {}
+    }
+
+    window.addEventListener('inferxe_open_bot', handleOpenBot)
     window.addEventListener('inferxe-auth-change', handleAuthChange)
     window.addEventListener('storage', handleAuthChange)
     return () => {
+      window.removeEventListener('inferxe_open_bot', handleOpenBot)
       window.removeEventListener('inferxe-auth-change', handleAuthChange)
       window.removeEventListener('storage', handleAuthChange)
     }
   }, [location.pathname])
+
+  // Sync wallet balance from backend on mount and on wallet change events
+  useEffect(() => {
+    syncBotWalletBalance()
+
+    const handleWalletChange = () => {
+      void syncBotWalletBalance()
+    }
+
+    window.addEventListener('inferxe_wallet_change', handleWalletChange)
+    window.addEventListener('storage', handleWalletChange)
+    return () => {
+      window.removeEventListener('inferxe_wallet_change', handleWalletChange)
+      window.removeEventListener('storage', handleWalletChange)
+    }
+  }, [])
 
   // Automatically save messages for the active scope whenever they change
   useEffect(() => {
@@ -475,12 +654,14 @@ export function GlobalBotCompanion() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
 
-  // Proactive wallet / GPU notification from the bot (once per browser session)
+  // Proactive wallet / GPU notification from the bot (once per browser session).
+  // Waits for the backend balance sync so the alert isn't based on a stale cached value.
   useEffect(() => {
+    if (botWalletLoading) return
     const check = () => {
       try {
         if (sessionStorage.getItem('inferxe_bot_wallet_alert') === '1') return
-        const balance = readWallet()
+        const balance = botWalletBalance ?? readWallet()
         const burn = readBurnPerHour()
         if (balance < 2000 || (burn > 0 && balance / burn < 6)) {
           sessionStorage.setItem('inferxe_bot_wallet_alert', '1')
@@ -503,7 +684,7 @@ export function GlobalBotCompanion() {
     check()
     const t = setInterval(check, 60000)
     return () => clearInterval(t)
-  }, [])
+  }, [botWalletLoading, botWalletBalance])
 
   useEffect(() => {
     if (isOpen) {
@@ -548,7 +729,7 @@ export function GlobalBotCompanion() {
       let replyText = ''
 
       if (isWalletQuery(qLower)) {
-        if (!isAuthenticated) {
+        if (!isAuthenticated && qLower === 'how wallet works in this web site') {
           replyText = PUBLIC_WALLET_REPLY
         } else {
           replyText = getDashboardWalletReply()

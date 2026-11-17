@@ -1,3 +1,4 @@
+
 import { CognitoJwtVerifier } from 'aws-jwt-verify'
 import { getSupabaseAdminClient } from '../lib/supabase.js'
 import { registerOrUpdateCustomer } from '../database/customerDatabase.js'
@@ -8,20 +9,34 @@ let verifier
 let verifierConfig
 
 function getCognitoVerifier() {
-  const userPoolId = (process.env.AWS_COGNITO_USER_POOL_ID || process.env.COGNITO_USER_POOL_ID || process.env.VITE_COGNITO_USER_POOL_ID || '').trim()
-  const clientId = (process.env.AWS_COGNITO_CLIENT_ID || process.env.COGNITO_CLIENT_ID || process.env.VITE_COGNITO_CLIENT_ID || '').trim()
+  const userPoolId = (
+    process.env.COGNITO_USER_POOL_ID ||
+    process.env.AWS_COGNITO_USER_POOL_ID ||
+    process.env.VITE_COGNITO_USER_POOL_ID ||
+    ''
+  ).trim()
+  const clientId = (
+    process.env.COGNITO_CLIENT_ID ||
+    process.env.AWS_COGNITO_CLIENT_ID ||
+    process.env.VITE_COGNITO_CLIENT_ID ||
+    ''
+  ).trim()
 
   if (!userPoolId || !clientId) {
-    throw new Error('AWS_COGNITO_USER_POOL_ID and AWS_COGNITO_CLIENT_ID must be configured on the backend.')
+    throw new Error(
+  'COGNITO_USER_POOL_ID and COGNITO_CLIENT_ID (or AWS_COGNITO_* equivalents) must be configured on the backend.'
+)
   }
 
   const config = `${userPoolId}:${clientId}`
+
   if (!verifier || verifierConfig !== config) {
     verifier = CognitoJwtVerifier.create({
       userPoolId,
       tokenUse: 'id',
       clientId,
     })
+
     verifierConfig = config
   }
 
@@ -37,8 +52,10 @@ function sendJson(res, statusCode, data) {
 
 async function readJsonBody(req) {
   let body = ''
+
   for await (const chunk of req) {
     body += chunk
+
     if (Buffer.byteLength(body, 'utf8') > MAX_BODY_BYTES) {
       const error = new Error('Payload too large.')
       error.statusCode = 413
@@ -47,6 +64,7 @@ async function readJsonBody(req) {
   }
 
   if (!body.trim()) return {}
+
   try {
     return JSON.parse(body)
   } catch {
@@ -58,7 +76,11 @@ async function readJsonBody(req) {
 
 function getBearerToken(req) {
   const header = req.headers.authorization
-  if (typeof header !== 'string' || !header.startsWith('Bearer ')) return null
+
+  if (typeof header !== 'string' || !header.startsWith('Bearer ')) {
+    return null
+  }
+
   return header.slice(7).trim() || null
 }
 
@@ -68,6 +90,7 @@ export async function verifyCognitoIdToken(token) {
   }
 
   const payload = await getCognitoVerifier().verify(token)
+
   if (typeof payload.sub !== 'string' || !payload.sub) {
     throw new Error('The Cognito ID token has no subject.')
   }
@@ -82,40 +105,85 @@ export async function verifyCognitoIdToken(token) {
   return payload
 }
 
-async function syncProfile(req, res) {
+async function syncProfile(
+  req,
+  res,
+  {
+    verifyToken = verifyCognitoIdToken,
+    getSupabaseClient = getSupabaseAdminClient,
+  } = {}
+) {
   const token = getBearerToken(req)
+
   if (!token) {
-    return sendJson(res, 401, { ok: false, error: 'A Cognito ID token is required.' })
+    return sendJson(res, 401, {
+      ok: false,
+      error: 'A Cognito ID token is required.',
+    })
   }
 
   let claims
+
   try {
-    claims = await verifyCognitoIdToken(token)
+    claims = await verifyToken(token)
   } catch (error) {
-    console.warn('[customer-auth] Cognito ID token rejected:', error.message)
-    return sendJson(res, 401, { ok: false, error: 'Customer authentication could not be verified.' })
+    console.warn(
+      '[customer-auth] Cognito ID token rejected:',
+      error.message
+    )
+
+    return sendJson(res, 401, {
+      ok: false,
+      error: 'Customer authentication could not be verified.',
+    })
   }
 
   try {
-    const existing = await getSupabaseAdminClient()
+    const supabase = await getSupabaseClient()
+
+    // Check whether this customer already has a profile.
+    const existing = await supabase
       .from('profiles')
-      .select('user_id, full_name, email, username, role, status, organization_id')
+      .select(
+        'user_id, full_name, email, username, role, status, organization_id'
+      )
       .eq('user_id', claims.sub)
       .maybeSingle()
 
-    if (existing.error) throw existing.error
-    if (existing.data?.status === 'suspended') {
-      return sendJson(res, 403, { ok: false, error: 'This account has been suspended.' })
+    if (existing.error) {
+      throw existing.error
     }
+
+    // Block inactive or suspended accounts.
+    if (
+      existing.data?.status === 'suspended' ||
+      existing.data?.status === 'inactive'
+    ) {
+      return sendJson(res, 403, {
+        ok: false,
+        error: 'This account is not active.',
+      })
+    }
+
+    // Admins must use the separate administrator sign-in.
     if (existing.data?.role === 'admin') {
-      return sendJson(res, 403, { ok: false, error: 'Use the separate administrator sign-in.' })
+      return sendJson(res, 403, {
+        ok: false,
+        error: 'Use the separate administrator sign-in.',
+      })
     }
 
     const email = claims.email.trim().toLowerCase()
-    const fullName = (typeof claims.name === 'string' && claims.name.trim()) ||
-      (typeof claims.preferred_username === 'string' && claims.preferred_username.trim()) ||
+
+    const fullName =
+      (typeof claims.name === 'string' && claims.name.trim()) ||
+      (typeof claims.preferred_username === 'string' &&
+        claims.preferred_username.trim()) ||
       email.split('@')[0]
-    const username = (typeof claims['cognito:username'] === 'string' && claims['cognito:username']) ||
+
+    const username =
+      (typeof claims['cognito:username'] === 'string' &&
+        claims['cognito:username']) ||
       email.split('@')[0]
 
     // Safely parse request body for optional customer profile attributes (e.g. organization entered during signup)
@@ -129,15 +197,20 @@ async function syncProfile(req, res) {
       ? body.organization.trim()
       : null
 
-    const customerRecord = await upsertCustomerProfile({
-      cognito_sub: claims.sub,
-      full_name: fullName,
-      email,
-      phone_number: claims.phone_number || null,
-      organization: explicitOrg,
-      isLogin: true,
-      claims,
-    })
+    let customerRecord = null
+    try {
+      customerRecord = await upsertCustomerProfile({
+        cognito_sub: claims.sub,
+        full_name: fullName,
+        email,
+        phone_number: claims.phone_number || null,
+        organization: explicitOrg,
+        isLogin: true,
+        claims,
+      })
+    } catch (err) {
+      console.warn('[customer-auth] upsertCustomerProfile error:', err?.message)
+    }
 
     // Keep SQLite customer database in sync for Customer Management dashboard
     try {
@@ -146,9 +219,9 @@ async function syncProfile(req, res) {
         full_name: fullName,
         email,
         phone_number: claims.phone_number || null,
-        organization: customerRecord.organization || null,
-        role: customerRecord.role || 'customer',
-        account_status: customerRecord.account_status || 'active',
+        organization: customerRecord?.organization || explicitOrg || null,
+        role: customerRecord?.role || 'customer',
+        account_status: customerRecord?.account_status || 'active',
         isLogin: true,
       })
     } catch (sqliteErr) {
@@ -158,34 +231,50 @@ async function syncProfile(req, res) {
     return sendJson(res, 200, {
       ok: true,
       profile: {
-        id: customerRecord.cognito_sub,
-        fullName: customerRecord.full_name,
-        email: customerRecord.email,
-        username: username || customerRecord.email.split('@')[0],
-        role: customerRecord.role,
-        status: customerRecord.account_status,
-        organization: customerRecord.organization || null,
-        organizationId: null,
+        id: customerRecord?.cognito_sub || customerRecord?.user_id || claims.sub,
+        fullName: customerRecord?.full_name || fullName,
+        email: customerRecord?.email || email,
+        username: username || email.split('@')[0],
+        role: customerRecord?.role || 'customer',
+        status: customerRecord?.account_status || customerRecord?.status || 'active',
+        organization: customerRecord?.organization || explicitOrg || null,
+        organizationId: customerRecord?.organization_id || null,
       },
     })
   } catch (error) {
-    console.error('[customer-auth] Profile synchronization failed:', error.message)
-    return sendJson(res, 503, { ok: false, error: 'Customer profile synchronization is unavailable.' })
+    console.error(
+      '[customer-auth] Profile synchronization failed:',
+      error.message
+    )
+
+    return sendJson(res, 503, {
+      ok: false,
+      error: 'Customer profile synchronization is unavailable.',
+    })
   }
 }
 
-export function createCustomerAuthMiddleware() {
+export function createCustomerAuthMiddleware(dependencies = {}) {
   return async function customerAuthMiddleware(req, res, next) {
     const path = (req.url || '/').split('?')[0]
-    if (path !== '/api/customer/profile/sync' || req.method !== 'POST') return next()
+
+    if (
+      path !== '/api/customer/profile/sync' ||
+      req.method !== 'POST'
+    ) {
+      return next()
+    }
 
     try {
-      return await syncProfile(req, res)
+      return await syncProfile(req, res, dependencies)
     } catch (error) {
       console.error('[customer-auth] Request failed:', error.message)
+
       return sendJson(res, error.statusCode || 500, {
         ok: false,
-        error: error.statusCode ? error.message : 'Customer authentication request failed.',
+        error: error.statusCode
+          ? error.message
+          : 'Customer authentication request failed.',
       })
     }
   }
@@ -193,13 +282,22 @@ export function createCustomerAuthMiddleware() {
 
 export async function authenticateCognitoRequest(req) {
   const token = getBearerToken(req)
-  if (!token) throw new Error('A Cognito ID token is required.')
+
+  if (!token) {
+    throw new Error('A Cognito ID token is required.')
+  }
+
   return verifyCognitoIdToken(token)
 }
 
 export async function checkSupabaseConnection() {
-  const { error } = await getSupabaseAdminClient().from('profiles').select('user_id').limit(1)
+  const { error } = await getSupabaseAdminClient()
+    .from('profiles')
+    .select('user_id')
+    .limit(1)
+
   if (error) throw error
+
   return true
 }
 

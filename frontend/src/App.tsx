@@ -27,6 +27,7 @@ const UsersList = lazy(() => import('./pages/dashboard/UsersList'))
 const DashboardOverview = lazy(() => import('./pages/dashboard/DashboardOverview'))
 const MarketplaceWorkspace = lazy(() => import('./pages/dashboard/MarketplaceWorkspace'))
 const CustomerManagement = lazy(() => import('./pages/dashboard/CustomerManagement'))
+const CustomerVerdeloWorkspace = lazy(() => import('./components/dashboard/CustomerVerdeloWorkspace'))
 import { CustomerHeartbeat } from './components/dashboard/CustomerHeartbeat'
 const Login = lazy(() => import('./pages/Login'))
 import { AdminGuard } from './components/auth/AdminGuard'
@@ -129,6 +130,30 @@ export default function App() {
               }
             />
             <Route
+              path="/dashboard/customer"
+              element={
+                <CustomerGuard>
+                  <CustomerVerdeloWorkspace />
+                </CustomerGuard>
+              }
+            />
+            <Route
+              path="/dashboard/customer/*"
+              element={
+                <CustomerGuard>
+                  <CustomerVerdeloWorkspace />
+                </CustomerGuard>
+              }
+            />
+            <Route
+              path="/dashboard/verdelo"
+              element={<CustomerVerdeloWorkspace />}
+            />
+            <Route
+              path="/dashboard/verdelo/*"
+              element={<CustomerVerdeloWorkspace />}
+            />
+            <Route
               path="/dashboard/*"
               element={
                 <CustomerGuard>
@@ -198,6 +223,8 @@ export default function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Login initialMode="signup" />} />
               <Route path="/forgot-password" element={<Login initialMode="forgot" />} />
+              <Route path="/verdelo" element={<CustomerVerdeloWorkspace />} />
+              <Route path="/verdelo/*" element={<CustomerVerdeloWorkspace />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>

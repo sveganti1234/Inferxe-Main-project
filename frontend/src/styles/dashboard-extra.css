@@ -56,27 +56,28 @@
 /* ── Light theme (applies only inside the dashboard shell) ── */
 .dash-shell[data-theme='light'] {
   color-scheme: light;
-  --bg-0: #f4f6f1;
-  --bg-1: #ebf0e6;
-  --bg-2: #ffffff;
-  --bg-3: #f1f5ec;
-  --bg-4: #e2e8db;
-  --bg-5: #d2dcce;
-  --ink: #0f172a;
-  --ink-2: #1e293b;
-  --ink-3: #334155;
-  --ink-4: #475569;
-  --line: rgba(15, 23, 42, 0.08);
-  --line-2: rgba(15, 23, 42, 0.14);
-  --line-3: rgba(15, 23, 42, 0.24);
-  --brand: #76b900;
-  --brand-hi: #9be015;
-  --brand-hi2: #b6f23a;
-  --brand-lo: #65a300;
-  --brand-glow: rgba(118, 185, 0, 0.35);
-  --brand-soft: rgba(118, 185, 0, 0.14);
-  --shadow-1: 0 1px 3px rgba(15, 23, 42, 0.08), 0 8px 20px -10px rgba(15, 23, 42, 0.12);
-  --shadow-2: 0 4px 12px rgba(15, 23, 42, 0.08), 0 24px 48px -24px rgba(15, 23, 42, 0.15);
+  --bg-0: transparent;
+  --bg-1: rgba(128, 203, 196, 0.12);
+  --bg-2: rgba(255, 255, 255, 0.20);
+  --bg-3: rgba(128, 203, 196, 0.18);
+  --bg-4: rgba(128, 203, 196, 0.26);
+  --bg-5: rgba(128, 203, 196, 0.36);
+  --ink: #00332c;
+  --ink-2: #004d40;
+  --ink-3: #00695c;
+  --ink-4: #00796b;
+  --line: rgba(128, 203, 196, 0.35);
+  --line-2: rgba(128, 203, 196, 0.45);
+  --line-3: rgba(0, 121, 107, 0.45);
+  --brand: #26a69a;
+  --brand-hi: #80cbc4;
+  --brand-hi2: #b2dfdb;
+  --brand-lo: #00796b;
+  --brand-ink: #00332c;
+  --brand-glow: rgba(128, 203, 196, 0.45);
+  --brand-soft: rgba(128, 203, 196, 0.18);
+  --shadow-1: 0 4px 16px rgba(0, 77, 64, 0.08), inset 0 1px 1px rgba(255, 255, 255, 0.8);
+  --shadow-2: 0 12px 36px -6px rgba(0, 77, 64, 0.14), inset 0 1px 2px rgba(255, 255, 255, 0.85);
 }
 
 /* ── Topbar in Light Theme ────────────────────────────────── */
@@ -108,15 +109,15 @@
 }
 
 .dash-shell[data-theme='light'] .dash-topbar__badge {
-  background: rgba(118, 185, 0, 0.12) !important;
-  border: 1px solid rgba(118, 185, 0, 0.35) !important;
-  color: #65a300 !important;
+  background: rgba(14, 165, 233, 0.12) !important;
+  border: 1px solid rgba(14, 165, 233, 0.35) !important;
+  color: #0284c7 !important;
   font-weight: 700;
 }
 
 .dash-shell[data-theme='light'] .dash-topbar__badge-dot {
-  background: #76b900 !important;
-  box-shadow: 0 0 6px #76b900 !important;
+  background: #0ea5e9 !important;
+  box-shadow: 0 0 6px #0ea5e9 !important;
 }
 
 .dash-shell[data-theme='light'] .dash-topbar__status {
@@ -127,13 +128,13 @@
 }
 
 .dash-shell[data-theme='light'] .dash-topbar__status span[style*="var(--brand-hi)"] {
-  color: #76b900 !important;
+  color: #0ea5e9 !important;
   font-weight: 700 !important;
 }
 
 .dash-shell[data-theme='light'] .dash-pulse-dot {
-  background: #76b900 !important;
-  box-shadow: 0 0 8px rgba(118, 185, 0, 0.6) !important;
+  background: #0ea5e9 !important;
+  box-shadow: 0 0 8px rgba(14, 165, 233, 0.6) !important;
 }
 
 .dash-shell[data-theme='light'] .dash-topbar__btn-icon,
@@ -166,13 +167,13 @@
 }
 
 .dash-shell[data-theme='light'] .dash-admin-role {
-  color: #65a300 !important;
+  color: #0284c7 !important;
   font-weight: 700;
 }
 
 .dash-shell[data-theme='light'] .dash-admin-avatar {
   background: #e2e8f0;
-  border-color: #76b900;
+  border-color: #0ea5e9;
   color: #0f172a;
 }
 
@@ -202,8 +203,8 @@
 }
 
 .dash-shell[data-theme='light'] .dash-sidebar__toggle-btn:hover {
-  background: rgba(118, 185, 0, 0.14);
-  border-color: #76b900;
+  background: rgba(14, 165, 233, 0.14);
+  border-color: #0ea5e9;
   color: #2e7d32;
 }
 
@@ -211,7 +212,46 @@
   background: #ffffff;
   border: 1px solid #cbd5e1;
   color: #0f172a;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12), 0 0 14px rgba(118, 185, 0, 0.12);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12), 0 0 14px rgba(14, 165, 233, 0.12);
+}
+
+.dash-shell[data-theme='light'] .dash-sidebar__workspace-tag {
+  color: #64748b;
+}
+
+.dash-shell[data-theme='light'] .dash-sidebar__scroll {
+  scrollbar-color: rgba(15, 23, 42, 0.16) transparent;
+}
+
+.dash-shell[data-theme='light'] .dash-sidebar__scroll::-webkit-scrollbar-thumb {
+  background: rgba(15, 23, 42, 0.16);
+}
+
+.dash-shell[data-theme='light'] .dash-nav-group + .dash-nav-group {
+  border-top-color: #e2e8f0;
+}
+
+.dash-shell[data-theme='light'] .dash-sidebar__bottom-nav {
+  border-top-color: #e2e8f0;
+}
+
+.dash-shell[data-theme='light'] .dash-nav-group-title {
+  color: #64748b !important;
+  font-weight: 700 !important;
+}
+
+.dash-shell[data-theme='light'] .dash-nav-group-btn:hover {
+  color: #4d7c0f !important;
+  background: rgba(14, 165, 233, 0.1) !important;
+}
+
+.dash-shell[data-theme='light'] .dash-nav-group-btn.is-expanded {
+  color: #4d7c0f !important;
+}
+
+.dash-shell[data-theme='light'] .dash-nav-group-btn.is-expanded:hover {
+  color: #4d7c0f !important;
+  background: rgba(14, 165, 233, 0.14) !important;
 }
 
 .dash-shell[data-theme='light'] .dash-sidebar.is-collapsed .dash-nav-section-title,
@@ -248,26 +288,26 @@
 }
 
 .dash-shell[data-theme='light'] .dash-nav-item.is-active {
-  color: #65a300 !important;
-  background: rgba(118, 185, 0, 0.12) !important;
-  border: 1px solid rgba(118, 185, 0, 0.35) !important;
+  color: #0284c7 !important;
+  background: rgba(14, 165, 233, 0.12) !important;
+  border: 1px solid rgba(14, 165, 233, 0.35) !important;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
   font-weight: 700;
 }
 
 .dash-shell[data-theme='light'] .dash-nav-item.is-active svg {
-  color: #76b900 !important;
+  color: #0ea5e9 !important;
 }
 
 .dash-shell[data-theme='light'] .dash-nav-item.is-active::before {
-  background: linear-gradient(180deg, #9be015, #76b900) !important;
-  box-shadow: 0 0 8px rgba(118, 185, 0, 0.6) !important;
+  background: linear-gradient(180deg, #38bdf8, #0ea5e9) !important;
+  box-shadow: 0 0 8px rgba(14, 165, 233, 0.6) !important;
 }
 
 .dash-shell[data-theme='light'] .dash-nav-badge {
-  background: rgba(118, 185, 0, 0.15) !important;
-  color: #65a300 !important;
-  border-color: rgba(118, 185, 0, 0.35) !important;
+  background: rgba(14, 165, 233, 0.15) !important;
+  color: #0284c7 !important;
+  border-color: rgba(14, 165, 233, 0.35) !important;
   font-weight: 700;
 }
 
@@ -282,8 +322,13 @@
 }
 
 .dash-shell[data-theme='light'] .dash-quota-card__val {
-  color: #65a300 !important;
+  color: #0284c7 !important;
   font-weight: 700;
+}
+
+.dash-shell[data-theme='light'] .dash-quota-card__meta {
+  color: #475569 !important;
+  font-weight: 600;
 }
 
 .dash-shell[data-theme='light'] .dash-quota-card__sub {
@@ -296,8 +341,8 @@
 }
 
 .dash-shell[data-theme='light'] .dash-sidebar__public-link:hover {
-  color: #76b900;
-  background: rgba(118, 185, 0, 0.1);
+  color: #0ea5e9;
+  background: rgba(14, 165, 233, 0.1);
 }
 
 /* ── Top 4 Metric KPI Cards ──────────────────────────────── */
@@ -319,13 +364,13 @@
 }
 
 .dash-shell[data-theme='light'] .dash-stat-value {
-  color: #65a300 !important;
+  color: #0284c7 !important;
   text-shadow: none !important;
   font-weight: 800 !important;
 }
 
 .dash-shell[data-theme='light'] .dash-sparkline-wrap svg path {
-  stroke: #76b900 !important;
+  stroke: #0ea5e9 !important;
   filter: none !important;
 }
 
@@ -343,7 +388,7 @@
 }
 
 .dash-shell[data-theme='light'] .dash-live-badge {
-  color: #76b900 !important;
+  color: #0ea5e9 !important;
   font-weight: 700;
 }
 
@@ -351,17 +396,17 @@
   stroke: rgba(0, 0, 0, 0.07) !important;
 }
 
-.dash-shell[data-theme='light'] .dash-graph-svg path[stroke="#a3e635"] {
-  stroke: #76b900 !important;
+.dash-shell[data-theme='light'] .dash-graph-svg path[stroke="#38bdf8"] {
+  stroke: #0ea5e9 !important;
   filter: none !important;
 }
 
-.dash-shell[data-theme='light'] .dash-graph-svg circle[fill="#a3e635"] {
-  fill: #76b900 !important;
+.dash-shell[data-theme='light'] .dash-graph-svg circle[fill="#38bdf8"] {
+  fill: #0ea5e9 !important;
 }
 
-.dash-shell[data-theme='light'] .dash-graph-svg circle[stroke="#76b900"] {
-  stroke: #76b900 !important;
+.dash-shell[data-theme='light'] .dash-graph-svg circle[stroke="#0ea5e9"] {
+  stroke: #0ea5e9 !important;
 }
 
 /* Inference Playground buttons & chat in Light Theme */
@@ -385,14 +430,14 @@
 }
 
 .dash-shell[data-theme='light'] .dash-chat-reply {
-  background: rgba(118, 185, 0, 0.1) !important;
-  border: 1px solid rgba(118, 185, 0, 0.3) !important;
+  background: rgba(14, 165, 233, 0.1) !important;
+  border: 1px solid rgba(14, 165, 233, 0.3) !important;
   color: #1e3a00 !important;
   font-weight: 500 !important;
 }
 
 .dash-shell[data-theme='light'] .dash-cursor-block {
-  color: #76b900 !important;
+  color: #0ea5e9 !important;
 }
 
 /* ── Active Deployments List in Light Theme ───────────────── */
@@ -441,8 +486,8 @@
 }
 
 .dash-shell[data-theme='light'] .dash-deploy-dot--running {
-  background: #76b900 !important;
-  box-shadow: 0 0 6px rgba(118, 185, 0, 0.5) !important;
+  background: #0ea5e9 !important;
+  box-shadow: 0 0 6px rgba(14, 165, 233, 0.5) !important;
 }
 
 .dash-shell[data-theme='light'] .dash-deploy-dot--provisioning {
@@ -550,7 +595,7 @@
 }
 
 .dash-shell[data-theme='light'] .dash-card::before {
-  background: linear-gradient(90deg, transparent, rgba(118, 185, 0, 0.35), transparent) !important;
+  background: linear-gradient(90deg, transparent, rgba(14, 165, 233, 0.35), transparent) !important;
 }
 
 .dash-shell[data-theme='light'] .dash-header-title,
@@ -567,7 +612,7 @@
 }
 
 .dash-shell[data-theme='light'] .dash-breadcrumb__current {
-  color: #65a300 !important;
+  color: #0284c7 !important;
   font-weight: 700 !important;
 }
 
@@ -586,8 +631,8 @@
 .dash-shell[data-theme='light'] .dash-input:focus,
 .dash-shell[data-theme='light'] select:focus,
 .dash-shell[data-theme='light'] textarea:focus {
-  border-color: #76b900 !important;
-  box-shadow: 0 0 0 3px rgba(118, 185, 0, 0.25) !important;
+  border-color: #0ea5e9 !important;
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.25) !important;
 }
 
 .dash-shell[data-theme='light'] .dash-input::placeholder,
@@ -617,8 +662,8 @@
 }
 
 .dash-shell[data-theme='light'] .dash-segment-btn.is-active {
-  background: rgba(118, 185, 0, 0.14) !important;
-  color: #65a300 !important;
+  background: rgba(14, 165, 233, 0.14) !important;
+  color: #0284c7 !important;
   font-weight: 700 !important;
 }
 
@@ -658,7 +703,7 @@
 }
 
 .dash-shell[data-theme='light'] .mw-metric-val {
-  color: #65a300 !important;
+  color: #0284c7 !important;
   font-weight: 800 !important;
 }
 
@@ -692,9 +737,9 @@
 }
 
 .dash-shell[data-theme='light'] .dash-role-card.is-selected {
-  background: rgba(118, 185, 0, 0.1) !important;
-  border: 1.5px solid #76b900 !important;
-  box-shadow: 0 4px 12px rgba(118, 185, 0, 0.18) !important;
+  background: rgba(14, 165, 233, 0.1) !important;
+  border: 1.5px solid #0ea5e9 !important;
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.18) !important;
 }
 
 .dash-shell[data-theme='light'] .dash-role-card__title {
@@ -717,9 +762,9 @@
 }
 
 .dash-shell[data-theme='light'] .dash-preset-chip.is-active {
-  background: rgba(118, 185, 0, 0.16) !important;
-  border-color: #76b900 !important;
-  color: #65a300 !important;
+  background: rgba(14, 165, 233, 0.16) !important;
+  border-color: #0ea5e9 !important;
+  color: #0284c7 !important;
   font-weight: 700 !important;
 }
 
@@ -744,9 +789,9 @@
 .dash-shell[data-theme='light'] .dash-badge--admin,
 .dash-shell[data-theme='light'] .dash-badge--active,
 .dash-shell[data-theme='light'] .dash-badge--success {
-  background: rgba(118, 185, 0, 0.12) !important;
-  color: #65a300 !important;
-  border: 1px solid rgba(118, 185, 0, 0.35) !important;
+  background: rgba(14, 165, 233, 0.12) !important;
+  color: #0284c7 !important;
+  border: 1px solid rgba(14, 165, 233, 0.35) !important;
   font-weight: 700 !important;
 }
 
@@ -799,7 +844,7 @@
 }
 
 .dash-shell[data-theme='light'] .dh-rate {
-  color: #65a300 !important;
+  color: #0284c7 !important;
 }
 
 
@@ -1054,7 +1099,7 @@
   padding: 0 7px;
   border-radius: 999px;
   background: var(--brand-hi);
-  color: #0a1200;
+  color: #082f49;
   font-size: 0.7rem;
 }
 
@@ -1285,7 +1330,7 @@
   z-index: 0;
   filter: blur(85px);
   opacity: 0.45;
-  background: radial-gradient(circle, rgba(118, 185, 0, 0.35) 0%, rgba(14, 116, 144, 0.18) 50%, transparent 70%);
+  background: radial-gradient(circle, rgba(80, 227, 150, 0.35) 0%, rgba(14, 116, 144, 0.18) 50%, transparent 70%);
 }
 
 .dash-shell[data-theme='light'] .dash-aurora-halo {
@@ -1315,7 +1360,7 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.14),
     inset 0 -1px 0 rgba(0, 0, 0, 0.35),
     0 4px 20px rgba(0, 0, 0, 0.5),
-    0 0 35px -12px rgba(118, 185, 0, 0.08) !important;
+    0 0 35px -12px rgba(80, 227, 150, 0.08) !important;
   border-radius: 18px !important;
   transition: transform 0.35s var(--ease), box-shadow 0.35s var(--ease), border-color 0.3s ease !important;
 }
@@ -1335,7 +1380,7 @@
   border-radius: inherit;
   padding: 1px;
   pointer-events: none;
-  background: linear-gradient(155deg, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.02) 40%, rgba(118, 185, 0, 0.28) 100%);
+  background: linear-gradient(155deg, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.02) 40%, rgba(80, 227, 150, 0.28) 100%);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
@@ -1356,7 +1401,7 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.2),
     0 18px 40px -12px rgba(0, 0, 0, 0.75),
     0 0 32px -8px var(--brand-glow) !important;
-  border-color: rgba(118, 185, 0, 0.38) !important;
+  border-color: rgba(80, 227, 150, 0.38) !important;
 }
 
 /* Light Mode Glassmorphism Overrides */
@@ -1397,12 +1442,12 @@
 /* Glass lime wash for active recommendations */
 .glass--lime,
 .dash-glass-lime {
-  background: linear-gradient(145deg, rgba(118, 185, 0, 0.15), rgba(118, 185, 0, 0.04) 60%, rgba(255, 255, 255, 0.03)) !important;
+  background: linear-gradient(145deg, rgba(80, 227, 150, 0.15), rgba(80, 227, 150, 0.04) 60%, rgba(255, 255, 255, 0.03)) !important;
 }
 
 .dash-shell[data-theme='light'] .glass--lime,
 .dash-shell[data-theme='light'] .dash-glass-lime {
-  background: linear-gradient(145deg, rgba(118, 185, 0, 0.12), rgba(255, 255, 255, 0.94) 60%) !important;
+  background: linear-gradient(145deg, rgba(14, 165, 233, 0.12), rgba(255, 255, 255, 0.94) 60%) !important;
 }
 
 /* ── 2. Neumorphism (Tactile Inset Wells & Extruded Controls) ── */
@@ -1491,7 +1536,7 @@
 /* ── 4. Glow & Gradient Styling ─────────────────────────────── */
 .grad-text,
 .dash-grad-text {
-  background: linear-gradient(135deg, #ffffff 15%, #9be015 85%);
+  background: linear-gradient(135deg, #ffffff 15%, #6ee7b7 85%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -1499,7 +1544,7 @@
 
 .dash-shell[data-theme='light'] .grad-text,
 .dash-shell[data-theme='light'] .dash-grad-text {
-  background: linear-gradient(135deg, #0f172a 20%, #76b900 90%);
+  background: linear-gradient(135deg, #0f172a 20%, #0ea5e9 90%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -1581,8 +1626,8 @@
 
 .dash-shell[data-theme='light'] .readout,
 .dash-shell[data-theme='light'] .dash-readout {
-  color: #65a300 !important;
-  text-shadow: 0 0 8px rgba(118, 185, 0, 0.35) !important;
+  color: #0284c7 !important;
+  text-shadow: 0 0 8px rgba(14, 165, 233, 0.35) !important;
 }
 
 /* Micro-etched engraved label */
@@ -1704,7 +1749,7 @@
 }
 
 .dash-shell[data-theme='light'] .dash-pwd-check-item.is-valid {
-  color: #65a300;
+  color: #0284c7;
   font-weight: 600;
 }
 
@@ -1714,9 +1759,9 @@
 }
 
 .dash-shell[data-theme='light'] .dash-pwd-check-item.is-valid .dash-pwd-check-dot {
-  background: rgba(118, 185, 0, 0.16);
-  border-color: #76b900;
-  color: #65a300;
+  background: rgba(14, 165, 233, 0.16);
+  border-color: #0ea5e9;
+  color: #0284c7;
 }
 
 .dash-shell[data-theme='light'] .dash-pwd-alert--error {
@@ -1726,9 +1771,9 @@
 }
 
 .dash-shell[data-theme='light'] .dash-pwd-alert--success {
-  background: rgba(118, 185, 0, 0.12);
-  border-color: rgba(118, 185, 0, 0.35);
-  color: #65a300;
+  background: rgba(14, 165, 233, 0.12);
+  border-color: rgba(14, 165, 233, 0.35);
+  color: #0284c7;
 }
 
 .dash-shell[data-theme='light'] .dash-icon-btn {
@@ -1739,7 +1784,7 @@
 
 .dash-shell[data-theme='light'] .dash-icon-btn:hover {
   background: #e2e8f0;
-  border-color: #76b900;
+  border-color: #0ea5e9;
   color: #0f172a;
 }
 
@@ -1763,20 +1808,20 @@
 }
 
 .dash-shell[data-theme='light'] .dash-telemetry-tab.is-active {
-  background: rgba(118, 185, 0, 0.16) !important;
-  color: #65a300 !important;
+  background: rgba(14, 165, 233, 0.16) !important;
+  color: #0284c7 !important;
   font-weight: 700;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 .dash-shell[data-theme='light'] .dash-telemetry-stat-val--highlight {
-  color: #65a300 !important;
+  color: #0284c7 !important;
   text-shadow: none !important;
 }
 
 .dash-shell[data-theme='light'] .dash-graph-tooltip {
   background: rgba(255, 255, 255, 0.98) !important;
-  border-color: rgba(118, 185, 0, 0.45) !important;
+  border-color: rgba(14, 165, 233, 0.45) !important;
   color: #0f172a !important;
   box-shadow: 0 14px 30px -4px rgba(15, 23, 42, 0.16), 0 4px 12px -2px rgba(15, 23, 42, 0.08) !important;
   width: max-content;
@@ -1785,7 +1830,7 @@
 }
 
 .dash-shell[data-theme='light'] .dash-graph-tooltip__val {
-  color: #65a300 !important;
+  color: #0284c7 !important;
 }
 
 .dash-shell[data-theme='light'] .dash-graph-tooltip__grid {
@@ -1863,15 +1908,15 @@
 .dash-shell[data-theme='light'] .mw-geo-item.is-hovered,
 .light .mw-geo-item:hover,
 .light .mw-geo-item.is-hovered {
-  background: rgba(118, 185, 0, 0.08) !important;
-  border-color: rgba(118, 185, 0, 0.25) !important;
+  background: rgba(80, 227, 150, 0.08) !important;
+  border-color: rgba(80, 227, 150, 0.25) !important;
 }
 
 [data-theme='light'] .mw-geo-item.is-active,
 .dash-shell[data-theme='light'] .mw-geo-item.is-active,
 .light .mw-geo-item.is-active {
-  background: rgba(118, 185, 0, 0.14) !important;
-  border-color: #76b900 !important;
+  background: rgba(80, 227, 150, 0.14) !important;
+  border-color: #50e396 !important;
 }
 
 [data-theme='light'] .mw-geo-item:hover .mw-geo-name,
@@ -1893,9 +1938,9 @@
 [data-theme='light'] .mw-geo-core-tag,
 .dash-shell[data-theme='light'] .mw-geo-core-tag,
 .light .mw-geo-core-tag {
-  background: rgba(118, 185, 0, 0.14) !important;
+  background: rgba(80, 227, 150, 0.14) !important;
   color: #3f6212 !important;
-  border: 1px solid rgba(118, 185, 0, 0.35) !important;
+  border: 1px solid rgba(80, 227, 150, 0.35) !important;
 }
 
 [data-theme='light'] .mw-geo-map-pane,
@@ -1923,7 +1968,7 @@
 .light .mw-map-tooltip {
   background: rgba(255, 255, 255, 0.98) !important;
   border: 1px solid #cbd5e1 !important;
-  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12), 0 0 16px rgba(118, 185, 0, 0.2) !important;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.12), 0 0 16px rgba(80, 227, 150, 0.2) !important;
 }
 
 [data-theme='light'] .mw-map-tooltip__title,
@@ -1963,6 +2008,6922 @@
 
 .dash-shell[data-theme='light'] .mw-chart-avg-tag {
   background: rgba(255, 255, 255, 0.96);
-  color: #65a300;
+  color: #0284c7;
   border-color: rgba(101, 163, 0, 0.35);
+}
+
+/* ───────────────────────────────────────────────────────────
+   Zesto-Style Dark Cyber Fintech Customer Portal Interface
+   (Matching User Reference Photos: Solid Lime Active Pills,
+    Gradient Hero Mesh Card, 30-Day Activity Bars, Kanban Boards)
+   ─────────────────────────────────────────────────────────── */
+
+/* 1. Global Customer Sidebar Active Item Override (Solid Neon Lime Pill) */
+.dash-shell[data-theme='dark'] .dash-sidebar .dash-nav-item.is-active,
+.dash-sidebar .dash-nav-item.is-active {
+  background: #50e396 !important;
+  color: #0b0d0e !important;
+  font-weight: 700 !important;
+  border-radius: 999px !important;
+  border-color: #50e396 !important;
+  box-shadow: 0 4px 18px rgba(80, 227, 150, 0.28) !important;
+}
+
+.dash-shell[data-theme='dark'] .dash-sidebar .dash-nav-item.is-active svg,
+.dash-sidebar .dash-nav-item.is-active svg {
+  color: #0b0d0e !important;
+}
+
+.dash-sidebar .dash-nav-item.is-active::before {
+  display: none !important;
+}
+
+.dash-sidebar .dash-nav-item.is-active .dash-nav-badge {
+  background: #0b0d0e !important;
+  color: #50e396 !important;
+  border-color: #0b0d0e !important;
+  font-weight: 700 !important;
+}
+
+/* 2. Topbar Modern Utility Pills */
+.zesto-topbar-balance {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #e5e7eb;
+}
+
+.zesto-topbar-balance .zesto-pulse-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #50e396;
+  box-shadow: 0 0 8px #50e396;
+}
+
+.zesto-topbar-eye-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #9ca3af;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.zesto-topbar-eye-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.zesto-btn-lime-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: linear-gradient(135deg, #50e396 0%, #1f6448 100%);
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 0.82rem;
+  padding: 7px 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.35);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.zesto-btn-lime-pill:hover {
+  background: linear-gradient(135deg, #6ee7b7 0%, #50e396 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
+}
+
+.zesto-btn-lime-pill:active {
+  transform: translateY(0);
+}
+
+/* 3. Customer Dashboard Container & Greeting */
+.zesto-customer-view {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  width: 100%;
+}
+
+.zesto-greeting-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 2px;
+}
+
+.zesto-greeting-title {
+  font-size: 1.85rem;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.025em;
+  margin: 0;
+  line-height: 1.2;
+}
+
+.zesto-greeting-sub {
+  font-size: 0.84rem;
+  color: #9ca3af;
+  margin: 4px 0 0 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.zesto-btn-glass {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #e5e7eb;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 8px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.zesto-btn-glass:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+/* 4. Top Grid: Signature Hero Gradient Mesh + 30-Day Activity Bars */
+.zesto-top-grid {
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 1080px) {
+  .zesto-top-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Vibrant Gradient Hero Card (Photo 7) */
+.zesto-hero-card {
+  position: relative;
+  border-radius: 24px;
+  padding: 26px;
+  background: linear-gradient(135deg, #50e396 0%, #6ee7b7 35%, #00e5a3 100%);
+  color: #0b0d0e;
+  overflow: hidden;
+  box-shadow: 0 12px 32px -8px rgba(0, 229, 163, 0.2), 0 4px 16px rgba(80, 227, 150, 0.15);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 250px;
+}
+
+.zesto-hero-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.zesto-hero-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #0b0d0e;
+  opacity: 0.88;
+}
+
+.zesto-hero-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.zesto-hero-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(11, 13, 14, 0.12);
+  border: 1px solid rgba(11, 13, 14, 0.16);
+  color: #0b0d0e;
+}
+
+.zesto-hero-amount {
+  font-size: 2.75rem;
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  margin: 14px 0 6px;
+  line-height: 1.1;
+  color: #0b0d0e;
+}
+
+.zesto-hero-sparkline {
+  margin: 4px 0 12px;
+  width: 100%;
+  height: 38px;
+}
+
+.zesto-hero-submetrics {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #0b0d0e;
+  opacity: 0.9;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.zesto-hero-actions {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+@media (max-width: 600px) {
+  .zesto-hero-actions {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.zesto-hero-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  background: rgba(11, 13, 14, 0.14);
+  border: 1px solid rgba(11, 13, 14, 0.18);
+  color: #0b0d0e;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  text-decoration: none;
+}
+
+.zesto-hero-action-btn:hover {
+  background: rgba(11, 13, 14, 0.24);
+  transform: translateY(-1px);
+}
+
+/* 30-Day Activity Chart Card (Photo 7) */
+.zesto-chart-card {
+  background: #12151b;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 24px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.zesto-chart-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.zesto-chart-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+}
+
+.zesto-chart-sub {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin: 3px 0 0 0;
+}
+
+.zesto-chart-pills {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.zesto-chart-pill {
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #9ca3af;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.zesto-chart-pill.is-active {
+  background: #ffffff;
+  color: #0b0d0e;
+  border-color: #ffffff;
+}
+
+.zesto-bars-wrap {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 4px;
+  height: 116px;
+  padding: 10px 4px 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.zesto-bar-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  justify-content: flex-end;
+  cursor: pointer;
+  position: relative;
+}
+
+.zesto-bar {
+  width: 100%;
+  max-width: 11px;
+  border-radius: 3px 3px 0 0;
+  transition: all 0.2s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.zesto-bar:hover {
+  filter: brightness(1.3);
+  transform: scaleY(1.06);
+}
+
+.zesto-chart-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 12px;
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
+.zesto-chart-footer strong {
+  color: #ffffff;
+  margin-left: 4px;
+}
+
+/* 5. Middle 4 Stats Cards */
+.zesto-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 900px) {
+  .zesto-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 500px) {
+  .zesto-stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.zesto-stat-card {
+  background: #12151b;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 18px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.zesto-stat-card:hover {
+  border-color: rgba(255, 255, 255, 0.14);
+  transform: translateY(-2px);
+}
+
+.zesto-stat-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.zesto-stat-label {
+  font-size: 0.78rem;
+  color: #9ca3af;
+  font-weight: 500;
+}
+
+.zesto-stat-icon-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #50e396;
+}
+
+.zesto-stat-value {
+  font-size: 1.55rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0 0 6px 0;
+  letter-spacing: -0.02em;
+}
+
+.zesto-stat-bottom {
+  font-size: 0.72rem;
+  color: #6b7280;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 6. Tabs & Filter Pills (Photo 1) */
+.zesto-section-tabs {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-top: 8px;
+}
+
+.zesto-tab-btn {
+  background: none;
+  border: none;
+  padding: 10px 4px 14px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #9ca3af;
+  cursor: pointer;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: color 0.2s ease;
+}
+
+.zesto-tab-btn.is-active {
+  color: #ffffff;
+}
+
+.zesto-tab-btn.is-active::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 2.5px;
+  background: #50e396;
+  border-radius: 999px;
+  box-shadow: 0 0 10px #50e396;
+}
+
+.zesto-tab-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(80, 227, 150, 0.15);
+  color: #50e396;
+  border: 1px solid rgba(80, 227, 150, 0.3);
+}
+
+.zesto-subfilter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 14px;
+  margin-bottom: 16px;
+}
+
+.zesto-filter-pill-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.zesto-filter-pill {
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #9ca3af;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.zesto-filter-pill.is-active {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.22);
+}
+
+/* 7. 3-Column Kanban Board (Photo 1 & 2) */
+.zesto-kanban-board {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+@media (max-width: 1000px) {
+  .zesto-kanban-board {
+    grid-template-columns: 1fr;
+  }
+}
+
+.zesto-kanban-col {
+  background: #12151b;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 20px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 380px;
+}
+
+.zesto-col-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.zesto-col-title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.zesto-col-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.zesto-col-sub {
+  font-size: 0.72rem;
+  color: #6b7280;
+}
+
+.zesto-col-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 50%;
+  background: #50e396;
+  color: #0b0d0e;
+}
+
+.zesto-card-item {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: all 0.2s ease;
+}
+
+.zesto-card-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.12);
+  transform: translateY(-1px);
+}
+
+.zesto-card-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.zesto-avatar-pill {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #1e242d;
+  color: #50e396;
+  font-weight: 700;
+  font-size: 0.74rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: 1.5px solid rgba(80, 227, 150, 0.3);
+}
+
+.zesto-card-details {
+  flex: 1;
+  min-width: 0;
+}
+
+.zesto-card-title {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: #ffffff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 0;
+}
+
+.zesto-card-meta {
+  font-size: 0.72rem;
+  color: #9ca3af;
+  margin-top: 2px;
+}
+
+.zesto-card-price-badge {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #50e396;
+  background: rgba(80, 227, 150, 0.1);
+  padding: 2px 7px;
+  border-radius: 6px;
+  border: 1px solid rgba(80, 227, 150, 0.2);
+  align-self: flex-start;
+  white-space: nowrap;
+}
+
+.zesto-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  font-size: 0.72rem;
+  color: #6b7280;
+}
+
+.zesto-card-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.74rem;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.zesto-card-action-btn--lime {
+  background: #50e396;
+  color: #0b0d0e;
+}
+
+.zesto-card-action-btn--lime:hover {
+  background: #6ee7b7;
+}
+
+.zesto-card-action-btn--glass {
+  background: rgba(255, 255, 255, 0.06);
+  color: #d1d5db;
+}
+
+.zesto-card-action-btn--glass:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+/* 8. Floating Bottom Toast Pill (Photo 2, 3, 4) */
+.zesto-floating-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #181c24;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6), 0 0 20px rgba(80, 227, 150, 0.12);
+  border-radius: 999px;
+  padding: 9px 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.8rem;
+  color: #f3f4f6;
+  z-index: 9999;
+  animation: zestoSlideUp 0.3s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+@keyframes zestoSlideUp {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 16px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
+.zesto-toast-icon {
+  color: #50e396;
+  display: flex;
+  align-items: center;
+}
+
+.zesto-toast-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  margin-left: 8px;
+  transition: all 0.2s ease;
+}
+
+.zesto-toast-btn:hover {
+  background: #50e396;
+  color: #0b0d0e;
+  border-color: #50e396;
+}
+
+/* ───────────────────────────────────────────────────────────
+   9. Zesto Cards & Compute Wallet Styles (Photo 2)
+   ─────────────────────────────────────────────────────────── */
+
+.zesto-cards-view {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  animation: zestoFadeIn 0.3s ease;
+}
+
+/* Card Selection Horizontal Pills Bar */
+.zesto-cards-carousel {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  overflow-x: auto;
+  padding: 4px 2px 10px;
+  scrollbar-width: none;
+}
+.zesto-cards-carousel::-webkit-scrollbar {
+  display: none;
+}
+
+.zesto-card-chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  color: #9ca3af;
+}
+
+.zesto-card-chip:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+}
+
+.zesto-card-chip.is-active {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(255, 255, 255, 0.28);
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.zesto-card-chip-thumb {
+  width: 24px;
+  height: 16px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.zesto-card-chip-title {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.zesto-card-chip-sub {
+  font-size: 0.7rem;
+  color: #9ca3af;
+}
+
+/* 2-Column Cards Grid */
+.zesto-cards-layout {
+  display: grid;
+  grid-template-columns: 1.15fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 1024px) {
+  .zesto-cards-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Virtual Card 3D Wrap */
+.zesto-card-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  background: #12151b;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 24px;
+  padding: 32px 24px 24px;
+}
+
+.zesto-3d-card-wrapper {
+  width: 100%;
+  max-width: 440px;
+  perspective: 1000px;
+}
+
+.zesto-3d-card {
+  width: 100%;
+  aspect-ratio: 1.58 / 1;
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+  border-radius: 20px;
+  box-shadow: 0 20px 48px -12px rgba(0, 0, 0, 0.7), 0 0 24px rgba(80, 227, 150, 0.08);
+}
+
+.zesto-3d-card.is-flipped {
+  transform: rotateY(180deg);
+}
+
+.zesto-card-side {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  border-radius: 20px;
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.zesto-card-side::before {
+  content: '';
+  position: absolute;
+  top: -40%;
+  left: -20%;
+  width: 140%;
+  height: 140%;
+  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.22), transparent 60%);
+  pointer-events: none;
+}
+
+.zesto-card-side.is-back {
+  transform: rotateY(180deg);
+  background: #1a2228;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+/* Card Front Details */
+.zesto-vcard-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  z-index: 2;
+}
+
+.zesto-vcard-logo {
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-transform: lowercase;
+}
+
+.zesto-vcard-type-badge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.zesto-vcard-chip-wrap {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 10px;
+  position: relative;
+  z-index: 2;
+}
+
+.zesto-emv-chip {
+  width: 44px;
+  height: 32px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #d4af37 0%, #f7e7a9 50%, #aa820a 100%);
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  position: relative;
+  box-shadow: inset 0 0 4px rgba(0, 0, 0, 0.4);
+}
+
+.zesto-emv-chip::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.zesto-contactless-wave {
+  color: rgba(255, 255, 255, 0.7);
+  display: flex;
+  align-items: center;
+}
+
+.zesto-vcard-number {
+  font-family: var(--font-mono, monospace);
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: #ffffff;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  margin: 12px 0 6px;
+  position: relative;
+  z-index: 2;
+}
+
+.zesto-vcard-bottom {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  position: relative;
+  z-index: 2;
+}
+
+.zesto-vcard-holder {
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #ffffff;
+}
+
+.zesto-vcard-expiry-wrap {
+  text-align: right;
+}
+
+.zesto-vcard-expiry-label {
+  font-size: 0.55rem;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+}
+
+.zesto-vcard-expiry-val {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+/* Card Back */
+.zesto-vcard-magstripe {
+  width: 100%;
+  height: 48px;
+  background: #0b0d0e;
+  margin-top: 24px;
+}
+
+.zesto-vcard-signature-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #ffffff;
+  padding: 6px 14px;
+  margin: 20px 24px 0;
+  border-radius: 4px;
+}
+
+.zesto-vcard-cvv {
+  font-family: var(--font-mono, monospace);
+  font-weight: 700;
+  color: #0b0d0e;
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+/* 4 Action Pills below Card */
+.zesto-card-actions-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  max-width: 440px;
+  flex-wrap: wrap;
+}
+
+.zesto-card-action-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #d1d5db;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.zesto-card-action-pill:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.zesto-card-action-pill--lime {
+  background: #50e396;
+  color: #0b0d0e;
+  border-color: #50e396;
+  font-weight: 700;
+}
+
+.zesto-card-action-pill--lime:hover {
+  background: #6ee7b7;
+  color: #0b0d0e;
+  border-color: #6ee7b7;
+  transform: translateY(-1px);
+}
+
+/* Owner Pill below buttons */
+.zesto-card-owner-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.78rem;
+  color: #9ca3af;
+  margin-top: 4px;
+}
+
+/* Right Column Panels */
+.zesto-cycle-panel {
+  background: #12151b;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 20px;
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.zesto-cycle-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.zesto-cycle-title {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+}
+
+.zesto-cycle-sub {
+  font-size: 0.72rem;
+  color: #6b7280;
+  margin: 3px 0 0;
+}
+
+.zesto-cycle-pct-badge {
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(80, 227, 150, 0.12);
+  color: #50e396;
+  border: 1px solid rgba(80, 227, 150, 0.25);
+}
+
+.zesto-cycle-amount {
+  font-size: 1.95rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  margin: 4px 0 0;
+}
+
+.zesto-cycle-limit {
+  font-size: 0.88rem;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+/* Multi-colored Segmented Progress Bar */
+.zesto-multi-progress {
+  display: flex;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.06);
+  gap: 2px;
+}
+
+.zesto-progress-seg {
+  height: 100%;
+  transition: width 0.4s ease;
+}
+
+.zesto-cycle-legend {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 16px;
+  padding-top: 4px;
+}
+
+.zesto-legend-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.76rem;
+}
+
+.zesto-legend-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #9ca3af;
+}
+
+.zesto-legend-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.zesto-legend-val {
+  font-family: var(--font-mono, monospace);
+  font-weight: 600;
+  color: #ffffff;
+}
+
+/* Bottom Transactions Panel */
+.zesto-card-tx-panel {
+  background: #12151b;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 20px;
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.zesto-tx-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.zesto-tx-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  transition: background 0.18s ease;
+}
+
+.zesto-tx-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.zesto-tx-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.zesto-tx-icon-box {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #50e396;
+  flex-shrink: 0;
+}
+
+.zesto-tx-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #ffffff;
+  margin: 0;
+}
+
+.zesto-tx-meta {
+  font-size: 0.7rem;
+  color: #6b7280;
+  margin: 2px 0 0;
+}
+
+.zesto-tx-amount {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.86rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+/* ───────────────────────────────────────────────────────────
+   10. Pixel-Perfect Zesto Glassmorphism & Transparent Theme
+   Luxury frosted glass with fluid aurora ambient lighting,
+   translucent depth, backdrop blur, and dual-theme contrast
+   for both Dark Glass Mode and Light Crystal Mode.
+   ─────────────────────────────────────────────────────────── */
+
+.zesto-exact-view {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  width: 100%;
+  animation: zestoFadeIn 0.35s cubic-bezier(0.2, 0.9, 0.4, 1);
+  position: relative;
+}
+
+/* ── Header Greeting & Actions ─────────────────────────────── */
+.zesto-exact-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.zesto-exact-title {
+  font-size: 2.15rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.035em;
+  margin: 0;
+  line-height: 1.15;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.4);
+  transition: color 0.25s ease;
+}
+
+[data-theme="light"] .zesto-exact-title {
+  color: #0f172a;
+  text-shadow: none;
+}
+
+.zesto-exact-sub {
+  font-size: 0.86rem;
+  color: #94a3b8;
+  margin: 5px 0 0 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 500;
+  transition: color 0.25s ease;
+}
+
+[data-theme="light"] .zesto-exact-sub {
+  color: #475569;
+  font-weight: 600;
+}
+
+.zesto-exact-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.zesto-exact-btn-ask {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #e2e8f0;
+  font-size: 0.84rem;
+  font-weight: 600;
+  padding: 8px 18px;
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.15);
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.zesto-exact-btn-ask:hover {
+  background: rgba(255, 255, 255, 0.16);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+  transform: translateY(-1.5px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+}
+
+[data-theme="light"] .zesto-exact-btn-ask {
+  background: rgba(255, 255, 255, 0.82);
+  border-color: rgba(15, 23, 42, 0.15);
+  color: #0f172a;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.05);
+}
+
+[data-theme="light"] .zesto-exact-btn-ask:hover {
+  background: #ffffff;
+  border-color: rgba(15, 23, 42, 0.28);
+  color: #0f172a;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.09);
+}
+
+.zesto-exact-btn-send {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #50e396 0%, #6ee7b7 100%);
+  color: #0b0d0c;
+  font-size: 0.84rem;
+  font-weight: 800;
+  padding: 8px 20px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  cursor: pointer;
+  box-shadow: 0 4px 18px rgba(80, 227, 150, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.zesto-exact-btn-send:hover {
+  background: linear-gradient(135deg, #e0ff33 0%, #c9ff00 100%);
+  transform: translateY(-1.5px);
+  box-shadow: 0 8px 28px rgba(80, 227, 150, 0.6), inset 0 1px 0 #ffffff;
+}
+
+/* ── Top 2-Card Hero Grid ──────────────────────────────────── */
+.zesto-hero-two-grid {
+  display: grid;
+  grid-template-columns: 1.05fr 1.2fr;
+  gap: 20px;
+}
+
+@media (max-width: 1160px) {
+  .zesto-hero-two-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── 1. Left Mint-Lime Hero Card ───────────────────────────── */
+.zesto-green-hero-card {
+  position: relative;
+  border-radius: 24px;
+  padding: 24px 26px 22px;
+  background: linear-gradient(135deg, rgba(196, 255, 26, 0.94) 0%, rgba(74, 238, 142, 0.88) 55%, rgba(32, 200, 148, 0.85) 100%);
+  backdrop-filter: blur(30px) saturate(200%);
+  -webkit-backdrop-filter: blur(30px) saturate(200%);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.85), 0 20px 48px -12px rgba(32, 200, 148, 0.38), 0 4px 20px rgba(196, 255, 26, 0.25);
+  color: #0b0d0c;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 295px;
+  overflow: hidden;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.zesto-green-hero-card:hover {
+  transform: translateY(-2px);
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.95), 0 24px 54px -10px rgba(32, 200, 148, 0.45);
+}
+
+.zesto-green-hero-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.zesto-green-hero-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #0b0d0c;
+}
+
+.zesto-green-hero-arrow {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(11, 13, 12, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0b0d0c;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+}
+
+.zesto-green-hero-arrow:hover {
+  background: rgba(11, 13, 12, 0.24);
+  transform: translate(2px, -2px);
+}
+
+.zesto-green-hero-amount {
+  font-size: 3.1rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1.08;
+  color: #0b0d0c;
+  margin: 10px 0 6px;
+}
+
+.zesto-green-hero-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.zesto-green-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(11, 13, 12, 0.14);
+  border: 1px solid rgba(11, 13, 12, 0.18);
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #0b0d0c;
+}
+
+.zesto-green-hero-wave {
+  width: 100%;
+  height: 38px;
+  margin: 4px 0 10px;
+}
+
+.zesto-green-hero-categories {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  padding: 8px 0;
+  margin-bottom: 14px;
+  border-top: 1px solid rgba(11, 13, 12, 0.12);
+}
+
+.zesto-green-cat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.zesto-green-cat-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: rgba(11, 13, 12, 0.75);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.zesto-green-cat-val {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #0b0d0c;
+}
+
+.zesto-green-hero-buttons {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.zesto-green-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.38);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  color: #0b0d0c;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(11, 13, 12, 0.08);
+  transition: all 0.18s ease;
+}
+
+.zesto-green-action-btn:hover {
+  background: rgba(255, 255, 255, 0.58);
+  border-color: rgba(255, 255, 255, 0.85);
+  transform: translateY(-1.5px);
+  box-shadow: 0 6px 16px rgba(11, 13, 12, 0.15);
+}
+
+/* ── 2. Right "The Last 30 Days" Glass Card ─────────────────── */
+.zesto-dark-chart-card {
+  background: rgba(15, 23, 36, 0.55);
+  backdrop-filter: blur(28px) saturate(190%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 24px;
+  padding: 24px 26px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 295px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 16px 40px -10px rgba(0, 0, 0, 0.45);
+  transition: all 0.25s ease;
+}
+
+[data-theme="light"] .zesto-dark-chart-card {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 1), 0 16px 40px -10px rgba(15, 23, 42, 0.08);
+}
+
+.zesto-dark-chart-card:hover {
+  border-color: rgba(255, 255, 255, 0.22);
+  transform: translateY(-2px);
+}
+
+[data-theme="light"] .zesto-dark-chart-card:hover {
+  border-color: rgba(255, 255, 255, 1);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 1), 0 20px 48px -10px rgba(15, 23, 42, 0.12);
+}
+
+.zesto-dark-chart-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.zesto-dark-chart-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+  transition: color 0.25s ease;
+}
+
+[data-theme="light"] .zesto-dark-chart-title {
+  color: #0f172a;
+}
+
+.zesto-dark-chart-sub {
+  font-size: 0.76rem;
+  color: #94a3b8;
+  margin: 3px 0 0 0;
+  transition: color 0.25s ease;
+}
+
+[data-theme="light"] .zesto-dark-chart-sub {
+  color: #475569;
+}
+
+.zesto-member-pills {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.zesto-member-pill {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.zesto-member-pill:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.zesto-member-pill.is-active {
+  background: #ffffff;
+  color: #0b0d0c;
+  border-color: #ffffff;
+  font-weight: 700;
+  box-shadow: 0 2px 10px rgba(255, 255, 255, 0.25);
+}
+
+[data-theme="light"] .zesto-member-pill {
+  background: rgba(15, 23, 42, 0.05);
+  border: 1px solid rgba(15, 23, 42, 0.1);
+  color: #475569;
+}
+
+[data-theme="light"] .zesto-member-pill:hover {
+  background: rgba(15, 23, 42, 0.09);
+  color: #0f172a;
+}
+
+[data-theme="light"] .zesto-member-pill.is-active {
+  background: #0f172a;
+  color: #ffffff;
+  border-color: #0f172a;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.2);
+}
+
+.zesto-stacked-bars-container {
+  position: relative;
+  margin: 14px 0 8px;
+  display: flex;
+  gap: 10px;
+}
+
+.zesto-chart-y-axis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-size: 0.68rem;
+  color: #64748b;
+  height: 120px;
+  padding-bottom: 16px;
+  user-select: none;
+  transition: color 0.25s ease;
+}
+
+[data-theme="light"] .zesto-chart-y-axis {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.zesto-stacked-bars-area {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  height: 120px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  transition: border-color 0.25s ease;
+}
+
+[data-theme="light"] .zesto-stacked-bars-area {
+  border-bottom-color: rgba(15, 23, 42, 0.1);
+}
+
+.zesto-spline-curve {
+  stroke: #ffffff;
+  transition: stroke 0.25s ease;
+}
+
+[data-theme="light"] .zesto-spline-curve {
+  stroke: #0f172a;
+}
+
+.zesto-stacked-bar-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column-reverse;
+  align-items: center;
+  height: 100%;
+  justify-content: flex-start;
+  gap: 1.5px;
+  cursor: pointer;
+}
+
+.zesto-bar-slice {
+  width: 100%;
+  max-width: 10px;
+  border-radius: 2px;
+  transition: filter 0.15s ease, transform 0.15s ease;
+}
+
+.zesto-stacked-bar-col:hover .zesto-bar-slice {
+  filter: brightness(1.3) drop-shadow(0 0 4px currentColor);
+}
+
+.zesto-chart-x-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.68rem;
+  color: #94a3b8;
+  margin-top: 4px;
+  padding-left: 36px;
+  transition: color 0.25s ease;
+}
+
+[data-theme="light"] .zesto-chart-x-labels {
+  color: #64748b;
+  font-weight: 600;
+}
+
+.zesto-dark-chart-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-top: 14px;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  transition: all 0.25s ease;
+}
+
+[data-theme="light"] .zesto-dark-chart-foot {
+  color: #475569;
+  border-top-color: rgba(15, 23, 42, 0.08);
+}
+
+.zesto-chart-stats-group {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.zesto-chart-stat-item strong {
+  color: #ffffff;
+  margin-left: 4px;
+  transition: color 0.25s ease;
+}
+
+[data-theme="light"] .zesto-chart-stat-item strong {
+  color: #0f172a;
+}
+
+.zesto-chart-legend {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.zesto-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  color: #94a3b8;
+  transition: color 0.25s ease;
+}
+
+[data-theme="light"] .zesto-legend-item {
+  color: #475569;
+  font-weight: 600;
+}
+
+.zesto-legend-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 2px;
+}
+
+/* ── 4 Middle Stat Cards ───────────────────────────────────── */
+.zesto-four-stat-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 1024px) {
+  .zesto-four-stat-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .zesto-four-stat-cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+.zesto-mini-stat-card {
+  background: rgba(15, 23, 36, 0.55);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 12px 30px -8px rgba(0, 0, 0, 0.4);
+  transition: all 0.22s ease;
+}
+
+[data-theme="light"] .zesto-mini-stat-card {
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 1), 0 12px 30px -8px rgba(15, 23, 42, 0.07);
+}
+
+.zesto-mini-stat-card:hover {
+  border-color: rgba(255, 255, 255, 0.22);
+  transform: translateY(-2px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 16px 36px -8px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="light"] .zesto-mini-stat-card:hover {
+  border-color: rgba(255, 255, 255, 1);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 1), 0 16px 36px -8px rgba(15, 23, 42, 0.11);
+}
+
+.zesto-mini-stat-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.zesto-mini-stat-label {
+  font-size: 0.78rem;
+  color: #94a3b8;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  transition: color 0.25s ease;
+}
+
+[data-theme="light"] .zesto-mini-stat-label {
+  color: #475569;
+  font-weight: 600;
+}
+
+.zesto-mini-stat-pill {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(80, 227, 150, 0.15);
+  color: #22c55e;
+  border: 1px solid rgba(80, 227, 150, 0.3);
+}
+
+.zesto-mini-stat-val {
+  font-size: 1.65rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.025em;
+  margin: 0 0 6px 0;
+  transition: color 0.25s ease;
+}
+
+[data-theme="light"] .zesto-mini-stat-val {
+  color: #0f172a;
+}
+
+.zesto-mini-stat-bottom {
+  font-size: 0.72rem;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: color 0.25s ease;
+}
+
+[data-theme="light"] .zesto-mini-stat-bottom {
+  color: #64748b;
+  font-weight: 500;
+}
+
+/* ── 3 Bottom Panels Grid ──────────────────────────────────── */
+.zesto-three-bottom-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 1100px) {
+  .zesto-three-bottom-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.zesto-panel-card {
+  background: rgba(15, 23, 36, 0.55);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 22px;
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 240px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 14px 34px -8px rgba(0, 0, 0, 0.4);
+  transition: all 0.22s ease;
+}
+
+[data-theme="light"] .zesto-panel-card {
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 1), 0 14px 34px -8px rgba(15, 23, 42, 0.07);
+}
+
+.zesto-panel-card:hover {
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 18px 42px -8px rgba(0, 0, 0, 0.5);
+}
+
+[data-theme="light"] .zesto-panel-card:hover {
+  border-color: rgba(255, 255, 255, 1);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 1), 0 18px 42px -8px rgba(15, 23, 42, 0.11);
+}
+
+.zesto-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.zesto-panel-title {
+  font-size: 0.96rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+  transition: color 0.25s ease;
+}
+
+[data-theme="light"] .zesto-panel-title {
+  color: #0f172a;
+}
+
+.zesto-panel-sub {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  margin: 3px 0 0 0;
+  transition: color 0.25s ease;
+}
+
+[data-theme="light"] .zesto-panel-sub {
+  color: #475569;
+}
+
+.zesto-panel-link {
+  font-size: 0.74rem;
+  color: #94a3b8;
+  text-decoration: none;
+  font-weight: 600;
+  transition: color 0.18s ease;
+  cursor: pointer;
+}
+
+.zesto-panel-link:hover {
+  color: #50e396;
+}
+
+[data-theme="light"] .zesto-panel-link {
+  color: #475569;
+}
+
+[data-theme="light"] .zesto-panel-link:hover {
+  color: #3f6212;
+}
+
+/* ── Panel 1: Budget Pace ──────────────────────────────────── */
+.zesto-budget-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.zesto-budget-item:last-child {
+  margin-bottom: 0;
+}
+
+.zesto-budget-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.78rem;
+}
+
+.zesto-budget-cat {
+  color: #e2e8f0;
+  font-weight: 600;
+  transition: color 0.25s ease;
+}
+
+[data-theme="light"] .zesto-budget-cat {
+  color: #0f172a;
+}
+
+.zesto-budget-figures {
+  color: #94a3b8;
+  font-size: 0.74rem;
+  transition: color 0.25s ease;
+}
+
+[data-theme="light"] .zesto-budget-figures {
+  color: #475569;
+  font-weight: 500;
+}
+
+.zesto-budget-status-pill {
+  font-size: 0.66rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
+}
+
+.zesto-budget-status-pill--over {
+  background: rgba(239, 68, 68, 0.18);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.zesto-budget-status-pill--track {
+  background: rgba(80, 227, 150, 0.15);
+  color: #6ee7b7;
+  border: 1px solid rgba(80, 227, 150, 0.3);
+}
+
+.zesto-budget-track {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.09);
+  overflow: visible;
+  transition: background 0.25s ease;
+}
+
+[data-theme="light"] .zesto-budget-track {
+  background: rgba(15, 23, 42, 0.08);
+}
+
+.zesto-budget-fill {
+  height: 100%;
+  border-radius: 999px;
+}
+
+.zesto-budget-tick {
+  position: absolute;
+  top: -4px;
+  width: 2px;
+  height: 14px;
+  background: #ffffff;
+  border-radius: 1px;
+  box-shadow: 0 0 8px rgba(255, 255, 255, 0.85);
+  transition: all 0.25s ease;
+}
+
+[data-theme="light"] .zesto-budget-tick {
+  background: #0f172a;
+  box-shadow: 0 0 6px rgba(15, 23, 42, 0.5);
+}
+
+/* ── Panel 2: Family Cards 3D Stack ────────────────────────── */
+.zesto-deck-stage {
+  position: relative;
+  height: 155px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  perspective: 900px;
+  cursor: pointer;
+  margin-top: 8px;
+}
+
+.zesto-deck-card {
+  position: absolute;
+  width: 250px;
+  height: 140px;
+  border-radius: 16px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.55);
+  transition: all 0.35s cubic-bezier(0.2, 0.9, 0.3, 1);
+  user-select: none;
+}
+
+.zesto-deck-card--front {
+  background: linear-gradient(135deg, #2ae0c8 0%, #17a085 60%, #0e6b56 100%);
+  color: #ffffff;
+  z-index: 3;
+  transform: translateY(0) scale(1);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.6), 0 16px 36px rgba(14, 107, 86, 0.45);
+}
+
+.zesto-deck-card--mid {
+  background: linear-gradient(135deg, #1b3d36 0%, #102621 100%);
+  z-index: 2;
+  transform: translateY(-8px) scale(0.94);
+  opacity: 0.75;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.zesto-deck-card--back {
+  background: linear-gradient(135deg, #122420 0%, #0a1412 100%);
+  z-index: 1;
+  transform: translateY(-16px) scale(0.88);
+  opacity: 0.5;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.zesto-deck-stage:hover .zesto-deck-card--front {
+  transform: translateY(-5px) scale(1.03);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.8), 0 22px 44px rgba(14, 107, 86, 0.55);
+}
+
+/* ── Panel 3: Coming Up List ───────────────────────────────── */
+.zesto-coming-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.zesto-coming-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.zesto-coming-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.zesto-date-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.1;
+  transition: all 0.25s ease;
+}
+
+[data-theme="light"] .zesto-date-badge {
+  background: rgba(15, 23, 42, 0.05);
+  border-color: rgba(15, 23, 42, 0.12);
+  color: #0f172a;
+}
+
+.zesto-date-badge span {
+  font-size: 0.62rem;
+  color: #94a3b8;
+  font-weight: 500;
+  text-transform: uppercase;
+  transition: color 0.25s ease;
+}
+
+[data-theme="light"] .zesto-date-badge span {
+  color: #64748b;
+}
+
+.zesto-coming-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.zesto-coming-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #ffffff;
+  transition: color 0.25s ease;
+}
+
+[data-theme="light"] .zesto-coming-name {
+  color: #0f172a;
+}
+
+.zesto-coming-sub {
+  font-size: 0.7rem;
+  color: #64748b;
+  transition: color 0.25s ease;
+}
+
+[data-theme="light"] .zesto-coming-sub {
+  color: #64748b;
+}
+
+.zesto-coming-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.zesto-coming-amount {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: #ffffff;
+  transition: color 0.25s ease;
+}
+
+[data-theme="light"] .zesto-coming-amount {
+  color: #0f172a;
+}
+
+.zesto-coming-pay-btn {
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: #50e396;
+  color: #0b0d0c;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(80, 227, 150, 0.4);
+  transition: all 0.18s ease;
+}
+
+.zesto-coming-pay-btn:hover {
+  background: #6ee7b7;
+  transform: scale(1.06);
+  box-shadow: 0 4px 14px rgba(80, 227, 150, 0.6);
+}
+
+/* ── Modal Glassmorphism ───────────────────────────────────── */
+.mw-modal-backdrop {
+  background: rgba(4, 7, 12, 0.65) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+}
+
+.mw-modal-window {
+  background: rgba(15, 23, 38, 0.88) !important;
+  backdrop-filter: blur(32px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(32px) saturate(190%) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 24px 60px -12px rgba(0, 0, 0, 0.7) !important;
+}
+
+[data-theme="light"] .mw-modal-window {
+  background: rgba(255, 255, 255, 0.94) !important;
+  border: 1px solid rgba(15, 23, 42, 0.14) !important;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 1), 0 24px 60px -12px rgba(15, 23, 42, 0.15) !important;
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .mw-modal-window h3 {
+  color: #0f172a !important;
+}
+
+[data-theme="light"] .mw-modal-window label {
+  color: #475569 !important;
+}
+
+[data-theme="light"] .mw-modal-window select,
+[data-theme="light"] .mw-modal-window input {
+  background: rgba(15, 23, 42, 0.04) !important;
+  border-color: rgba(15, 23, 42, 0.14) !important;
+  color: #0f172a !important;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   SAHITH PORTAL — CELESTIAL SKY BLUE (LITE EDITION)
+   High-Contrast Glassmorphic & Transparent Theme (Zero Green)
+   Featuring: #50e396 / #6ee7b7 / #1f6448 / #a7f3d0 / #e0f2fe
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. Top Greeting & Action Buttons ── */
+.zesto-exact-btn-send {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, #1f6448 0%, #50e396 100%) !important;
+  color: #ffffff !important;
+  font-size: 0.84rem;
+  font-weight: 700;
+  padding: 8px 20px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  box-shadow: 0 4px 16px rgba(80, 227, 150, 0.4);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.zesto-exact-btn-send:hover {
+  background: linear-gradient(135deg, #50e396 0%, #6ee7b7 100%) !important;
+  transform: translateY(-1.5px);
+  box-shadow: 0 8px 24px rgba(80, 227, 150, 0.55), inset 0 1px 0 #ffffff;
+}
+
+/* ── 2. Hero Card: Celestial Sky Blue Gradient Card ── */
+.zesto-green-hero-card {
+  position: relative;
+  border-radius: 24px;
+  padding: 24px 26px 22px;
+  background: linear-gradient(135deg, #1f6448 0%, #50e396 50%, #6ee7b7 100%) !important;
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.38) !important;
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.65), 0 20px 48px -12px rgba(80, 227, 150, 0.45), 0 4px 20px rgba(31, 100, 72, 0.25) !important;
+  color: #ffffff !important;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 295px;
+  overflow: hidden;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.zesto-green-hero-card:hover {
+  transform: translateY(-2px);
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.85), 0 24px 54px -10px rgba(80, 227, 150, 0.6) !important;
+}
+.zesto-green-hero-tag {
+  color: rgba(255, 255, 255, 0.95) !important;
+  font-weight: 600;
+}
+.zesto-green-hero-arrow {
+  background: rgba(255, 255, 255, 0.22) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+}
+.zesto-green-hero-arrow:hover {
+  background: rgba(255, 255, 255, 0.38) !important;
+}
+.zesto-green-hero-amount {
+  color: #ffffff !important;
+}
+.zesto-green-badge-pill {
+  background: rgba(255, 255, 255, 0.2) !important;
+  border: 1px solid rgba(255, 255, 255, 0.32) !important;
+  color: #ffffff !important;
+}
+.zesto-green-cat-label {
+  color: rgba(255, 255, 255, 0.88) !important;
+}
+.zesto-green-cat-val {
+  color: #ffffff !important;
+}
+.zesto-green-action-btn {
+  background: rgba(255, 255, 255, 0.2) !important;
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.32) !important;
+  color: #ffffff !important;
+}
+.zesto-green-action-btn:hover {
+  background: rgba(255, 255, 255, 0.35) !important;
+  border-color: rgba(255, 255, 255, 0.55) !important;
+  color: #ffffff !important;
+  transform: translateY(-1.5px);
+}
+.zesto-green-hero-wave svg path:first-child {
+  fill: rgba(255, 255, 255, 0.12) !important;
+}
+.zesto-green-hero-wave svg path:last-child {
+  stroke: #ffffff !important;
+}
+
+/* ── 3. Member & Filter Pills in Chart ── */
+.zesto-member-pill.is-active {
+  background: #50e396 !important;
+  color: #ffffff !important;
+  border-color: #50e396 !important;
+  font-weight: 700;
+  box-shadow: 0 2px 10px rgba(80, 227, 150, 0.4) !important;
+}
+[data-theme="light"] .zesto-member-pill.is-active {
+  background: #0284c7 !important;
+  color: #ffffff !important;
+  border-color: #0284c7 !important;
+  box-shadow: 0 2px 10px rgba(2, 132, 199, 0.35) !important;
+}
+
+/* ── 4. Mini Stat Cards ── */
+.zesto-mini-stat-pill {
+  background: rgba(80, 227, 150, 0.12) !important;
+  color: #50e396 !important;
+  border: 1px solid rgba(80, 227, 150, 0.3) !important;
+}
+[data-theme="light"] .zesto-mini-stat-pill {
+  background: rgba(14, 165, 233, 0.1) !important;
+  color: #0284c7 !important;
+  border-color: rgba(14, 165, 233, 0.28) !important;
+}
+
+/* ── 5. Sidebar Brand & Navigation ── */
+.verdelo-brand-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #1f6448 0%, #50e396 100%) !important;
+  color: #ffffff !important;
+  font-weight: 900;
+  font-size: 1.15rem;
+  box-shadow: 0 4px 14px rgba(0, 121, 107, 0.45) !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.verdelo-brand-name {
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #f8fafc;
+  line-height: 1.2;
+}
+[data-theme="light"] .verdelo-brand-name {
+  color: #082f49 !important;
+}
+.verdelo-brand-sub {
+  font-size: 0.72rem;
+  color: #94a3b8;
+  line-height: 1.2;
+}
+[data-theme="light"] .verdelo-brand-sub {
+  color: #64748b !important;
+}
+
+/* Active Nav Item: Sky Blue */
+.dash-shell[data-role="customer"] .dash-nav-item.is-active,
+.dash-shell[data-theme='light'] .dash-nav-item.is-active,
+.dash-nav-item.is-active {
+  background: linear-gradient(135deg, #1f6448 0%, #50e396 100%) !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 16px rgba(0, 121, 107, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.35) !important;
+  border: none !important;
+}
+.dash-shell[data-role="customer"] .dash-nav-item.is-active svg,
+.dash-shell[data-theme='light'] .dash-nav-item.is-active svg,
+.dash-nav-item.is-active svg {
+  color: #ffffff !important;
+}
+.dash-shell[data-role="customer"] .dash-nav-item.is-active::before {
+  display: none !important;
+}
+
+/* Safe to spend card */
+.verdelo-safe-spend-card {
+  background: rgba(9, 28, 20, 0.75) !important;
+  border: 1.5px solid rgba(80, 227, 150, 0.22) !important;
+  border-radius: 16px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+}
+[data-theme="light"] .verdelo-safe-spend-card {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.20) 0%, rgba(128, 203, 196, 0.16) 100%) !important;
+  backdrop-filter: blur(28px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
+  border: 1.5px solid rgba(128, 203, 196, 0.45) !important;
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.8), 0 8px 24px rgba(0, 77, 64, 0.08) !important;
+}
+.verdelo-safe-spend-label {
+  font-size: 0.72rem;
+  color: #94a3b8;
+}
+[data-theme="light"] .verdelo-safe-spend-label {
+  color: #64748b !important;
+}
+.verdelo-safe-spend-amount {
+  font-size: 1.35rem;
+  font-weight: 800;
+  color: #f8fafc;
+}
+[data-theme="light"] .verdelo-safe-spend-amount {
+  color: #082f49 !important;
+}
+.verdelo-safe-spend-sub {
+  font-size: 0.66rem;
+  color: #64748b;
+}
+[data-theme="light"] .verdelo-safe-spend-sub {
+  color: #64748b !important;
+}
+
+/* User pill */
+.verdelo-user-pill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 4px;
+  cursor: pointer;
+}
+.verdelo-user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #1f6448 0%, #50e396 100%) !important;
+  color: #ffffff !important;
+  font-size: 0.8rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid rgba(255, 255, 255, 0.45) !important;
+  box-shadow: 0 2px 8px rgba(0, 121, 107, 0.3) !important;
+  flex-shrink: 0;
+}
+[data-theme="light"] .verdelo-user-avatar {
+  background: linear-gradient(135deg, #00796b 0%, #80cbc4 100%) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.55) !important;
+}
+.verdelo-user-name {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #f8fafc;
+}
+[data-theme="light"] .verdelo-user-name {
+  color: #082f49 !important;
+}
+.verdelo-user-email {
+  font-size: 0.66rem;
+  color: #94a3b8;
+}
+[data-theme="light"] .verdelo-user-email {
+  color: #64748b !important;
+}
+
+/* ── 6. Topbar: Search Capsule & Buttons ── */
+.verdelo-search-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(9, 28, 20, 0.72) !important;
+  border: 1.5px solid rgba(80, 227, 150, 0.25) !important;
+  border-radius: 20px;
+  padding: 6px 14px;
+  min-width: 280px;
+  max-width: 360px;
+  cursor: pointer;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  transition: all 0.2s ease;
+}
+[data-theme="light"] .verdelo-search-pill {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.22) 0%, rgba(128, 203, 196, 0.16) 100%) !important;
+  border: 1.5px solid rgba(128, 203, 196, 0.45) !important;
+  backdrop-filter: blur(24px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(190%) !important;
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.8), 0 2px 8px rgba(0, 77, 64, 0.05) !important;
+}
+.verdelo-search-pill:hover {
+  border-color: rgba(80, 227, 150, 0.5) !important;
+}
+.verdelo-search-icon {
+  color: #94a3b8;
+}
+[data-theme="light"] .verdelo-search-icon {
+  color: #64748b !important;
+}
+.verdelo-search-text {
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+[data-theme="light"] .verdelo-search-text {
+  color: #64748b !important;
+}
+.verdelo-search-kbd {
+  font-size: 0.68rem;
+  background: rgba(80, 227, 150, 0.12) !important;
+  color: #6ee7b7 !important;
+  border: 1px solid rgba(80, 227, 150, 0.28) !important;
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+[data-theme="light"] .verdelo-search-kbd {
+  background: rgba(14, 165, 233, 0.1) !important;
+  color: #0284c7 !important;
+}
+
+.verdelo-btn-circle {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  border: none;
+  flex-shrink: 0;
+}
+.verdelo-btn-circle--mint {
+  background: linear-gradient(135deg, #1f6448 0%, #50e396 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 10px rgba(80, 227, 150, 0.4) !important;
+}
+.verdelo-btn-circle--mint:hover {
+  background: linear-gradient(135deg, #50e396 0%, #6ee7b7 100%) !important;
+  transform: scale(1.06);
+}
+.verdelo-btn-circle--glass {
+  background: rgba(9, 28, 20, 0.7) !important;
+  border: 1px solid rgba(80, 227, 150, 0.22) !important;
+  color: #cbd5e1 !important;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+[data-theme="light"] .verdelo-btn-circle--glass {
+  background: rgba(240, 249, 255, 0.95) !important;
+  border: 1px solid rgba(186, 230, 253, 0.9) !important;
+  color: #475569 !important;
+}
+.verdelo-btn-circle--glass:hover {
+  color: #ffffff;
+  border-color: rgba(80, 227, 150, 0.45) !important;
+}
+[data-theme="light"] .verdelo-btn-circle--glass:hover {
+  color: #082f49 !important;
+  background: #ffffff !important;
+}
+.verdelo-avatar-circle {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #1f6448 0%, #50e396 100%) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.45) !important;
+  color: #ffffff !important;
+  font-size: 0.85rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0, 121, 107, 0.3) !important;
+}
+[data-theme="light"] .verdelo-avatar-circle {
+  background: linear-gradient(135deg, #00796b 0%, #80cbc4 100%) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.55) !important;
+}
+.verdelo-avatar-circle:hover {
+  border-color: #50e396 !important;
+  box-shadow: 0 0 10px rgba(80, 227, 150, 0.4);
+}
+
+/* ── 7. Insights Screen (Dual Theme) ── */
+.verdelo-insights-container {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 4px 12px 36px;
+}
+.verdelo-insights-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.verdelo-insights-title {
+  font-size: 2.1rem;
+  font-weight: 700;
+  color: #f8fafc;
+  letter-spacing: -0.025em;
+  margin: 0;
+  line-height: 1.15;
+}
+[data-theme="light"] .verdelo-insights-title {
+  color: #082f49 !important;
+}
+.verdelo-insights-sub {
+  font-size: 0.9rem;
+  color: #94a3b8;
+  margin: 0;
+}
+[data-theme="light"] .verdelo-insights-sub {
+  color: #64748b !important;
+}
+
+.verdelo-subtabs {
+  display: flex;
+  gap: 24px;
+  border-bottom: 1px solid rgba(80, 227, 150, 0.2) !important;
+  padding-bottom: 8px;
+  margin-top: 2px;
+}
+[data-theme="light"] .verdelo-subtabs {
+  border-bottom-color: rgba(186, 230, 253, 0.9) !important;
+}
+.verdelo-subtab {
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 0.92rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 6px 2px;
+  position: relative;
+  transition: color 0.18s ease;
+}
+[data-theme="light"] .verdelo-subtab {
+  color: #64748b !important;
+}
+.verdelo-subtab:hover {
+  color: #f8fafc;
+}
+[data-theme="light"] .verdelo-subtab:hover {
+  color: #082f49 !important;
+}
+.verdelo-subtab.is-active {
+  color: #50e396 !important;
+}
+[data-theme="light"] .verdelo-subtab.is-active {
+  color: #0284c7 !important;
+}
+.verdelo-subtab.is-active::after {
+  content: '';
+  position: absolute;
+  bottom: -9px;
+  left: 0;
+  right: 0;
+  height: 2.5px;
+  background: #50e396 !important;
+  border-radius: 999px;
+  box-shadow: 0 0 10px rgba(80, 227, 150, 0.7) !important;
+}
+[data-theme="light"] .verdelo-subtab.is-active::after {
+  background: #0284c7 !important;
+}
+
+.verdelo-four-stat-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+@media (max-width: 1024px) {
+  .verdelo-four-stat-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 640px) {
+  .verdelo-four-stat-cards {
+    grid-template-columns: 1fr;
+  }
+}
+.verdelo-stat-card {
+  background: rgba(9, 28, 20, 0.7) !important;
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid rgba(80, 227, 150, 0.18) !important;
+  border-radius: 16px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 10px 28px -6px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(80, 227, 150, 0.1) !important;
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+[data-theme="light"] .verdelo-stat-card {
+  background: rgba(255, 255, 255, 0.88) !important;
+  border: 1px solid rgba(186, 230, 253, 0.8) !important;
+  box-shadow: 0 8px 24px -4px rgba(14, 165, 233, 0.06), inset 0 1px 0 #ffffff !important;
+}
+.verdelo-stat-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(80, 227, 150, 0.45) !important;
+}
+.verdelo-stat-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.verdelo-stat-head-icon--mint { color: #6ee7b7 !important; }
+.verdelo-stat-head-icon--teal { color: #50e396 !important; }
+.verdelo-stat-head-icon--gold { color: #f59e0b !important; }
+.verdelo-stat-title {
+  font-size: 0.82rem;
+  color: #94a3b8;
+  font-weight: 500;
+}
+[data-theme="light"] .verdelo-stat-title {
+  color: #64748b !important;
+}
+.verdelo-stat-value {
+  font-size: 1.95rem;
+  font-weight: 700;
+  color: #f8fafc;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+[data-theme="light"] .verdelo-stat-value {
+  color: #082f49 !important;
+}
+.verdelo-stat-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+}
+.verdelo-stat-sub {
+  font-size: 0.76rem;
+  color: #64748b;
+}
+[data-theme="light"] .verdelo-stat-sub {
+  color: #64748b !important;
+}
+
+.verdelo-two-charts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+@media (max-width: 960px) {
+  .verdelo-two-charts-grid {
+    grid-template-columns: 1fr;
+  }
+}
+.verdelo-chart-card {
+  background: rgba(9, 28, 20, 0.7) !important;
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid rgba(80, 227, 150, 0.18) !important;
+  border-radius: 18px;
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 14px 34px -8px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(80, 227, 150, 0.1) !important;
+}
+[data-theme="light"] .verdelo-chart-card {
+  background: rgba(255, 255, 255, 0.88) !important;
+  border: 1px solid rgba(186, 230, 253, 0.8) !important;
+  box-shadow: 0 12px 30px -6px rgba(14, 165, 233, 0.08), inset 0 1px 0 #ffffff !important;
+}
+.verdelo-chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+.verdelo-chart-title {
+  font-size: 1.18rem;
+  font-weight: 700;
+  color: #f8fafc;
+  margin: 0;
+}
+[data-theme="light"] .verdelo-chart-title {
+  color: #082f49 !important;
+}
+.verdelo-chart-sub {
+  font-size: 0.78rem;
+  color: #94a3b8;
+  margin: 4px 0 0;
+}
+[data-theme="light"] .verdelo-chart-sub {
+  color: #64748b !important;
+}
+
+.verdelo-time-pills {
+  display: flex;
+  gap: 6px;
+  background: rgba(9, 28, 20, 0.85) !important;
+  padding: 3px 4px;
+  border-radius: 12px;
+  border: 1px solid rgba(80, 227, 150, 0.18) !important;
+}
+[data-theme="light"] .verdelo-time-pills {
+  background: rgba(240, 249, 255, 0.95) !important;
+  border-color: rgba(186, 230, 253, 0.9) !important;
+}
+.verdelo-time-pill {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 0.74rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+[data-theme="light"] .verdelo-time-pill {
+  color: #64748b;
+}
+.verdelo-time-pill:hover {
+  color: #f8fafc;
+}
+[data-theme="light"] .verdelo-time-pill:hover {
+  color: #082f49;
+}
+.verdelo-time-pill.is-active {
+  background: #50e396 !important;
+  color: #ffffff !important;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(80, 227, 150, 0.4) !important;
+}
+[data-theme="light"] .verdelo-time-pill.is-active {
+  background: #0284c7 !important;
+  color: #ffffff !important;
+}
+
+.verdelo-chart-legend {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  font-size: 0.78rem;
+}
+.verdelo-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #f8fafc;
+  font-weight: 600;
+}
+[data-theme="light"] .verdelo-legend-item {
+  color: #082f49 !important;
+}
+.verdelo-legend-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+.verdelo-legend-dot--in { background: #50e396 !important; box-shadow: 0 0 6px #50e396 !important; }
+.verdelo-legend-dot--out { background: #d1fae5 !important; }
+[data-theme="dark"] .verdelo-legend-dot--out { background: #144530 !important; }
+.verdelo-legend-text {
+  color: #64748b;
+}
+[data-theme="light"] .verdelo-legend-text {
+  color: #64748b !important;
+}
+
+.verdelo-bars-container {
+  display: flex;
+  gap: 12px;
+  height: 220px;
+  margin-top: 8px;
+  position: relative;
+}
+.verdelo-y-axis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-size: 0.68rem;
+  color: #64748b;
+  padding-bottom: 22px;
+  min-width: 32px;
+  text-align: right;
+  user-select: none;
+}
+.verdelo-bars-content {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.verdelo-grid-lines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 22px;
+  pointer-events: none;
+}
+.verdelo-grid-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: rgba(80, 227, 150, 0.1);
+}
+[data-theme="light"] .verdelo-grid-line {
+  background: rgba(186, 230, 253, 0.6) !important;
+}
+.verdelo-bars-track {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding-bottom: 22px;
+  position: relative;
+  z-index: 1;
+}
+.verdelo-month-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  justify-content: flex-end;
+  position: relative;
+  cursor: pointer;
+  flex: 1;
+}
+.verdelo-bar-pair {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 100%;
+}
+.verdelo-bar {
+  width: 7px;
+  border-radius: 4px 4px 1px 1px;
+  transition: height 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), filter 0.2s ease;
+}
+.verdelo-bar--in {
+  background: #50e396 !important;
+  box-shadow: 0 0 8px rgba(80, 227, 150, 0.4) !important;
+}
+.verdelo-bar--out {
+  background: #d1fae5 !important;
+}
+[data-theme="dark"] .verdelo-bar--out {
+  background: #144530 !important;
+}
+.verdelo-month-col:hover .verdelo-bar--in {
+  filter: brightness(1.2);
+}
+.verdelo-month-label {
+  position: absolute;
+  bottom: -20px;
+  font-size: 0.68rem;
+  color: #64748b;
+  white-space: nowrap;
+}
+.verdelo-bar-tooltip {
+  position: absolute;
+  top: -48px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(9, 28, 20, 0.95) !important;
+  border: 1px solid rgba(80, 227, 150, 0.45) !important;
+  border-radius: 8px;
+  padding: 4px 8px;
+  white-space: nowrap;
+  text-align: center;
+  z-index: 10;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
+}
+[data-theme="light"] .verdelo-bar-tooltip {
+  background: rgba(255, 255, 255, 0.95) !important;
+  border-color: rgba(14, 165, 233, 0.4) !important;
+  box-shadow: 0 8px 24px rgba(14, 165, 233, 0.12) !important;
+}
+.verdelo-bar-tooltip-val {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #50e396 !important;
+}
+.verdelo-bar-tooltip-sub {
+  font-size: 0.64rem;
+  color: #ffffff;
+}
+[data-theme="light"] .verdelo-bar-tooltip-sub {
+  color: #082f49 !important;
+}
+.verdelo-bar-tooltip-stem {
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 1px;
+  height: 6px;
+  background: rgba(80, 227, 150, 0.6) !important;
+}
+
+.verdelo-spline-container {
+  display: flex;
+  gap: 12px;
+  height: 220px;
+  margin-top: 8px;
+  position: relative;
+}
+.verdelo-spline-content {
+  flex: 1;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.verdelo-spline-svg {
+  width: 100%;
+  height: calc(100% - 22px);
+  overflow: visible;
+}
+.verdelo-x-axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.68rem;
+  color: #64748b;
+  padding-top: 6px;
+  user-select: none;
+}
+.verdelo-spline-line {
+  fill: none;
+  stroke: #6ee7b7;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+[data-theme="light"] .verdelo-spline-line {
+  stroke: #0284c7 !important;
+}
+
+
+
+/* ══════════════════════════════════════════════════════════════════════
+   CARDS & WALLET — SKY BLUE GLASSMORPHISM SUITE (DUAL THEME)
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Stage Wrapper */
+.zesto-card-stage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  background: rgba(9, 28, 20, 0.72) !important;
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid rgba(80, 227, 150, 0.18) !important;
+  border-radius: 24px;
+  padding: 32px 24px 24px;
+  box-shadow: 0 14px 34px -8px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(80, 227, 150, 0.1) !important;
+  transition: all 0.25s ease;
+}
+[data-theme="light"] .zesto-card-stage {
+  background: rgba(255, 255, 255, 0.88) !important;
+  border: 1px solid rgba(186, 230, 253, 0.85) !important;
+  box-shadow: 0 12px 32px -6px rgba(14, 165, 233, 0.08), inset 0 1px 0 #ffffff !important;
+}
+
+/* Right Column Panels */
+.zesto-cycle-panel,
+.zesto-card-tx-panel {
+  background: rgba(9, 28, 20, 0.72) !important;
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid rgba(80, 227, 150, 0.18) !important;
+  border-radius: 20px;
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 14px 34px -8px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(80, 227, 150, 0.1) !important;
+  transition: all 0.25s ease;
+}
+[data-theme="light"] .zesto-cycle-panel,
+[data-theme="light"] .zesto-card-tx-panel {
+  background: rgba(255, 255, 255, 0.88) !important;
+  border: 1px solid rgba(186, 230, 253, 0.85) !important;
+  box-shadow: 0 12px 32px -6px rgba(14, 165, 233, 0.08), inset 0 1px 0 #ffffff !important;
+}
+
+/* Typography Overrides for Light Mode */
+[data-theme="light"] .zesto-cycle-title {
+  color: #082f49 !important;
+}
+[data-theme="light"] .zesto-cycle-sub {
+  color: #64748b !important;
+}
+[data-theme="light"] .zesto-cycle-amount {
+  color: #082f49 !important;
+}
+[data-theme="light"] .zesto-cycle-limit {
+  color: #64748b !important;
+}
+[data-theme="light"] .zesto-legend-label {
+  color: #475569 !important;
+}
+[data-theme="light"] .zesto-legend-val {
+  color: #082f49 !important;
+  font-weight: 700 !important;
+}
+[data-theme="light"] .zesto-tx-title {
+  color: #082f49 !important;
+}
+[data-theme="light"] .zesto-tx-meta {
+  color: #64748b !important;
+}
+[data-theme="light"] .zesto-card-owner-bar {
+  color: #475569 !important;
+}
+
+/* Action Buttons below 3D Card */
+.zesto-card-action-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  color: #e2e8f0 !important;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.zesto-card-action-pill:hover {
+  background: rgba(255, 255, 255, 0.16) !important;
+  color: #ffffff !important;
+  border-color: rgba(80, 227, 150, 0.4) !important;
+  transform: translateY(-1px);
+}
+[data-theme="light"] .zesto-card-action-pill {
+  background: rgba(240, 249, 255, 0.9) !important;
+  border: 1px solid rgba(186, 230, 253, 0.95) !important;
+  color: #082f49 !important;
+  box-shadow: 0 2px 6px rgba(14, 165, 233, 0.05);
+}
+[data-theme="light"] .zesto-card-action-pill:hover {
+  background: #ffffff !important;
+  border-color: #0ea5e9 !important;
+  color: #0284c7 !important;
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.15) !important;
+}
+
+/* Unfreeze / Primary Action Pill (Sky Blue Gradient) */
+.zesto-card-action-pill--lime,
+.zesto-card-action-pill--skyblue {
+  background: linear-gradient(135deg, #1f6448 0%, #50e396 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.3) !important;
+  font-weight: 700 !important;
+  box-shadow: 0 4px 14px rgba(80, 227, 150, 0.45) !important;
+}
+.zesto-card-action-pill--lime:hover,
+.zesto-card-action-pill--skyblue:hover {
+  background: linear-gradient(135deg, #50e396 0%, #6ee7b7 100%) !important;
+  color: #ffffff !important;
+  transform: translateY(-1.5px);
+  box-shadow: 0 6px 20px rgba(80, 227, 150, 0.6) !important;
+}
+
+/* Percentage Badge */
+.zesto-cycle-pct-badge {
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(80, 227, 150, 0.12) !important;
+  color: #50e396 !important;
+  border: 1px solid rgba(80, 227, 150, 0.3) !important;
+}
+[data-theme="light"] .zesto-cycle-pct-badge {
+  background: rgba(14, 165, 233, 0.1) !important;
+  color: #0284c7 !important;
+  border-color: rgba(14, 165, 233, 0.28) !important;
+}
+
+/* Transaction List Item */
+.zesto-tx-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: all 0.2s ease;
+}
+[data-theme="light"] .zesto-tx-item {
+  background: rgba(240, 249, 255, 0.8) !important;
+  border-color: rgba(186, 230, 253, 0.7) !important;
+}
+.zesto-tx-icon-box {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(80, 227, 150, 0.12) !important;
+  color: #50e396 !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(80, 227, 150, 0.25) !important;
+}
+[data-theme="light"] .zesto-tx-icon-box {
+  background: rgba(14, 165, 233, 0.1) !important;
+  color: #0284c7 !important;
+}
+[data-theme="light"] .zesto-tx-amount {
+  color: #0284c7 !important;
+  font-weight: 700 !important;
+}
+
+
+
+/* Light Mode overrides for Tabs and Card Chips */
+[data-theme="light"] .zesto-tab-btn {
+  color: #64748b;
+}
+[data-theme="light"] .zesto-tab-btn:hover {
+  color: #082f49;
+}
+[data-theme="light"] .zesto-tab-btn.is-active {
+  color: #082f49 !important;
+}
+[data-theme="light"] .zesto-tab-btn.is-active::after {
+  background: #0284c7 !important;
+  box-shadow: 0 0 10px rgba(14, 165, 233, 0.6) !important;
+}
+
+[data-theme="light"] .zesto-card-chip {
+  background: rgba(240, 249, 255, 0.85) !important;
+  border: 1px solid rgba(186, 230, 253, 0.8) !important;
+  color: #475569 !important;
+}
+[data-theme="light"] .zesto-card-chip:hover {
+  background: #ffffff !important;
+  border-color: #0ea5e9 !important;
+  color: #082f49 !important;
+}
+[data-theme="light"] .zesto-card-chip.is-active {
+  background: #ffffff !important;
+  border-color: #0ea5e9 !important;
+  box-shadow: 0 4px 14px rgba(14, 165, 233, 0.18) !important;
+  color: #082f49 !important;
+}
+[data-theme="light"] .zesto-card-chip-title {
+  color: #082f49 !important;
+}
+[data-theme="light"] .zesto-card-chip-sub {
+  color: #64748b !important;
+}
+
+
+
+/* ══════════════════════════════════════════════════════════════════════
+   BERMUDA #50e396 — LUXURY TRANSLUCENT FROSTED GLASS SUITE (WINE ASH STYLE)
+   - Deep obsidian & Bermuda marble background showing through all glass
+   - Front bars (topbar, sidebar, search capsules) 100% transparent glass
+   - Translucent glass cards with specular highlight borders and blur
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. Page Canvas Background ────────────────────────────────────── */
+html,
+body,
+.dash-shell,
+html[data-theme='light'],
+html[data-theme='dark'],
+.dash-shell[data-theme='light'],
+.dash-shell[data-theme='dark'] {
+  background-color: #030d09 !important;
+  background-image: 
+    radial-gradient(ellipse 75% 55% at 85% 15%, rgba(80, 227, 150, 0.28) 0%, transparent 60%),
+    radial-gradient(ellipse 65% 65% at 15% 85%, rgba(31, 100, 72, 0.22) 0%, transparent 55%),
+    radial-gradient(circle at 50% 50%, rgba(9, 44, 40, 0.45) 0%, transparent 70%),
+    linear-gradient(180deg, rgba(3, 13, 9, 0.35) 0%, rgba(3, 13, 9, 0.55) 100%), url('/customer-bg.jpg') !important;
+  background-attachment: fixed !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  color: #ffffff;
+}
+
+/* ── 2. Transparent Front Bars: Topbar & Sidebar ───────────────────── */
+/* Top Header Bar: Transparent glass so the backside background is visible */
+.dash-shell .dash-topbar,
+.dash-shell[data-theme='light'] .dash-topbar,
+.dash-shell[data-theme='dark'] .dash-topbar {
+  background: rgba(6, 20, 15, 0.42) !important;
+  backdrop-filter: blur(28px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
+  border-bottom: 1.5px solid rgba(80, 227, 150, 0.28) !important;
+  box-shadow: 0 8px 32px -4px rgba(0, 0, 0, 0.65), inset 0 -1px 0 rgba(80, 227, 150, 0.15) !important;
+}
+
+/* Sidebar Front Bar: Transparent glass so the backside background is visible */
+.dash-shell .dash-sidebar,
+.dash-shell[data-theme='light'] .dash-sidebar,
+.dash-shell[data-theme='dark'] .dash-sidebar {
+  background: rgba(6, 20, 15, 0.46) !important;
+  backdrop-filter: blur(32px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(32px) saturate(190%) !important;
+  border-right: 1.5px solid rgba(80, 227, 150, 0.25) !important;
+  border-left: none !important;
+  box-shadow: 8px 0 32px -4px rgba(0, 0, 0, 0.65), inset -1px 0 0 rgba(80, 227, 150, 0.12) !important;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+/* ── 3. Translucent Glass Cards (Wine Ash Style) ───────────────────── */
+.dash-shell .dash-card,
+.dash-shell .dash-stat-card,
+.dash-shell .dash-panel-card,
+.dash-shell .dash-deploy-row,
+.dash-shell .dash-role-card,
+.dash-shell .dash-quota-card,
+.dash-shell .dash-table-wrap,
+.dash-shell .dash-sidebar-flyout,
+.dash-shell .mw-panel,
+.dash-shell .mw-card,
+.dash-shell .mw-metric,
+.dash-shell .mw-gpu-card,
+.dash-shell .mw-model-card,
+.dash-shell .mw-modal,
+.dash-shell .mw-modal-window,
+.dash-shell .xs-card,
+.zesto-card-stage,
+.zesto-cycle-panel,
+.zesto-card-tx-panel,
+.zesto-dark-chart-card,
+.zesto-mini-stat-card,
+.zesto-panel-card,
+.verdelo-stat-card,
+.verdelo-chart-card,
+.verdelo-safe-spend-card,
+[data-theme="light"] .zesto-card-stage,
+[data-theme="light"] .zesto-cycle-panel,
+[data-theme="light"] .zesto-card-tx-panel,
+[data-theme="light"] .zesto-dark-chart-card,
+[data-theme="light"] .zesto-mini-stat-card,
+[data-theme="light"] .zesto-panel-card,
+[data-theme="light"] .verdelo-stat-card,
+[data-theme="light"] .verdelo-chart-card,
+[data-theme="light"] .verdelo-safe-spend-card,
+.dash-shell[data-theme='light'] .dash-card,
+.dash-shell[data-theme='light'] .dash-stat-card,
+.dash-shell[data-theme='light'] .dash-panel-card,
+.dash-shell[data-theme='light'] .mw-card,
+.dash-shell[data-theme='light'] .mw-panel {
+  background: linear-gradient(135deg, rgba(128, 203, 196, 0.12) 0%, rgba(4, 18, 16, 0.58) 100%) !important;
+  backdrop-filter: blur(28px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(190%) !important;
+  border: 1.5px solid rgba(128, 203, 196, 0.32) !important;
+  border-radius: 24px !important;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.22), inset 0 0 24px rgba(128, 203, 196, 0.06), 0 20px 48px -10px rgba(0, 0, 0, 0.7) !important;
+}
+
+/* Hover States for all Glass Surfaces */
+.dash-shell .dash-card:hover,
+.dash-shell .dash-stat-card:hover,
+.dash-shell .dash-panel-card:hover,
+.dash-shell .mw-panel:hover,
+.dash-shell .mw-card:hover,
+.zesto-card-stage:hover,
+.zesto-cycle-panel:hover,
+.zesto-card-tx-panel:hover,
+.zesto-dark-chart-card:hover,
+.zesto-mini-stat-card:hover,
+.zesto-panel-card:hover,
+.verdelo-stat-card:hover,
+.verdelo-chart-card:hover,
+[data-theme="light"] .zesto-card-stage:hover,
+[data-theme="light"] .zesto-cycle-panel:hover,
+[data-theme="light"] .zesto-card-tx-panel:hover,
+[data-theme="light"] .zesto-dark-chart-card:hover,
+[data-theme="light"] .zesto-mini-stat-card:hover,
+[data-theme="light"] .zesto-panel-card:hover,
+[data-theme="light"] .verdelo-stat-card:hover,
+[data-theme="light"] .verdelo-chart-card:hover {
+  border-color: rgba(128, 203, 196, 0.65) !important;
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.35), inset 0 0 35px rgba(128, 203, 196, 0.15), 0 28px 70px -10px rgba(0, 0, 0, 0.85) !important;
+  transform: translateY(-2px);
+}
+
+/* ── 4. Inner Transparent Sub-Boxes & Floating Bars ─────────────────── */
+.zesto-tx-item,
+.zesto-card-action-pill,
+.verdelo-safe-spend-card,
+.verdelo-search-pill,
+.zesto-card-owner-bar,
+.dash-quota-card,
+.dash-admin-profile,
+.dash-topbar__status,
+.dash-theme-toggle,
+[data-theme="light"] .zesto-tx-item,
+[data-theme="light"] .zesto-card-action-pill,
+[data-theme="light"] .verdelo-search-pill,
+[data-theme="light"] .verdelo-safe-spend-card {
+  background: rgba(0, 0, 0, 0.32) !important;
+  border: 1px solid rgba(128, 203, 196, 0.28) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 4px 16px rgba(0, 0, 0, 0.4) !important;
+}
+
+[data-theme="light"] .zesto-card-action-pill:hover,
+.zesto-card-action-pill:hover {
+  background: rgba(80, 227, 150, 0.22) !important;
+  border-color: rgba(80, 227, 150, 0.6) !important;
+  color: #ffffff !important;
+}
+
+/* ── 5. Hero Card: Luminous Bermuda Gradient ───────────────────────── */
+.zesto-green-hero-card {
+  position: relative;
+  border-radius: 24px;
+  padding: 24px 26px 22px;
+  background: linear-gradient(135deg, #0d3826 0%, #1f6448 40%, #50e396 80%, #50e396 100%) !important;
+  backdrop-filter: blur(30px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(190%) !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.45) !important;
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.8), 0 20px 48px -12px rgba(0, 77, 64, 0.5), 0 0 24px rgba(80, 227, 150, 0.35) !important;
+  color: #ffffff !important;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 295px;
+  overflow: hidden;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.zesto-green-hero-card:hover {
+  transform: translateY(-2px);
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.95), 0 24px 54px -10px rgba(0, 77, 64, 0.6), 0 0 32px rgba(80, 227, 150, 0.5) !important;
+}
+
+/* ── 6. Typography: Stark White Headings & Luminous Bermuda Accents ─── */
+.dash-shell .dash-header-title,
+.dash-shell .dash-stat-value,
+.dash-shell .mw-panel h2,
+.dash-shell .mw-panel h3,
+.zesto-exact-title,
+.zesto-cycle-title,
+.zesto-dark-chart-title,
+.zesto-panel-title,
+.verdelo-insights-title,
+.verdelo-chart-title,
+.verdelo-stat-value,
+.zesto-cycle-amount,
+.zesto-mini-stat-val,
+.zesto-coming-amount,
+.zesto-tx-title,
+.zesto-budget-cat,
+.zesto-card-chip-title,
+.verdelo-user-name,
+.verdelo-search-text,
+.verdelo-brand-name,
+[data-theme="light"] .zesto-exact-title,
+[data-theme="light"] .zesto-cycle-title,
+[data-theme="light"] .zesto-dark-chart-title,
+[data-theme="light"] .zesto-panel-title,
+[data-theme="light"] .verdelo-insights-title,
+[data-theme="light"] .verdelo-chart-title,
+[data-theme="light"] .verdelo-stat-value,
+[data-theme="light"] .zesto-cycle-amount,
+[data-theme="light"] .zesto-mini-stat-val,
+[data-theme="light"] .zesto-coming-amount,
+[data-theme="light"] .zesto-tx-title,
+[data-theme="light"] .zesto-budget-cat,
+[data-theme="light"] .zesto-card-chip-title,
+[data-theme="light"] .verdelo-user-name,
+[data-theme="light"] .verdelo-search-text,
+[data-theme="light"] .verdelo-brand-name,
+[data-theme="light"] .dash-stat-value,
+[data-theme="light"] .dash-panel-title,
+[data-theme="light"] .dash-admin-name {
+  color: #ffffff !important;
+  font-weight: 700;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.6);
+}
+
+.dash-shell .dash-header-desc,
+.dash-shell .dash-stat-label,
+.zesto-exact-sub,
+.zesto-cycle-sub,
+.zesto-dark-chart-sub,
+.zesto-panel-sub,
+.verdelo-insights-sub,
+.verdelo-chart-sub,
+.verdelo-stat-title,
+.verdelo-stat-sub,
+.zesto-tx-meta,
+.zesto-coming-sub,
+.zesto-budget-figures,
+.zesto-legend-label,
+.zesto-mini-stat-label,
+.zesto-mini-stat-bottom,
+.zesto-card-chip-sub,
+.zesto-card-owner-bar,
+.verdelo-user-email,
+.verdelo-legend-text,
+.verdelo-brand-sub,
+.verdelo-search-icon,
+.verdelo-safe-spend-label,
+.verdelo-safe-spend-sub,
+[data-theme="light"] .zesto-exact-sub,
+[data-theme="light"] .zesto-cycle-sub,
+[data-theme="light"] .zesto-dark-chart-sub,
+[data-theme="light"] .zesto-panel-sub,
+[data-theme="light"] .verdelo-insights-sub,
+[data-theme="light"] .verdelo-chart-sub,
+[data-theme="light"] .verdelo-stat-title,
+[data-theme="light"] .verdelo-stat-sub,
+[data-theme="light"] .zesto-tx-meta,
+[data-theme="light"] .zesto-coming-sub,
+[data-theme="light"] .zesto-budget-figures,
+[data-theme="light"] .zesto-legend-label,
+[data-theme="light"] .zesto-mini-stat-label,
+[data-theme="light"] .zesto-mini-stat-bottom,
+[data-theme="light"] .zesto-card-chip-sub,
+[data-theme="light"] .zesto-card-owner-bar,
+[data-theme="light"] .verdelo-user-email,
+[data-theme="light"] .verdelo-legend-text,
+[data-theme="light"] .verdelo-brand-sub,
+[data-theme="light"] .verdelo-search-icon,
+[data-theme="light"] .verdelo-safe-spend-label,
+[data-theme="light"] .verdelo-safe-spend-sub {
+  color: #80cbc4 !important;
+}
+
+.zesto-legend-val,
+[data-theme="light"] .zesto-legend-val {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+/* ── 7. Action Buttons & Gradient Accents ───────────────────────────── */
+.zesto-exact-btn-send,
+.zesto-card-action-pill--lime,
+.zesto-card-action-pill--skyblue,
+.zesto-card-action-pill--bermuda,
+.verdelo-btn-circle--mint,
+.dash-shell .dash-btn--primary,
+.dash-shell .mw-primary {
+  background: linear-gradient(135deg, #1f6448 0%, #50e396 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  box-shadow: 0 4px 20px rgba(0, 121, 107, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+}
+.zesto-exact-btn-send:hover,
+.zesto-card-action-pill--lime:hover,
+.zesto-card-action-pill--skyblue:hover,
+.zesto-card-action-pill--bermuda:hover,
+.verdelo-btn-circle--mint:hover,
+.dash-shell .dash-btn--primary:hover,
+.dash-shell .mw-primary:hover {
+  background: linear-gradient(135deg, #2bb872 0%, #50e396 100%) !important;
+  box-shadow: 0 8px 28px rgba(0, 121, 107, 0.7), inset 0 1px 0 #ffffff !important;
+  transform: translateY(-1.5px);
+}
+
+.dash-shell[data-role="customer"] .dash-nav-item.is-active,
+.dash-shell .dash-nav-item.is-active {
+  background: linear-gradient(135deg, #1f6448 0%, #50e396 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 16px rgba(0, 121, 107, 0.45) !important;
+}
+
+.zesto-member-pill.is-active,
+.verdelo-time-pill.is-active,
+[data-theme="light"] .zesto-member-pill.is-active,
+[data-theme="light"] .verdelo-time-pill.is-active {
+  background: #00796b !important;
+  color: #ffffff !important;
+  border-color: #80cbc4 !important;
+}
+
+.zesto-coming-pay-btn {
+  background: #1f6448 !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 10px rgba(0, 121, 107, 0.4) !important;
+}
+.zesto-coming-pay-btn:hover {
+  background: #50e396 !important;
+}
+
+/* Charts & Graphs */
+.dash-shell .dash-sparkline-wrap svg path,
+.verdelo-spline-line {
+  stroke: #50e396 !important;
+}
+.verdelo-bar--in {
+  background: #50e396 !important;
+  box-shadow: 0 0 8px rgba(80, 227, 150, 0.5) !important;
+}
+.verdelo-bar--out {
+  background: #1f6448 !important;
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════
+   MASTER UNIFIED GLASS BOX APPLICATION FRAME (PHOTO 2 REFERENCE)
+   The entire dashboard web page (topbar, sidebar, content) is enclosed
+   in ONE single master rounded frosted-glass container with Bermuda glow.
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Outer Shell / Canvas: centered layout displaying Bermuda marble outside the master glass box */
+.dash-shell {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  min-height: 100vh !important;
+  padding: 24px 32px !important;
+  box-sizing: border-box !important;
+  overflow-x: hidden !important;
+  background-color: #030d09 !important;
+  background-image: 
+    radial-gradient(ellipse 75% 55% at 85% 15%, rgba(80, 227, 150, 0.28) 0%, transparent 60%),
+    radial-gradient(ellipse 65% 65% at 15% 85%, rgba(31, 100, 72, 0.22) 0%, transparent 55%),
+    radial-gradient(circle at 50% 50%, rgba(9, 44, 40, 0.45) 0%, transparent 70%),
+    linear-gradient(180deg, rgba(3, 13, 9, 0.35) 0%, rgba(3, 13, 9, 0.55) 100%), url('/customer-bg.jpg') !important;
+  background-attachment: fixed !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+}
+
+/* Master Glass Window Frame: The ONE single glass box holding the entire website */
+.dash-window-frame {
+  width: 100% !important;
+  max-width: 1540px !important;
+  min-height: calc(100vh - 48px) !important;
+  margin: 0 auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  border-radius: 28px !important;
+  background: linear-gradient(135deg, rgba(80, 227, 150, 0.09) 0%, rgba(6, 20, 15, 0.65) 100%) !important;
+  backdrop-filter: blur(40px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(40px) saturate(200%) !important;
+  border: 1.5px solid rgba(80, 227, 150, 0.35) !important;
+  box-shadow: 
+    inset 0 1px 1.5px rgba(255, 255, 255, 0.32),
+    inset 0 0 35px rgba(80, 227, 150, 0.08),
+    0 35px 100px -15px rgba(0, 0, 0, 0.9) !important;
+  overflow: hidden !important;
+  position: relative !important;
+  box-sizing: border-box !important;
+}
+
+/* Master Frame: Integrated Top Navigation Bar */
+.dash-window-frame .dash-topbar {
+  position: relative !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+  height: 68px !important;
+  padding: 0 28px !important;
+  background: rgba(6, 20, 15, 0.28) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  border-bottom: 1px solid rgba(80, 227, 150, 0.18) !important;
+  border-radius: 28px 28px 0 0 !important;
+  box-shadow: none !important;
+  box-sizing: border-box !important;
+  z-index: 50 !important;
+}
+
+/* Master Frame: Body Area (Sidebar + Main) */
+.dash-window-frame .dash-body {
+  display: flex !important;
+  flex: 1 !important;
+  position: relative !important;
+  min-width: 0 !important;
+  min-height: calc(100vh - 48px - 68px) !important;
+  overflow: hidden !important;
+  border-radius: 0 0 28px 28px !important;
+}
+
+/* Master Frame: Integrated Sidebar (Flush inside left side of master glass box, NOT a separate floating island) */
+.dash-window-frame .dash-sidebar {
+  width: 260px !important;
+  min-width: 260px !important;
+  max-width: 260px !important;
+  flex-shrink: 0 !important;
+  margin: 0 !important; /* CRITICAL: removes detached floating margin */
+  border-radius: 0 0 0 28px !important;
+  border-top: none !important;
+  border-left: none !important;
+  border-bottom: none !important;
+  border-right: 1px solid rgba(80, 227, 150, 0.18) !important;
+  background: rgba(4, 16, 12, 0.22) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  box-shadow: none !important;
+  height: auto !important;
+  min-height: 100% !important;
+  position: static !important;
+  padding: 16px 14px 20px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  box-sizing: border-box !important;
+}
+
+.dash-window-frame .dash-sidebar.is-collapsed {
+  width: 76px !important;
+  min-width: 76px !important;
+  max-width: 76px !important;
+  padding: 16px 10px 20px !important;
+}
+
+/* Master Frame: Integrated Main Content Pane */
+.dash-window-frame .dash-main {
+  flex: 1 !important;
+  min-width: 0 !important;
+  padding: 24px 32px 36px !important;
+  background: transparent !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  max-height: calc(100vh - 48px - 68px) !important;
+  border-radius: 0 0 28px 0 !important;
+  box-sizing: border-box !important;
+}
+
+/* Slender custom glass scrollbar for main content */
+.dash-window-frame .dash-main::-webkit-scrollbar {
+  width: 6px;
+}
+.dash-window-frame .dash-main::-webkit-scrollbar-track {
+  background: transparent;
+}
+.dash-window-frame .dash-main::-webkit-scrollbar-thumb {
+  background: rgba(80, 227, 150, 0.28);
+  border-radius: 4px;
+}
+.dash-window-frame .dash-main::-webkit-scrollbar-thumb:hover {
+  background: rgba(80, 227, 150, 0.5);
+}
+
+/* Sub-panels inside the master glass box */
+.dash-window-frame .verdelo-stat-card,
+.dash-window-frame .verdelo-chart-card,
+.dash-window-frame .zesto-card-stage,
+.dash-window-frame .zesto-cycle-panel,
+.dash-window-frame .zesto-card-tx-panel,
+.dash-window-frame .zesto-dark-chart-card,
+.dash-window-frame .zesto-mini-stat-card,
+.dash-window-frame .zesto-panel-card {
+  background: rgba(0, 0, 0, 0.25) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(80, 227, 150, 0.2) !important;
+  border-radius: 20px !important;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.15), 0 12px 32px -8px rgba(0, 0, 0, 0.55) !important;
+}
+
+.dash-window-frame .verdelo-stat-card:hover,
+.dash-window-frame .verdelo-chart-card:hover {
+  border-color: rgba(80, 227, 150, 0.55) !important;
+  box-shadow: inset 0 1px 1.5px rgba(255, 255, 255, 0.28), 0 18px 42px -10px rgba(0, 0, 0, 0.75) !important;
+  transform: translateY(-2px);
+}
+
+/* Responsive adjustment for Mobile & Tablet */
+@media (max-width: 900px) {
+  .dash-shell {
+    padding: 0 !important;
+  }
+  .dash-window-frame {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: 100vh !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+  .dash-window-frame .dash-topbar {
+    border-radius: 0 !important;
+    padding: 0 16px !important;
+  }
+  .dash-window-frame .dash-body {
+    border-radius: 0 !important;
+    min-height: calc(100vh - 64px) !important;
+  }
+  .dash-window-frame .dash-sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    z-index: 100 !important;
+    height: 100vh !important;
+    border-radius: 0 20px 20px 0 !important;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1);
+  }
+  .dash-window-frame .dash-sidebar.is-open {
+    transform: translateX(0) !important;
+  }
+  .dash-window-frame .dash-main {
+    padding: 16px 18px 28px !important;
+    max-height: none !important;
+    overflow-y: visible !important;
+  }
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════
+   MASTER UNIFIED GLASS BOX APPLICATION FRAME (FULL-WIDTH CLEAN & NEAT)
+   - Expanded width: NO arbitrary 1540px / 1200px / 1440px limits
+   - NO wasted extras / blank empty side margins
+   - Clean, neat 100% utilization of available viewport space
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Outer Shell / Canvas: minimal sleek perimeter margin, no huge blank gaps */
+.dash-shell {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  min-height: 100vh !important;
+  width: 100% !important;
+  padding: 10px 14px !important; /* Sleek, neat edge - no big wasted extras */
+  box-sizing: border-box !important;
+  overflow-x: hidden !important;
+  background-color: #030d09 !important;
+  background-image: 
+    radial-gradient(ellipse 75% 55% at 85% 15%, rgba(80, 227, 150, 0.28) 0%, transparent 60%),
+    radial-gradient(ellipse 65% 65% at 15% 85%, rgba(31, 100, 72, 0.22) 0%, transparent 55%),
+    radial-gradient(circle at 50% 50%, rgba(9, 44, 40, 0.45) 0%, transparent 70%),
+    linear-gradient(180deg, rgba(3, 13, 9, 0.35) 0%, rgba(3, 13, 9, 0.55) 100%), url('/customer-bg.jpg') !important;
+  background-attachment: fixed !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+}
+
+/* Master Glass Window Frame: Fills 100% width cleanly and neatly */
+.dash-window-frame {
+  width: 100% !important;
+  max-width: 100% !important; /* Full width - no arbitrary restriction leaving side gaps */
+  min-height: calc(100vh - 20px) !important;
+  margin: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  border-radius: 22px !important;
+  background: linear-gradient(135deg, rgba(80, 227, 150, 0.09) 0%, rgba(6, 20, 15, 0.65) 100%) !important;
+  backdrop-filter: blur(40px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(40px) saturate(200%) !important;
+  border: 1.5px solid rgba(80, 227, 150, 0.35) !important;
+  box-shadow: 
+    inset 0 1px 1.5px rgba(255, 255, 255, 0.32),
+    inset 0 0 35px rgba(80, 227, 150, 0.08),
+    0 24px 80px -15px rgba(0, 0, 0, 0.9) !important;
+  overflow: hidden !important;
+  position: relative !important;
+  box-sizing: border-box !important;
+}
+
+/* Master Frame: Integrated Top Navigation Bar */
+.dash-window-frame .dash-topbar {
+  position: relative !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+  height: 62px !important;
+  padding: 0 22px !important;
+  background: rgba(6, 20, 15, 0.28) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  border-bottom: 1px solid rgba(80, 227, 150, 0.18) !important;
+  border-radius: 22px 22px 0 0 !important;
+  box-shadow: none !important;
+  box-sizing: border-box !important;
+  z-index: 50 !important;
+}
+
+/* Master Frame: Body Area (Sidebar + Main) */
+.dash-window-frame .dash-body {
+  display: flex !important;
+  flex: 1 !important;
+  position: relative !important;
+  min-width: 0 !important;
+  width: 100% !important;
+  min-height: calc(100vh - 20px - 62px) !important;
+  overflow: hidden !important;
+  border-radius: 0 0 22px 22px !important;
+}
+
+/* Master Frame: Integrated Sidebar */
+.dash-window-frame .dash-sidebar {
+  width: 250px !important;
+  min-width: 250px !important;
+  max-width: 250px !important;
+  flex-shrink: 0 !important;
+  margin: 0 !important;
+  border-radius: 0 0 0 22px !important;
+  border-top: none !important;
+  border-left: none !important;
+  border-bottom: none !important;
+  border-right: 1px solid rgba(80, 227, 150, 0.18) !important;
+  background: rgba(4, 16, 12, 0.22) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  box-shadow: none !important;
+  height: auto !important;
+  min-height: 100% !important;
+  position: static !important;
+  padding: 14px 12px 18px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  box-sizing: border-box !important;
+}
+
+.dash-window-frame .dash-sidebar.is-collapsed {
+  width: 72px !important;
+  min-width: 72px !important;
+  max-width: 72px !important;
+  padding: 14px 8px 18px !important;
+}
+
+/* Master Frame: Integrated Main Content Pane - NO 1200px CAP, FULL WIDTH */
+.dash-window-frame .dash-main {
+  flex: 1 !important;
+  min-width: 0 !important;
+  max-width: none !important; /* CRITICAL: removes 1200px limitation */
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 18px 24px 28px !important;
+  background: transparent !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  max-height: calc(100vh - 20px - 62px) !important;
+  border-radius: 0 0 22px 0 !important;
+  box-sizing: border-box !important;
+}
+
+/* Slender custom glass scrollbar for main content */
+.dash-window-frame .dash-main::-webkit-scrollbar {
+  width: 6px;
+}
+.dash-window-frame .dash-main::-webkit-scrollbar-track {
+  background: transparent;
+}
+.dash-window-frame .dash-main::-webkit-scrollbar-thumb {
+  background: rgba(80, 227, 150, 0.28);
+  border-radius: 4px;
+}
+.dash-window-frame .dash-main::-webkit-scrollbar-thumb:hover {
+  background: rgba(80, 227, 150, 0.5);
+}
+
+/* Container Full-Width Overrides - REMOVE 1440px / margin: 0 auto constraints */
+.dash-window-frame .verdelo-insights-container,
+.dash-window-frame .mw-page {
+  max-width: none !important;
+  width: 100% !important;
+  margin: 0 !important;
+  padding: 0 0 16px !important;
+  box-sizing: border-box !important;
+}
+
+/* 4 Stat Cards: Full Width Grid */
+.dash-window-frame .verdelo-four-stat-cards {
+  width: 100% !important;
+  max-width: none !important;
+  display: grid !important;
+  grid-template-columns: repeat(4, 1fr) !important;
+  gap: 14px !important;
+  margin: 0 !important;
+}
+
+/* 2 Large Charts: Full Width Grid */
+.dash-window-frame .verdelo-two-charts-grid {
+  width: 100% !important;
+  max-width: none !important;
+  display: grid !important;
+  grid-template-columns: 1fr 1fr !important;
+  gap: 16px !important;
+  margin: 0 !important;
+}
+
+/* Overview Tab Containers: Full Width */
+.dash-window-frame .zesto-top-grid,
+.dash-window-frame .zesto-hero-two-grid,
+.dash-window-frame .zesto-stats-grid,
+.dash-window-frame .zesto-three-bottom-grid {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+}
+
+/* Sub-panels inside the master glass box */
+.dash-window-frame .verdelo-stat-card,
+.dash-window-frame .verdelo-chart-card,
+.dash-window-frame .zesto-card-stage,
+.dash-window-frame .zesto-cycle-panel,
+.dash-window-frame .zesto-card-tx-panel,
+.dash-window-frame .zesto-dark-chart-card,
+.dash-window-frame .zesto-mini-stat-card,
+.dash-window-frame .zesto-panel-card {
+  background: rgba(0, 0, 0, 0.25) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border: 1px solid rgba(80, 227, 150, 0.2) !important;
+  border-radius: 18px !important;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.15), 0 12px 30px -8px rgba(0, 0, 0, 0.55) !important;
+}
+
+.dash-window-frame .verdelo-stat-card {
+  padding: 16px 18px !important;
+}
+
+.dash-window-frame .verdelo-chart-card {
+  padding: 20px 22px !important;
+}
+
+.dash-window-frame .verdelo-stat-card:hover,
+.dash-window-frame .verdelo-chart-card:hover {
+  border-color: rgba(80, 227, 150, 0.55) !important;
+  box-shadow: inset 0 1px 1.5px rgba(255, 255, 255, 0.28), 0 16px 36px -10px rgba(0, 0, 0, 0.75) !important;
+  transform: translateY(-2px);
+}
+
+/* Responsive adjustment for Mobile & Tablet */
+@media (max-width: 900px) {
+  .dash-shell {
+    padding: 0 !important;
+  }
+  .dash-window-frame {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: 100vh !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+  .dash-window-frame .dash-topbar {
+    border-radius: 0 !important;
+    padding: 0 14px !important;
+  }
+  .dash-window-frame .dash-body {
+    border-radius: 0 !important;
+    min-height: calc(100vh - 60px) !important;
+  }
+  .dash-window-frame .dash-sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    z-index: 100 !important;
+    height: 100vh !important;
+    border-radius: 0 20px 20px 0 !important;
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1);
+  }
+  .dash-window-frame .dash-sidebar.is-open {
+    transform: translateX(0) !important;
+  }
+  .dash-window-frame .dash-main {
+    padding: 14px 14px 24px !important;
+    max-height: none !important;
+    overflow-y: visible !important;
+  }
+  .dash-window-frame .verdelo-four-stat-cards {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  .dash-window-frame .verdelo-two-charts-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+@media (max-width: 600px) {
+  .dash-window-frame .verdelo-four-stat-cards {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+
+/* ══════════════════════════════════════════════════════════════════════
+   VERDELO TEMPLATE REPLICA: EXACT GLASS EFFECT & SCROLL-DOWN SECTIONS
+   - 1:1 match with uploaded reference image
+   - Diagonal specular gloss reflection on glass window
+   - Mint #50e396 active pill with dark green icon & text
+   - Category spending breakdown with mint progress meters
+   - In & Out transaction stream and upcoming bills calendar
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* Diagonal specular gloss reflection on top of the master glass window */
+.dash-window-frame::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 220px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.10) 0%, rgba(80, 227, 150, 0.04) 30%, transparent 60%);
+  pointer-events: none;
+  z-index: 10;
+  border-radius: 22px 22px 0 0;
+}
+
+/* Active Insights Navigation Pill: Exact Mint Match */
+.dash-shell[data-role="customer"] .dash-sidebar .dash-nav-item.is-active,
+.dash-window-frame .dash-sidebar .dash-nav-item.is-active {
+  background: #50e396 !important;
+  color: #082417 !important;
+  font-weight: 700 !important;
+  border-radius: 14px !important;
+  box-shadow: 0 4px 20px rgba(80, 227, 150, 0.45) !important;
+  border: none !important;
+}
+
+.dash-shell[data-role="customer"] .dash-sidebar .dash-nav-item.is-active svg,
+.dash-window-frame .dash-sidebar .dash-nav-item.is-active svg {
+  color: #082417 !important;
+}
+
+.dash-window-frame .dash-sidebar .dash-nav-item {
+  color: #8caba0 !important;
+  font-size: 0.93rem !important;
+  font-weight: 500 !important;
+  border-radius: 12px !important;
+  padding: 10px 14px !important;
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+}
+
+.dash-window-frame .dash-sidebar .dash-nav-item:hover {
+  color: #ffffff !important;
+  background: rgba(80, 227, 150, 0.1) !important;
+}
+
+.dash-window-frame .dash-sidebar .dash-nav-item svg {
+  color: #8caba0 !important;
+}
+
+.dash-window-frame .dash-sidebar .dash-nav-item:hover svg {
+  color: #50e396 !important;
+}
+
+/* Nav Badges (1, 2) */
+.dash-window-frame .dash-sidebar .dash-nav-badge {
+  background: rgba(0, 0, 0, 0.4) !important;
+  color: #8caba0 !important;
+  border: 1px solid rgba(80, 227, 150, 0.25) !important;
+  font-size: 0.72rem !important;
+  font-weight: 700 !important;
+  padding: 1px 7px !important;
+  border-radius: 999px !important;
+}
+
+/* Topbar Action Circle Mint Button */
+.dash-window-frame .verdelo-btn-circle--mint {
+  background: #50e396 !important;
+  color: #082417 !important;
+  border: none !important;
+  box-shadow: 0 4px 18px rgba(80, 227, 150, 0.4) !important;
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+}
+.dash-window-frame .verdelo-btn-circle--mint:hover {
+  transform: scale(1.08) !important;
+  box-shadow: 0 6px 24px rgba(80, 227, 150, 0.6) !important;
+}
+
+/* Active subtab indicator */
+.dash-window-frame .verdelo-subtab.is-active {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+.dash-window-frame .verdelo-subtab.is-active::after {
+  background: #50e396 !important;
+  box-shadow: 0 0 12px rgba(80, 227, 150, 0.8) !important;
+}
+
+/* Sparklines & Charts in Mint #50e396 */
+.verdelo-spline-svg path[stroke],
+.verdelo-sparkline path[stroke] {
+  stroke: #50e396 !important;
+}
+.verdelo-bar--in {
+  background: #50e396 !important;
+  box-shadow: 0 0 10px rgba(80, 227, 150, 0.4) !important;
+}
+.verdelo-time-pill.is-active {
+  background: #50e396 !important;
+  color: #082417 !important;
+  font-weight: 700 !important;
+}
+
+/* ── SCROLL DOWN: CATEGORIES BREAKDOWN SECTION ──────────────────────── */
+.verdelo-scroll-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+  margin-top: 6px;
+}
+
+.verdelo-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 2px;
+}
+
+.verdelo-section-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.verdelo-section-sub {
+  font-size: 0.84rem;
+  color: #8caba0;
+  margin: 3px 0 0 0;
+}
+
+.verdelo-section-chip {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: #50e396;
+  background: rgba(80, 227, 150, 0.1);
+  border: 1px solid rgba(80, 227, 150, 0.25);
+  padding: 4px 12px;
+  border-radius: 999px;
+}
+
+.verdelo-category-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  width: 100%;
+}
+
+@media (max-width: 1100px) {
+  .verdelo-category-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+@media (max-width: 650px) {
+  .verdelo-category-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.verdelo-cat-card {
+  background: rgba(10, 26, 21, 0.55) !important;
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(80, 227, 150, 0.18) !important;
+  border-radius: 18px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.12), 0 8px 24px -4px rgba(0, 0, 0, 0.5);
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.verdelo-cat-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(80, 227, 150, 0.45) !important;
+  box-shadow: inset 0 1px 1.5px rgba(255, 255, 255, 0.2), 0 14px 32px -6px rgba(0, 0, 0, 0.7);
+}
+
+.verdelo-cat-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.verdelo-cat-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.15rem;
+  background: rgba(80, 227, 150, 0.12);
+  border: 1px solid rgba(80, 227, 150, 0.25);
+}
+
+.verdelo-cat-name {
+  display: block;
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.verdelo-cat-sub {
+  display: block;
+  font-size: 0.74rem;
+  color: #8caba0;
+}
+
+.verdelo-cat-amount {
+  font-size: 1.55rem;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+}
+
+.verdelo-cat-progress-wrap {
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.verdelo-cat-progress-bar {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #2dd4bf 0%, #50e396 100%);
+  box-shadow: 0 0 8px rgba(80, 227, 150, 0.5);
+  transition: width 0.4s ease;
+}
+
+.verdelo-cat-foot {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  color: #8caba0;
+  margin-top: 2px;
+}
+
+/* ── SCROLL DOWN: TWO-COLUMN ACTIVITY & BILLS ───────────────────────── */
+.verdelo-lower-two-col {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 18px;
+  width: 100%;
+  margin-top: 6px;
+  margin-bottom: 30px;
+}
+
+@media (max-width: 1024px) {
+  .verdelo-lower-two-col {
+    grid-template-columns: 1fr;
+  }
+}
+
+.verdelo-view-all-btn {
+  background: rgba(80, 227, 150, 0.1);
+  border: 1px solid rgba(80, 227, 150, 0.25);
+  color: #50e396;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 4px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.verdelo-view-all-btn:hover {
+  background: #50e396;
+  color: #082417;
+}
+
+.verdelo-activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.verdelo-activity-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(80, 227, 150, 0.1);
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.verdelo-activity-item:hover {
+  background: rgba(80, 227, 150, 0.08);
+  border-color: rgba(80, 227, 150, 0.3);
+}
+
+.verdelo-activity-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.verdelo-activity-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.verdelo-activity-icon--in {
+  background: rgba(80, 227, 150, 0.15);
+  color: #50e396;
+  border: 1px solid rgba(80, 227, 150, 0.3);
+}
+.verdelo-activity-icon--out {
+  background: rgba(255, 255, 255, 0.06);
+  color: #8caba0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.verdelo-activity-title {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+.verdelo-activity-sub {
+  font-size: 0.72rem;
+  color: #8caba0;
+  margin-top: 1px;
+}
+
+.verdelo-activity-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.verdelo-activity-amount {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+.verdelo-activity-amount--pos {
+  color: #50e396 !important;
+  text-shadow: 0 0 10px rgba(80, 227, 150, 0.4);
+}
+
+.verdelo-activity-status {
+  font-size: 0.68rem;
+  color: #8caba0;
+}
+
+/* Upcoming Bills List */
+.verdelo-bills-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.verdelo-bill-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(80, 227, 150, 0.1);
+  transition: background 0.18s ease;
+}
+
+.verdelo-bill-row:hover {
+  background: rgba(80, 227, 150, 0.08);
+}
+
+.verdelo-bill-date-box {
+  width: 40px;
+  height: 42px;
+  border-radius: 10px;
+  background: rgba(80, 227, 150, 0.12);
+  border: 1px solid rgba(80, 227, 150, 0.25);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.verdelo-bill-date-day {
+  font-size: 0.98rem;
+  font-weight: 800;
+  color: #50e396;
+  line-height: 1;
+}
+
+.verdelo-bill-date-mon {
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: #8caba0;
+  text-transform: uppercase;
+}
+
+.verdelo-bill-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.verdelo-bill-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.verdelo-bill-note {
+  font-size: 0.72rem;
+  color: #8caba0;
+  margin-top: 1px;
+}
+
+.verdelo-bill-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.verdelo-bill-val {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.verdelo-bill-tag {
+  font-size: 0.66rem;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #8caba0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.verdelo-bill-tag--mint {
+  background: rgba(80, 227, 150, 0.15);
+  color: #50e396;
+  border-color: rgba(80, 227, 150, 0.3);
+}
+
+.verdelo-bill-pay-btn {
+  background: #50e396;
+  color: #082417;
+  border: none;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 3px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: transform 0.18s ease;
+}
+.verdelo-bill-pay-btn:hover {
+  transform: scale(1.05);
+}
+
+/* ── VERDELO SPROUT LOGO & TOPBAR REPLICA (IMAGE 1 & 2) ──────────────── */
+.verdelo-brand-logo-leaf {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #50e396;
+  box-shadow: 0 0 14px rgba(80, 227, 150, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.verdelo-sidebar-toggle {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(80, 227, 150, 0.18);
+  color: #8caba0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-left: 6px;
+}
+.verdelo-sidebar-toggle:hover {
+  background: rgba(80, 227, 150, 0.15);
+  border-color: rgba(80, 227, 150, 0.4);
+  color: #50e396;
+}
+
+.verdelo-topbar-sep {
+  width: 1px;
+  height: 22px;
+  background: rgba(80, 227, 150, 0.25);
+  margin: 0 4px;
+  display: inline-block;
+}
+
+.verdelo-topbar-icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(80, 227, 150, 0.18);
+  color: #8caba0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.verdelo-topbar-icon-btn:hover {
+  color: #ffffff;
+  background: rgba(80, 227, 150, 0.14);
+  border-color: rgba(80, 227, 150, 0.45);
+}
+
+.verdelo-bell-dot {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #50e396;
+  box-shadow: 0 0 8px #50e396;
+}
+
+.verdelo-avatar-pill {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #d1fae5 !important;
+  color: #082417 !important;
+  font-weight: 800 !important;
+  font-size: 0.9rem !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+  border: 1.5px solid rgba(80, 227, 150, 0.4);
+  transition: transform 0.18s ease;
+}
+
+.verdelo-avatar-pill:hover {
+  transform: scale(1.08);
+}
+
+/* Sidebar Navigation Divider between Household and Settings */
+.verdelo-nav-divider {
+  height: 1px;
+  background: rgba(80, 227, 150, 0.15);
+  margin: 12px 6px;
+}
+
+/* ── EXACT ALERTS POPUP (IMAGE 3) ────────────────────────────────────── */
+.verdelo-alerts-popup {
+  position: absolute;
+  top: calc(100% + 14px);
+  right: -10px;
+  width: 360px;
+  background: rgba(11, 26, 21, 0.96) !important;
+  backdrop-filter: blur(36px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(36px) saturate(200%) !important;
+  border: 1px solid rgba(80, 227, 150, 0.25) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 25px 60px -10px rgba(0, 0, 0, 0.88), inset 0 1px 1px rgba(255, 255, 255, 0.18) !important;
+  padding: 18px 20px !important;
+  z-index: 1000 !important;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  animation: verdeloFadeIn 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes verdeloFadeIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.verdelo-alerts-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 2px;
+}
+
+.verdelo-alerts-title {
+  font-size: 1.05rem !important;
+  font-weight: 700 !important;
+  color: #ffffff !important;
+  margin: 0 !important;
+}
+
+.verdelo-alerts-mark-read {
+  background: none;
+  border: none;
+  color: #50e396;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 4px;
+  transition: opacity 0.18s ease;
+}
+.verdelo-alerts-mark-read:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
+
+.verdelo-alerts-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.verdelo-alert-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 6px 4px;
+  border-radius: 12px;
+  transition: background 0.18s ease;
+}
+.verdelo-alert-row:hover {
+  background: rgba(80, 227, 150, 0.08);
+}
+
+.verdelo-alert-icon-box {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.verdelo-alert-icon-box--settled {
+  background: rgba(80, 227, 150, 0.15);
+  color: #50e396;
+  border: 1px solid rgba(80, 227, 150, 0.3);
+}
+.verdelo-alert-icon-box--pending {
+  background: rgba(255, 255, 255, 0.06);
+  color: #8caba0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.verdelo-alert-icon-box--warning {
+  background: rgba(251, 191, 36, 0.12);
+  color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.25);
+}
+.verdelo-alert-icon-box--goal {
+  background: rgba(80, 227, 150, 0.15);
+  color: #50e396;
+  border: 1px solid rgba(80, 227, 150, 0.3);
+}
+.verdelo-alert-icon-box--calendar {
+  background: rgba(255, 255, 255, 0.06);
+  color: #8caba0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.verdelo-alert-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.verdelo-alert-title-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.verdelo-alert-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.verdelo-alert-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #50e396;
+  box-shadow: 0 0 6px #50e396;
+  flex-shrink: 0;
+}
+
+.verdelo-alert-desc {
+  font-size: 0.78rem;
+  color: #8caba0;
+  line-height: 1.35;
+}
+
+.verdelo-alert-time {
+  font-size: 0.7rem;
+  color: #617b73;
+  margin-top: 2px;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   VERDELO CUSTOMER PORTAL MASTER GLASS WINDOW (Exact Template Replica)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Full master single glass box for Customer Portal */
+.dash-window-frame.dash-window-frame--customer {
+  display: flex !important;
+  flex-direction: row !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  min-height: calc(100vh - 20px) !important;
+  margin: 0 !important;
+  border-radius: 28px !important;
+  background: linear-gradient(135deg, rgba(80, 227, 150, 0.08) 0%, rgba(6, 20, 15, 0.6) 100%) !important;
+  backdrop-filter: blur(36px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(36px) saturate(180%) !important;
+  border: 1.5px solid rgba(80, 227, 150, 0.3) !important;
+  box-shadow: 
+    inset 0 1px 1.5px rgba(255, 255, 255, 0.28),
+    inset 0 0 35px rgba(80, 227, 150, 0.06),
+    0 28px 80px -15px rgba(0, 0, 0, 0.88) !important;
+  overflow: hidden !important;
+  position: relative !important;
+  box-sizing: border-box !important;
+}
+
+/* Sidebar: Full height from top to bottom on left side */
+.dash-sidebar.dash-sidebar--verdelo {
+  width: 250px !important;
+  min-width: 250px !important;
+  max-width: 250px !important;
+  height: 100% !important;
+  min-height: calc(100vh - 20px) !important;
+  border-radius: 28px 0 0 28px !important;
+  border-right: 1px solid rgba(80, 227, 150, 0.16) !important;
+  border-top: none !important;
+  border-bottom: none !important;
+  border-left: none !important;
+  background: rgba(4, 16, 12, 0.32) !important;
+  backdrop-filter: blur(28px) !important;
+  -webkit-backdrop-filter: blur(28px) !important;
+  padding: 18px 14px 20px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+  box-sizing: border-box !important;
+  position: static !important;
+  margin: 0 !important;
+  flex-shrink: 0 !important;
+}
+
+.dash-sidebar.dash-sidebar--verdelo.is-collapsed {
+  width: 72px !important;
+  min-width: 72px !important;
+  max-width: 72px !important;
+  padding: 18px 10px 20px !important;
+}
+
+/* Brand header at top of sidebar */
+.verdelo-sidebar-brand-row {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 0 4px 16px 4px !important;
+  border-bottom: 1px solid rgba(80, 227, 150, 0.12) !important;
+  margin-bottom: 14px !important;
+}
+
+.verdelo-sidebar-brand-link {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  text-decoration: none !important;
+}
+
+.verdelo-brand-logo-leaf {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 9px !important;
+  background: #50e396 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-shadow: 0 4px 14px rgba(80, 227, 150, 0.35) !important;
+  flex-shrink: 0 !important;
+}
+
+.verdelo-sidebar-brand-text {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 1px !important;
+}
+
+.verdelo-brand-name {
+  font-family: var(--font-display) !important;
+  font-weight: 700 !important;
+  font-size: 1.15rem !important;
+  color: #ffffff !important;
+  letter-spacing: -0.02em !important;
+  line-height: 1.12 !important;
+}
+
+.verdelo-brand-sub {
+  font-size: 0.72rem !important;
+  color: #8caba0 !important;
+  font-weight: 500 !important;
+  line-height: 1.15 !important;
+}
+
+.verdelo-sidebar-toggle {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(80, 227, 150, 0.18) !important;
+  border-radius: 8px !important;
+  width: 30px !important;
+  height: 30px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: #8caba0 !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease !important;
+}
+.verdelo-sidebar-toggle:hover {
+  background: rgba(80, 227, 150, 0.15) !important;
+  color: #50e396 !important;
+  border-color: rgba(80, 227, 150, 0.4) !important;
+}
+
+.dash-sidebar--verdelo.is-collapsed .verdelo-sidebar-brand-row {
+  justify-content: center !important;
+  padding: 0 0 14px !important;
+}
+.dash-sidebar--verdelo.is-collapsed .verdelo-sidebar-brand-text {
+  display: none !important;
+}
+.dash-sidebar--verdelo.is-collapsed .verdelo-sidebar-toggle {
+  display: none !important;
+}
+
+/* Right Content Pane */
+.dash-customer-content-pane {
+  flex: 1 !important;
+  min-width: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+  min-height: calc(100vh - 20px) !important;
+  border-radius: 0 28px 28px 0 !important;
+  overflow: hidden !important;
+  background: transparent !important;
+}
+
+/* Customer Topbar at top right of window */
+.dash-customer-topbar {
+  height: 64px !important;
+  min-height: 64px !important;
+  padding: 0 28px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 16px !important;
+  border-bottom: 1px solid rgba(80, 227, 150, 0.12) !important;
+  background: rgba(6, 20, 15, 0.2) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  box-sizing: border-box !important;
+  z-index: 50 !important;
+}
+
+.dash-customer-topbar__actions {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  margin-left: auto !important;
+}
+
+/* Glass Sub-Panels in Customer Window */
+.dash-window-frame--customer .verdelo-stat-card,
+.dash-window-frame--customer .verdelo-chart-card,
+.dash-window-frame--customer .zesto-card-stage,
+.dash-window-frame--customer .zesto-cycle-panel,
+.dash-window-frame--customer .zesto-card-tx-panel {
+  background: rgba(6, 20, 15, 0.42) !important;
+  backdrop-filter: blur(28px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(160%) !important;
+  border: 1px solid rgba(80, 227, 150, 0.2) !important;
+  border-radius: 20px !important;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.14), 0 14px 34px -8px rgba(0, 0, 0, 0.6) !important;
+  transition: all 0.24s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+}
+
+.dash-window-frame--customer .verdelo-stat-card:hover,
+.dash-window-frame--customer .verdelo-chart-card:hover,
+.dash-window-frame--customer .zesto-cycle-panel:hover,
+.dash-window-frame--customer .zesto-card-tx-panel:hover {
+  border-color: rgba(80, 227, 150, 0.45) !important;
+  box-shadow: inset 0 1px 1.5px rgba(255, 255, 255, 0.25), 0 20px 48px -10px rgba(0, 0, 0, 0.75) !important;
+  transform: translateY(-2px);
+}
+
+/* Cards view exact matching Image 1 */
+.zesto-cards-view--exact {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 8px 0 24px !important;
+}
+
+.zesto-cards-view--exact .zesto-cards-layout {
+  display: grid !important;
+  grid-template-columns: 410px 1fr !important;
+  gap: 24px !important;
+  align-items: start !important;
+}
+
+@media (max-width: 1024px) {
+  .zesto-cards-view--exact .zesto-cards-layout {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 900px) {
+  .dash-window-frame.dash-window-frame--customer {
+    flex-direction: column !important;
+    border-radius: 0 !important;
+  }
+  .dash-sidebar.dash-sidebar--verdelo {
+    position: fixed !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: -290px !important;
+    z-index: 100 !important;
+    transition: left 0.3s cubic-bezier(0.2, 0.8, 0.2, 1) !important;
+  }
+  .dash-sidebar.dash-sidebar--verdelo.is-open {
+    left: 0 !important;
+  }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   VERDELO OVERVIEW DASHBOARD (Exact Replica of Uploaded Screenshot)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.verdelo-overview-view {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 4px 0 28px;
+}
+
+/* ── Top Header ─────────────────────────────────────────────────────────── */
+.verdelo-overview-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.verdelo-overview-date {
+  font-size: 0.85rem;
+  color: #8caba0;
+  font-weight: 500;
+  margin-bottom: 2px;
+}
+
+.verdelo-overview-title {
+  font-size: 2.15rem;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.025em;
+  margin: 0;
+  line-height: 1.15;
+}
+
+.verdelo-overview-sub {
+  font-size: 0.92rem;
+  color: #8caba0;
+  margin-top: 4px;
+}
+
+.verdelo-overview-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.verdelo-btn-statement {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(80, 227, 150, 0.22) !important;
+  color: #ffffff !important;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  transition: all 0.2s ease;
+}
+.verdelo-btn-statement:hover {
+  background: rgba(80, 227, 150, 0.12) !important;
+  border-color: rgba(80, 227, 150, 0.45) !important;
+  transform: translateY(-1px);
+}
+
+.verdelo-btn-send {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 20px;
+  border-radius: 10px;
+  background: #50e396 !important;
+  color: #041c12 !important;
+  font-size: 0.85rem;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 18px rgba(80, 227, 150, 0.45) !important;
+  transition: all 0.2s ease;
+}
+.verdelo-btn-send:hover {
+  background: #6ee7b7 !important;
+  transform: translateY(-1.5px);
+  box-shadow: 0 6px 24px rgba(80, 227, 150, 0.6) !important;
+}
+
+/* ── Main Two-Column Grid ─────────────────────────────────────────────────── */
+.verdelo-overview-grid {
+  display: grid;
+  grid-template-columns: 430px 1fr;
+  gap: 20px;
+  align-items: stretch;
+}
+
+@media (max-width: 1100px) {
+  .verdelo-overview-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Left Column: Cards Stack Container ──────────────────────────────────── */
+.verdelo-cards-panel {
+  background: rgba(4, 18, 16, 0.42) !important;
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid rgba(80, 227, 150, 0.2) !important;
+  border-radius: 20px !important;
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.14), 0 14px 34px -8px rgba(0, 0, 0, 0.6) !important;
+  min-height: 480px;
+}
+
+.verdelo-cards-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.verdelo-cards-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+}
+
+.verdelo-cards-sub {
+  font-size: 0.78rem;
+  color: #8caba0;
+  margin-top: 3px;
+}
+
+.verdelo-cards-link {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #50e396;
+  text-decoration: none;
+  cursor: pointer;
+  transition: opacity 0.18s ease;
+}
+.verdelo-cards-link:hover {
+  text-decoration: underline;
+}
+
+/* 3D Stack Stage - exact match with live demo */
+.verdelo-card-stack-stage {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  aspect-ratio: 1.586;
+  margin: 16px auto 14px;
+  perspective: 1400px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Background stacked cards */
+.verdelo-stack-card-layer {
+  position: absolute;
+  width: 90%;
+  height: 94%;
+  border-radius: 22px;
+  pointer-events: none;
+  transition: all 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.verdelo-stack-card-layer--back {
+  top: 0;
+  width: 82%;
+  height: 90%;
+  background: linear-gradient(135deg, rgba(16, 52, 38, 0.7) 0%, rgba(6, 26, 18, 0.9) 100%);
+  border: 1px solid rgba(80, 227, 150, 0.14);
+  transform: translateY(-16px) scale(0.92);
+  opacity: 0.5;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4);
+}
+
+.verdelo-stack-card-layer--mid {
+  top: 6px;
+  width: 88%;
+  height: 92%;
+  background: linear-gradient(135deg, rgba(22, 74, 52, 0.8) 0%, rgba(9, 36, 25, 0.95) 100%);
+  border: 1px solid rgba(80, 227, 150, 0.2);
+  transform: translateY(-8px) scale(0.96);
+  opacity: 0.75;
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.45);
+}
+
+.verdelo-stack-card-layer--mid-label {
+  position: absolute;
+  top: 8px;
+  left: 22px;
+  font-size: 0.75rem;
+  color: #8caba0;
+  font-weight: 600;
+}
+
+/* Front Main Card - exact aspect ratio & radius 22px */
+.verdelo-front-card {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: 
+    inset 0 0 0 1px rgba(255, 255, 255, 0.16),
+    inset 1px 1px 0 rgba(255, 255, 255, 0.34),
+    0 24px 44px -24px rgba(0, 0, 0, 0.75);
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-sizing: border-box;
+  color: #ffffff;
+  overflow: hidden;
+  z-index: 5;
+  cursor: pointer;
+  transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.3s ease;
+}
+
+.verdelo-front-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 
+    inset 0 1px 2px rgba(255, 255, 255, 0.45),
+    0 28px 60px -10px rgba(0, 0, 0, 0.85);
+}
+
+.verdelo-front-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 65%;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.12) 0%, transparent 100%);
+  pointer-events: none;
+}
+
+.verdelo-front-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  z-index: 2;
+}
+
+.verdelo-front-card-type {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+}
+
+/* Contactless Wave Icon */
+.verdelo-contactless-wave {
+  display: flex;
+  align-items: center;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+/* Gold Chip */
+.verdelo-gold-chip {
+  width: 42px;
+  height: 32px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #d4af37 0%, #f3e5ab 45%, #aa771c 100%);
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  position: relative;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.6), 0 2px 4px rgba(0, 0, 0, 0.3);
+  margin-top: 6px;
+}
+.verdelo-gold-chip::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  left: 8px;
+  right: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  border-radius: 2px;
+}
+
+/* Card PAN Number */
+.verdelo-front-card-pan {
+  font-family: var(--font-mono);
+  font-size: 1.25rem;
+  letter-spacing: 0.18em;
+  color: #ffffff;
+  font-weight: 600;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  margin: 10px 0 6px;
+  position: relative;
+  z-index: 2;
+}
+
+/* Card Bottom Metadata */
+.verdelo-front-card-bot {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  position: relative;
+  z-index: 2;
+}
+
+.verdelo-front-card-meta {
+  display: flex;
+  gap: 20px;
+}
+
+.verdelo-front-card-meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.verdelo-front-card-meta-lbl {
+  font-size: 0.62rem;
+  color: #8caba0;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.verdelo-front-card-meta-val {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+/* Verdelo Card Double-Pill Logo */
+.verdelo-card-logo-marks {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.verdelo-card-logo-mark {
+  width: 7px;
+  height: 20px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  transform: skewX(-12deg);
+}
+
+/* Controls below card stack */
+.verdelo-card-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 8px;
+}
+
+.verdelo-card-pagination {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.verdelo-card-arrow-btn {
+  background: none;
+  border: none;
+  color: #8caba0;
+  font-size: 0.95rem;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.18s ease;
+}
+.verdelo-card-arrow-btn:hover {
+  color: #ffffff;
+}
+
+.verdelo-card-dots {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.verdelo-card-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(80, 227, 150, 0.25);
+  transition: all 0.2s ease;
+}
+.verdelo-card-dot.is-active {
+  width: 18px;
+  border-radius: 999px;
+  background: #50e396;
+  box-shadow: 0 0 8px rgba(80, 227, 150, 0.5);
+}
+
+.verdelo-card-action-btns {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.verdelo-card-icon-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(80, 227, 150, 0.2);
+  color: #8caba0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.verdelo-card-icon-btn:hover {
+  color: #ffffff;
+  background: rgba(80, 227, 150, 0.15);
+  border-color: rgba(80, 227, 150, 0.4);
+}
+
+.verdelo-btn-freeze {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(80, 227, 150, 0.2);
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.verdelo-btn-freeze:hover {
+  background: rgba(80, 227, 150, 0.14);
+  border-color: rgba(80, 227, 150, 0.4);
+}
+.verdelo-btn-freeze.is-frozen {
+  background: #50e396;
+  color: #041c12;
+  border-color: #50e396;
+  font-weight: 700;
+  box-shadow: 0 2px 10px rgba(80, 227, 150, 0.4);
+}
+
+/* ── Right Column: Stack of 2 Panels ─────────────────────────────────────── */
+.verdelo-overview-right-col {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Joint Balance Panel */
+.verdelo-joint-balance-panel {
+  background: rgba(4, 18, 16, 0.42) !important;
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid rgba(80, 227, 150, 0.2) !important;
+  border-radius: 20px !important;
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.14), 0 14px 34px -8px rgba(0, 0, 0, 0.6) !important;
+}
+
+.verdelo-joint-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.verdelo-joint-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+}
+
+.verdelo-joint-sub {
+  font-size: 0.78rem;
+  color: #8caba0;
+  margin-top: 3px;
+}
+
+.verdelo-eye-toggle {
+  background: none;
+  border: none;
+  color: #8caba0;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.18s ease;
+}
+.verdelo-eye-toggle:hover {
+  color: #ffffff;
+}
+
+.verdelo-joint-amount-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.verdelo-joint-big-val {
+  font-size: 2.35rem;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.025em;
+  line-height: 1;
+}
+
+.verdelo-joint-trend-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: rgba(80, 227, 150, 0.14);
+  border: 1px solid rgba(80, 227, 150, 0.28);
+  color: #50e396;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.verdelo-joint-trend-sub {
+  font-size: 0.78rem;
+  color: #8caba0;
+}
+
+/* 4 Mini Stat Pills */
+.verdelo-stat-pills-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+@media (max-width: 768px) {
+  .verdelo-stat-pills-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.verdelo-stat-pill-item {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(80, 227, 150, 0.15);
+  border-radius: 12px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+.verdelo-stat-pill-item:hover {
+  background: rgba(80, 227, 150, 0.08);
+  border-color: rgba(80, 227, 150, 0.35);
+}
+
+.verdelo-stat-pill-lbl {
+  font-size: 0.72rem;
+  color: #8caba0;
+}
+
+.verdelo-stat-pill-val {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+/* Line Chart & Forecast */
+.verdelo-line-chart-container {
+  width: 100%;
+  position: relative;
+  height: 140px;
+  margin-top: 4px;
+}
+
+.verdelo-line-chart-svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.verdelo-chart-tag-today {
+  position: absolute;
+  top: 48px;
+  left: 78%;
+  transform: translateX(-50%);
+  background: rgba(6, 20, 15, 0.95);
+  border: 1px solid rgba(80, 227, 150, 0.4);
+  padding: 2px 7px;
+  border-radius: 6px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: #ffffff;
+  pointer-events: none;
+}
+
+.verdelo-chart-tag-nov30 {
+  position: absolute;
+  bottom: 0px;
+  right: 0px;
+  font-size: 0.72rem;
+  color: #8caba0;
+}
+.verdelo-chart-tag-nov30 strong {
+  color: #ffffff;
+  font-weight: 700;
+}
+
+/* Legend row */
+.verdelo-overview-legend {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 0.74rem;
+  color: #8caba0;
+  padding-top: 4px;
+}
+
+.verdelo-overview-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.verdelo-legend-line-solid {
+  width: 14px;
+  height: 2.5px;
+  background: #50e396;
+  border-radius: 999px;
+}
+
+.verdelo-legend-line-dashed {
+  width: 14px;
+  height: 2px;
+  background: repeating-linear-gradient(90deg, #50e396 0, #50e396 3px, transparent 3px, transparent 6px);
+}
+
+/* ── Verdelo Top Hero Grid (Joint Balance & Money In & Out Side-by-Side) ──── */
+.verdelo-hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.18fr);
+  gap: 20px;
+  align-items: stretch;
+  width: 100%;
+}
+@media (max-width: 1100px) {
+  .verdelo-hero-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.verdelo-chart-card--hero {
+  margin: 0 !important;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.verdelo-legend-text--kept {
+  color: #50e396 !important;
+  font-weight: 700;
+}
+
+/* Capsule Slot Track behind 12-month dual bars */
+.verdelo-month-capsule-slot {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 3px;
+  right: 3px;
+  background: rgba(255, 255, 255, 0.032);
+  border-radius: 999px;
+  pointer-events: none;
+  transition: all 0.2s ease;
+  z-index: 0;
+}
+.verdelo-month-col.is-active-col .verdelo-month-capsule-slot {
+  border: 1px solid rgba(80, 227, 150, 0.42);
+  background: rgba(80, 227, 150, 0.07);
+}
+.verdelo-month-label.is-active-lbl {
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+/* ── Verdelo Lower 4-Column Responsive Grid (Photos 3 & 4) ─────────────────── */
+.verdelo-lower-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 20px;
+  align-items: stretch;
+  width: 100%;
+}
+@media (max-width: 1420px) {
+  .verdelo-lower-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 768px) {
+  .verdelo-lower-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Base Glass Card for Lower Sections */
+.verdelo-section-card {
+  background: rgba(4, 18, 16, 0.42) !important;
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid rgba(80, 227, 150, 0.2) !important;
+  border-radius: 20px !important;
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.14), 0 14px 34px -8px rgba(0, 0, 0, 0.6) !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.verdelo-section-card:hover {
+  border-color: rgba(80, 227, 150, 0.45) !important;
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.22), 0 18px 40px -8px rgba(0, 0, 0, 0.75) !important;
+}
+
+.verdelo-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.verdelo-card-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+  letter-spacing: -0.015em;
+}
+.verdelo-card-sub {
+  font-size: 0.78rem;
+  color: #8caba0;
+  margin-top: 3px;
+}
+.verdelo-link-btn {
+  background: none;
+  border: none;
+  color: #50e396;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 6px;
+  transition: opacity 0.18s ease;
+}
+.verdelo-link-btn:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
+
+/* 1. Where November Went */
+.verdelo-nov-bar-track {
+  height: 10px;
+  border-radius: 999px;
+  display: flex;
+  gap: 4px;
+  overflow: hidden;
+  margin: 8px 0 16px;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 1px;
+}
+.verdelo-nov-bar-seg {
+  height: 100%;
+  border-radius: 999px;
+  transition: opacity 0.18s ease;
+}
+.verdelo-nov-cat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+.verdelo-nov-cat-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
+}
+.verdelo-nov-cat-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.verdelo-nov-cat-icon-wrap {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+.verdelo-nov-cat-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+.verdelo-nov-cat-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.verdelo-nov-cat-pct {
+  font-size: 0.82rem;
+  color: #8caba0;
+  min-width: 38px;
+  text-align: right;
+}
+.verdelo-nov-cat-amt {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #ffffff;
+  min-width: 60px;
+  text-align: right;
+}
+.verdelo-nov-alert-box {
+  background: rgba(80, 227, 150, 0.08);
+  border: 1px solid rgba(80, 227, 150, 0.22);
+  border-radius: 12px;
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+}
+.verdelo-nov-alert-icon {
+  color: #50e396;
+  flex-shrink: 0;
+}
+.verdelo-nov-alert-text {
+  font-size: 0.76rem;
+  color: #8caba0;
+  line-height: 1.4;
+}
+
+/* 2. Latest Payments */
+.verdelo-payments-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+}
+.verdelo-payment-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 5px 0;
+  border-bottom: 1px solid rgba(80, 227, 150, 0.06);
+}
+.verdelo-payment-row:last-child {
+  border-bottom: none;
+}
+.verdelo-payment-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.verdelo-payment-icon-wrap {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.verdelo-payment-details {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.verdelo-payment-name {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+.verdelo-payment-meta {
+  font-size: 0.74rem;
+  color: #8caba0;
+}
+.verdelo-payment-amount {
+  font-size: 0.94rem;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+}
+
+/* 3. Stacked Column */
+.verdelo-stacked-col {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Noticed Card */
+.verdelo-noticed-card {
+  padding: 18px 20px !important;
+}
+.verdelo-noticed-arrows {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.verdelo-noticed-nav-btn {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #8caba0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.verdelo-noticed-nav-btn:hover {
+  background: rgba(80, 227, 150, 0.15);
+  border-color: rgba(80, 227, 150, 0.35);
+  color: #ffffff;
+}
+.verdelo-noticed-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.verdelo-noticed-icon-row {
+  margin-bottom: 6px;
+}
+.verdelo-noticed-icon-box {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.verdelo-noticed-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+}
+.verdelo-noticed-desc {
+  font-size: 0.78rem;
+  color: #8caba0;
+  margin: 0;
+  line-height: 1.4;
+}
+.verdelo-noticed-link {
+  background: none;
+  border: none;
+  color: #50e396;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  margin-top: 6px;
+  text-align: left;
+  display: inline-block;
+  transition: opacity 0.18s ease;
+}
+.verdelo-noticed-link:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
+.verdelo-noticed-dashes {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+}
+.verdelo-noticed-dash {
+  flex: 1;
+  height: 3px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  padding: 0;
+}
+.verdelo-noticed-dash.is-active {
+  background: #50e396 !important;
+}
+
+/* Quick Send Card */
+.verdelo-quick-send-card {
+  padding: 18px 20px !important;
+}
+.verdelo-quick-avatars-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.verdelo-quick-contact-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 8px;
+  transition: transform 0.15s ease;
+}
+.verdelo-quick-contact-btn:hover {
+  transform: translateY(-2px);
+}
+.verdelo-quick-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+  border: 2px solid transparent;
+  transition: all 0.18s ease;
+}
+.verdelo-quick-contact-btn.is-selected .verdelo-quick-avatar {
+  border-color: #50e396;
+  box-shadow: 0 0 0 3px rgba(80, 227, 150, 0.35);
+}
+.verdelo-quick-name {
+  font-size: 0.76rem;
+  color: #8caba0;
+}
+.verdelo-quick-contact-btn.is-selected .verdelo-quick-name {
+  color: #ffffff;
+  font-weight: 700;
+}
+.verdelo-quick-amounts-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.verdelo-quick-amt-pill {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(80, 227, 150, 0.2);
+  border-radius: 10px;
+  color: #ffffff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 8px 0;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  text-align: center;
+}
+.verdelo-quick-amt-pill:hover {
+  background: rgba(80, 227, 150, 0.1);
+  border-color: rgba(80, 227, 150, 0.4);
+}
+.verdelo-quick-amt-pill.is-active {
+  background: #50e396 !important;
+  color: #041c12 !important;
+  font-weight: 800;
+  border-color: #50e396 !important;
+  box-shadow: 0 4px 14px rgba(80, 227, 150, 0.4);
+}
+.verdelo-btn-quick-send-submit {
+  width: 100%;
+  height: 42px;
+  border-radius: 12px;
+  background: #50e396;
+  border: none;
+  color: #041c12;
+  font-weight: 700;
+  font-size: 0.88rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  box-shadow: 0 4px 18px rgba(80, 227, 150, 0.35);
+}
+.verdelo-btn-quick-send-submit:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 6px 22px rgba(80, 227, 150, 0.5);
+}
+
+/* 4. Coming Up (Photo 4) */
+.verdelo-bills-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1;
+}
+.verdelo-bill-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(80, 227, 150, 0.06);
+}
+.verdelo-bill-row:last-child {
+  border-bottom: none;
+}
+.verdelo-bill-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.verdelo-bill-date-box {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  flex-shrink: 0;
+}
+.verdelo-bill-date-day {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1;
+}
+.verdelo-bill-date-month {
+  font-size: 0.68rem;
+  font-weight: 500;
+  color: #8caba0;
+  text-transform: uppercase;
+}
+.verdelo-bill-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.verdelo-bill-name {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+.verdelo-bill-sub {
+  font-size: 0.74rem;
+  color: #8caba0;
+}
+.verdelo-bill-amount {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+.verdelo-bill-pay-btn {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 999px;
+  color: #ffffff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  padding: 6px 16px;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+.verdelo-bill-pay-btn:hover {
+  background: rgba(80, 227, 150, 0.15);
+  border-color: rgba(80, 227, 150, 0.5);
+  color: #50e396;
+}
+.verdelo-bill-paid-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(80, 227, 150, 0.15);
+  border: 1px solid rgba(80, 227, 150, 0.35);
+  color: #50e396;
+  font-size: 0.76rem;
+  font-weight: 700;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   VERDELO CARDS TAB & WALLET (2-ROW LAYOUT MATCHING PHOTO 1 & 2)
+   ───────────────────────────────────────────────────────────── */
+.verdelo-cards-page {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  width: 100%;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 4px 0 32px;
+}
+
+/* Page Header matching Photo 1 */
+.verdelo-cards-phead {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  margin-bottom: 2px;
+}
+.verdelo-cards-title {
+  font-size: clamp(28px, 2.6vw, 36px);
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.025em;
+  line-height: 1.05;
+  margin: 0 0 6px;
+}
+.verdelo-cards-sub {
+  font-size: 0.95rem;
+  color: #8caba0;
+  margin: 0;
+}
+.verdelo-btn-add-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 18px;
+  border-radius: 12px;
+  background: #50e396;
+  color: #071510;
+  font-size: 0.88rem;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.verdelo-btn-add-card:hover {
+  background: #62ebb0;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(80, 227, 150, 0.4);
+}
+
+/* 2-column rows */
+.verdelo-cards-row,
+.verdelo-cards-view {
+  display: grid;
+  grid-template-columns: minmax(360px, 480px) minmax(440px, 1fr);
+  gap: 22px;
+  width: 100%;
+  align-items: stretch;
+}
+
+@media (max-width: 1024px) {
+  .verdelo-cards-row,
+  .verdelo-cards-view {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Left panel: 3D Stack Stage Container */
+.verdelo-cards-stage-panel {
+  min-height: 480px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 34px 28px 24px;
+}
+
+/* Right panel: Controls and details */
+.verdelo-card-controls-panel {
+  padding: 28px 32px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+/* Header */
+.verdelo-card-ctrl-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.verdelo-card-ctrl-title {
+  font-size: 1.45rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0 0 4px;
+  letter-spacing: -0.01em;
+}
+
+.verdelo-card-ctrl-sub {
+  font-size: 0.88rem;
+  color: #8caba0;
+  margin: 0;
+}
+
+.verdelo-card-live-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  background: rgba(80, 227, 150, 0.14);
+  border: 1px solid rgba(80, 227, 150, 0.35);
+  color: #50e396;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  transition: all 0.2s ease;
+}
+
+.verdelo-card-live-badge.is-frozen {
+  background: rgba(140, 171, 160, 0.14);
+  border-color: rgba(140, 171, 160, 0.35);
+  color: #a3c4b9;
+}
+
+.verdelo-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #50e396;
+  box-shadow: 0 0 8px rgba(80, 227, 150, 0.8);
+}
+
+.verdelo-card-live-badge.is-frozen .verdelo-live-dot {
+  background: #8caba0;
+  box-shadow: none;
+}
+
+/* Metrics Grid: Spent in Nov / Left this month */
+.verdelo-card-metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.verdelo-card-metric-box {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.verdelo-card-metric-lbl {
+  font-size: 0.78rem;
+  color: #8caba0;
+  font-weight: 500;
+}
+
+.verdelo-card-metric-val {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+}
+
+/* 4 Toggles List */
+.verdelo-card-toggles-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 16px 0;
+}
+
+.verdelo-card-toggle-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+}
+
+.verdelo-card-toggle-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.verdelo-card-toggle-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.verdelo-card-toggle-desc {
+  font-size: 0.78rem;
+  color: #8caba0;
+}
+
+/* Switches */
+.verdelo-switch-btn {
+  width: 44px;
+  height: 24px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  border: none;
+  cursor: pointer;
+  position: relative;
+  padding: 2px;
+  transition: background 0.22s ease;
+  flex-shrink: 0;
+}
+
+.verdelo-switch-btn.is-on {
+  background: #50e396;
+}
+
+.verdelo-switch-knob {
+  display: block;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.35);
+  transform: translateX(0);
+  transition: transform 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.verdelo-switch-btn.is-on .verdelo-switch-knob {
+  transform: translateX(20px);
+}
+
+/* Monthly Limit Slider */
+.verdelo-card-limit-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.verdelo-card-limit-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.verdelo-card-limit-lbl {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.verdelo-card-limit-val {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #50e396;
+}
+
+.verdelo-card-slider-wrap {
+  width: 100%;
+}
+
+.verdelo-range-input {
+  width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 999px;
+  outline: none;
+  cursor: pointer;
+}
+
+.verdelo-range-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.verdelo-range-input::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+
+/* Hold to see PIN button */
+.verdelo-btn-see-pin {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 18px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+  font-size: 0.88rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.verdelo-btn-see-pin:hover {
+  background: rgba(80, 227, 150, 0.12);
+  border-color: rgba(80, 227, 150, 0.4);
+  color: #50e396;
+}
+
+/* ── Bottom Row (Photo 2): All cards styling ── */
+.verdelo-all-cards-panel {
+  padding: 26px 28px;
+}
+.verdelo-all-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.verdelo-card-list-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.verdelo-card-list-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(80, 227, 150, 0.2);
+}
+.verdelo-card-list-item.is-selected {
+  background: rgba(80, 227, 150, 0.08);
+  border-color: rgba(80, 227, 150, 0.4);
+}
+.verdelo-mini-card {
+  width: 44px;
+  height: 28px;
+  border-radius: 6px;
+  flex-shrink: 0;
+  position: relative;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+.verdelo-mini-chip {
+  width: 7px;
+  height: 6px;
+  border-radius: 2px;
+  background: #d4af37;
+  position: absolute;
+  top: 6px;
+  left: 6px;
+}
+.verdelo-card-list-info {
+  flex: 1;
+  min-width: 0;
+}
+.verdelo-card-list-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+.verdelo-card-list-pan {
+  font-size: 0.82rem;
+  color: #8caba0;
+  font-weight: 500;
+  font-family: var(--font-mono, monospace);
+}
+.verdelo-card-list-sub {
+  font-size: 0.78rem;
+  color: #8caba0;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.verdelo-card-list-progress-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  min-width: 140px;
+}
+.verdelo-card-list-progress-text {
+  font-size: 0.78rem;
+  color: #8caba0;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.verdelo-card-list-track {
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.verdelo-card-list-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: #50e396;
+}
+.verdelo-card-live-badge--sm {
+  padding: 3px 9px;
+  font-size: 0.72rem;
+}
+
+/* ── Bottom Row (Photo 2): Everyday payments styling ── */
+.verdelo-card-payments-panel {
+  padding: 26px 28px;
+}
+.verdelo-link-all-act {
+  background: none;
+  border: none;
+  color: #50e396;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: all 0.18s ease;
+}
+.verdelo-link-all-act:hover {
+  background: rgba(80, 227, 150, 0.12);
+  text-decoration: underline;
+}
+.verdelo-tx-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.verdelo-tx-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 9px 12px;
+  border-radius: 14px;
+  transition: background 0.18s ease;
+}
+.verdelo-tx-row:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+.verdelo-tx-icon-wrap {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+.verdelo-tx-info {
+  flex: 1;
+  min-width: 0;
+}
+.verdelo-tx-name {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #ffffff;
+}
+.verdelo-tx-meta {
+  font-size: 0.78rem;
+  color: #8caba0;
+  margin-top: 1px;
+}
+.verdelo-tx-amount {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #ffffff;
+  white-space: nowrap;
 }

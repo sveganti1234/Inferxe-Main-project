@@ -67,6 +67,8 @@ class HealthResponse(BaseModel):
     service: str = "inferxe-inference-api"
     database: str
     nvidia_provider: str
+    supabase_rest: Optional[str] = None
+    cognito_configured: Optional[bool] = None
     version: str = "1.0.0"
 
 
