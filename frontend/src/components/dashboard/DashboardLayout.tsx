@@ -868,14 +868,6 @@ export function DashboardLayout({
   if (portalRole === 'customer') {
     return (
       <div className="dash-shell" data-theme={dashTheme} data-role="customer">
-        <img
-          className="dash-page__bg"
-          src="/images/gpu-cards.webp"
-          alt=""
-          loading="lazy"
-          aria-hidden="true"
-        />
-        <div className="dash-page__shade" />
         <Ambient />
         <div className="dash-window-frame dash-window-frame--customer">
           {/* Mobile backdrop overlay */}
@@ -1243,14 +1235,6 @@ export function DashboardLayout({
 
   return (
     <div className="dash-shell" data-theme={dashTheme} data-role="admin">
-      <img
-        className="dash-page__bg"
-        src="/images/gpu-cards.webp"
-        alt=""
-        loading="lazy"
-        aria-hidden="true"
-      />
-      <div className="dash-page__shade" />
       <Ambient />
       <div className="dash-window-frame">
         {/* ── Top Navigation Bar ──────────────────────────────── */}

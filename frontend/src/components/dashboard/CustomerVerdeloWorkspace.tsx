@@ -60,7 +60,7 @@ export function CustomerVerdeloWorkspace() {
         position: 'fixed',
         inset: 0,
         zIndex: 99999,
-        background: '#0c1210 url(/images/gpu-cards.webp) center/cover no-repeat fixed',
+        background: '#0c1210',
         width: '100vw',
         height: '100vh',
         overflow: 'hidden',
@@ -75,7 +75,7 @@ export function CustomerVerdeloWorkspace() {
           height: '100%',
           border: 'none',
           display: 'block',
-          backgroundColor: 'transparent',
+          backgroundColor: '#0c1210',
         }}
       />
     </div>
