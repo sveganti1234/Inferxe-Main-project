@@ -89,7 +89,7 @@ body:has(.dash-shell[data-role='customer']),
     radial-gradient(ellipse 75% 55% at 85% 15%, rgba(80, 227, 150, 0.22) 0%, transparent 60%),
     radial-gradient(ellipse 65% 65% at 15% 85%, rgba(31, 100, 72, 0.20) 0%, transparent 55%),
     linear-gradient(180deg, rgba(3, 13, 9, 0.40) 0%, rgba(3, 13, 9, 0.65) 100%),
-    url('/customer-bg.jpg') !important;
+    url('/bermuda-marble.svg') !important;
   background-attachment: fixed !important;
   background-size: cover !important;
   background-position: center !important;
