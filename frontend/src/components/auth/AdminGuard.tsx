@@ -1,6 +1,11 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
-import { getSession, getPortalRole, clearSession, verifyAdminSessionServer } from '../../lib/authStore'
+import {
+  getSession,
+  getPortalRole,
+  clearSession,
+  verifyAdminSessionWithDetails,
+} from '../../lib/authStore'
 
 interface AdminGuardProps {
   children?: ReactNode
@@ -8,8 +13,8 @@ interface AdminGuardProps {
 
 /**
  * Route guard that protects admin routes.
- * Enforces both client-side role validation and server-side cryptographic token verification.
- * Prevents unauthenticated users and customer accounts from accessing the Admin Portal.
+ * Enforces both client-side role validation and server-side DB-backed session verification.
+ * Prevents unauthenticated users, revoked sessions, and customer accounts from accessing the Admin Portal.
  */
 export function AdminGuard({ children }: AdminGuardProps) {
   const location = useLocation()
@@ -18,7 +23,7 @@ export function AdminGuard({ children }: AdminGuardProps) {
     if (!session || !session.token) return 'unauthorized'
     const portalRole = getPortalRole(session.user?.role)
     if (portalRole !== 'admin' && portalRole !== 'superadmin') return 'unauthorized'
-    return 'authorized'
+    return 'checking'
   })
 
   useEffect(() => {
@@ -40,11 +45,12 @@ export function AdminGuard({ children }: AdminGuardProps) {
         return
       }
 
-      // Admin credentials are independent from customer Cognito sessions.
-      const isServerValid = await verifyAdminSessionServer(session.token)
+      // 3. Authoritative server-side DB-backed session verification
+      const verification = await verifyAdminSessionWithDetails(session.token)
       if (!isMounted) return
 
-      if (isServerValid) {
+      const verifiedRole = getPortalRole(verification.user?.role)
+      if (verification.valid && (verifiedRole === 'admin' || verifiedRole === 'superadmin')) {
         setAuthState('authorized')
       } else {
         clearSession()

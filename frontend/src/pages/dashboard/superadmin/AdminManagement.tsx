@@ -8,11 +8,14 @@ import {
   CheckCircle2,
   UserCheck,
   UserX,
+  UserPlus,
   ArrowLeft,
+  Shield,
 } from 'lucide-react'
 import { DashboardLayout } from '../../../components/dashboard/DashboardLayout'
 import { usePageMeta } from '../../../lib/hooks'
 import {
+  createDeveloperAdminAccount,
   fetchSuperadminAdmins,
   updateAdminAccountStatus,
   type SuperadminAdminRecord,
@@ -36,6 +39,14 @@ export default function AdminManagement() {
   const [actionType, setActionType] = useState<'active' | 'suspended' | 'inactive' | null>(null)
   const [actionReason, setActionReason] = useState('')
   const [submittingAction, setSubmittingAction] = useState(false)
+
+  // Create Developer Admin Modal State
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
+  const [newAdminEmail, setNewAdminEmail] = useState('')
+  const [newAdminPassword, setNewAdminPassword] = useState('')
+  const [confirmAdminPassword, setConfirmAdminPassword] = useState('')
+  const [createError, setCreateError] = useState<string | null>(null)
+  const [creatingAdmin, setCreatingAdmin] = useState(false)
 
   const loadAdmins = async () => {
     setLoading(true)
@@ -81,6 +92,56 @@ export default function AdminManagement() {
       setError(err instanceof Error ? err.message : 'An error occurred while updating status.')
     } finally {
       setSubmittingAction(false)
+    }
+  }
+
+  const handleCreateDeveloperAdmin = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setCreateError(null)
+    setError(null)
+    setSuccessMsg(null)
+
+    const cleanEmail = newAdminEmail.trim().toLowerCase()
+    if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(cleanEmail)) {
+      setCreateError('Please enter a valid developer email address.')
+      return
+    }
+    if (newAdminPassword.length < 12) {
+      setCreateError('Password must be at least 12 characters with upper, lower, digit, and symbol.')
+      return
+    }
+    if (newAdminPassword !== confirmAdminPassword) {
+      setCreateError('Password confirmation does not match.')
+      return
+    }
+
+    setCreatingAdmin(true)
+    try {
+      const res = await createDeveloperAdminAccount({
+        email: cleanEmail,
+        password: newAdminPassword,
+      })
+      if (res.ok && res.admin) {
+        setSuccessMsg(
+          `Developer admin account "${res.admin.email}" has been created with role "admin".`,
+        )
+        setIsCreateModalOpen(false)
+        setNewAdminEmail('')
+        setNewAdminPassword('')
+        setConfirmAdminPassword('')
+        await loadAdmins()
+      } else if (res.isDuplicate) {
+        await loadAdmins()
+        setCreateError(
+          `An administrator account for "${cleanEmail}" already exists in Supabase. The administrator directory has been refreshed.`,
+        )
+      } else {
+        setCreateError(res.error || 'Unable to create developer admin account.')
+      }
+    } catch (err) {
+      setCreateError(err instanceof Error ? err.message : 'Unable to create developer admin account.')
+    } finally {
+      setCreatingAdmin(false)
     }
   }
 
@@ -145,6 +206,29 @@ export default function AdminManagement() {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <button
+              type="button"
+              onClick={() => {
+                setCreateError(null)
+                setIsCreateModalOpen(true)
+              }}
+              style={{
+                background: 'linear-gradient(135deg, #10B981, #059669)',
+                border: '1px solid #10B981',
+                color: '#FFFFFF',
+                padding: '8px 14px',
+                borderRadius: '8px',
+                fontSize: '0.82rem',
+                fontWeight: 600,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                cursor: 'pointer',
+              }}
+            >
+              <UserPlus size={14} />
+              <span>Create Developer Admin</span>
+            </button>
             <button
               type="button"
               className="dash-btn-ghost"
@@ -666,6 +750,189 @@ export default function AdminManagement() {
                 </button>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* ── Create Developer Admin Modal (Role strictly 'admin') ── */}
+        {isCreateModalOpen && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0, 0, 0, 0.82)',
+              backdropFilter: 'blur(8px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 9999,
+              padding: '20px',
+            }}
+          >
+            <form
+              onSubmit={handleCreateDeveloperAdmin}
+              style={{
+                background: '#0F1612',
+                border: '1px solid #1B2E24',
+                borderRadius: '14px',
+                width: '100%',
+                maxWidth: '460px',
+                padding: '24px',
+                boxShadow: '0 24px 60px rgba(0, 0, 0, 0.9)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+                <div
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '8px',
+                    background: 'rgba(16, 185, 129, 0.15)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#10B981',
+                  }}
+                >
+                  <Shield size={18} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, color: '#FFFFFF', fontSize: '1.08rem', fontWeight: 700 }}>
+                    Create Developer Admin Account
+                  </h3>
+                  <div style={{ color: '#9CA3AF', fontSize: '0.78rem' }}>
+                    Provisioned in Supabase with Argon2id hashing and role <strong style={{ color: '#6EE7B7' }}>admin</strong>
+                  </div>
+                </div>
+              </div>
+
+              {createError && (
+                <div
+                  style={{
+                    background: '#2B1214',
+                    border: '1px solid #7F1D1D',
+                    borderRadius: '6px',
+                    padding: '10px 12px',
+                    color: '#FCA5A5',
+                    fontSize: '0.8rem',
+                    marginBottom: '14px',
+                  }}
+                >
+                  {createError}
+                </div>
+              )}
+
+              <div style={{ marginBottom: '12px' }}>
+                <label style={{ display: 'block', fontSize: '0.76rem', color: '#9CA3AF', marginBottom: '6px' }}>
+                  Developer Email
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={newAdminEmail}
+                  onChange={(e) => setNewAdminEmail(e.target.value)}
+                  placeholder="developer@inferxe.com"
+                  style={{
+                    width: '100%',
+                    background: '#121C16',
+                    border: '1px solid #23382C',
+                    borderRadius: '6px',
+                    padding: '8px 12px',
+                    color: '#FFFFFF',
+                    fontSize: '0.84rem',
+                    outline: 'none',
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '12px' }}>
+                <label style={{ display: 'block', fontSize: '0.76rem', color: '#9CA3AF', marginBottom: '6px' }}>
+                  Strong Password (min 12 chars, upper/lower/digit/symbol)
+                </label>
+                <input
+                  type="password"
+                  required
+                  autoComplete="new-password"
+                  value={newAdminPassword}
+                  onChange={(e) => setNewAdminPassword(e.target.value)}
+                  placeholder="Enter strong password"
+                  style={{
+                    width: '100%',
+                    background: '#121C16',
+                    border: '1px solid #23382C',
+                    borderRadius: '6px',
+                    padding: '8px 12px',
+                    color: '#FFFFFF',
+                    fontSize: '0.84rem',
+                    outline: 'none',
+                  }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '0.76rem', color: '#9CA3AF', marginBottom: '6px' }}>
+                  Confirm Password
+                </label>
+                <input
+                  type="password"
+                  required
+                  autoComplete="new-password"
+                  value={confirmAdminPassword}
+                  onChange={(e) => setConfirmAdminPassword(e.target.value)}
+                  placeholder="Re-enter password"
+                  style={{
+                    width: '100%',
+                    background: '#121C16',
+                    border: '1px solid #23382C',
+                    borderRadius: '6px',
+                    padding: '8px 12px',
+                    color: '#FFFFFF',
+                    fontSize: '0.84rem',
+                    outline: 'none',
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsCreateModalOpen(false)
+                    setNewAdminEmail('')
+                    setNewAdminPassword('')
+                    setConfirmAdminPassword('')
+                    setCreateError(null)
+                  }}
+                  disabled={creatingAdmin}
+                  style={{
+                    background: '#121C16',
+                    border: '1px solid #1B2E24',
+                    color: '#D1D5DB',
+                    borderRadius: '6px',
+                    padding: '8px 14px',
+                    fontSize: '0.82rem',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={creatingAdmin}
+                  style={{
+                    background: '#10B981',
+                    border: 'none',
+                    color: '#FFFFFF',
+                    borderRadius: '6px',
+                    padding: '8px 16px',
+                    fontSize: '0.82rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  {creatingAdmin ? 'Creating...' : 'Create Developer Admin'}
+                </button>
+              </div>
+            </form>
           </div>
         )}
       </div>

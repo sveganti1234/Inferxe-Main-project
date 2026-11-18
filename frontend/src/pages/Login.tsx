@@ -14,7 +14,7 @@ import {
 } from 'aws-amplify/auth'
 import { Hub } from 'aws-amplify/utils'
 
-import { saveSession, loginAdminBackend, syncCustomerProfile, emailToCognitoUsername, type AuthSession } from '../lib/authStore'
+import { saveSession, loginAdminBackend, syncCustomerProfile, emailToCognitoUsername } from '../lib/authStore'
 import {
   AlertCircle,
   ArrowLeft,
@@ -182,7 +182,7 @@ export default function Login({ initialMode }: LoginProps) {
 
   // Sign in through AWS Cognito
 
-  const handleCognitoLogin = async () => {
+  const handleCognitoLogin = async (adminBackendError?: string) => {
     setError(null)
     setSuccess(null)
 
@@ -248,45 +248,12 @@ export default function Login({ initialMode }: LoginProps) {
       const errMsg = err?.message || ''
       console.error('Cognito sign-in failed:', errName, errMsg)
 
-      // Resilient fallback for customer sign-in:
-      // If running locally in development, or if Cognito is locked/offline, or for customer demo accounts,
-      // allow seamless authentication so no one ever gets locked out after pulling this code.
-      const isKnownCustomer =
-        cleanEmail === 'sahith490522mnp@gmail.com' ||
-        cleanEmail === 'sahith1689vss@gmail.com' ||
-        cleanEmail === 'customer@inferxe.com' ||
-        cleanEmail.includes('customer') ||
-        cleanEmail.includes('sahith')
-      const isLockoutOrOffline =
-        errMsg.includes('attempts exceeded') ||
-        errName === 'ResourceNotFoundException' ||
-        errName === 'NetworkError'
-
-      if ((import.meta.env.DEV || isKnownCustomer || isLockoutOrOffline) && password.length >= 6) {
-        console.info('[auth] Falling back to verified customer session for:', cleanEmail)
-        const fullName =
-          cleanEmail === 'sahith490522mnp@gmail.com'
-            ? 'veganti sahith'
-            : cleanEmail.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
-        const session: AuthSession = {
-          token: 'ix-cst-' + Math.random().toString(36).substring(2, 12),
-          user: {
-            id: cleanEmail === 'sahith490522mnp@gmail.com' ? 'cst_834e854070944e6e' : 'cst_' + cleanEmail.split('@')[0],
-            fullName,
-            email: cleanEmail,
-            username: cleanEmail.split('@')[0],
-            role: 'customer',
-            organization: cleanEmail === 'sahith490522mnp@gmail.com' ? 'synycs' : 'Customer Workspace',
-          },
-          expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
-        }
-        saveSession(session)
-        navigate('/dashboard/customer')
-        return
-      }
-
       if (errMsg.includes('Password attempts exceeded') || errMsg.includes('attempts exceeded')) {
         setError('Password attempts exceeded. Your account is temporarily locked by AWS Cognito. Please click "Forgot password?" to reset your password and unlock your account.')
+      } else if ((errName === 'NotAuthorizedException' || errName === 'UserNotFoundException') && adminBackendError) {
+        // Admin auth backend failed (e.g. 503 config/DB error) before Cognito fallback;
+        // surface the real backend error instead of misreporting an invalid password.
+        setError(adminBackendError)
       } else if (errName === 'NotAuthorizedException') {
         setError('Incorrect email or password. Please verify your credentials or click "Forgot password?".')
       } else if (errName === 'UserNotFoundException') {
@@ -435,7 +402,7 @@ export default function Login({ initialMode }: LoginProps) {
         }
 
         // Non-admin users: Authenticate strictly via AWS Cognito
-        await handleCognitoLogin()
+        await handleCognitoLogin(adminResult.backendError ? adminResult.error : undefined)
         return
       }
 
@@ -570,42 +537,6 @@ export default function Login({ initialMode }: LoginProps) {
       console.error('Authentication error:', err)
       const errName = err?.name || ''
       const errMsg = err?.message || ''
-
-      if (mode === 'login' && password.length >= 6) {
-        const cleanEmail = email.trim().toLowerCase()
-        const isKnownCustomer =
-          cleanEmail === 'sahith490522mnp@gmail.com' ||
-          cleanEmail === 'sahith1689vss@gmail.com' ||
-          cleanEmail === 'customer@inferxe.com' ||
-          cleanEmail.includes('customer') ||
-          cleanEmail.includes('sahith')
-        const isLockoutOrOffline =
-          errMsg.includes('attempts exceeded') ||
-          errName === 'ResourceNotFoundException' ||
-          errName === 'NetworkError'
-
-        if (import.meta.env.DEV || isKnownCustomer || isLockoutOrOffline) {
-          const fullName =
-            cleanEmail === 'sahith490522mnp@gmail.com'
-              ? 'veganti sahith'
-              : cleanEmail.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
-          const session: AuthSession = {
-            token: 'ix-cst-' + Math.random().toString(36).substring(2, 12),
-            user: {
-              id: cleanEmail === 'sahith490522mnp@gmail.com' ? 'cst_834e854070944e6e' : 'cst_' + cleanEmail.split('@')[0],
-              fullName,
-              email: cleanEmail,
-              username: cleanEmail.split('@')[0],
-              role: 'customer',
-              organization: cleanEmail === 'sahith490522mnp@gmail.com' ? 'synycs' : 'Customer Workspace',
-            },
-            expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
-          }
-          saveSession(session)
-          navigate('/dashboard/customer')
-          return
-        }
-      }
 
       if (mode === 'forgot') {
         setError(getPasswordResetError(err))

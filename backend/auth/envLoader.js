@@ -80,7 +80,7 @@ export function loadBackendEnv({
   const loadedKeys = []
 
   for (const [key, value] of Object.entries(parsed)) {
-    if (override || targetEnv[key] === undefined) {
+    if (override || targetEnv[key] === undefined || targetEnv[key] === '') {
       targetEnv[key] = value
       loadedKeys.push(key)
     }

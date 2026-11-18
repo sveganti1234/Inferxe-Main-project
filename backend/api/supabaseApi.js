@@ -5,7 +5,7 @@ import {
   CognitoIdentityProviderClient,
 } from '@aws-sdk/client-cognito-identity-provider'
 import { authenticateCognitoRequest, readCustomerJsonBody, sendCustomerJson } from '../auth/customerAuth.js'
-import { verifyAdminToken } from '../auth/adminAuth.js'
+import { extractAdminTokenFromRequest, verifyAdminSession } from '../auth/adminAuth.js'
 import { getSupabaseAdminClient } from '../lib/supabase.js'
 
 const WORKSPACE_SELECTS = {
@@ -196,26 +196,35 @@ async function getWorkspace(context) {
   }
 }
 
-function verifyAdminRequest(req) {
-  const token = getBearerToken(req)
+async function verifyAdminRequest(req) {
+  const token = extractAdminTokenFromRequest(req)
   if (!token) {
     const error = new Error('Administrator token is required.')
     error.statusCode = 401
     throw error
   }
-  const secret = process.env.ADMIN_SESSION_SECRET || ''
+  const secret = String(process.env.ADMIN_SESSION_SECRET || '').trim()
   if (!secret || secret.length < 32) {
     const error = new Error('Administrator authentication is not configured.')
     error.statusCode = 503
     throw error
   }
-  const verification = verifyAdminToken(token, secret)
-  if (!verification.valid || !verification.payload) {
-    const error = new Error('Administrator authentication could not be verified.')
-    error.statusCode = 401
+  let verification
+  try {
+    verification = await verifyAdminSession(token, secret, {
+      allowedRoles: ['admin', 'superadmin'],
+    })
+  } catch {
+    const error = new Error('Administrator session verification service is temporarily unavailable.')
+    error.statusCode = 503
     throw error
   }
-  return verification.payload
+  if (!verification.valid || !verification.admin) {
+    const error = new Error(verification.error || 'Administrator authentication could not be verified.')
+    error.statusCode = verification.statusCode || 401
+    throw error
+  }
+  return verification.admin
 }
 
 async function getAdminUsers(supabase) {
@@ -475,7 +484,7 @@ async function handleCustomerApi(req, res, path) {
 async function handleAdminApi(req, res, path) {
   let admin
   try {
-    admin = verifyAdminRequest(req)
+    admin = await verifyAdminRequest(req)
   } catch (error) {
     return sendJson(res, error.statusCode || 401, { ok: false, error: error.message })
   }

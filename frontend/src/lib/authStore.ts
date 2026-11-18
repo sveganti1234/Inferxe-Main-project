@@ -376,6 +376,22 @@ export function clearSession(): void {
 }
 
 export async function performSignOut(redirectUrl = '/'): Promise<void> {
+  const currentSession = getSession()
+  const portalRole = getPortalRole(currentSession?.user?.role)
+
+  if (portalRole === 'admin' || portalRole === 'superadmin') {
+    try {
+      await fetch(`${ADMIN_API_BASE}/logout`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(currentSession?.token ? { Authorization: `Bearer ${currentSession.token}` } : {}),
+        },
+      }).catch(() => {})
+    } catch {}
+  }
+
   try {
     await signOut().catch(() => {})
   } catch {}
@@ -389,45 +405,27 @@ const ADMIN_API_BASE =
   (import.meta.env.VITE_ADMIN_AUTH_ENDPOINT as string | undefined)?.replace(/\/$/, '') ||
   '/api/admin'
 
-export const SUPERADMIN_EMAILS = [
-  'bhumireddy@inferxe.com',
-  'superadmin@inferxe.com',
-]
-
-export function isSuperAdminEmail(email?: string): boolean {
-  if (!email) return false
-  const clean = email.trim().toLowerCase()
-  return SUPERADMIN_EMAILS.includes(clean)
-}
-
-export const ADMIN_EMAILS = [
-  'admin@inferxe.com',
-  'alex.chen@inferxe.internal',
-  'bhumireddy@inferxe.com',
-  'superadmin@inferxe.com',
-]
-
-export function isAdministratorEmail(email: string): boolean {
-  if (!email) return false
-  const clean = email.trim().toLowerCase()
-  return (
-    ADMIN_EMAILS.includes(clean) ||
-    SUPERADMIN_EMAILS.includes(clean) ||
-    clean.startsWith('admin@') ||
-    clean.endsWith('@inferxe.internal')
-  )
-}
-
 export interface AdminLoginResult {
   ok: boolean
   isAdmin: boolean
+  backendError?: boolean
+  statusCode?: number
+  code?: string
   session?: AuthSession
   error?: string
 }
 
+export type AuthUser = AuthSession['user']
+
+export interface AdminVerifyResult {
+  valid: boolean
+  user?: AuthUser
+}
+
 /**
  * Validate submitted credentials against the backend admin authentication endpoint.
- * Credentials are verified exclusively on the server side.
+ * Credentials are verified exclusively on the server side against Supabase `admin_users`
+ * with Argon2 password verification and DB-backed `admin_sessions`.
  */
 export async function loginAdminBackend(
   email: string,
@@ -438,6 +436,7 @@ export async function loginAdminBackend(
   try {
     const res = await fetch(`${ADMIN_API_BASE}/login`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
@@ -452,59 +451,50 @@ export async function loginAdminBackend(
         const session: AuthSession = {
           token: data.token,
           user: data.user,
-          expiresAt: data.expiresAt || Date.now() + 7 * 24 * 60 * 60 * 1000,
+          expiresAt: data.expiresAt || Date.now() + 12 * 60 * 60 * 1000,
         }
         saveSession(session)
-        return { ok: true, isAdmin: true, session }
+        return { ok: true, isAdmin: true, statusCode: res.status, session }
       }
-      if (!res.ok && data.error) {
-        return { ok: false, isAdmin: true, error: data.error }
+      if (!res.ok) {
+        return {
+          ok: false,
+          isAdmin: true,
+          backendError: res.status >= 500,
+          statusCode: res.status,
+          code: typeof data.code === 'string' ? data.code : undefined,
+          error:
+            data.error ||
+            (res.status >= 500
+              ? 'Administrator authentication service is temporarily unavailable.'
+              : 'Incorrect email or password. Please verify your credentials and try again.'),
+        }
       }
     }
 
-    if (data.isAdmin === false) {
-      return { ok: false, isAdmin: false }
+    if (res.ok && data.isAdmin === false) {
+      return { ok: false, isAdmin: false, statusCode: res.status }
+    }
+
+    if (!res.ok) {
+      return {
+        ok: false,
+        isAdmin: false,
+        backendError: res.status >= 500 || Boolean(data.backendError),
+        statusCode: res.status,
+        code: typeof data.code === 'string' ? data.code : undefined,
+        error:
+          data.error ||
+          'Administrator authentication service is currently unavailable. Please check backend configuration.',
+      }
     }
   } catch (err) {
     console.error('Admin backend login request failed:', err)
-  }
-
-  // Resilient fallback for admin emails
-  if (isAdministratorEmail(cleanEmail)) {
-    const allowedAdminPasswords = [
-      'admin123',
-      'admin@123',
-      'Admin@123',
-      'admin',
-      'Admin123',
-      'Inferxe@2026',
-      'Qwerty@123',
-      'password',
-      'admin2026',
-    ]
-    if (allowedAdminPasswords.includes(password) || import.meta.env.DEV) {
-      const isSuper = isSuperAdminEmail(cleanEmail)
-      const role = isSuper ? 'superadmin' : 'admin'
-      const session: AuthSession = {
-        token: 'ix-tok-' + Math.random().toString(36).substring(2, 12),
-        user: {
-          id: isSuper ? 'usr_superadmin' : 'usr_admin',
-          fullName: isSuper ? 'Bhumi Reddy' : 'Inferxe Administrator',
-          email: cleanEmail,
-          username: cleanEmail.split('@')[0],
-          role,
-          organization: 'Inferxe Platform Org',
-        },
-        expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
-      }
-      saveSession(session)
-      return { ok: true, isAdmin: true, session }
-    } else {
-      return {
-        ok: false,
-        isAdmin: true,
-        error: 'Incorrect email or password. Please verify your credentials and try again.',
-      }
+    return {
+      ok: false,
+      isAdmin: false,
+      backendError: true,
+      error: 'Unable to reach the administrator authentication backend.',
     }
   }
 
@@ -512,14 +502,18 @@ export async function loginAdminBackend(
 }
 
 /**
- * Validate an active admin session token with the backend server.
+ * Validate an active admin session against the backend database-backed session store
+ * and return the authoritative server user record (including role).
  */
-export async function verifyAdminSessionServer(token: string): Promise<boolean> {
-  if (!token) return false
-  if (token.startsWith('ix-')) return true
+export async function verifyAdminSessionWithDetails(token: string): Promise<AdminVerifyResult> {
+  if (!token || token.startsWith('ix-') || token === 'admin-dev-token') {
+    return { valid: false }
+  }
+
   try {
     const res = await fetch(`${ADMIN_API_BASE}/verify`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
@@ -528,15 +522,44 @@ export async function verifyAdminSessionServer(token: string): Promise<boolean> 
     })
 
     if (!res.ok) {
-      if (token.startsWith('ix-')) return true
-      return false
+      return { valid: false }
     }
+
     const data = await res.json().catch(() => ({}))
-    return Boolean(data.ok && data.valid)
+    if (!data.ok || !data.valid || !data.user) {
+      return { valid: false }
+    }
+
+    const currentSession = getSession()
+    if (currentSession && currentSession.token === token) {
+      const serverUser = data.user as AuthUser
+      if (
+        currentSession.user.role !== serverUser.role ||
+        currentSession.user.email !== serverUser.email ||
+        currentSession.user.id !== serverUser.id
+      ) {
+        saveSession({
+          ...currentSession,
+          user: {
+            ...currentSession.user,
+            ...serverUser,
+          },
+        })
+      }
+    }
+
+    return { valid: true, user: data.user as AuthUser }
   } catch {
-    if (token.startsWith('ix-')) return true
-    return false
+    return { valid: false }
   }
+}
+
+/**
+ * Validate an active admin session token with the backend server.
+ */
+export async function verifyAdminSessionServer(token: string): Promise<boolean> {
+  const result = await verifyAdminSessionWithDetails(token)
+  return result.valid
 }
 
 export async function loginUser(
@@ -639,9 +662,12 @@ export interface SuperadminAdminRecord {
   email: string
   full_name: string
   role: 'admin' | 'superadmin'
+  is_active?: boolean
   status: 'active' | 'inactive' | 'suspended' | 'pending'
+  session_version?: number
   created_at: string
-  last_login?: string
+  updated_at?: string | null
+  last_login?: string | null
   last_ip?: string
   activity_count?: number
 }
@@ -724,6 +750,8 @@ function getSuperadminAuthHeaders(): HeadersInit {
 export async function fetchSuperadminAdmins(): Promise<{ ok: boolean; admins?: SuperadminAdminRecord[]; error?: string }> {
   try {
     const res = await fetch('/api/superadmin/admins', {
+      cache: 'no-store',
+      credentials: 'include',
       headers: getSuperadminAuthHeaders(),
     })
     const data = await res.json()
@@ -736,6 +764,45 @@ export async function fetchSuperadminAdmins(): Promise<{ ok: boolean; admins?: S
   }
 }
 
+export async function createDeveloperAdminAccount(input: {
+  email: string
+  password: string
+}): Promise<{
+  ok: boolean
+  admin?: SuperadminAdminRecord
+  statusCode?: number
+  code?: string
+  isDuplicate?: boolean
+  error?: string
+}> {
+  try {
+    const res = await fetch('/api/superadmin/admins', {
+      method: 'POST',
+      cache: 'no-store',
+      credentials: 'include',
+      headers: getSuperadminAuthHeaders(),
+      body: JSON.stringify({
+        email: input.email.trim().toLowerCase(),
+        password: input.password,
+      }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      const code = typeof data.code === 'string' ? data.code : undefined
+      return {
+        ok: false,
+        statusCode: res.status,
+        code,
+        isDuplicate: res.status === 409 || code === 'DUPLICATE_ADMIN_EMAIL',
+        error: data.error || `HTTP ${res.status}`,
+      }
+    }
+    return { ok: true, statusCode: res.status, admin: data.admin }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Failed to create developer admin account.' }
+  }
+}
+
 export async function updateAdminAccountStatus(
   adminId: string,
   status: 'active' | 'inactive' | 'suspended',
@@ -744,6 +811,7 @@ export async function updateAdminAccountStatus(
   try {
     const res = await fetch('/api/superadmin/admins/status', {
       method: 'POST',
+      credentials: 'include',
       headers: getSuperadminAuthHeaders(),
       body: JSON.stringify({ admin_id: adminId, status, reason }),
     })
@@ -771,6 +839,7 @@ export async function fetchSuperadminAuditLogs(params?: {
     if (params?.offset) q.set('offset', String(params.offset))
 
     const res = await fetch(`/api/superadmin/audit-logs?${q.toString()}`, {
+      credentials: 'include',
       headers: getSuperadminAuthHeaders(),
     })
     const data = await res.json()
@@ -786,6 +855,7 @@ export async function fetchSuperadminAuditLogs(params?: {
 export async function fetchSuperadminTelemetry(): Promise<{ ok: boolean; telemetry?: SuperadminTelemetryData; error?: string }> {
   try {
     const res = await fetch('/api/superadmin/telemetry', {
+      credentials: 'include',
       headers: getSuperadminAuthHeaders(),
     })
     const data = await res.json()
@@ -801,6 +871,7 @@ export async function fetchSuperadminTelemetry(): Promise<{ ok: boolean; telemet
 export async function fetchSuperadminKeys(): Promise<{ ok: boolean; keys?: SuperadminKeyRecord[]; error?: string }> {
   try {
     const res = await fetch('/api/superadmin/keys', {
+      credentials: 'include',
       headers: getSuperadminAuthHeaders(),
     })
     const data = await res.json()
@@ -821,6 +892,7 @@ export async function revokeSuperadminKey(
   try {
     const res = await fetch('/api/superadmin/keys/revoke', {
       method: 'POST',
+      credentials: 'include',
       headers: getSuperadminAuthHeaders(),
       body: JSON.stringify({ key_id: keyId, key_type: keyType, reason }),
     })

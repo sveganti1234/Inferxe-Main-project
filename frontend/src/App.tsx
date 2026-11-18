@@ -137,14 +137,16 @@ export default function App() {
                 </AdminGuard>
               }
             >
-              {/* Super Admin Governance Modules (Integrated inside persistent AdminShell) */}
-              <Route path="/dashboard/super-admin" element={<SuperAdminOverview />} />
-              <Route path="/dashboard/super-admin/accounts" element={<AdminAccounts />} />
-              <Route path="/dashboard/super-admin/roles" element={<AdminRoles />} />
-              <Route path="/dashboard/super-admin/permissions" element={<AdminPermissions />} />
-              <Route path="/dashboard/super-admin/activity" element={<AdminActivity />} />
-              <Route path="/dashboard/super-admin/audit" element={<AdminAudit />} />
-              <Route path="/dashboard/super-admin/:module" element={<SuperAdminFutureModule />} />
+              {/* Super Admin Governance Modules (Strictly protected by SuperadminGuard inside persistent AdminShell) */}
+              <Route element={<SuperadminGuard />}>
+                <Route path="/dashboard/super-admin" element={<SuperAdminOverview />} />
+                <Route path="/dashboard/super-admin/accounts" element={<AdminAccounts />} />
+                <Route path="/dashboard/super-admin/roles" element={<AdminRoles />} />
+                <Route path="/dashboard/super-admin/permissions" element={<AdminPermissions />} />
+                <Route path="/dashboard/super-admin/activity" element={<AdminActivity />} />
+                <Route path="/dashboard/super-admin/audit" element={<AdminAudit />} />
+                <Route path="/dashboard/super-admin/:module" element={<SuperAdminFutureModule />} />
+              </Route>
 
               <Route path="/dashboard" element={<DashboardOverview />} />
               <Route path="/dashboard/customers" element={<CustomerManagement />} />
