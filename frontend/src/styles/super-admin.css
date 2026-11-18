@@ -3820,3 +3820,282 @@
   padding-top: 8px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ADMIN PORTAL DESIGN SYSTEM HARMONIZATION (Verdelo Dark + Light Themes)
+   Aligns all Super Admin Governance modules with AdminShell & index.css
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── 1. Sidebar Nav Badge Contrast on Unified Floating Liquid Nav Pill ── */
+.dash-shell:not([data-theme='light']) .dash-window-frame .dash-sidebar .dash-nav-badge,
+.dash-shell[data-theme='dark'] .dash-window-frame .dash-sidebar .dash-nav-badge {
+  background: rgba(80, 227, 150, 0.10) !important;
+  color: #8caba0 !important;
+  border: 1px solid rgba(80, 227, 150, 0.22) !important;
+}
+
+.dash-shell:not([data-theme='light']) .dash-window-frame .dash-sidebar .dash-nav-item.is-active .dash-nav-badge,
+.dash-shell[data-theme='dark'] .dash-window-frame .dash-sidebar .dash-nav-item.is-active .dash-nav-badge {
+  background: rgba(8, 18, 13, 0.88) !important;
+  color: #50e396 !important;
+  border-color: rgba(8, 18, 13, 0.92) !important;
+}
+
+.dash-shell[data-theme='light'] .dash-window-frame .dash-sidebar .dash-nav-badge {
+  background: #e9f2ec !important;
+  color: #0e5b3c !important;
+  border: 1px solid #c9dcd0 !important;
+}
+
+.dash-shell[data-theme='light'] .dash-window-frame .dash-sidebar .dash-nav-item.is-active .dash-nav-badge {
+  background: rgba(255, 255, 255, 0.22) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.35) !important;
+}
+
+/* ── 2. Dark Mode Surface & Typography Alignment (Verdelo Bento System) ── */
+.dash-shell:not([data-theme='light']) .sa-header-banner,
+.dash-shell:not([data-theme='light']) .sa-stat-card,
+.dash-shell:not([data-theme='light']) .sa-kpi-card,
+.dash-shell:not([data-theme='light']) .sa-section-container,
+.dash-shell:not([data-theme='light']) .sa-table-container,
+.dash-shell:not([data-theme='light']) .sa-role-card,
+.dash-shell:not([data-theme='light']) .sa-role-card-lg,
+.dash-shell:not([data-theme='light']) .sa-analytics-card,
+.dash-shell:not([data-theme='light']) .sa-activity-card,
+.dash-shell:not([data-theme='light']) .sa-audit-table-container,
+.dash-shell:not([data-theme='light']) .sa-audit-card-item,
+.dash-shell:not([data-theme='light']) .sa-matrix-table-card,
+.dash-shell:not([data-theme='light']) .sa-quick-actions-bar,
+.dash-shell:not([data-theme='light']) .sa-future-card,
+.dash-shell[data-theme='dark'] .sa-header-banner,
+.dash-shell[data-theme='dark'] .sa-stat-card,
+.dash-shell[data-theme='dark'] .sa-kpi-card,
+.dash-shell[data-theme='dark'] .sa-section-container,
+.dash-shell[data-theme='dark'] .sa-table-container,
+.dash-shell[data-theme='dark'] .sa-role-card,
+.dash-shell[data-theme='dark'] .sa-role-card-lg,
+.dash-shell[data-theme='dark'] .sa-analytics-card,
+.dash-shell[data-theme='dark'] .sa-activity-card,
+.dash-shell[data-theme='dark'] .sa-audit-table-container,
+.dash-shell[data-theme='dark'] .sa-audit-card-item,
+.dash-shell[data-theme='dark'] .sa-matrix-table-card,
+.dash-shell[data-theme='dark'] .sa-quick-actions-bar,
+.dash-shell[data-theme='dark'] .sa-future-card {
+  background: linear-gradient(180deg, rgba(16, 29, 23, 0.94) 0%, rgba(11, 20, 16, 0.98) 100%);
+  border-color: rgba(220, 255, 236, 0.09);
+  border-radius: 18px;
+  box-shadow:
+    inset 0 1px 0 rgba(235, 255, 244, 0.14),
+    0 1px 2px rgba(0, 0, 0, 0.40),
+    0 18px 38px -24px rgba(0, 0, 0, 0.70);
+  transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+              border-color 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.dash-shell:not([data-theme='light']) .sa-filter-bar,
+.dash-shell[data-theme='dark'] .sa-filter-bar {
+  background: rgba(14, 25, 20, 0.84);
+  border-color: rgba(220, 255, 236, 0.10);
+  border-radius: 16px;
+}
+
+.dash-shell .sa-stat-val,
+.dash-shell .sa-kpi-card__value,
+.dash-shell .sa-kpi-val {
+  font-family: 'Urbanist', system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.025em;
+}
+
+/* ── 3. Full Light Theme Support (Matching Admin Portal Soft-Sage Palette) ── */
+.dash-shell[data-theme='light'] .sa-header-banner,
+.dash-shell[data-theme='light'] .sa-stat-card,
+.dash-shell[data-theme='light'] .sa-kpi-card,
+.dash-shell[data-theme='light'] .sa-section-container,
+.dash-shell[data-theme='light'] .sa-table-container,
+.dash-shell[data-theme='light'] .sa-role-card,
+.dash-shell[data-theme='light'] .sa-role-card-lg,
+.dash-shell[data-theme='light'] .sa-analytics-card,
+.dash-shell[data-theme='light'] .sa-activity-card,
+.dash-shell[data-theme='light'] .sa-audit-table-container,
+.dash-shell[data-theme='light'] .sa-audit-card-item,
+.dash-shell[data-theme='light'] .sa-matrix-table-card,
+.dash-shell[data-theme='light'] .sa-quick-actions-bar,
+.dash-shell[data-theme='light'] .sa-future-card,
+.dash-shell[data-theme='light'] .sa-filter-bar,
+.dash-shell[data-theme='light'] .sa-modal-container {
+  background: #ffffff;
+  border-color: #d6e0d9;
+  border-radius: 18px;
+  color: #0f1d17;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    0 1px 2px rgba(20, 50, 34, 0.06),
+    0 14px 32px -22px rgba(20, 50, 34, 0.18);
+}
+
+.dash-shell[data-theme='light'] .sa-stat-card:hover,
+.dash-shell[data-theme='light'] .sa-kpi-card:hover,
+.dash-shell[data-theme='light'] .sa-role-card:hover,
+.dash-shell[data-theme='light'] .sa-role-card-lg:hover,
+.dash-shell[data-theme='light'] .sa-activity-card:hover,
+.dash-shell[data-theme='light'] .sa-audit-card-item:hover {
+  background: #ffffff;
+  border-color: rgba(14, 91, 60, 0.35);
+  box-shadow:
+    0 2px 8px rgba(20, 50, 34, 0.08),
+    0 20px 44px -22px rgba(20, 50, 34, 0.22);
+}
+
+.dash-shell[data-theme='light'] .sa-analytics-subcard,
+.dash-shell[data-theme='light'] .sa-activity-item,
+.dash-shell[data-theme='light'] .sa-security-item,
+.dash-shell[data-theme='light'] .sa-leaderboard-item,
+.dash-shell[data-theme='light'] .sa-perm-category-box,
+.dash-shell[data-theme='light'] .sa-perm-item-row,
+.dash-shell[data-theme='light'] .sa-diff-container,
+.dash-shell[data-theme='light'] .sa-profile-stat-box,
+.dash-shell[data-theme='light'] .sa-audit-integrity-box,
+.dash-shell[data-theme='light'] .sa-confirm-target-card {
+  background: #f6faf7;
+  border-color: #d6e0d9;
+  color: #0f1d17;
+}
+
+.dash-shell[data-theme='light'] .sa-demo-banner,
+.dash-shell[data-theme='light'] .sa-compliance-notice,
+.dash-shell[data-theme='light'] .sa-security-notice {
+  background: #eef6f1;
+  border-color: #c5ddd0;
+  color: #1c3b2c;
+}
+
+/* Light theme text hierarchy */
+.dash-shell[data-theme='light'] .sa-banner-title,
+.dash-shell[data-theme='light'] .sa-section-title,
+.dash-shell[data-theme='light'] .sa-stat-val,
+.dash-shell[data-theme='light'] .sa-kpi-card__value,
+.dash-shell[data-theme='light'] .sa-kpi-val,
+.dash-shell[data-theme='light'] .sa-role-card__title,
+.dash-shell[data-theme='light'] .sa-role-card-lg__title,
+.dash-shell[data-theme='light'] .sa-user-meta__name,
+.dash-shell[data-theme='light'] .sa-audit-user-name,
+.dash-shell[data-theme='light'] .sa-audit-action-title,
+.dash-shell[data-theme='light'] .sa-activity-actor-name,
+.dash-shell[data-theme='light'] .sa-activity-action-title,
+.dash-shell[data-theme='light'] .sa-analytics-title,
+.dash-shell[data-theme='light'] .sa-leaderboard-name,
+.dash-shell[data-theme='light'] .sa-perm-item-name,
+.dash-shell[data-theme='light'] .sa-perm-category-title,
+.dash-shell[data-theme='light'] .sa-modal-title,
+.dash-shell[data-theme='light'] .sa-profile-stat-val,
+.dash-shell[data-theme='light'] .sa-role-stat-value,
+.dash-shell[data-theme='light'] .sa-future-card__title {
+  color: #0f1d17;
+}
+
+.dash-shell[data-theme='light'] .sa-banner-sub,
+.dash-shell[data-theme='light'] .sa-section-desc,
+.dash-shell[data-theme='light'] .sa-stat-lbl,
+.dash-shell[data-theme='light'] .sa-stat-sub,
+.dash-shell[data-theme='light'] .sa-kpi-card__label,
+.dash-shell[data-theme='light'] .sa-kpi-card__subtext,
+.dash-shell[data-theme='light'] .sa-kpi-label,
+.dash-shell[data-theme='light'] .sa-kpi-sub,
+.dash-shell[data-theme='light'] .sa-role-card__desc,
+.dash-shell[data-theme='light'] .sa-role-card-lg__desc,
+.dash-shell[data-theme='light'] .sa-user-meta__dept,
+.dash-shell[data-theme='light'] .sa-email-text,
+.dash-shell[data-theme='light'] .sa-date-text,
+.dash-shell[data-theme='light'] .sa-audit-user-email,
+.dash-shell[data-theme='light'] .sa-audit-action-desc,
+.dash-shell[data-theme='light'] .sa-activity-actor-email,
+.dash-shell[data-theme='light'] .sa-activity-desc,
+.dash-shell[data-theme='light'] .sa-activity-time,
+.dash-shell[data-theme='light'] .sa-perm-item-desc,
+.dash-shell[data-theme='light'] .sa-role-stat-label,
+.dash-shell[data-theme='light'] .sa-profile-stat-lbl {
+  color: #4a5b52;
+}
+
+/* Light theme tables & sticky permission matrix */
+.dash-shell[data-theme='light'] .sa-table th,
+.dash-shell[data-theme='light'] .sa-audit-table th,
+.dash-shell[data-theme='light'] .sa-matrix-table th,
+.dash-shell[data-theme='light'] .sa-matrix-th-perm,
+.dash-shell[data-theme='light'] .sa-matrix-th-role {
+  background: #f4f8f5;
+  color: #3f554a;
+  border-bottom-color: #d6e0d9;
+}
+
+.dash-shell[data-theme='light'] .sa-table td,
+.dash-shell[data-theme='light'] .sa-audit-table td,
+.dash-shell[data-theme='light'] .sa-matrix-table td {
+  color: #0f1d17;
+  border-bottom-color: #ebf2ee;
+}
+
+.dash-shell[data-theme='light'] .sa-matrix-td-perm,
+.dash-shell[data-theme='light'] .sa-matrix-category-sticky-td {
+  background: #f4f8f5;
+  border-right-color: #d6e0d9;
+}
+
+.dash-shell[data-theme='light'] .sa-matrix-category-header-row td {
+  background: #eaf3ed;
+  color: #0e5b3c;
+}
+
+.dash-shell[data-theme='light'] .sa-table tbody tr:hover td,
+.dash-shell[data-theme='light'] .sa-audit-table tbody tr:hover td,
+.dash-shell[data-theme='light'] .sa-matrix-table tbody tr:hover td {
+  background: #f5faf7;
+}
+
+.dash-shell[data-theme='light'] .sa-audit-resource-code,
+.dash-shell[data-theme='light'] .sa-activity-target,
+.dash-shell[data-theme='light'] .sa-perm-item-code,
+.dash-shell[data-theme='light'] .sa-perm-chip {
+  background: #eef4f0;
+  border-color: #d0dfd6;
+  color: #164431;
+}
+
+.dash-shell[data-theme='light'] .sa-pagination-btn,
+.dash-shell[data-theme='light'] .sa-card-btn,
+.dash-shell[data-theme='light'] .sa-action-btn,
+.dash-shell[data-theme='light'] .sa-audit-inspect-btn,
+.dash-shell[data-theme='light'] .sa-activity-details-btn {
+  background: #f4f8f5;
+  border-color: #c9dcd0;
+  color: #0e5b3c;
+}
+
+.dash-shell[data-theme='light'] .sa-pagination-btn:hover:not(:disabled),
+.dash-shell[data-theme='light'] .sa-card-btn:hover:not(:disabled),
+.dash-shell[data-theme='light'] .sa-action-btn:hover:not(:disabled),
+.dash-shell[data-theme='light'] .sa-audit-inspect-btn:hover,
+.dash-shell[data-theme='light'] .sa-activity-details-btn:hover {
+  background: #e4f1e9;
+  border-color: #0e5b3c;
+  color: #0b462e;
+}
+
+.dash-shell[data-theme='light'] .sa-pagination-indicator {
+  color: #4a5b52;
+}
+
+.dash-shell[data-theme='light'] .sa-pagination-current {
+  color: #0e5b3c;
+}
+
+.dash-shell[data-theme='light'] .sa-modal-header,
+.dash-shell[data-theme='light'] .sa-modal-footer,
+.dash-shell[data-theme='light'] .sa-role-card-lg__footer,
+.dash-shell[data-theme='light'] .sa-audit-card-top,
+.dash-shell[data-theme='light'] .sa-audit-card-footer {
+  border-color: #e2ebe5;
+}

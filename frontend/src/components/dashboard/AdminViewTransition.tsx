@@ -5,20 +5,26 @@ import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
  * Matches the sidebar visual order.
  */
 export const ADMIN_ROUTE_ORDER: Record<string, number> = {
-  '/dashboard': 0,
-  '/dashboard/customers': 1,
-  '/dashboard/users': 2,
-  '/dashboard/users/add': 3,
-  '/dashboard/users/map': 4,
-  '/dashboard/provider': 5,
-  '/dashboard/provider/listings': 6,
-  '/dashboard/provider/capacity': 7,
-  '/dashboard/provider/workloads': 8,
-  '/dashboard/provider/analytics': 9,
-  '/dashboard/provider/earnings': 10,
-  '/dashboard/provider/integrations': 11,
-  '/dashboard/provider/profile': 12,
-  '/dashboard/notifications': 13,
+  '/dashboard/super-admin': 0,
+  '/dashboard/super-admin/accounts': 1,
+  '/dashboard/super-admin/roles': 2,
+  '/dashboard/super-admin/permissions': 3,
+  '/dashboard/super-admin/activity': 4,
+  '/dashboard/super-admin/audit': 5,
+  '/dashboard': 6,
+  '/dashboard/customers': 7,
+  '/dashboard/users': 8,
+  '/dashboard/users/add': 9,
+  '/dashboard/users/map': 10,
+  '/dashboard/provider': 11,
+  '/dashboard/provider/listings': 12,
+  '/dashboard/provider/capacity': 13,
+  '/dashboard/provider/workloads': 14,
+  '/dashboard/provider/analytics': 15,
+  '/dashboard/provider/earnings': 16,
+  '/dashboard/provider/integrations': 17,
+  '/dashboard/provider/profile': 18,
+  '/dashboard/notifications': 19,
 }
 
 export function getAdminRouteOrder(pathname: string): number {
@@ -111,7 +117,7 @@ export function AdminViewTransition({
     const viewportH = window.innerHeight
     const cardElements = Array.from(
       container.querySelectorAll<HTMLElement>(
-        '.dash-card, .dash-stat-card, .dash-panel-card, .card, .kpi, .tile, .lane, .dash-deploy-row, .cust-table-wrap, .cust-stat-grid, .mw-card, .xs-card'
+        '.dash-card, .dash-stat-card, .dash-panel-card, .card, .kpi, .tile, .lane, .dash-deploy-row, .cust-table-wrap, .cust-stat-grid, .mw-card, .xs-card, .sa-stat-card, .sa-kpi-card, .sa-role-card, .sa-role-card-lg, .sa-activity-card, .sa-section-container, .sa-table-container, .sa-analytics-card, .sa-header-banner, .sa-audit-table-container'
       )
     ).filter((el) => {
       const rect = el.getBoundingClientRect()

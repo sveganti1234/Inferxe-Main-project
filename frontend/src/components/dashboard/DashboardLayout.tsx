@@ -684,11 +684,17 @@ export function DashboardLayout({
 
   // Access control gating for Super Admin module
   const isSuperAdmin = Boolean(
+    portalRole === 'superadmin' ||
     user.role === 'super_admin' ||
     (import.meta.env.DEV && (devSuperAdminMode || location.pathname.startsWith('/dashboard/super-admin')))
   )
 
-  const roleLabel = portalRole === 'admin' ? (isSuperAdmin ? 'Super Admin' : 'Admin') : 'Customer'
+  const roleLabel =
+    portalRole === 'superadmin' || (portalRole === 'admin' && isSuperAdmin)
+      ? 'Super Admin'
+      : portalRole === 'admin'
+        ? 'Admin'
+        : 'Customer'
 
   // 1A. Customer Portal Main Navigation Groups (Matching Zesto hierarchy)
   const customerMainNavGroups: NavGroup[] = [

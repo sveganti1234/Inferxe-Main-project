@@ -26,10 +26,17 @@ import {
   Wallet,
   Wrench,
   X,
+  ShieldCheck,
+  UserCheck,
+  KeyRound,
+  Sliders,
+  FileText,
 } from 'lucide-react'
 import { LogoMark } from '../Logo'
 import { Ambient } from '../layout/Ambient'
 import { getSession, clearSession, getPortalRole, type AuthSession, type PortalRole } from '../../lib/authStore'
+import { getAdminAccounts } from '../../lib/adminAccountStore'
+import { getAllRoles } from '../../lib/adminRoleStore'
 import { animateNavPill } from './navPillAnimation'
 import { AdminViewTransition, getAdminRouteOrder } from './AdminViewTransition'
 import { DashboardLayoutContext } from './DashboardLayoutContext'
@@ -39,6 +46,7 @@ interface NavItem {
   to: string
   icon: React.ComponentType<{ className?: string }>
   badge?: string
+  badgeType?: 'pill' | 'count'
 }
 
 export function AdminShell() {
@@ -75,8 +83,80 @@ export function AdminShell() {
   })
 
   // Collapsible nav sections
+  const [adminSuperAdminOpen, setAdminSuperAdminOpen] = useState(true)
   const [adminSectionOpen, setAdminSectionOpen] = useState(true)
   const [providerSectionOpen, setProviderSectionOpen] = useState(true)
+
+  // Dev preview mode for Super Admin vs Normal Admin view
+  const [devSuperAdminMode, setDevSuperAdminMode] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('inferxe_dev_super_admin_mode')
+      return saved === null ? true : saved === 'true'
+    } catch {
+      return true
+    }
+  })
+
+  useEffect(() => {
+    const handleRoleToggle = () => {
+      try {
+        const saved = localStorage.getItem('inferxe_dev_super_admin_mode')
+        setDevSuperAdminMode(saved === null ? true : saved === 'true')
+      } catch {}
+    }
+    window.addEventListener('inferxe_admin_role_toggle', handleRoleToggle)
+    window.addEventListener('storage', handleRoleToggle)
+    return () => {
+      window.removeEventListener('inferxe_admin_role_toggle', handleRoleToggle)
+      window.removeEventListener('storage', handleRoleToggle)
+    }
+  }, [])
+
+  // Live Admin Accounts Count (synced dynamically with adminAccountStore)
+  const [adminAccountsCount, setAdminAccountsCount] = useState<number>(() => {
+    try {
+      return getAdminAccounts().length
+    } catch {
+      return 10
+    }
+  })
+
+  useEffect(() => {
+    const syncAdminCount = () => {
+      try {
+        setAdminAccountsCount(getAdminAccounts().length)
+      } catch {}
+    }
+    window.addEventListener('inferxe_admin_accounts_change', syncAdminCount)
+    window.addEventListener('storage', syncAdminCount)
+    return () => {
+      window.removeEventListener('inferxe_admin_accounts_change', syncAdminCount)
+      window.removeEventListener('storage', syncAdminCount)
+    }
+  }, [])
+
+  // Live Admin Roles Count (synced dynamically with adminRoleStore)
+  const [adminRolesCount, setAdminRolesCount] = useState<number>(() => {
+    try {
+      return getAllRoles().length
+    } catch {
+      return 6
+    }
+  })
+
+  useEffect(() => {
+    const syncRoleCount = () => {
+      try {
+        setAdminRolesCount(getAllRoles().length)
+      } catch {}
+    }
+    window.addEventListener('inferxe_admin_roles_change', syncRoleCount)
+    window.addEventListener('storage', syncRoleCount)
+    return () => {
+      window.removeEventListener('inferxe_admin_roles_change', syncRoleCount)
+      window.removeEventListener('storage', syncRoleCount)
+    }
+  }, [])
 
   // Floating flyout tooltip in collapsed rail mode
   const [hoveredFlyout, setHoveredFlyout] = useState<{
@@ -343,9 +423,26 @@ export function AdminShell() {
     .substring(0, 2)
     .toUpperCase() || 'IX'
 
-  const roleLabel = portalRole === 'superadmin' ? 'Superadmin' : 'Admin'
+  // Access control gating for Super Admin Governance modules
+  const isSuperAdmin = Boolean(
+    portalRole === 'superadmin' ||
+    user.role === 'super_admin' ||
+    (import.meta.env.DEV && (devSuperAdminMode || location.pathname.startsWith('/dashboard/super-admin')))
+  )
+
+  const roleLabel = portalRole === 'superadmin' || isSuperAdmin ? 'Super Admin' : 'Admin'
 
   // Nav Items
+  // 0. Super Admin Governance (RBAC, Accounts, Permissions, Activity & Audit)
+  const adminSuperAdminItems: NavItem[] = [
+    { label: 'Super Admin Overview', to: '/dashboard/super-admin', icon: ShieldCheck },
+    { label: 'Admin Accounts', to: '/dashboard/super-admin/accounts', icon: UserCheck, badge: String(adminAccountsCount), badgeType: 'count' },
+    { label: 'Role Management', to: '/dashboard/super-admin/roles', icon: KeyRound, badge: String(adminRolesCount), badgeType: 'count' },
+    { label: 'Permission Management', to: '/dashboard/super-admin/permissions', icon: Sliders, badge: '25', badgeType: 'count' },
+    { label: 'Activity Monitoring', to: '/dashboard/super-admin/activity', icon: ActivityIcon },
+    { label: 'Audit Logs', to: '/dashboard/super-admin/audit', icon: FileText },
+  ]
+
   const adminAdministrationItems: NavItem[] = [
     { label: 'Admin Console', to: '/dashboard', icon: LayoutDashboard },
     { label: 'Customer Management', to: '/dashboard/customers', icon: Users },
@@ -375,6 +472,9 @@ export function AdminShell() {
     if (item.to === '/dashboard') {
       return path === '/dashboard'
     }
+    if (item.to === '/dashboard/super-admin') {
+      return path === '/dashboard/super-admin'
+    }
     return path === item.to || path.startsWith(`${item.to}/`)
   }
 
@@ -387,7 +487,7 @@ export function AdminShell() {
     animateNavPill(unifiedNavPillRef.current, activeItemEl, { animate, radius })
 
     isFirstNavPillMount.current = false
-  }, [location.pathname, isSidebarCollapsed, adminSectionOpen, providerSectionOpen])
+  }, [location.pathname, isSidebarCollapsed, adminSuperAdminOpen, adminSectionOpen, providerSectionOpen, isSuperAdmin])
 
   // Synchronize nav pill on resize, section toggle, or font load
   useEffect(() => {
@@ -402,7 +502,7 @@ export function AdminShell() {
     document.fonts?.ready.then(syncPillPositions)
 
     return () => ro.disconnect()
-  }, [isSidebarCollapsed, adminSectionOpen, providerSectionOpen])
+  }, [isSidebarCollapsed, adminSuperAdminOpen, adminSectionOpen, providerSectionOpen, isSuperAdmin])
 
   return (
     <DashboardLayoutContext.Provider value={true}>
@@ -754,6 +854,29 @@ export function AdminShell() {
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 2, paddingTop: 4 }}>
+                      {import.meta.env.DEV && (
+                        <div style={{ paddingBottom: 6, marginBottom: 4, borderBottom: '1px solid var(--line)' }}>
+                          <div style={{ fontSize: '0.66rem', color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.06em', padding: '2px 8px 4px', fontFamily: 'var(--font-mono)' }}>
+                            Dev Preview Role
+                          </div>
+                          <button
+                            type="button"
+                            className="dash-nav-item"
+                            style={{ fontSize: '0.78rem', padding: '6px 8px', width: '100%' }}
+                            onClick={() => {
+                              const next = !devSuperAdminMode
+                              setDevSuperAdminMode(next)
+                              try {
+                                localStorage.setItem('inferxe_dev_super_admin_mode', String(next))
+                                window.dispatchEvent(new Event('inferxe_admin_role_toggle'))
+                              } catch {}
+                            }}
+                          >
+                            <ShieldCheck size={13} style={{ color: devSuperAdminMode ? '#50e396' : 'var(--ink-3)' }} />
+                            <span>{devSuperAdminMode ? 'Switch to Normal Admin' : 'Switch to Super Admin'}</span>
+                          </button>
+                        </div>
+                      )}
                       <button
                         type="button"
                         className="dash-nav-item dash-nav-item--danger"
@@ -827,10 +950,83 @@ export function AdminShell() {
                   {/* 🌟 ONE UNIFIED FLOATING NAV PILL FOR THE ENTIRE SIDEBAR */}
                   <span ref={unifiedNavPillRef} className="dash-nav-pill" aria-hidden="true" />
 
+                  {/* Section 0: Super Admin Governance */}
+                  {isSuperAdmin && (
+                    <>
+                      <button
+                        type="button"
+                        className="dash-nav-section-title dash-nav-section-btn"
+                        onClick={() => setAdminSuperAdminOpen(!adminSuperAdminOpen)}
+                        aria-expanded={adminSuperAdminOpen}
+                      >
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <ShieldCheck size={13} style={{ color: dashTheme === 'light' ? '#0e5b3c' : '#50e396' }} />
+                          <span>Super Admin</span>
+                        </span>
+                        <ChevronDown
+                          size={13}
+                          style={{
+                            transition: 'transform 0.24s cubic-bezier(0.25, 1, 0.5, 1)',
+                            transform: adminSuperAdminOpen ? 'rotate(0deg)' : 'rotate(-90deg)',
+                          }}
+                        />
+                      </button>
+                      <AnimatePresence initial={false}>
+                        {adminSuperAdminOpen && (
+                          <motion.nav
+                            className="dash-nav-list"
+                            aria-label="Super Admin Navigation"
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.24, ease: [0.25, 1, 0.5, 1] }}
+                            style={{ overflow: 'hidden', position: 'relative' }}
+                          >
+                            {adminSuperAdminItems.map((item) => {
+                              const active = isItemActive(item)
+                              return (
+                                <Link
+                                  key={item.label}
+                                  to={item.to}
+                                  className={`dash-nav-item ${active ? 'is-active' : ''}`}
+                                  onClick={() => {
+                                    setHoveredFlyout(null)
+                                    setMobileMenuOpen(false)
+                                  }}
+                                  onMouseEnter={(e) => {
+                                    if (isSidebarCollapsed && !isMobile) {
+                                      const rect = e.currentTarget.getBoundingClientRect()
+                                      setHoveredFlyout({
+                                        label: item.label,
+                                        badge: item.badge,
+                                        top: rect.top + rect.height / 2,
+                                        left: rect.right + 12,
+                                      })
+                                    }
+                                  }}
+                                  onMouseLeave={() => setHoveredFlyout(null)}
+                                >
+                                  <item.icon />
+                                  <span>{item.label}</span>
+                                  {item.badge && (
+                                    <span className={`dash-nav-badge ${item.badgeType === 'count' ? 'dash-nav-badge--count' : ''}`}>
+                                      {item.badge}
+                                    </span>
+                                  )}
+                                </Link>
+                              )
+                            })}
+                          </motion.nav>
+                        )}
+                      </AnimatePresence>
+                    </>
+                  )}
+
                   {/* Section A: Administration */}
                   <button
                     type="button"
                     className="dash-nav-section-title dash-nav-section-btn"
+                    style={isSuperAdmin ? { marginTop: 18 } : undefined}
                     onClick={() => setAdminSectionOpen(!adminSectionOpen)}
                     aria-expanded={adminSectionOpen}
                   >

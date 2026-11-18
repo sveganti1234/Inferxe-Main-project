@@ -105,62 +105,6 @@ export default function App() {
               }
             />
             <Route
-              path="/dashboard/super-admin"
-              element={
-                <AdminGuard>
-                  <SuperAdminOverview />
-                </AdminGuard>
-              }
-            />
-            <Route
-              path="/dashboard/super-admin/accounts"
-              element={
-                <AdminGuard>
-                  <AdminAccounts />
-                </AdminGuard>
-              }
-            />
-            <Route
-              path="/dashboard/super-admin/roles"
-              element={
-                <AdminGuard>
-                  <AdminRoles />
-                </AdminGuard>
-              }
-            />
-            <Route
-              path="/dashboard/super-admin/permissions"
-              element={
-                <AdminGuard>
-                  <AdminPermissions />
-                </AdminGuard>
-              }
-            />
-            <Route
-              path="/dashboard/super-admin/activity"
-              element={
-                <AdminGuard>
-                  <AdminActivity />
-                </AdminGuard>
-              }
-            />
-            <Route
-              path="/dashboard/super-admin/audit"
-              element={
-                <AdminGuard>
-                  <AdminAudit />
-                </AdminGuard>
-              }
-            />
-            <Route
-              path="/dashboard/super-admin/:module"
-              element={
-                <AdminGuard>
-                  <SuperAdminFutureModule />
-                </AdminGuard>
-              }
-            />
-            <Route
               path="/dashboard/superadmin/audit-logs"
               element={
                 <SuperadminGuard>
@@ -193,6 +137,15 @@ export default function App() {
                 </AdminGuard>
               }
             >
+              {/* Super Admin Governance Modules (Integrated inside persistent AdminShell) */}
+              <Route path="/dashboard/super-admin" element={<SuperAdminOverview />} />
+              <Route path="/dashboard/super-admin/accounts" element={<AdminAccounts />} />
+              <Route path="/dashboard/super-admin/roles" element={<AdminRoles />} />
+              <Route path="/dashboard/super-admin/permissions" element={<AdminPermissions />} />
+              <Route path="/dashboard/super-admin/activity" element={<AdminActivity />} />
+              <Route path="/dashboard/super-admin/audit" element={<AdminAudit />} />
+              <Route path="/dashboard/super-admin/:module" element={<SuperAdminFutureModule />} />
+
               <Route path="/dashboard" element={<DashboardOverview />} />
               <Route path="/dashboard/customers" element={<CustomerManagement />} />
               <Route path="/dashboard/users" element={<UsersList />} />
