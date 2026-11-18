@@ -1,4 +1,4 @@
-import { updatePassword, signOut } from 'aws-amplify/auth'
+import { updatePassword, signOut, fetchAuthSession } from 'aws-amplify/auth'
 
 export type PortalRole = 'customer' | 'admin' | 'superadmin'
 export type UserRole = 'customer' | 'provider' | 'admin' | 'superadmin' | 'super_admin' | 'developer' | 'viewer'
@@ -86,10 +86,19 @@ export interface CustomerProfile {
   username: string
   role: UserRole
   status: string
+  organization?: string | null
   organizationId: string | null
 }
 
-export async function syncCustomerProfile(idToken: string): Promise<CustomerProfile> {
+export async function syncCustomerProfile(
+  idToken: string,
+  extraProfile?: { organization?: string }
+): Promise<CustomerProfile> {
+  const payload =
+    extraProfile && typeof extraProfile.organization === 'string' && extraProfile.organization.trim()
+      ? { organization: extraProfile.organization.trim() }
+      : {}
+
   try {
     const response = await fetch('/api/customer/profile/sync', {
       method: 'POST',
@@ -98,7 +107,7 @@ export async function syncCustomerProfile(idToken: string): Promise<CustomerProf
         'Content-Type': 'application/json',
         Accept: 'application/json',
       },
-      body: '{}',
+      body: JSON.stringify(payload),
     })
     const result = await response.json().catch(() => ({}))
     if (response.ok && result.ok && result.profile) {
@@ -132,6 +141,7 @@ export async function syncCustomerProfile(idToken: string): Promise<CustomerProf
     username,
     role,
     status: 'active',
+    organization: payload.organization || null,
     organizationId: null,
   }
 }
@@ -146,6 +156,7 @@ function sessionFromProfile(idToken: string, profile: CustomerProfile): AuthSess
       email: profile.email,
       username: profile.username,
       role: profile.role,
+      organization: profile.organization || undefined,
     },
     expiresAt: claims?.exp ? claims.exp * 1000 : 0,
   }
@@ -301,6 +312,57 @@ export function getSession(): AuthSession | null {
 
     return session
   } catch {
+    return null
+  }
+}
+
+/**
+ * Refresh customer authentication session using AWS Amplify's Cognito token refresh.
+ * Automatically obtains fresh ID & access tokens using the refresh token.
+ */
+export async function refreshCustomerSession(forceRefresh = false): Promise<AuthSession | null> {
+  try {
+    const authSession = await fetchAuthSession({ forceRefresh })
+    const idToken = authSession.tokens?.idToken?.toString()
+    if (!idToken) {
+      return null
+    }
+
+    const claims = decodeJwt(idToken)
+    if (!claims) return null
+
+    let currentSession: AuthSession | null = null
+    try {
+      const raw = localStorage.getItem(AUTH_STORAGE_KEY)
+      if (raw) currentSession = JSON.parse(raw) as AuthSession
+    } catch {}
+
+    const expMs = claims.exp ? claims.exp * 1000 : Date.now() + 3600 * 1000
+    const refreshedSession: AuthSession = {
+      token: idToken,
+      user: {
+        id: claims.sub || currentSession?.user?.id || 'usr_customer',
+        fullName:
+          claims.name ||
+          (typeof claims.preferred_username === 'string' && claims.preferred_username) ||
+          currentSession?.user?.fullName ||
+          (claims.email ? claims.email.split('@')[0] : 'Customer'),
+        email: claims.email || currentSession?.user?.email || '',
+        username:
+          (claims['cognito:username'] as string) ||
+          (claims.preferred_username as string) ||
+          currentSession?.user?.username ||
+          (claims.email ? claims.email.split('@')[0] : 'customer'),
+        role: currentSession?.user?.role || 'customer',
+        organization: currentSession?.user?.organization || 'Customer Workspace',
+      },
+      expiresAt: expMs,
+    }
+
+    saveSession(refreshedSession)
+    return refreshedSession
+  } catch (err) {
+    console.warn('[authStore] Token refresh via Amplify unavailable:', err)
     return null
   }
 }

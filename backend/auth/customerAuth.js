@@ -1,16 +1,26 @@
 
 import { CognitoJwtVerifier } from 'aws-jwt-verify'
 import { getSupabaseAdminClient } from '../lib/supabase.js'
+import { registerOrUpdateCustomer } from '../database/customerDatabase.js'
+import { upsertCustomerProfile } from '../database/supabaseCustomerService.js'
 
 const MAX_BODY_BYTES = 16 * 1024
 let verifier
 let verifierConfig
 
 function getCognitoVerifier() {
-  const userPoolId =
-    (process.env.COGNITO_USER_POOL_ID || process.env.AWS_COGNITO_USER_POOL_ID)?.trim()
-  const clientId =
-    (process.env.COGNITO_CLIENT_ID || process.env.AWS_COGNITO_CLIENT_ID)?.trim()
+  const userPoolId = (
+    process.env.COGNITO_USER_POOL_ID ||
+    process.env.AWS_COGNITO_USER_POOL_ID ||
+    process.env.VITE_COGNITO_USER_POOL_ID ||
+    ''
+  ).trim()
+  const clientId = (
+    process.env.COGNITO_CLIENT_ID ||
+    process.env.AWS_COGNITO_CLIENT_ID ||
+    process.env.VITE_COGNITO_CLIENT_ID ||
+    ''
+  ).trim()
 
   if (!userPoolId || !clientId) {
     throw new Error(
@@ -84,15 +94,12 @@ export async function verifyCognitoIdToken(token) {
   if (typeof payload.sub !== 'string' || !payload.sub) {
     throw new Error('The Cognito ID token has no subject.')
   }
-
-  if (
-    typeof payload.email !== 'string' ||
-    !payload.email ||
-    payload.email_verified !== true
-  ) {
-    throw new Error(
-      'A verified email address is required on the Cognito account.'
-    )
+  const isEmailVerified =
+    payload.email_verified === true ||
+    payload.email_verified === 'true' ||
+    (payload.email_verified !== false && payload.email_verified !== 'false' && payload['cognito:user_status'] === 'CONFIRMED')
+  if (typeof payload.email !== 'string' || !payload.email || !isEmailVerified) {
+    throw new Error('A verified email address is required on the Cognito account.')
   }
 
   return payload
@@ -179,74 +186,59 @@ async function syncProfile(
         claims['cognito:username']) ||
       email.split('@')[0]
 
-    // Create or synchronize the profile and organization atomically.
-    let profile = null
-    if (typeof supabase.rpc === 'function') {
-      const { data, error } = await supabase.rpc(
-        'sync_customer_profile',
-        {
-          p_user_id: claims.sub,
-          p_full_name: fullName,
-          p_email: email,
-          p_username: username,
-        }
-      )
+    // Safely parse request body for optional customer profile attributes (e.g. organization entered during signup)
+    let body = {}
+    try {
+      body = await readJsonBody(req)
+    } catch (parseErr) {
+      console.warn('[customer-auth] Could not parse request body for syncProfile:', parseErr?.message)
+    }
+    const explicitOrg = typeof body?.organization === 'string' && body.organization.trim()
+      ? body.organization.trim()
+      : null
 
-      if (error) {
-        if (error.code === '23505') {
-          return sendJson(res, 409, {
-            ok: false,
-            error: 'This email is already linked to another account.',
-          })
-        }
-
-        throw error
-      }
-
-      profile = data
-    } else if (typeof supabase.from === 'function') {
-      // Fallback: direct table upsert if RPC is unavailable in client/mock
-      const { data, error } = await supabase
-        .from('profiles')
-        .upsert({
-          user_id: claims.sub,
-          full_name: fullName,
-          email,
-          username,
-        })
-        .select()
-        .single()
-
-      if (error) {
-        if (error.code === '23505') {
-          return sendJson(res, 409, {
-            ok: false,
-            error: 'This email is already linked to another account.',
-          })
-        }
-        throw error
-      }
-
-      profile = data
+    let customerRecord = null
+    try {
+      customerRecord = await upsertCustomerProfile({
+        cognito_sub: claims.sub,
+        full_name: fullName,
+        email,
+        phone_number: claims.phone_number || null,
+        organization: explicitOrg,
+        isLogin: true,
+        claims,
+      })
+    } catch (err) {
+      console.warn('[customer-auth] upsertCustomerProfile error:', err?.message)
     }
 
-    if (!profile) {
-      throw new Error(
-        'Customer profile synchronization returned no profile.'
-      )
+    // Keep SQLite customer database in sync for Customer Management dashboard
+    try {
+      registerOrUpdateCustomer({
+        cognito_sub: claims.sub,
+        full_name: fullName,
+        email,
+        phone_number: claims.phone_number || null,
+        organization: customerRecord?.organization || explicitOrg || null,
+        role: customerRecord?.role || 'customer',
+        account_status: customerRecord?.account_status || 'active',
+        isLogin: true,
+      })
+    } catch (sqliteErr) {
+      console.warn('[customer-auth] SQLite update warning:', sqliteErr?.message)
     }
 
     return sendJson(res, 200, {
       ok: true,
       profile: {
-        id: profile.user_id,
-        fullName: profile.full_name,
-        email: profile.email,
-        username:
-          profile.username || profile.email.split('@')[0],
-        role: profile.role,
-        status: profile.status,
-        organizationId: profile.organization_id,
+        id: customerRecord?.cognito_sub || customerRecord?.user_id || claims.sub,
+        fullName: customerRecord?.full_name || fullName,
+        email: customerRecord?.email || email,
+        username: username || email.split('@')[0],
+        role: customerRecord?.role || 'customer',
+        status: customerRecord?.account_status || customerRecord?.status || 'active',
+        organization: customerRecord?.organization || explicitOrg || null,
+        organizationId: customerRecord?.organization_id || null,
       },
     })
   } catch (error) {
