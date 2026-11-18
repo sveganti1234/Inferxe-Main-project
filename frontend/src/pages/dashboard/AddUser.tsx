@@ -34,7 +34,7 @@ import type {
 import { usePageMeta } from '../../lib/hooks'
 
 const PRESET_AVATARS = [
-  { id: '1', label: 'Neon Cyber', gradient: 'linear-gradient(135deg, #76b900, #182b0e)', initials: 'CY' },
+  { id: '1', label: 'Neon Cyber', gradient: 'linear-gradient(135deg, #50e396, #0e5b3c)', initials: 'CY' },
   { id: '2', label: 'Matrix Dark', gradient: 'linear-gradient(135deg, #1f4023, #0a140d)', initials: 'MX' },
   { id: '3', label: 'Emerald Neural', gradient: 'linear-gradient(135deg, #10b981, #064e3b)', initials: 'NE' },
   { id: '4', label: 'Cyan Tensor', gradient: 'linear-gradient(135deg, #06b6d4, #083344)', initials: 'TN' },

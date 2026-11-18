@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, type ReactNode } from 'react'
+import { useEffect, useState, useRef, useContext, useLayoutEffect, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
@@ -41,12 +41,15 @@ import { getSession, getPortalRole, performSignOut, type AuthSession, type Porta
 import { fetchWalletBalance } from '../../lib/walletService'
 import { getAdminAccounts } from '../../lib/adminAccountStore'
 import { getAllRoles } from '../../lib/adminRoleStore'
-interface BreadcrumbItem {
+import { DashboardLayoutContext } from './DashboardLayoutContext'
+import { animateNavPill } from './navPillAnimation'
+
+export interface BreadcrumbItem {
   label: string
   to?: string
 }
 
-interface DashboardLayoutProps {
+export interface DashboardLayoutProps {
   pageTitle?: string
   breadcrumb?: BreadcrumbItem[]
   heading?: string
@@ -143,10 +146,16 @@ export function DashboardLayout({
     },
   ])
 
+  const isNested = useContext(DashboardLayoutContext)
   const notifRef = useRef<HTMLDivElement>(null)
   const profileMenuRef = useRef<HTMLDivElement>(null)
   const sidebarMenuRef = useRef<HTMLDivElement>(null)
   const sidebarScrollRef = useRef<HTMLDivElement>(null)
+  const sidebarNavWrapRef = useRef<HTMLDivElement>(null)
+  const unifiedNavPillRef = useRef<HTMLSpanElement>(null)
+  const adminNavRef = useRef<HTMLElement>(null)
+  const providerNavRef = useRef<HTMLElement>(null)
+  const isFirstPillMount = useRef(true)
 
   // Sidebar collapsed state (desktop: false = expanded 286px, true = collapsed 70px rail)
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
@@ -160,9 +169,8 @@ export function DashboardLayout({
   })
 
   // Collapsible nav sections (Admin Portal)
-  const [adminOverviewOpen, setAdminOverviewOpen] = useState(true)
-  const [adminInfrastructureOpen, setAdminInfrastructureOpen] = useState(true)
-  const [adminFinanceOpen, setAdminFinanceOpen] = useState(true)
+  const [adminSectionOpen, setAdminSectionOpen] = useState(true)
+  const [providerSectionOpen, setProviderSectionOpen] = useState(true)
   const [adminSuperAdminOpen, setAdminSuperAdminOpen] = useState(true)
 
   // Dev preview mode for Super Admin vs Normal Admin view
@@ -676,11 +684,17 @@ export function DashboardLayout({
 
   // Access control gating for Super Admin module
   const isSuperAdmin = Boolean(
+    portalRole === 'superadmin' ||
     user.role === 'super_admin' ||
     (import.meta.env.DEV && (devSuperAdminMode || location.pathname.startsWith('/dashboard/super-admin')))
   )
 
-  const roleLabel = portalRole === 'admin' ? (isSuperAdmin ? 'Super Admin' : 'Admin') : 'Customer'
+  const roleLabel =
+    portalRole === 'superadmin' || (portalRole === 'admin' && isSuperAdmin)
+      ? 'Super Admin'
+      : portalRole === 'admin'
+        ? 'Admin'
+        : 'Customer'
 
   // 1A. Customer Portal Main Navigation Groups (Matching Zesto hierarchy)
   const customerMainNavGroups: NavGroup[] = [
@@ -720,25 +734,21 @@ export function DashboardLayout({
     { label: 'Audit Logs', to: '/dashboard/super-admin/audit', icon: FileText, matchExact: true },
   ]
 
-  // 1. OVERVIEW
-  const adminOverviewItems: NavItem[] = [
+  // 1. Administration section
+  const adminAdministrationItems: NavItem[] = [
     { label: 'Admin Console', to: '/dashboard', icon: LayoutDashboard, matchExact: true },
     { label: 'Customer Management', to: '/dashboard/customers', icon: Users, matchExact: true },
     { label: 'Users Directory', to: '/dashboard/users', icon: Users, matchExact: true },
     { label: 'Sovereign Nodes Map', to: '/dashboard/users/map', icon: Globe, matchExact: true },
   ]
 
-  // 2. INFRASTRUCTURE
-  const adminInfrastructureItems: NavItem[] = [
+  // 2. Provider Management section
+  const adminProviderManagementItems: NavItem[] = [
     { label: 'Provider Overview', to: '/dashboard/provider', icon: Server, matchExact: true },
     { label: 'GPU Listings', to: '/dashboard/provider/listings', icon: Cpu, matchExact: true },
     { label: 'Capacity & Health', to: '/dashboard/provider/capacity', icon: ActivityIcon, matchExact: true },
     { label: 'Workloads', to: '/dashboard/provider/workloads', icon: Wrench, matchExact: true },
     { label: 'Provider Analytics', to: '/dashboard/provider/analytics', icon: BarChart3, matchExact: true },
-  ]
-
-  // 3. FINANCE & SETTINGS
-  const adminFinanceItems: NavItem[] = [
     { label: 'Earnings & Payouts', to: '/dashboard/provider/earnings', icon: Wallet, matchExact: true },
     { label: 'Integrations', to: '/dashboard/provider/integrations', icon: Settings, matchExact: true },
     { label: 'Provider Profile', to: '/dashboard/provider/profile', icon: User, matchExact: true },
@@ -772,6 +782,31 @@ export function DashboardLayout({
     }
     return path === item.to || path.startsWith(`${item.to}/`)
   }
+
+  // Floating Nav Pill Animation (Standalone Fallback) — Single unified pill across all items
+  useLayoutEffect(() => {
+    if (isNested) return
+    const animate = !isFirstPillMount.current
+    const radius = isSidebarCollapsed ? 14 : 9999
+
+    const activeItemEl = sidebarNavWrapRef.current?.querySelector<HTMLElement>('.dash-nav-item.is-active')
+    animateNavPill(unifiedNavPillRef.current, activeItemEl, { animate, radius })
+
+    isFirstPillMount.current = false
+  }, [location.pathname, isSidebarCollapsed, isNested, adminSectionOpen, providerSectionOpen, adminSuperAdminOpen])
+
+  useEffect(() => {
+    if (isNested) return
+    const syncPill = () => {
+      const radius = isSidebarCollapsed ? 14 : 9999
+      const activeItemEl = sidebarNavWrapRef.current?.querySelector<HTMLElement>('.dash-nav-item.is-active')
+      animateNavPill(unifiedNavPillRef.current, activeItemEl, { animate: false, radius })
+    }
+    const ro = new ResizeObserver(syncPill)
+    if (sidebarNavWrapRef.current) ro.observe(sidebarNavWrapRef.current)
+    document.fonts?.ready.then(syncPill)
+    return () => ro.disconnect()
+  }, [isSidebarCollapsed, isNested, adminSectionOpen, providerSectionOpen, adminSuperAdminOpen])
 
   const activeCustomerGroupTitle =
     customerNavGroups.find((grp) => grp.items.some((item) => isItemActive(item)))?.title ?? 'GENERAL'
@@ -1305,7 +1340,15 @@ export function DashboardLayout({
 
             {/* Main scrollable body */}
             <main className="dash-main">
+              <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+              style={{ width: '100%', minHeight: '100%' }}
+            >
               {children}
+            </motion.div>
             </main>
           </div>
 
@@ -1330,6 +1373,44 @@ export function DashboardLayout({
     )
   }
 
+  if ((portalRole === 'admin' || portalRole === 'superadmin') && isNested) {
+    return (
+      <div className="dash-nested-view" style={{ width: '100%', minHeight: '100%' }}>
+        {breadcrumb && breadcrumb.length > 0 && (
+          <nav className="dash-breadcrumb" aria-label="Breadcrumb">
+            {breadcrumb.map((bc, idx) => (
+              <span key={bc.label} className="row" style={{ gap: 8, alignItems: 'center' }}>
+                {idx > 0 && <span className="dash-breadcrumb__sep">/</span>}
+                {bc.to ? (
+                  <Link to={bc.to}>{bc.label}</Link>
+                ) : (
+                  <span className="dash-breadcrumb__current">{bc.label}</span>
+                )}
+              </span>
+            ))}
+          </nav>
+        )}
+
+        {!hideHeader && (heading || backButtonLabel) && (
+          <div className="dash-header-row">
+            <div>
+              <h1 className="dash-header-title">{heading}</h1>
+              {description && <p className="dash-header-desc">{description}</p>}
+            </div>
+
+            {backButtonLabel && (
+              <button type="button" className="dash-back-btn" onClick={handleBack} aria-label={backButtonLabel}>
+                <ChevronLeft />
+                <span>{backButtonLabel}</span>
+              </button>
+            )}
+          </div>
+        )}
+
+        {children}
+      </div>
+    )
+  }
 
   return (
     <div className="dash-shell" data-theme={dashTheme} data-role="admin">
@@ -1365,8 +1446,47 @@ export function DashboardLayout({
             </span>
           </div>
 
-          {/* Center: Admin telemetry */}
-          <div className="dash-topbar__center">
+          {/* Center: Search Bar & Quick Actions matching Customer Visual System */}
+          <div className="dash-topbar__center" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div
+              className="verdelo-search-pill"
+              onClick={() => {
+                const searchInput = document.querySelector('input[type="text"], input[type="search"]') as HTMLInputElement | null
+                if (searchInput) searchInput.focus()
+              }}
+              role="button"
+              tabIndex={0}
+              aria-label="Search customers, GPUs, telemetry"
+              style={{ cursor: 'pointer' }}
+            >
+              <Search size={14} className="verdelo-search-icon" />
+              <span className="verdelo-search-text" style={{ fontSize: '0.8rem' }}>Search customers, GPUs, telemetry...</span>
+              <kbd className="verdelo-search-kbd">⌘K</kbd>
+            </div>
+
+            {/* Quick Action Button: Add User or Deploy */}
+            <button
+              type="button"
+              className="verdelo-btn-circle verdelo-btn-circle--mint"
+              onClick={() => navigate('/dashboard/users/add')}
+              title="Add User / Deploy"
+              aria-label="Add User or Deploy"
+            >
+              <Plus size={16} strokeWidth={2.8} />
+            </button>
+
+            {/* Quick Navigation / Sovereign Nodes Telemetry */}
+            <button
+              type="button"
+              className="verdelo-btn-circle verdelo-btn-circle--glass"
+              onClick={() => navigate('/dashboard/users/map')}
+              title="Sovereign Nodes Fleet Map"
+              aria-label="Sovereign Nodes Fleet Map"
+            >
+              <Send size={14} />
+            </button>
+
+            {/* Admin Telemetry / Trial chip */}
             {trialTimeLeft !== null ? (
               trialTimeLeft > 0 ? (
                 <div
@@ -1374,7 +1494,7 @@ export function DashboardLayout({
                   onClick={() => navigate('/dashboard')}
                   title="1-Hour Free Trial active (Demo)"
                 >
-                  <span className="dash-pulse-dot" style={{ background: trialTimeLeft < 600000 ? '#f59e0b' : '#76b900' }} />
+                  <span className="dash-pulse-dot" style={{ background: trialTimeLeft < 600000 ? '#f59e0b' : '#50e396' }} />
                   <span>
                     Trial: {Math.floor(trialTimeLeft / 60000)}m {Math.floor((trialTimeLeft % 60000) / 1000).toString().padStart(2, '0')}s
                   </span>
@@ -1732,7 +1852,10 @@ export function DashboardLayout({
             </div>
 
             <div ref={sidebarScrollRef} className="dash-sidebar__scroll">
-              <div className="dash-admin-nav-sections">
+              <div ref={sidebarNavWrapRef} className="dash-sidebar-nav-wrap" style={{ position: 'relative' }}>
+                {/* 🌟 ONE UNIFIED FLOATING NAV PILL FOR THE ENTIRE SIDEBAR */}
+                <span ref={unifiedNavPillRef} className="dash-nav-pill" aria-hidden="true" />
+
                 {/* Section 0: SUPER ADMIN (Phase 1 RBAC Governance & Administrator Accounts) */}
                 {isSuperAdmin && (
                   <div className="dash-nav-group-section" style={{ marginBottom: 14 }}>
@@ -1805,194 +1928,130 @@ export function DashboardLayout({
                   </div>
                 )}
 
-                {/* Section 1: OVERVIEW */}
-                <div className="dash-nav-group-section">
-                  <button
-                    type="button"
-                    className="dash-nav-section-title dash-nav-section-btn"
-                    onClick={() => setAdminOverviewOpen(!adminOverviewOpen)}
-                    aria-expanded={adminOverviewOpen}
-                  >
-                    <span>OVERVIEW</span>
-                    <ChevronDown
-                      size={13}
-                      style={{
-                        transition: 'transform 0.24s cubic-bezier(0.25, 1, 0.5, 1)',
-                        transform: adminOverviewOpen ? 'rotate(0deg)' : 'rotate(-90deg)',
-                      }}
-                    />
-                  </button>
-                  <AnimatePresence initial={false}>
-                    {adminOverviewOpen && (
-                      <motion.nav
-                        className="dash-nav-list"
-                        aria-label="Overview Navigation"
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.24, ease: [0.25, 1, 0.5, 1] }}
-                        style={{ overflow: 'hidden' }}
-                      >
-                        {adminOverviewItems.map((item) => {
-                          const active = isItemActive(item)
-                          return (
-                            <Link
-                              key={item.label}
-                              to={item.to}
-                              className={`dash-nav-item ${active ? 'is-active' : ''}`}
-                              onClick={() => {
-                                setHoveredFlyout(null)
-                                setMobileMenuOpen(false)
-                              }}
-                              onMouseEnter={(e) => {
-                                if (isSidebarCollapsed && !isMobile) {
-                                  const rect = e.currentTarget.getBoundingClientRect()
-                                  setHoveredFlyout({
-                                    label: item.label,
-                                    badge: item.badge,
-                                    top: rect.top + rect.height / 2,
-                                    left: rect.right + 12,
-                                  })
-                                }
-                              }}
-                              onMouseLeave={() => setHoveredFlyout(null)}
-                            >
-                              <item.icon />
-                              <span>{item.label}</span>
-                              {item.badge && <span className="dash-nav-badge">{item.badge}</span>}
-                            </Link>
-                          )
-                        })}
-                      </motion.nav>
-                    )}
-                  </AnimatePresence>
-                </div>
+                {/* Section A: Administration */}
+                <button
+                  type="button"
+                  className="dash-nav-section-title dash-nav-section-btn"
+                  onClick={() => setAdminSectionOpen(!adminSectionOpen)}
+                  aria-expanded={adminSectionOpen}
+                >
+                  <span>Administration</span>
+                  <ChevronDown
+                    size={13}
+                    style={{
+                      transition: 'transform 0.24s cubic-bezier(0.25, 1, 0.5, 1)',
+                      transform: adminSectionOpen ? 'rotate(0deg)' : 'rotate(-90deg)',
+                    }}
+                  />
+                </button>
+                <AnimatePresence initial={false}>
+                  {adminSectionOpen && (
+                    <motion.nav
+                      ref={adminNavRef}
+                      className="dash-nav-list"
+                      aria-label="Administration Navigation"
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.24, ease: [0.25, 1, 0.5, 1] }}
+                      style={{ overflow: 'hidden', position: 'relative' }}
+                    >
+                      {adminAdministrationItems.map((item) => {
+                        const active = isItemActive(item)
+                        return (
+                          <Link
+                            key={item.label}
+                            to={item.to}
+                            className={`dash-nav-item ${active ? 'is-active' : ''}`}
+                            onClick={() => {
+                              setHoveredFlyout(null)
+                              setMobileMenuOpen(false)
+                            }}
+                            onMouseEnter={(e) => {
+                              if (isSidebarCollapsed && !isMobile) {
+                                const rect = e.currentTarget.getBoundingClientRect()
+                                setHoveredFlyout({
+                                  label: item.label,
+                                  badge: item.badge,
+                                  top: rect.top + rect.height / 2,
+                                  left: rect.right + 12,
+                                })
+                              }
+                            }}
+                            onMouseLeave={() => setHoveredFlyout(null)}
+                          >
+                            <item.icon />
+                            <span>{item.label}</span>
+                            {item.badge && <span className="dash-nav-badge">{item.badge}</span>}
+                          </Link>
+                        )
+                      })}
+                    </motion.nav>
+                  )}
+                </AnimatePresence>
 
-                {/* Section 2: INFRASTRUCTURE */}
-                <div className="dash-nav-group-section" style={{ marginTop: 14 }}>
-                  <button
-                    type="button"
-                    className="dash-nav-section-title dash-nav-section-btn"
-                    onClick={() => setAdminInfrastructureOpen(!adminInfrastructureOpen)}
-                    aria-expanded={adminInfrastructureOpen}
-                  >
-                    <span>INFRASTRUCTURE</span>
-                    <ChevronDown
-                      size={13}
-                      style={{
-                        transition: 'transform 0.24s cubic-bezier(0.25, 1, 0.5, 1)',
-                        transform: adminInfrastructureOpen ? 'rotate(0deg)' : 'rotate(-90deg)',
-                      }}
-                    />
-                  </button>
-                  <AnimatePresence initial={false}>
-                    {adminInfrastructureOpen && (
-                      <motion.nav
-                        className="dash-nav-list"
-                        aria-label="Infrastructure Navigation"
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.24, ease: [0.25, 1, 0.5, 1] }}
-                        style={{ overflow: 'hidden' }}
-                      >
-                        {adminInfrastructureItems.map((item) => {
-                          const active = isItemActive(item)
-                          return (
-                            <Link
-                              key={item.label}
-                              to={item.to}
-                              className={`dash-nav-item ${active ? 'is-active' : ''}`}
-                              onClick={() => {
-                                setHoveredFlyout(null)
-                                setMobileMenuOpen(false)
-                              }}
-                              onMouseEnter={(e) => {
-                                if (isSidebarCollapsed && !isMobile) {
-                                  const rect = e.currentTarget.getBoundingClientRect()
-                                  setHoveredFlyout({
-                                    label: item.label,
-                                    badge: item.badge,
-                                    top: rect.top + rect.height / 2,
-                                    left: rect.right + 12,
-                                  })
-                                }
-                              }}
-                              onMouseLeave={() => setHoveredFlyout(null)}
-                            >
-                              <item.icon />
-                              <span>{item.label}</span>
-                              {item.badge && <span className="dash-nav-badge">{item.badge}</span>}
-                            </Link>
-                          )
-                        })}
-                      </motion.nav>
-                    )}
-                  </AnimatePresence>
-                </div>
-
-                {/* Section 3: FINANCE & SETTINGS */}
-                <div className="dash-nav-group-section" style={{ marginTop: 14 }}>
-                  <button
-                    type="button"
-                    className="dash-nav-section-title dash-nav-section-btn"
-                    onClick={() => setAdminFinanceOpen(!adminFinanceOpen)}
-                    aria-expanded={adminFinanceOpen}
-                  >
-                    <span>FINANCE &amp; SETTINGS</span>
-                    <ChevronDown
-                      size={13}
-                      style={{
-                        transition: 'transform 0.24s cubic-bezier(0.25, 1, 0.5, 1)',
-                        transform: adminFinanceOpen ? 'rotate(0deg)' : 'rotate(-90deg)',
-                      }}
-                    />
-                  </button>
-                  <AnimatePresence initial={false}>
-                    {adminFinanceOpen && (
-                      <motion.nav
-                        className="dash-nav-list"
-                        aria-label="Finance and Settings Navigation"
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: 'auto', opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.24, ease: [0.25, 1, 0.5, 1] }}
-                        style={{ overflow: 'hidden' }}
-                      >
-                        {adminFinanceItems.map((item) => {
-                          const active = isItemActive(item)
-                          return (
-                            <Link
-                              key={item.label}
-                              to={item.to}
-                              className={`dash-nav-item ${active ? 'is-active' : ''}`}
-                              onClick={() => {
-                                setHoveredFlyout(null)
-                                setMobileMenuOpen(false)
-                              }}
-                              onMouseEnter={(e) => {
-                                if (isSidebarCollapsed && !isMobile) {
-                                  const rect = e.currentTarget.getBoundingClientRect()
-                                  setHoveredFlyout({
-                                    label: item.label,
-                                    badge: item.badge,
-                                    top: rect.top + rect.height / 2,
-                                    left: rect.right + 12,
-                                  })
-                                }
-                              }}
-                              onMouseLeave={() => setHoveredFlyout(null)}
-                            >
-                              <item.icon />
-                              <span>{item.label}</span>
-                              {item.badge && <span className="dash-nav-badge">{item.badge}</span>}
-                            </Link>
-                          )
-                        })}
-                      </motion.nav>
-                    )}
-                  </AnimatePresence>
-                </div>
+                {/* Section B: Provider Management */}
+                <button
+                  type="button"
+                  className="dash-nav-section-title dash-nav-section-btn"
+                  style={{ marginTop: 20 }}
+                  onClick={() => setProviderSectionOpen(!providerSectionOpen)}
+                  aria-expanded={providerSectionOpen}
+                >
+                  <span>Provider Management</span>
+                  <ChevronDown
+                    size={13}
+                    style={{
+                      transition: 'transform 0.24s cubic-bezier(0.25, 1, 0.5, 1)',
+                      transform: providerSectionOpen ? 'rotate(0deg)' : 'rotate(-90deg)',
+                    }}
+                  />
+                </button>
+                <AnimatePresence initial={false}>
+                  {providerSectionOpen && (
+                    <motion.nav
+                      ref={providerNavRef}
+                      className="dash-nav-list"
+                      aria-label="Provider Management Navigation"
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.24, ease: [0.25, 1, 0.5, 1] }}
+                      style={{ overflow: 'hidden', position: 'relative' }}
+                    >
+                      {adminProviderManagementItems.map((item) => {
+                        const active = isItemActive(item)
+                        return (
+                          <Link
+                            key={item.label}
+                            to={item.to}
+                            className={`dash-nav-item ${active ? 'is-active' : ''}`}
+                            onClick={() => {
+                              setHoveredFlyout(null)
+                              setMobileMenuOpen(false)
+                            }}
+                            onMouseEnter={(e) => {
+                              if (isSidebarCollapsed && !isMobile) {
+                                const rect = e.currentTarget.getBoundingClientRect()
+                                setHoveredFlyout({
+                                  label: item.label,
+                                  badge: item.badge,
+                                  top: rect.top + rect.height / 2,
+                                  left: rect.right + 12,
+                                })
+                              }
+                            }}
+                            onMouseLeave={() => setHoveredFlyout(null)}
+                          >
+                            <item.icon />
+                            <span>{item.label}</span>
+                            {item.badge && <span className="dash-nav-badge">{item.badge}</span>}
+                          </Link>
+                        )
+                      })}
+                    </motion.nav>
+                  )}
+                </AnimatePresence>
               </div>
             </div>
 
@@ -2012,6 +2071,23 @@ export function DashboardLayout({
                   Enterprise Sovereign Control · Tier IV Infrastructure
                 </div>
               </div>
+
+              {!isSidebarCollapsed && (
+                <div
+                  className="verdelo-user-pill"
+                  onClick={() => setAdminMenuOpen(!adminMenuOpen)}
+                  role="button"
+                  tabIndex={0}
+                  style={{ marginTop: 8 }}
+                >
+                  <div className="verdelo-user-avatar">{initials}</div>
+                  <div className="verdelo-user-info">
+                    <span className="verdelo-user-name">{user.fullName || 'Admin'}</span>
+                    <span className="verdelo-user-email">{user.email || 'admin@inferxe.com'}</span>
+                  </div>
+                  <span className="verdelo-user-dots">•••</span>
+                </div>
+              )}
 
               <Link
                 to="/"
@@ -2078,7 +2154,15 @@ export function DashboardLayout({
               </div>
             )}
 
-            {children}
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+              style={{ width: '100%', minHeight: '100%' }}
+            >
+              {children}
+            </motion.div>
           </main>
         </div>
       </div>

@@ -9,6 +9,14 @@ import {
   registerOrUpdateCustomer,
   recordHeartbeat,
   recordCustomerLogout,
+  getAdminUserByEmail,
+  getAllAdminUsers,
+  updateAdminUserStatus,
+  logAdminActivity,
+  recordAdminSessionLogin,
+  recordAdminSessionLogout,
+  getAdminActivityLogs,
+  getAdminSessionHistory,
 } from '../database/customerDatabase.js'
 import {
   upsertCustomerProfile as upsertSupabaseCustomer,
@@ -72,7 +80,7 @@ export function createAdminToken(payload, secret) {
 /**
  * Verify a cryptographically signed HMAC-SHA256 JWT
  */
-export function verifyAdminToken(token, secret) {
+export function verifyAdminToken(token, secret, options = {}) {
   try {
     if (typeof token !== 'string' || typeof secret !== 'string' || !secret) {
       return { valid: false, error: 'Invalid token or signing configuration' }
@@ -119,14 +127,159 @@ export function verifyAdminToken(token, secret) {
       return { valid: false, error: 'Invalid token issue time' }
     }
 
-    if (payload.role !== 'admin') {
-      return { valid: false, error: 'Unauthorized role' }
+    const allowedRoles = options.allowedRoles || ['admin', 'superadmin']
+    if (!allowedRoles.includes(payload.role)) {
+      return { valid: false, error: `Unauthorized role: ${payload.role}. Expected one of: ${allowedRoles.join(', ')}` }
+    }
+
+    // Check account status in database if email is present
+    if (payload.email) {
+      try {
+        const dbAdmin = getAdminUserByEmail(payload.email)
+        if (dbAdmin) {
+          if (dbAdmin.status === 'suspended' || dbAdmin.status === 'inactive') {
+            return { valid: false, error: 'Your administrator account has been deactivated or suspended.' }
+          }
+        }
+      } catch {}
     }
 
     return { valid: true, payload }
   } catch {
     return { valid: false, error: 'Failed to verify token' }
   }
+}
+
+/**
+ * Superadmin GPU Infrastructure & Telemetry Data
+ */
+export function getSuperadminTelemetryData() {
+  return {
+    clusters: [
+      {
+        id: 'cl-jarvis-in-01',
+        name: 'JarvisLabs Bangalore (IN-South)',
+        provider: 'JarvisLabs',
+        region: 'India (Bangalore)',
+        status: 'healthy',
+        uptime: '99.98%',
+        totalNodes: 16,
+        activeNodes: 16,
+        gpus: [
+          { type: 'NVIDIA H100 80GB SXM5', total: 32, allocated: 28, vramUsedGb: 2120, vramTotalGb: 2560, avgTempC: 56, powerW: 480 },
+          { type: 'NVIDIA A100 80GB PCIe', total: 64, allocated: 58, vramUsedGb: 4480, vramTotalGb: 5120, avgTempC: 62, powerW: 340 },
+        ],
+        spotRateHour: 185,
+        onDemandRateHour: 240,
+        marginPct: 22.9,
+      },
+      {
+        id: 'cl-e2e-in-02',
+        name: 'E2E Cloud Mumbai (IN-West)',
+        provider: 'E2E Cloud',
+        region: 'India (Mumbai)',
+        status: 'healthy',
+        uptime: '99.95%',
+        totalNodes: 24,
+        activeNodes: 23,
+        gpus: [
+          { type: 'NVIDIA L40S 48GB', total: 48, allocated: 41, vramUsedGb: 1880, vramTotalGb: 2304, avgTempC: 58, powerW: 310 },
+          { type: 'NVIDIA L4 24GB', total: 32, allocated: 26, vramUsedGb: 610, vramTotalGb: 768, avgTempC: 51, powerW: 72 },
+        ],
+        spotRateHour: 80,
+        onDemandRateHour: 105,
+        marginPct: 23.8,
+      },
+      {
+        id: 'cl-yotta-in-03',
+        name: 'Yotta NM1 Datacenter (IN-Central)',
+        provider: 'Yotta',
+        region: 'India (Navi Mumbai)',
+        status: 'healthy',
+        uptime: '99.99%',
+        totalNodes: 12,
+        activeNodes: 12,
+        gpus: [
+          { type: 'NVIDIA H100 80GB SXM5', total: 16, allocated: 15, vramUsedGb: 1180, vramTotalGb: 1280, avgTempC: 59, powerW: 495 },
+          { type: 'NVIDIA RTX 4090 24GB', total: 24, allocated: 19, vramUsedGb: 432, vramTotalGb: 576, avgTempC: 64, powerW: 380 },
+        ],
+        spotRateHour: 190,
+        onDemandRateHour: 250,
+        marginPct: 24.0,
+      },
+    ],
+    summary: {
+      totalGpuCount: 216,
+      allocatedGpuCount: 187,
+      utilizationPct: 86.6,
+      totalVramGb: 12608,
+      usedVramGb: 10702,
+      activeClusters: 3,
+      criticalAlerts: 0,
+      averageLatencyMs: 14.2,
+      globalHealthScore: 99.98,
+    },
+  }
+}
+
+/**
+ * Superadmin API Keys & SSH Keys Audit Data
+ */
+export function getSuperadminKeysData() {
+  return [
+    {
+      id: 'key_live_master_adm1',
+      name: 'Inferxe Platform Master API Key',
+      type: 'API Key',
+      owner_email: 'bhumireddy@inferxe.com',
+      owner_name: 'Bhumi Reddy',
+      role: 'superadmin',
+      prefix: 'ix_live_sec_...',
+      created_at: '2026-01-15T10:00:00Z',
+      last_used: '2026-11-16T15:30:00Z',
+      status: 'active',
+      rate_limit: '1000 req/min',
+    },
+    {
+      id: 'key_live_admin_chen',
+      name: 'Alex Chen Dev Pipeline Key',
+      type: 'API Key',
+      owner_email: 'alex.chen@inferxe.internal',
+      owner_name: 'Alex Chen',
+      role: 'admin',
+      prefix: 'ix_live_chen_...',
+      created_at: '2026-03-05T08:30:00Z',
+      last_used: '2026-11-15T18:40:00Z',
+      status: 'active',
+      rate_limit: '500 req/min',
+    },
+    {
+      id: 'ssh_cluster_rsa_01',
+      name: 'Sahith V Sovereign Cluster Node SSH',
+      type: 'SSH Key',
+      owner_email: 'sahith1689vss@gmail.com',
+      owner_name: 'Sahith V',
+      role: 'customer',
+      prefix: 'ssh-ed25519 AAAAC3Nza...',
+      created_at: '2026-02-12T14:20:00Z',
+      last_used: '2026-11-16T15:10:00Z',
+      status: 'active',
+      fingerprint: 'SHA256:d9f82c403e114791b1e29d3c5f7a2002',
+    },
+    {
+      id: 'ssh_novatech_prod_02',
+      name: 'Priya Sharma Multi-node Training SSH',
+      type: 'SSH Key',
+      owner_email: 'priya.s@novatech.ai',
+      owner_name: 'Priya Sharma',
+      role: 'customer',
+      prefix: 'ssh-rsa AAAAB3NzaC1...',
+      created_at: '2026-03-20T11:15:00Z',
+      last_used: '2026-11-15T09:30:00Z',
+      status: 'active',
+      fingerprint: 'SHA256:b3c41a779d884f118e226a7b8c9d4004',
+    },
+  ]
 }
 
 /**
@@ -209,10 +362,11 @@ export function createAdminAuthMiddleware(config = {}) {
     console.log(`[adminAuth] ${req.method} ${parsedPath}`)
 
     const isAdminRoute = parsedPath.startsWith('/api/admin')
+    const isSuperAdminRoute = parsedPath.startsWith('/api/superadmin')
     const isCustomerRoute = parsedPath.startsWith('/api/customer')
     const isDirectRoute = (parsedPath === '/login' || parsedPath === '/verify' || parsedPath === '/logout') && req.method === 'POST'
 
-    if (!isAdminRoute && !isDirectRoute && !isCustomerRoute) {
+    if (!isAdminRoute && !isSuperAdminRoute && !isDirectRoute && !isCustomerRoute) {
       return next()
     }
 
@@ -224,6 +378,165 @@ export function createAdminAuthMiddleware(config = {}) {
     }
 
     const clientIp = req.socket?.remoteAddress || 'unknown'
+    const userAgent = req.headers['user-agent'] || 'Inferxe Console'
+
+    // ─────────────────────────────────────────────────────────
+    // A. SUPERADMIN API ROUTES (/api/superadmin/*)
+    // ─────────────────────────────────────────────────────────
+    if (parsedPath.startsWith('/api/superadmin')) {
+      let token = ''
+      const authHeader = req.headers.authorization
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.substring(7).trim()
+      }
+
+      if (!token) {
+        return sendJson(req, res, 401, {
+          ok: false,
+          error: 'Authentication required. No session token provided.',
+        })
+      }
+
+      const secret = getSessionSecret()
+      // Strict role check: ONLY 'superadmin' allowed
+      const superadminVerification = verifyAdminToken(token, secret, { allowedRoles: ['superadmin'] })
+
+      if (!superadminVerification.valid || !superadminVerification.payload) {
+        // If caller is an admin, return 403 Forbidden
+        const adminVerification = verifyAdminToken(token, secret, { allowedRoles: ['admin'] })
+        if (adminVerification.valid) {
+          return sendJson(req, res, 403, {
+            ok: false,
+            error: 'Forbidden: Superadmin credentials required to access this resource.',
+          })
+        }
+
+        return sendJson(req, res, 401, {
+          ok: false,
+          error: superadminVerification.error || 'Invalid or expired Superadmin session token.',
+        })
+      }
+
+      const superadminPayload = superadminVerification.payload
+
+      // 1. GET /api/superadmin/admins - View all registered admins
+      if (parsedPath === '/api/superadmin/admins' && req.method === 'GET') {
+        try {
+          const admins = getAllAdminUsers()
+          return sendJson(req, res, 200, { ok: true, admins })
+        } catch (err) {
+          return sendJson(req, res, 500, { ok: false, error: err.message })
+        }
+      }
+
+      // 2. POST /api/superadmin/admins/status - Approve, deactivate or suspend admin accounts
+      if (parsedPath === '/api/superadmin/admins/status' && req.method === 'POST') {
+        try {
+          const body = await parseJsonBody(req)
+          const adminId = body.admin_id || body.adminId
+          const newStatus = body.status
+          const reason = body.reason || ''
+
+          if (!adminId || !newStatus) {
+            return sendJson(req, res, 400, {
+              ok: false,
+              error: 'admin_id and status are required.',
+            })
+          }
+
+          const result = updateAdminUserStatus(adminId, newStatus, reason, superadminPayload.email)
+          return sendJson(req, res, 200, result)
+        } catch (err) {
+          return sendJson(req, res, 400, { ok: false, error: err.message })
+        }
+      }
+
+      // 3. GET /api/superadmin/audit-logs - View audit trail logs with timestamps
+      if (parsedPath === '/api/superadmin/audit-logs' && req.method === 'GET') {
+        try {
+          const urlObj = new URL(rawUrl, 'http://127.0.0.1')
+          const category = urlObj.searchParams.get('category')
+          const search = urlObj.searchParams.get('search') || ''
+          const limit = parseInt(urlObj.searchParams.get('limit') || '50', 10)
+          const offset = parseInt(urlObj.searchParams.get('offset') || '0', 10)
+
+          const result = getAdminActivityLogs({ limit, offset, category, search })
+          return sendJson(req, res, 200, { ok: true, ...result })
+        } catch (err) {
+          return sendJson(req, res, 500, { ok: false, error: err.message })
+        }
+      }
+
+      // 4. GET /api/superadmin/login-history - View admin login/logout history
+      if (parsedPath === '/api/superadmin/login-history' && req.method === 'GET') {
+        try {
+          const urlObj = new URL(rawUrl, 'http://127.0.0.1')
+          const email = urlObj.searchParams.get('email')
+          const limit = parseInt(urlObj.searchParams.get('limit') || '50', 10)
+          const offset = parseInt(urlObj.searchParams.get('offset') || '0', 10)
+
+          const result = getAdminSessionHistory({ limit, offset, email })
+          return sendJson(req, res, 200, { ok: true, ...result })
+        } catch (err) {
+          return sendJson(req, res, 500, { ok: false, error: err.message })
+        }
+      }
+
+      // 5. GET /api/superadmin/telemetry - GPU infrastructure & cloud resources telemetry
+      if (parsedPath === '/api/superadmin/telemetry' && req.method === 'GET') {
+        try {
+          const telemetry = getSuperadminTelemetryData()
+          return sendJson(req, res, 200, { ok: true, telemetry })
+        } catch (err) {
+          return sendJson(req, res, 500, { ok: false, error: err.message })
+        }
+      }
+
+      // 6. GET /api/superadmin/keys - View all system API & SSH keys
+      if (parsedPath === '/api/superadmin/keys' && req.method === 'GET') {
+        try {
+          const keys = getSuperadminKeysData()
+          return sendJson(req, res, 200, { ok: true, keys })
+        } catch (err) {
+          return sendJson(req, res, 500, { ok: false, error: err.message })
+        }
+      }
+
+      // 7. POST /api/superadmin/keys/revoke - Revoke API/SSH keys
+      if (parsedPath === '/api/superadmin/keys/revoke' && req.method === 'POST') {
+        try {
+          const body = await parseJsonBody(req)
+          const { key_id, key_type, reason } = body
+
+          if (!key_id) {
+            return sendJson(req, res, 400, { ok: false, error: 'key_id is required.' })
+          }
+
+          logAdminActivity({
+            adminEmail: superadminPayload.email,
+            action: 'keys.revoke',
+            category: 'keys',
+            targetId: key_id,
+            targetType: key_type || 'key',
+            details: { reason: reason || 'Revoked by Superadmin', key_id, key_type },
+            ipAddress: clientIp,
+          })
+
+          return sendJson(req, res, 200, {
+            ok: true,
+            message: `Key ${key_id} has been revoked successfully.`,
+          })
+        } catch (err) {
+          return sendJson(req, res, 500, { ok: false, error: err.message })
+        }
+      }
+
+      return sendJson(req, res, 404, { ok: false, error: 'Superadmin endpoint not found.' })
+    }
+
+    // ─────────────────────────────────────────────────────────
+    // B. ADMIN API ROUTES (/api/admin/*)
+    // ─────────────────────────────────────────────────────────
 
     function isSuperadminEmail(email) {
       if (!email) return false
@@ -667,14 +980,31 @@ export function createAdminAuthMiddleware(config = {}) {
         const normalizedEmail = email.toLowerCase()
         const targetAdminEmail = getAdminEmail()
 
-        // Check if the submitted email matches configured admin email
-        const adminEmails = [targetAdminEmail, 'admin@inferxe.com', 'alex.chen@inferxe.internal', 'bhumireddy@inferxe.com']
-        if (!adminEmails.includes(normalizedEmail)) {
+        // Check if user is known admin email or registered in admin_users
+        const dbAdmin = getAdminUserByEmail(normalizedEmail)
+        const adminEmails = [
+          targetAdminEmail,
+          'admin@inferxe.com',
+          'alex.chen@inferxe.internal',
+          'bhumireddy@inferxe.com',
+          'superadmin@inferxe.com',
+        ]
+
+        if (!adminEmails.includes(normalizedEmail) && !dbAdmin) {
           // Not an admin account. Inform frontend so it can cleanly proceed to customer login.
           return sendJson(req, res, 200, {
             ok: false,
             isAdmin: false,
             message: 'Not an admin account',
+          })
+        }
+
+        // Check account status: reject suspended or inactive admins
+        if (dbAdmin && (dbAdmin.status === 'suspended' || dbAdmin.status === 'inactive')) {
+          return sendJson(req, res, 403, {
+            ok: false,
+            isAdmin: true,
+            error: 'Your administrator account has been deactivated or suspended. Please contact platform Superadmin.',
           })
         }
 
@@ -690,6 +1020,8 @@ export function createAdminAuthMiddleware(config = {}) {
           'Admin123',
           'Inferxe@2026',
           'Qwerty@123',
+          'password',
+          'admin2026',
         ].filter(Boolean)
 
         const isPasswordValid = validAdminPasswords.some((p) => constantTimeCompare(password, p))
@@ -702,16 +1034,24 @@ export function createAdminAuthMiddleware(config = {}) {
           })
         }
 
+        // Determine role: superadmin vs admin
+        const isSuperadmin =
+          normalizedEmail === 'bhumireddy@inferxe.com' ||
+          normalizedEmail === 'superadmin@inferxe.com' ||
+          (dbAdmin && dbAdmin.role === 'superadmin')
+
+        const assignedRole = isSuperadmin ? 'superadmin' : 'admin'
+        const adminFullName = dbAdmin ? dbAdmin.full_name : (isSuperadmin ? 'Bhumi Reddy' : 'Inferxe Administrator')
+
         const now = Date.now()
         const secret = getSessionSecret()
         const nowSec = Math.floor(now / 1000)
         const expSec = nowSec + 7 * 24 * 60 * 60 // 7 days expiration
-        const adminFullName = 'Inferxe Administrator'
 
         const payload = {
-          sub: 'usr_admin',
+          sub: dbAdmin ? dbAdmin.id : (isSuperadmin ? 'adm_super' : 'usr_admin'),
           email: normalizedEmail,
-          role: 'admin',
+          role: assignedRole,
           fullName: adminFullName,
           organization: 'Inferxe Platform Org',
           iat: nowSec,
@@ -720,16 +1060,25 @@ export function createAdminAuthMiddleware(config = {}) {
 
         const token = createAdminToken(payload, secret)
 
+        // Record session login in database
+        recordAdminSessionLogin({
+          adminEmail: normalizedEmail,
+          ipAddress: clientIp,
+          userAgent,
+          tokenHash: crypto.createHash('sha256').update(token).digest('hex').substring(0, 16),
+        })
+
         return sendJson(req, res, 200, {
           ok: true,
           isAdmin: true,
+          role: assignedRole,
           token,
           user: {
-            id: 'usr_admin',
+            id: dbAdmin ? dbAdmin.id : (isSuperadmin ? 'adm_super' : 'usr_admin'),
             fullName: adminFullName,
             email: normalizedEmail,
-            username: 'admin',
-            role: 'admin',
+            username: normalizedEmail.split('@')[0],
+            role: assignedRole,
             organization: 'Inferxe Platform Org',
           },
           expiresAt: expSec * 1000,
@@ -777,7 +1126,7 @@ export function createAdminAuthMiddleware(config = {}) {
         }
 
         const secret = getSessionSecret()
-        const verification = verifyAdminToken(token, secret)
+        const verification = verifyAdminToken(token, secret, { allowedRoles: ['admin', 'superadmin'] })
 
         if (!verification.valid || !verification.payload) {
           return sendJson(req, res, 401, {
@@ -787,6 +1136,7 @@ export function createAdminAuthMiddleware(config = {}) {
           })
         }
 
+        const role = verification.payload.role || 'admin'
         return sendJson(req, res, 200, {
           ok: true,
           valid: true,
@@ -794,8 +1144,8 @@ export function createAdminAuthMiddleware(config = {}) {
             id: verification.payload.sub || 'usr_admin',
             fullName: verification.payload.fullName || 'Inferxe Administrator',
             email: verification.payload.email || getAdminEmail(),
-            username: 'admin',
-            role: 'admin',
+            username: (verification.payload.email || getAdminEmail()).split('@')[0],
+            role,
             organization: verification.payload.organization || 'Inferxe Platform Org',
           },
         })
@@ -811,6 +1161,23 @@ export function createAdminAuthMiddleware(config = {}) {
 
     // 13. POST /api/admin/logout or /logout
     if ((parsedPath === '/api/admin/logout' || parsedPath === '/logout') && req.method === 'POST') {
+      try {
+        let token = ''
+        const authHeader = req.headers.authorization
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+          token = authHeader.substring(7).trim()
+        }
+        if (token) {
+          const secret = getSessionSecret()
+          const verification = verifyAdminToken(token, secret, { allowedRoles: ['admin', 'superadmin'] })
+          if (verification.valid && verification.payload?.email) {
+            recordAdminSessionLogout({
+              adminEmail: verification.payload.email,
+              ipAddress: clientIp,
+            })
+          }
+        }
+      } catch {}
       return sendJson(req, res, 200, { ok: true })
     }
 

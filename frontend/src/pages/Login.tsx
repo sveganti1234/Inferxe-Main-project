@@ -470,8 +470,13 @@ export default function Login({ initialMode }: LoginProps) {
 
         if (isAdminUser) {
           if (adminResult.ok) {
-            // Valid admin credentials: authenticate and open Admin Portal
-            navigate('/dashboard')
+            // Valid credentials: route to Superadmin or Admin portal based on role
+            const role = adminResult.session?.user?.role?.toLowerCase()
+            if (role === 'superadmin' || role === 'super_admin') {
+              navigate('/dashboard/superadmin')
+            } else {
+              navigate('/dashboard')
+            }
             return
           } else {
             // Invalid admin credentials, rate-limited, or server error: display server error

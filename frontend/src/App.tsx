@@ -28,6 +28,11 @@ const DashboardOverview = lazy(() => import('./pages/dashboard/DashboardOverview
 const MarketplaceWorkspace = lazy(() => import('./pages/dashboard/MarketplaceWorkspace'))
 const CustomerManagement = lazy(() => import('./pages/dashboard/CustomerManagement'))
 const CustomerVerdeloWorkspace = lazy(() => import('./components/dashboard/CustomerVerdeloWorkspace'))
+const SuperadminOverview = lazy(() => import('./pages/dashboard/superadmin/SuperadminOverview'))
+const AdminManagement = lazy(() => import('./pages/dashboard/superadmin/AdminManagement'))
+const AuditLogs = lazy(() => import('./pages/dashboard/superadmin/AuditLogs'))
+const InfrastructureTelemetry = lazy(() => import('./pages/dashboard/superadmin/InfrastructureTelemetry'))
+const KeyManagement = lazy(() => import('./pages/dashboard/superadmin/KeyManagement'))
 const SuperAdminOverview = lazy(() => import('./pages/dashboard/SuperAdminOverview'))
 const AdminAccounts = lazy(() => import('./pages/dashboard/AdminAccounts'))
 const AdminRoles = lazy(() => import('./pages/dashboard/AdminRoles'))
@@ -36,8 +41,10 @@ const AdminActivity = lazy(() => import('./pages/dashboard/AdminActivity'))
 const AdminAudit = lazy(() => import('./pages/dashboard/AdminAudit'))
 const SuperAdminFutureModule = lazy(() => import('./pages/dashboard/SuperAdminFutureModule'))
 import { CustomerHeartbeat } from './components/dashboard/CustomerHeartbeat'
+import { AdminShell } from './components/dashboard/AdminShell'
 const Login = lazy(() => import('./pages/Login'))
 import { AdminGuard } from './components/auth/AdminGuard'
+import { SuperadminGuard } from './components/auth/SuperadminGuard'
 import { CustomerGuard } from './components/auth/CustomerGuard'
 
 /** Scroll to top on route change, or to the #hash target when present. */
@@ -80,118 +87,80 @@ export default function App() {
         <CommandPalette />
         <Suspense fallback={<PageFallback />}>
           <Routes location={location}>
+            {/* ── Superadmin Portal Routes (Strict SuperadminGuard) ── */}
             <Route
-              path="/dashboard"
+              path="/dashboard/superadmin"
               element={
-                <AdminGuard>
-                  <DashboardOverview />
-                </AdminGuard>
+                <SuperadminGuard>
+                  <SuperadminOverview />
+                </SuperadminGuard>
               }
             />
             <Route
-              path="/dashboard/super-admin"
+              path="/dashboard/superadmin/admins"
               element={
-                <AdminGuard>
-                  <SuperAdminOverview />
-                </AdminGuard>
+                <SuperadminGuard>
+                  <AdminManagement />
+                </SuperadminGuard>
               }
             />
             <Route
-              path="/dashboard/super-admin/accounts"
+              path="/dashboard/superadmin/audit-logs"
               element={
-                <AdminGuard>
-                  <AdminAccounts />
-                </AdminGuard>
+                <SuperadminGuard>
+                  <AuditLogs />
+                </SuperadminGuard>
               }
             />
             <Route
-              path="/dashboard/super-admin/roles"
+              path="/dashboard/superadmin/telemetry"
               element={
-                <AdminGuard>
-                  <AdminRoles />
-                </AdminGuard>
+                <SuperadminGuard>
+                  <InfrastructureTelemetry />
+                </SuperadminGuard>
               }
             />
             <Route
-              path="/dashboard/super-admin/permissions"
+              path="/dashboard/superadmin/keys"
               element={
-                <AdminGuard>
-                  <AdminPermissions />
-                </AdminGuard>
+                <SuperadminGuard>
+                  <KeyManagement />
+                </SuperadminGuard>
               }
             />
+
+            {/* ── Admin Portal Routes (AdminGuard allows Admin and Superadmin) ── */}
             <Route
-              path="/dashboard/super-admin/activity"
               element={
                 <AdminGuard>
-                  <AdminActivity />
+                  <AdminShell />
                 </AdminGuard>
               }
-            />
-            <Route
-              path="/dashboard/super-admin/audit"
-              element={
-                <AdminGuard>
-                  <AdminAudit />
-                </AdminGuard>
-              }
-            />
-            <Route
-              path="/dashboard/super-admin/:module"
-              element={
-                <AdminGuard>
-                  <SuperAdminFutureModule />
-                </AdminGuard>
-              }
-            />
-            <Route
-              path="/dashboard/customers"
-              element={
-                <AdminGuard>
-                  <CustomerManagement />
-                </AdminGuard>
-              }
-            />
-            <Route
-              path="/dashboard/users"
-              element={
-                <AdminGuard>
-                  <UsersList />
-                </AdminGuard>
-              }
-            />
-            <Route
-              path="/dashboard/users/add"
-              element={
-                <AdminGuard>
-                  <AddUser />
-                </AdminGuard>
-              }
-            />
-            <Route
-              path="/dashboard/users/map"
-              element={
-                <AdminGuard>
-                  <MarketplaceWorkspace />
-                </AdminGuard>
-              }
-            />
-            <Route
-              path="/dashboard/provider"
-              element={
-                <AdminGuard>
-                  <MarketplaceWorkspace />
-                </AdminGuard>
-              }
-            />
-            <Route
-              path="/dashboard/provider/*"
-              element={
-                <AdminGuard>
-                  <MarketplaceWorkspace />
-                </AdminGuard>
-              }
-            />
+            >
+              {/* Super Admin Governance Modules (Integrated inside persistent AdminShell) */}
+              <Route path="/dashboard/super-admin" element={<SuperAdminOverview />} />
+              <Route path="/dashboard/super-admin/accounts" element={<AdminAccounts />} />
+              <Route path="/dashboard/super-admin/roles" element={<AdminRoles />} />
+              <Route path="/dashboard/super-admin/permissions" element={<AdminPermissions />} />
+              <Route path="/dashboard/super-admin/activity" element={<AdminActivity />} />
+              <Route path="/dashboard/super-admin/audit" element={<AdminAudit />} />
+              <Route path="/dashboard/super-admin/:module" element={<SuperAdminFutureModule />} />
+
+              <Route path="/dashboard" element={<DashboardOverview />} />
+              <Route path="/dashboard/customers" element={<CustomerManagement />} />
+              <Route path="/dashboard/users" element={<UsersList />} />
+              <Route path="/dashboard/users/add" element={<AddUser />} />
+              <Route path="/dashboard/users/map" element={<MarketplaceWorkspace />} />
+              <Route path="/dashboard/provider" element={<MarketplaceWorkspace />} />
+              <Route path="/dashboard/provider/listings" element={<MarketplaceWorkspace />} />
+              <Route path="/dashboard/provider/capacity" element={<MarketplaceWorkspace />} />
+              <Route path="/dashboard/provider/workloads" element={<MarketplaceWorkspace />} />
+              <Route path="/dashboard/provider/analytics" element={<MarketplaceWorkspace />} />
+              <Route path="/dashboard/provider/earnings" element={<MarketplaceWorkspace />} />
+              <Route path="/dashboard/provider/integrations" element={<MarketplaceWorkspace />} />
+              <Route path="/dashboard/provider/profile" element={<MarketplaceWorkspace />} />
+              <Route path="/dashboard/provider/*" element={<MarketplaceWorkspace />} />
+            </Route>
             <Route
               path="/dashboard/customer"
               element={

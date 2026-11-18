@@ -28,8 +28,8 @@ export function CustomerGuard({ children }: CustomerGuardProps) {
     const subpath = location.pathname.replace(/^\/dashboard\/?/, '')
     const isAdminRoute = subpath.startsWith('provider') || subpath === 'users/map'
 
-    // 2. Admin accounts accessing admin/provider routes are authorized; customer-only routes redirect to /dashboard
-    if (role === 'admin') {
+    // 2. Admin and Superadmin accounts accessing provider routes are authorized; customer-only routes redirect to admin dashboard
+    if (role === 'admin' || role === 'superadmin') {
       if (isAdminRoute) {
         setAuthState('authorized')
         return
