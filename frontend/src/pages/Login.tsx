@@ -1,4 +1,4 @@
-import { useState, useEffect, useId, type FormEvent } from 'react'
+import { useState, useEffect, useId, useRef, type FormEvent } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import {
   signIn,
@@ -61,6 +61,23 @@ function getPasswordResetError(err: unknown): string {
   }
 
   return 'Unable to reset your password. Please try again.'
+}
+
+/** Organization typed at sign-up: kept per email (never secrets) until the first sign-in syncs it to the profile. */
+const pendingOrgKey = (email: string) => `inferxe_pending_org_${email.trim().toLowerCase()}`
+
+function takePendingOrganization(email: string): { organization: string } | undefined {
+  try {
+    const key = pendingOrgKey(email)
+    const organization = localStorage.getItem(key)?.trim()
+    if (organization) {
+      localStorage.removeItem(key)
+      return { organization }
+    }
+  } catch {
+    // storage unavailable: the organization can still be set later in Settings
+  }
+  return undefined
 }
 
 /** Mirrors the user pool policy (8+ chars, upper, lower, digit). Cognito re-checks and reports any other rule. */
@@ -299,6 +316,7 @@ export default function Login({ initialMode }: LoginProps) {
   }, [location.search, navigate])
 
   const emailId = useId()
+  const adminBackendErrorRef = useRef<string | null>(null)
   const passwordId = useId()
   const nameId = useId()
   const orgId = useId()
@@ -335,7 +353,7 @@ export default function Login({ initialMode }: LoginProps) {
         const authSession = await fetchAuthSession()
         const idToken = authSession.tokens?.idToken?.toString()
         if (!idToken) throw new Error('Cognito did not return a signed-in customer token.')
-        const profile = await syncCustomerProfile(idToken)
+        const profile = await syncCustomerProfile(idToken, takePendingOrganization(cleanEmail))
         saveSession({
           token: idToken,
           user: {
@@ -344,6 +362,7 @@ export default function Login({ initialMode }: LoginProps) {
             email: profile.email,
             username: profile.username,
             role: profile.role,
+            organization: profile.organization || undefined,
           },
           expiresAt: (authSession.tokens?.idToken?.payload.exp as number) * 1000,
         })
@@ -377,7 +396,10 @@ export default function Login({ initialMode }: LoginProps) {
 
       // Never create a local session when Cognito rejects the sign-in: show the real reason instead.
       const pending = loadPendingVerification()
-      if (pending && pending.email === cleanEmail && (errName === 'NotAuthorizedException' || errName === 'UserNotFoundException' || errName === 'UserNotConfirmedException')) {
+      if ((errName === 'NotAuthorizedException' || errName === 'UserNotFoundException') && adminBackendErrorRef.current) {
+        // The admin sign-in backend failed before Cognito was tried: show that real cause instead.
+        setError(adminBackendErrorRef.current)
+      } else if (pending && pending.email === cleanEmail && (errName === 'NotAuthorizedException' || errName === 'UserNotFoundException' || errName === 'UserNotConfirmedException')) {
         // An unverified email alias cannot be used to sign in yet.
         setError('This email address has not been verified yet. Use "Enter verification code" below to finish verifying your account.')
       } else {
@@ -518,7 +540,7 @@ export default function Login({ initialMode }: LoginProps) {
           const authSession = await fetchAuthSession()
           const idToken = authSession.tokens?.idToken?.toString()
           if (!idToken) throw new Error('Cognito did not return a signed-in customer token.')
-          const profile = await syncCustomerProfile(idToken)
+          const profile = await syncCustomerProfile(idToken, takePendingOrganization(username))
           saveSession({
             token: idToken,
             user: {
@@ -527,6 +549,7 @@ export default function Login({ initialMode }: LoginProps) {
               email: profile.email,
               username: profile.username,
               role: profile.role,
+              organization: profile.organization || undefined,
             },
             expiresAt: (authSession.tokens?.idToken?.payload.exp as number) * 1000,
           })
@@ -543,6 +566,7 @@ export default function Login({ initialMode }: LoginProps) {
 
         // Validate credentials against the server-side admin authentication endpoint
         const adminResult = await loginAdminBackend(username, password)
+        adminBackendErrorRef.current = adminResult.backendError ? adminResult.error ?? null : null
 
         if (adminResult.isAdmin) {
           if (adminResult.ok) {
@@ -586,6 +610,13 @@ export default function Login({ initialMode }: LoginProps) {
         }
 
         const cleanEmail = email.trim().toLowerCase()
+        if (organization.trim()) {
+          try {
+            localStorage.setItem(pendingOrgKey(cleanEmail), organization.trim())
+          } catch {
+            // storage unavailable: the organization can be set later in Settings
+          }
+        }
 
         // Cognito User Pool is configured with email as a sign-in alias, not the username attribute.
         // The Username parameter must be a non-email unique identifier; the email is stored as a user attribute.

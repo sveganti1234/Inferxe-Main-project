@@ -45,7 +45,7 @@ def run_tests():
     assert data["budget_configured"] is False
     assert data["spending_alerts_enabled"] is True
     assert data["weekly_report_enabled"] is False
-    assert "current_month_spend" not in data
+    assert data["current_month_spend"] == 0.0  # real spend from wallet debits (new user: none)
     # Reading must not store a default that would later look like a configured budget
     assert client.get("/api/workspace/settings", headers=headers_a).json()["budget_configured"] is False
     print("      Unconfigured budget reported as not set; nothing stored on read")

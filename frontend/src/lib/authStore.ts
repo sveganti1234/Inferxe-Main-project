@@ -1,7 +1,7 @@
 import { updatePassword, signOut, fetchAuthSession } from 'aws-amplify/auth'
 
-export type PortalRole = 'customer' | 'admin'
-export type UserRole = 'customer' | 'provider' | 'admin' | 'developer' | 'viewer'
+export type PortalRole = 'customer' | 'admin' | 'superadmin'
+export type UserRole = 'customer' | 'provider' | 'admin' | 'superadmin' | 'super_admin' | 'developer' | 'viewer'
 
 export interface AuthSession {
   token: string
@@ -99,14 +99,14 @@ export function isPlausibleCognitoIdToken(token: string | null | undefined): boo
 function isPlausibleAdminSessionToken(token: string | null | undefined): boolean {
   if (!token || isLegacyFakeToken(token)) return false
   const claims = decodeJwt(token)
-  return Boolean(claims && claims.role === 'admin' && typeof claims.exp === 'number')
+  return Boolean(claims && (claims.role === 'admin' || claims.role === 'superadmin') && typeof claims.exp === 'number')
 }
 
 /** Structural check for a stored session; customer sessions must carry a Cognito ID token. */
 export function isPlausibleSession(session: AuthSession | null | undefined): session is AuthSession {
   if (!session || typeof session !== 'object' || typeof session.token !== 'string' || !session.user) return false
   if (isLegacyFakeToken(session.token)) return false
-  return getPortalRole(session.user.role) === 'admin'
+  return isAdminPortalRole(session.user.role)
     ? isPlausibleAdminSessionToken(session.token)
     : isPlausibleCognitoIdToken(session.token)
 }
@@ -119,10 +119,18 @@ export interface CustomerProfile {
   username: string
   role: UserRole
   status: string
+  organization?: string | null
   organizationId: string | null
 }
 
-export async function syncCustomerProfile(idToken: string): Promise<CustomerProfile> {
+export async function syncCustomerProfile(
+  idToken: string,
+  extraProfile?: { organization?: string },
+): Promise<CustomerProfile> {
+  const payload =
+    extraProfile && typeof extraProfile.organization === 'string' && extraProfile.organization.trim()
+      ? { organization: extraProfile.organization.trim() }
+      : {}
   try {
     const response = await fetch('/api/customer/profile/sync', {
       method: 'POST',
@@ -131,7 +139,7 @@ export async function syncCustomerProfile(idToken: string): Promise<CustomerProf
         'Content-Type': 'application/json',
         Accept: 'application/json',
       },
-      body: '{}',
+      body: JSON.stringify(payload),
     })
     const result = await response.json().catch(() => ({}))
     if (response.ok && result.ok && result.profile) {
@@ -153,6 +161,7 @@ export async function syncCustomerProfile(idToken: string): Promise<CustomerProf
     username,
     role: 'customer',
     status: 'active',
+    organization: payload.organization || null,
     organizationId: null,
   }
 }
@@ -160,8 +169,14 @@ export async function syncCustomerProfile(idToken: string): Promise<CustomerProf
 export function getPortalRole(role?: string): PortalRole {
   if (!role) return 'customer'
   const r = role.toLowerCase().trim()
-  if (r === 'admin' || r === 'super_admin') return 'admin'
+  if (r === 'superadmin' || r === 'super_admin') return 'superadmin'
+  if (r === 'admin') return 'admin'
   return 'customer'
+}
+
+/** Administrator portal roles (admin and superadmin) share the admin session handling. */
+export function isAdminPortalRole(role?: string): boolean {
+  return getPortalRole(role) !== 'customer'
 }
 
 /* ── Session storage ──
@@ -227,7 +242,7 @@ export function getSession(): AuthSession | null {
   const session = readStoredSession()
   if (!session) return null
   if (isSessionExpired(session)) {
-    if (getPortalRole(session.user.role) === 'admin') removeSessionRecord()
+    if (isAdminPortalRole(session.user.role)) removeSessionRecord()
     return null
   }
   return session
@@ -261,7 +276,7 @@ function isNetworkError(err: unknown): boolean {
 let refreshInFlight: Promise<AuthSession | null> | null = null
 
 /** Ask Amplify for the current Cognito session; Amplify refreshes expired tokens with its refresh token. */
-async function refreshCustomerSession(stored: AuthSession): Promise<AuthSession | null> {
+async function refreshStoredCustomerSession(stored: AuthSession): Promise<AuthSession | null> {
   try {
     let tokens = (await fetchAuthSession()).tokens
     let idToken = tokens?.idToken?.toString()
@@ -309,14 +324,25 @@ async function refreshCustomerSession(stored: AuthSession): Promise<AuthSession 
 export function ensureFreshSession(): Promise<AuthSession | null> {
   const stored = readStoredSession()
   if (!stored) return Promise.resolve(null)
-  if (getPortalRole(stored.user.role) === 'admin') return Promise.resolve(getSession())
+  if (isAdminPortalRole(stored.user.role)) return Promise.resolve(getSession())
   if (!isSessionExpired(stored, REFRESH_SKEW_SECONDS)) return Promise.resolve(stored)
   if (!refreshInFlight) {
-    refreshInFlight = refreshCustomerSession(stored).finally(() => {
+    refreshInFlight = refreshStoredCustomerSession(stored).finally(() => {
       refreshInFlight = null
     })
   }
   return refreshInFlight
+}
+
+/**
+ * Refresh the signed-in customer's Cognito ID token through Amplify (shared with ensureFreshSession).
+ * Only an existing customer session is refreshed, and only for the same Cognito user: leftover Amplify
+ * tokens never create a session on their own. `forceRefresh` is accepted for API compatibility.
+ */
+export async function refreshCustomerSession(_forceRefresh = false): Promise<AuthSession | null> {
+  const stored = readStoredSession()
+  if (!stored || isAdminPortalRole(stored.user.role)) return null
+  return refreshStoredCustomerSession(stored)
 }
 
 /** Remove Amplify's persisted tokens for this app client (used only if Amplify sign-out failed). */
@@ -342,7 +368,7 @@ function clearAmplifyTokenStore(): void {
  */
 export async function signOutCurrentUser(): Promise<void> {
   const stored = readStoredSession()
-  const isAdmin = stored ? getPortalRole(stored.user.role) === 'admin' : false
+  const isAdmin = stored ? isAdminPortalRole(stored.user.role) : false
   // Remove the application session first so nothing looks authenticated while sign-out runs.
   removeSessionRecord()
   // Signed-in assistant history is stored under fixed keys (chatStore SCOPE_STORAGE_KEYS; not imported to
@@ -357,6 +383,7 @@ export async function signOutCurrentUser(): Promise<void> {
     try {
       await fetch(`${ADMIN_API_BASE}/logout`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${stored.token}` },
         body: '{}',
       })
@@ -373,6 +400,12 @@ export async function signOutCurrentUser(): Promise<void> {
   } finally {
     removeSessionRecord()
   }
+}
+
+/** Sign out (see signOutCurrentUser) and leave the page with a history replace. */
+export async function performSignOut(redirectUrl = '/'): Promise<void> {
+  await signOutCurrentUser()
+  if (typeof window !== 'undefined') window.location.replace(redirectUrl)
 }
 
 const ADMIN_API_BASE =
@@ -398,13 +431,24 @@ export function isAdministratorEmail(email: string): boolean {
 export interface AdminLoginResult {
   ok: boolean
   isAdmin: boolean
+  backendError?: boolean
+  statusCode?: number
+  code?: string
   session?: AuthSession
   error?: string
 }
 
+export type AuthUser = AuthSession['user']
+
+export interface AdminVerifyResult {
+  valid: boolean
+  user?: AuthUser
+}
+
 /**
  * Validate submitted credentials against the backend admin authentication endpoint.
- * Credentials are verified exclusively on the server side.
+ * Credentials are verified exclusively on the server side against Supabase `admin_users`
+ * with Argon2 password verification and DB-backed `admin_sessions`.
  */
 export async function loginAdminBackend(
   email: string,
@@ -415,6 +459,7 @@ export async function loginAdminBackend(
   try {
     const res = await fetch(`${ADMIN_API_BASE}/login`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         Accept: 'application/json',
@@ -429,36 +474,50 @@ export async function loginAdminBackend(
         const session: AuthSession = {
           token: data.token,
           user: data.user,
-          expiresAt: data.expiresAt || Date.now() + 7 * 24 * 60 * 60 * 1000,
+          expiresAt: data.expiresAt || Date.now() + 12 * 60 * 60 * 1000,
         }
         saveSession(session)
-        return { ok: true, isAdmin: true, session }
+        return { ok: true, isAdmin: true, statusCode: res.status, session }
       }
-      // The server recognised an administrator account but rejected the credentials.
-      return {
-        ok: false,
-        isAdmin: true,
-        error:
-          (typeof data.error === 'string' && data.error) ||
-          'Incorrect email or password. Please verify your credentials and try again.',
+      if (!res.ok) {
+        return {
+          ok: false,
+          isAdmin: true,
+          backendError: res.status >= 500,
+          statusCode: res.status,
+          code: typeof data.code === 'string' ? data.code : undefined,
+          error:
+            data.error ||
+            (res.status >= 500
+              ? 'Administrator authentication service is temporarily unavailable.'
+              : 'Incorrect email or password. Please verify your credentials and try again.'),
+        }
       }
     }
 
-    if (data.isAdmin === false) {
-      return { ok: false, isAdmin: false }
+    if (res.ok && data.isAdmin === false) {
+      return { ok: false, isAdmin: false, statusCode: res.status }
+    }
+
+    if (!res.ok) {
+      return {
+        ok: false,
+        isAdmin: false,
+        backendError: res.status >= 500 || Boolean(data.backendError),
+        statusCode: res.status,
+        code: typeof data.code === 'string' ? data.code : undefined,
+        error:
+          data.error ||
+          'Administrator authentication service is currently unavailable. Please check backend configuration.',
+      }
     }
   } catch (err) {
     console.error('Admin backend login request failed:', err)
-  }
-
-  // The admin authentication server was unreachable or returned an unexpected response.
-  // Never authenticate locally: administrator-looking emails get an explicit error, and
-  // everyone else continues to AWS Cognito sign-in.
-  if (isAdministratorEmail(cleanEmail)) {
     return {
       ok: false,
-      isAdmin: true,
-      error: 'The administrator sign-in service is unavailable. Please try again shortly.',
+      isAdmin: false,
+      backendError: true,
+      error: 'Unable to reach the administrator authentication backend.',
     }
   }
 
@@ -466,13 +525,18 @@ export async function loginAdminBackend(
 }
 
 /**
- * Validate an active admin session token with the backend server.
+ * Validate an active admin session against the backend database-backed session store
+ * and return the authoritative server user record (including role).
  */
-export async function verifyAdminSessionServer(token: string): Promise<boolean> {
-  if (!token) return false
+export async function verifyAdminSessionWithDetails(token: string): Promise<AdminVerifyResult> {
+  if (!token || token.startsWith('ix-') || token === 'admin-dev-token') {
+    return { valid: false }
+  }
+
   try {
     const res = await fetch(`${ADMIN_API_BASE}/verify`, {
       method: 'POST',
+      credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
@@ -480,12 +544,45 @@ export async function verifyAdminSessionServer(token: string): Promise<boolean> 
       body: JSON.stringify({ token }),
     })
 
-    if (!res.ok) return false
+    if (!res.ok) {
+      return { valid: false }
+    }
+
     const data = await res.json().catch(() => ({}))
-    return Boolean(data.ok && data.valid)
+    if (!data.ok || !data.valid || !data.user) {
+      return { valid: false }
+    }
+
+    const currentSession = getSession()
+    if (currentSession && currentSession.token === token) {
+      const serverUser = data.user as AuthUser
+      if (
+        currentSession.user.role !== serverUser.role ||
+        currentSession.user.email !== serverUser.email ||
+        currentSession.user.id !== serverUser.id
+      ) {
+        saveSession({
+          ...currentSession,
+          user: {
+            ...currentSession.user,
+            ...serverUser,
+          },
+        })
+      }
+    }
+
+    return { valid: true, user: data.user as AuthUser }
   } catch {
-    return false
+    return { valid: false }
   }
+}
+
+/**
+ * Validate an active admin session token with the backend server.
+ */
+export async function verifyAdminSessionServer(token: string): Promise<boolean> {
+  const result = await verifyAdminSessionWithDetails(token)
+  return result.valid
 }
 
 export function getUserPasswordLastUpdated(email: string): string | null {
@@ -542,5 +639,259 @@ export async function changeUserPassword(
         : 'Unable to update your password.'
 
     return { ok: false, error: message }
+  }
+}
+
+export function emailToCognitoUsername(email: string): string {
+  const clean = email.trim().toLowerCase()
+  return clean.replace(/@/g, '_at_').replace(/[^a-zA-Z0-9_]/g, '_')
+}
+
+export interface SuperadminAdminRecord {
+  id: string
+  email: string
+  full_name: string
+  role: 'admin' | 'superadmin'
+  is_active?: boolean
+  status: 'active' | 'inactive' | 'suspended' | 'pending'
+  session_version?: number
+  created_at: string
+  updated_at?: string | null
+  last_login?: string | null
+  last_ip?: string
+  activity_count?: number
+}
+
+export interface SuperadminAuditLog {
+  id: string
+  admin_id?: string
+  admin_email: string
+  action: string
+  category: string
+  target_id?: string
+  target_type?: string
+  details: Record<string, unknown>
+  ip_address?: string
+  created_at: string
+}
+
+export interface SuperadminGpuCluster {
+  id: string
+  name: string
+  provider: string
+  region: string
+  status: 'healthy' | 'warning' | 'degraded'
+  uptime: string
+  totalNodes: number
+  activeNodes: number
+  gpus: Array<{
+    type: string
+    total: number
+    allocated: number
+    vramUsedGb: number
+    vramTotalGb: number
+    avgTempC: number
+    powerW: number
+  }>
+  spotRateHour: number
+  onDemandRateHour: number
+  marginPct: number
+}
+
+export interface SuperadminTelemetryData {
+  clusters: SuperadminGpuCluster[]
+  summary: {
+    totalGpuCount: number
+    allocatedGpuCount: number
+    utilizationPct: number
+    totalVramGb: number
+    usedVramGb: number
+    activeClusters: number
+    criticalAlerts: number
+    averageLatencyMs: number
+    globalHealthScore: number
+  }
+}
+
+export interface SuperadminKeyRecord {
+  id: string
+  name: string
+  type: 'API Key' | 'SSH Key'
+  owner_email: string
+  owner_name: string
+  role: string
+  prefix: string
+  created_at: string
+  last_used?: string
+  status: 'active' | 'revoked'
+  fingerprint?: string
+  rate_limit?: string
+}
+
+function getSuperadminAuthHeaders(): HeadersInit {
+  const session = getSession()
+  return {
+    'Content-Type': 'application/json',
+    Accept: 'application/json',
+    ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {}),
+  }
+}
+
+export async function fetchSuperadminAdmins(): Promise<{ ok: boolean; admins?: SuperadminAdminRecord[]; error?: string }> {
+  try {
+    const res = await fetch('/api/superadmin/admins', {
+      cache: 'no-store',
+      credentials: 'include',
+      headers: getSuperadminAuthHeaders(),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      return { ok: false, error: data.error || `HTTP ${res.status}` }
+    }
+    return { ok: true, admins: data.admins || [] }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Failed to fetch admin accounts.' }
+  }
+}
+
+export async function createDeveloperAdminAccount(input: {
+  email: string
+  password: string
+}): Promise<{
+  ok: boolean
+  admin?: SuperadminAdminRecord
+  statusCode?: number
+  code?: string
+  isDuplicate?: boolean
+  error?: string
+}> {
+  try {
+    const res = await fetch('/api/superadmin/admins', {
+      method: 'POST',
+      cache: 'no-store',
+      credentials: 'include',
+      headers: getSuperadminAuthHeaders(),
+      body: JSON.stringify({
+        email: input.email.trim().toLowerCase(),
+        password: input.password,
+      }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      const code = typeof data.code === 'string' ? data.code : undefined
+      return {
+        ok: false,
+        statusCode: res.status,
+        code,
+        isDuplicate: res.status === 409 || code === 'DUPLICATE_ADMIN_EMAIL',
+        error: data.error || `HTTP ${res.status}`,
+      }
+    }
+    return { ok: true, statusCode: res.status, admin: data.admin }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Failed to create developer admin account.' }
+  }
+}
+
+export async function updateAdminAccountStatus(
+  adminId: string,
+  status: 'active' | 'inactive' | 'suspended',
+  reason?: string,
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetch('/api/superadmin/admins/status', {
+      method: 'POST',
+      credentials: 'include',
+      headers: getSuperadminAuthHeaders(),
+      body: JSON.stringify({ admin_id: adminId, status, reason }),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      return { ok: false, error: data.error || `HTTP ${res.status}` }
+    }
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Failed to update admin account status.' }
+  }
+}
+
+export async function fetchSuperadminAuditLogs(params?: {
+  category?: string
+  search?: string
+  limit?: number
+  offset?: number
+}): Promise<{ ok: boolean; logs?: SuperadminAuditLog[]; total?: number; error?: string }> {
+  try {
+    const q = new URLSearchParams()
+    if (params?.category) q.set('category', params.category)
+    if (params?.search) q.set('search', params.search)
+    if (params?.limit) q.set('limit', String(params.limit))
+    if (params?.offset) q.set('offset', String(params.offset))
+
+    const res = await fetch(`/api/superadmin/audit-logs?${q.toString()}`, {
+      credentials: 'include',
+      headers: getSuperadminAuthHeaders(),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      return { ok: false, error: data.error || `HTTP ${res.status}` }
+    }
+    return { ok: true, logs: data.logs || [], total: data.total || 0 }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Failed to fetch audit logs.' }
+  }
+}
+
+export async function fetchSuperadminTelemetry(): Promise<{ ok: boolean; telemetry?: SuperadminTelemetryData; error?: string }> {
+  try {
+    const res = await fetch('/api/superadmin/telemetry', {
+      credentials: 'include',
+      headers: getSuperadminAuthHeaders(),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      return { ok: false, error: data.error || `HTTP ${res.status}` }
+    }
+    return { ok: true, telemetry: data.telemetry }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Failed to fetch GPU telemetry.' }
+  }
+}
+
+export async function fetchSuperadminKeys(): Promise<{ ok: boolean; keys?: SuperadminKeyRecord[]; error?: string }> {
+  try {
+    const res = await fetch('/api/superadmin/keys', {
+      credentials: 'include',
+      headers: getSuperadminAuthHeaders(),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      return { ok: false, error: data.error || `HTTP ${res.status}` }
+    }
+    return { ok: true, keys: data.keys || [] }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Failed to fetch keys.' }
+  }
+}
+
+export async function revokeSuperadminKey(
+  keyId: string,
+  keyType: 'api' | 'ssh',
+  reason?: string,
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetch('/api/superadmin/keys/revoke', {
+      method: 'POST',
+      credentials: 'include',
+      headers: getSuperadminAuthHeaders(),
+      body: JSON.stringify({ key_id: keyId, key_type: keyType, reason }),
+    })
+    const data = await res.json()
+    if (!res.ok) {
+      return { ok: false, error: data.error || `HTTP ${res.status}` }
+    }
+    return { ok: true }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Failed to revoke key.' }
   }
 }

@@ -18,7 +18,7 @@ import {
   createBackendApiKey,
   revokeBackendApiKey,
 } from '../../lib/apiKeyService'
-import { fetchWalletBalance, topUpWallet } from '../../lib/walletService'
+import { fetchWalletBalance, fetchWalletTransactionHistory, topUpWallet } from '../../lib/walletService'
 import {
   fetchBackendSshKeys,
   createBackendSshKey,
@@ -307,6 +307,8 @@ export default function MarketplaceWorkspace() {
     return 29053.31
   })
   const [transactions, setTransactions] = useState<TransactionItem[]>(() => readStore(transactionsStorageKey, []))
+  const [txHistoryLoading, setTxHistoryLoading] = useState<boolean>(true)
+  const [txHistoryError, setTxHistoryError] = useState<string | null>(null)
   const [notifications, setNotifications] = useState<NotificationItem[]>(() => readStore(STORE.notifications, initialNotifications))
 
   // Wallet usage computed from transactions (not hardcoded)
@@ -344,18 +346,43 @@ export default function MarketplaceWorkspace() {
     return () => clearInterval(interval)
   }, [])
 
-  // Sync wallet balance from backend (source of truth) on mount
+  // Sync wallet balance and transaction history from backend (source of truth) on mount
   useEffect(() => {
     let mounted = true
-    const syncWalletBalance = async () => {
-      const res = await fetchWalletBalance()
+    const syncWalletData = async () => {
+      // Sync balance
+      const balRes = await fetchWalletBalance()
       if (!mounted) return
-      if (res.ok && res.balance) {
-        setWalletBalance(res.balance.balance)
-        saveStore(walletStorageKey, res.balance.balance)
+      if (balRes.ok && balRes.balance) {
+        setWalletBalance(balRes.balance.balance)
+        saveStore(walletStorageKey, balRes.balance.balance)
+      }
+
+      // Sync transaction history
+      try {
+        const histRes = await fetchWalletTransactionHistory(50, 0)
+        if (!mounted) return
+        if (histRes.ok && histRes.history) {
+          const mapped: TransactionItem[] = histRes.history.transactions.map((tx) => ({
+            id: tx.id,
+            desc: tx.description || 'Wallet Transaction',
+            date: tx.created_at ? new Date(tx.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : new Date().toLocaleDateString('en-IN'),
+            amount: tx.amount,
+            isCredit: tx.direction === 'credit',
+            status: (tx.status === 'Completed' || tx.status === 'completed') ? 'Completed' : 'Pending',
+          }))
+          setTransactions(mapped)
+          saveStore(transactionsStorageKey, mapped)
+        } else {
+          setTxHistoryError(histRes.error || 'Failed to load transaction history')
+        }
+      } catch {
+        setTxHistoryError('Failed to load transaction history')
+      } finally {
+        if (mounted) setTxHistoryLoading(false)
       }
     }
-    void syncWalletBalance()
+    void syncWalletData()
     return () => {
       mounted = false
     }
@@ -965,19 +992,53 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
     let newBalance = currentBal + amountNum
     let txId = `tx_${Date.now().toString(36).toUpperCase()}_${Math.random().toString(36).substring(2, 6).toUpperCase()}`
 
-    // Attempt backend sync if a live session is available, but never block top-up if backend is offline or demo
+    // Attempt backend top-up; backend balance is the source of truth
+    let backendSynced = false
     try {
       const idemKey = `wallet_topup_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`
       const result = await topUpWallet(amountNum, idemKey, 'Wallet top-up')
       if (result.ok && result.result) {
         newBalance = result.result.new_balance
         txId = result.result.transaction_id
+        backendSynced = true
       }
     } catch {
       /* Proceed with compute ledger */
     }
 
-    // Always succeed locally so funds reflect instantly across all pages and widgets
+    // Always refresh balance from backend after top-up to ensure single source of truth
+    if (!backendSynced) {
+      try {
+        const res = await fetchWalletBalance()
+        if (res.ok && res.balance) {
+          newBalance = res.balance.balance
+          backendSynced = true
+        }
+      } catch {
+        /* keep locally computed balance as fallback */
+      }
+    }
+
+    // Refresh transaction history from backend after top-up
+    try {
+      const histRes = await fetchWalletTransactionHistory(50, 0)
+      if (histRes.ok && histRes.history) {
+        const mapped: TransactionItem[] = histRes.history.transactions.map((tx) => ({
+          id: tx.id,
+          desc: tx.description || 'Wallet Transaction',
+          date: tx.created_at ? new Date(tx.created_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : new Date().toLocaleDateString('en-IN'),
+          amount: tx.amount,
+          isCredit: tx.direction === 'credit',
+          status: (tx.status === 'Completed' || tx.status === 'completed') ? 'Completed' : 'Pending',
+        }))
+        setTransactions(mapped)
+        saveStore(transactionsStorageKey, mapped)
+      }
+    } catch {
+      /* keep existing localStorage transactions as fallback */
+    }
+
+    // Update local state and cache
     setWalletBalance(newBalance)
     saveStore(walletStorageKey, newBalance)
     try {
@@ -2158,8 +2219,15 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
             <div className="mw-panel">
               <div className="mw-panel-head">
                 <h3>Transaction History</h3>
-                <span className="mw-muted">{transactions.length} recorded</span>
+                <span className="mw-muted">
+                  {txHistoryLoading ? 'Syncing…' : `${transactions.length} recorded`}
+                </span>
               </div>
+              {txHistoryError && !txHistoryLoading && (
+                <div role="alert" className="mw-muted" style={{ color: 'var(--warn, #e0a800)', padding: '0 0 12px' }}>
+                  {txHistoryError}{transactions.length > 0 ? ' — showing locally cached transactions.' : ''}
+                </div>
+              )}
               <div className="mw-table-wrap">
                 <table className="mw-table">
                   <thead>
@@ -2176,7 +2244,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                     {transactions.length === 0 ? (
                       <tr>
                         <td colSpan={6} style={{ textAlign: 'center', color: 'var(--ink-4)', padding: 24 }}>
-                          No transactions recorded yet.
+                          {txHistoryLoading ? 'Loading transaction history…' : 'No transactions recorded yet.'}
                         </td>
                       </tr>
                     ) : (

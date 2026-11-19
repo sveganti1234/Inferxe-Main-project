@@ -1,5 +1,13 @@
 /* ───────────────────────────────────────────────────────────
-   Inferxe — Circular Reveal Transitions & Verdelo Dark Mode Theme
+   Inferxe — Customer Palette Theme & Visual System
+   Inspired by Verdelo/Fintech emerald and mint palette:
+   - Emerald Green (#0e5b3c / #15803d)
+   - Mint Green (#50e396 / #6ee7b7)
+   - Dark Forest Green (#08120d / #0b1712 / #0f1d16)
+   - Soft Sage Green (#8caba0 / #dfe6e1 / #e5ece7)
+   - Off-White (#f4f8f5 / #f7faf8)
+   - Pure White (#ffffff)
+   - Subtle Green Borders (rgba(80, 227, 150, 0.18) / #d6e0d9)
    ─────────────────────────────────────────────────────────── */
 
 /* ── 1. 🌊 Theme Change Animation (Circular Reveal & Ripple Wave) ── */
@@ -22,7 +30,6 @@
   z-index: 99999;
 }
 
-/* Cross-Browser Ripple Fallback (expanding radial wave in 500ms) */
 .dash-theme-ripple-wave {
   position: fixed;
   border-radius: 50%;
@@ -33,26 +40,8 @@
   will-change: transform, opacity;
 }
 
-html,
-body,
-.dash-shell,
-html[data-theme='dark'],
-body:has(.dash-shell),
-.dash-shell[data-theme='dark'] {
-  background-color: #030d09 !important;
-  background-image: 
-    radial-gradient(ellipse 75% 55% at 85% 15%, rgba(80, 227, 150, 0.22) 0%, transparent 60%),
-    radial-gradient(ellipse 65% 65% at 15% 85%, rgba(31, 100, 72, 0.20) 0%, transparent 55%),
-    linear-gradient(180deg, rgba(3, 13, 9, 0.40) 0%, rgba(3, 13, 9, 0.65) 100%),
-    url('/customer-bg.jpg') !important;
-  background-attachment: fixed !important;
-  background-size: cover !important;
-  background-position: center !important;
-  background-repeat: no-repeat !important;
-}
-
 .dash-theme-icon--sun {
-  color: #FBBF24 !important;
+  color: #fbbf24 !important;
   filter: drop-shadow(0 0 6px rgba(251, 191, 36, 0.6));
 }
 
@@ -61,53 +50,581 @@ body:has(.dash-shell),
   filter: drop-shadow(0 0 6px rgba(80, 227, 150, 0.6));
 }
 
-/* ── 2. 🎨 Dark Mode: Authentic Verdelo Obsidian-Emerald & Glassmorphic Surfaces ── */
+/* ── 2. Background Scoping & Ambient Visual Atmosphere (Customer Design System) ── */
 
+/* Typography & Antialiasing matching Verdelo */
+.dash-shell {
+  font-family: 'Urbanist', var(--font-body, system-ui, -apple-system, sans-serif) !important;
+  font-variant-numeric: tabular-nums !important;
+  -webkit-font-smoothing: antialiased !important;
+  -moz-osx-font-smoothing: grayscale !important;
+}
+
+.dash-shell button,
+.dash-shell input,
+.dash-shell select,
+.dash-shell textarea {
+  font-family: 'Urbanist', var(--font-body, system-ui, -apple-system, sans-serif) !important;
+}
+
+.dash-header-title {
+  font-family: 'Urbanist', var(--font-display, system-ui, sans-serif) !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.025em !important;
+}
+
+.dash-stat-value,
+.readout {
+  font-family: 'Urbanist', var(--font-display, system-ui, sans-serif) !important;
+  font-variant-numeric: tabular-nums !important;
+  letter-spacing: -0.03em !important;
+  font-weight: 700 !important;
+}
+
+/* Customer Workspace background */
+body:has(.dash-shell[data-role='customer']),
+.dash-shell[data-role='customer'] {
+  background-color: #030d09 !important;
+  background-image: 
+    radial-gradient(ellipse 75% 55% at 85% 15%, rgba(80, 227, 150, 0.22) 0%, transparent 60%),
+    radial-gradient(ellipse 65% 65% at 15% 85%, rgba(31, 100, 72, 0.20) 0%, transparent 55%),
+    linear-gradient(180deg, rgba(3, 13, 9, 0.40) 0%, rgba(3, 13, 9, 0.65) 100%),
+    url('/bermuda-marble.svg') !important;
+  background-attachment: fixed !important;
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+}
+
+/* Admin Portal Dark Canvas: Luminous emerald ambient lighting, rich forest surfaces */
+html:not([data-theme='light']),
+body:not(:has(.dash-shell[data-theme='light'])),
 .dash-shell:not([data-theme='light']),
 .dash-shell[data-theme='dark'] {
-  background-color: transparent !important;
+  background-color: #08120d !important;
+  background-image: 
+    radial-gradient(ellipse 85% 55% at 50% -15%, rgba(110, 224, 161, 0.14) 0%, transparent 65%),
+    radial-gradient(ellipse 65% 45% at 92% 15%, rgba(80, 227, 150, 0.10) 0%, transparent 55%),
+    radial-gradient(ellipse 60% 50% at 8% 85%, rgba(14, 91, 60, 0.16) 0%, transparent 55%),
+    radial-gradient(circle at 50% 50%, rgba(12, 20, 16, 0.55) 0%, transparent 100%) !important;
+  background-attachment: fixed !important;
   color: #ffffff;
-  --bg-0: #030d09;
-  --bg-1: #061510;
-  --bg-2: #091f18;
-  --bg-3: #0e2a20;
-  --bg-4: #13382c;
-  --bg-5: #1a4738;
+
+  /* Verdelo Exact Dark Tokens */
+  --bg-0: #08120d;
+  --bg-1: #0c1411;
+  --bg-2: #0f1d16;
+  --bg-3: #14261d;
+  --bg-4: #19362b;
+  --bg-5: #1e4235;
+  --card-bg: #0f1d16;
+  --elevated-surface: #14261d;
   --ink: #ffffff;
-  --ink-2: #e2f5ee;
+  --ink-2: #eef4ee;
   --ink-3: #8caba0;
   --ink-4: #567468;
-  --line: rgba(80, 227, 150, 0.12);
-  --line-2: rgba(80, 227, 150, 0.20);
-  --line-3: rgba(80, 227, 150, 0.32);
+  --line: rgba(220, 255, 236, 0.08);
+  --line-2: rgba(80, 227, 150, 0.22);
+  --line-3: rgba(80, 227, 150, 0.38);
   --brand: #50e396;
   --brand-hi: #50e396;
-  --brand-hi2: #6ee7b7;
-  --brand-lo: #1f6448;
+  --brand-hi2: #6ee0a1;
+  --brand-lo: #123d2b;
   --brand-ink: #041c12;
   --brand-glow: rgba(80, 227, 150, 0.45);
   --brand-soft: rgba(80, 227, 150, 0.16);
+  --border-color: rgba(220, 255, 236, 0.09);
+  --border-frame: rgba(220, 255, 236, 0.09);
+  --card-shadow: inset 0 1px 0 rgba(235, 255, 244, 0.18), 0 1px 2px rgba(0, 0, 0, 0.40), 0 22px 44px -26px rgba(0, 0, 0, 0.70);
 }
 
-/* Glassmorphic Top Header matching Verdelo palette */
+/* Admin Portal Light Canvas: Soft sage fintech surface, luminous off-white cards */
+html[data-theme='light'],
+body:has(.dash-shell[data-theme='light']),
+.dash-shell[data-theme='light'] {
+  background-color: #dfe6e1 !important;
+  background-image:
+    radial-gradient(ellipse 80% 55% at 50% -15%, rgba(255, 255, 255, 0.75) 0%, transparent 65%),
+    radial-gradient(ellipse 60% 45% at 90% 18%, rgba(14, 91, 60, 0.06) 0%, transparent 55%),
+    radial-gradient(ellipse 55% 50% at 10% 82%, rgba(14, 91, 60, 0.05) 0%, transparent 55%),
+    linear-gradient(180deg, #dfe6e1 0%, #e8efe9 100%) !important;
+  background-attachment: fixed !important;
+  color: #0f1d17 !important;
+
+  /* Verdelo Exact Light Tokens */
+  --bg-0: #dfe6e1;
+  --bg-1: #f4f8f5;
+  --bg-2: #ffffff;
+  --bg-3: #f0f5f2;
+  --bg-4: #e5ece7;
+  --bg-5: #cbdad0;
+  --card-bg: #ffffff;
+  --elevated-surface: #f0f5f2;
+  --ink: #0f1d17;
+  --ink-2: #26362e;
+  --ink-3: #4a5b52;
+  --ink-4: #6b7e74;
+  --line: rgba(15, 40, 28, 0.10);
+  --line-2: rgba(15, 40, 28, 0.18);
+  --line-3: #0e5b3c;
+  --brand: #0e5b3c;
+  --brand-hi: #0e5b3c;
+  --brand-hi2: #137a50;
+  --brand-lo: #e8efe9;
+  --brand-ink: #ffffff;
+  --brand-glow: rgba(14, 91, 60, 0.25);
+  --brand-soft: rgba(14, 91, 60, 0.12);
+  --border-color: rgba(15, 40, 28, 0.10);
+  --border-frame: rgba(15, 40, 28, 0.10);
+  --card-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.95), 0 1px 2px rgba(20, 50, 34, 0.06), 0 18px 40px -26px rgba(20, 50, 34, 0.20);
+}
+
+/* ── 2B. Rounded Application Shell (Verdelo Window Frame) ── */
+.dash-shell[data-role='admin'] .dash-window-frame {
+  margin: 14px 18px 18px;
+  border-radius: 26px;
+  background: #0c1411;
+  border: 1px solid rgba(220, 255, 236, 0.09);
+  box-shadow: 
+    inset 0 1px 0 rgba(220, 255, 236, 0.18),
+    inset 0 0 0 1px rgba(220, 255, 236, 0.04),
+    0 24px 65px -15px rgba(0, 0, 0, 0.75),
+    0 1px 2px rgba(0, 0, 0, 0.40);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 32px);
+}
+
+.dash-shell[data-theme='light'][data-role='admin'] .dash-window-frame {
+  margin: 14px 18px 18px;
+  border-radius: 26px;
+  background: #f4f8f5;
+  border: 1px solid rgba(15, 40, 28, 0.10);
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    0 20px 48px -12px rgba(15, 40, 28, 0.12),
+    0 1px 2px rgba(15, 40, 28, 0.06);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: calc(100vh - 32px);
+}
+
+@media (max-width: 900px) {
+  .dash-shell[data-role='admin'] .dash-window-frame {
+    margin: 0;
+    border-radius: 0;
+    border: none;
+    min-height: 100vh;
+  }
+}
+
+/* ── 3. Top Navigation Bar (Admin) ── */
 .dash-shell:not([data-theme='light']) .dash-topbar,
 .dash-shell[data-theme='dark'] .dash-topbar {
-  background: rgba(6, 21, 16, 0.88) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(140%) !important;
-  backdrop-filter: blur(20px) saturate(140%) !important;
-  border-bottom: 1px solid rgba(80, 227, 150, 0.14) !important;
+  background: #0c1210 !important;
+  border-bottom: 1px solid #1d3327 !important;
+  height: 68px !important;
+  padding: 0 24px !important;
 }
 
-/* Dedicated Sidebar Surface with crisp boundary */
+.dash-shell[data-theme='light'] .dash-topbar {
+  background: #f4f8f5 !important;
+  border-bottom: 1px solid #d6e0d9 !important;
+  box-shadow: 0 1px 6px rgba(15, 40, 28, 0.05) !important;
+  height: 68px !important;
+  padding: 0 24px !important;
+}
+
+/* Topbar Search Capsule & Circular Quick Actions */
+.verdelo-search-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #08120d !important;
+  border: 1.5px solid #1d3327 !important;
+  border-radius: 9999px !important;
+  padding: 7px 16px !important;
+  min-width: 280px;
+  max-width: 380px;
+  cursor: pointer;
+  outline: none !important;
+  transition: all 0.22s cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+
+/* Dark Theme Search Styling */
+.dash-shell:not([data-theme='light']) .verdelo-search-pill,
+.dash-shell[data-theme='dark'] .verdelo-search-pill {
+  background: #08120d !important;
+  border: 1.5px solid #1d3327 !important;
+  border-radius: 9999px !important;
+}
+
+.dash-shell:not([data-theme='light']) .verdelo-search-pill:hover,
+.dash-shell:not([data-theme='light']) .verdelo-search-pill:focus,
+.dash-shell:not([data-theme='light']) .verdelo-search-pill:focus-visible,
+.dash-shell:not([data-theme='light']) .verdelo-search-pill:focus-within,
+.dash-shell[data-theme='dark'] .verdelo-search-pill:hover,
+.dash-shell[data-theme='dark'] .verdelo-search-pill:focus,
+.dash-shell[data-theme='dark'] .verdelo-search-pill:focus-visible,
+.dash-shell[data-theme='dark'] .verdelo-search-pill:focus-within {
+  border-color: #50e396 !important;
+  box-shadow: 0 0 14px rgba(80, 227, 150, 0.28), 0 0 0 1px rgba(80, 227, 150, 0.20) !important;
+}
+
+.dash-shell:not([data-theme='light']) .verdelo-search-icon,
+.dash-shell[data-theme='dark'] .verdelo-search-icon {
+  color: #50e396 !important;
+  stroke: #50e396 !important;
+  transition: color 0.2s ease, stroke 0.2s ease !important;
+}
+
+.dash-shell:not([data-theme='light']) .verdelo-search-text,
+.dash-shell[data-theme='dark'] .verdelo-search-text {
+  font-size: 0.8rem !important;
+  color: #8caba0 !important;
+  font-weight: 500 !important;
+  transition: color 0.2s ease !important;
+}
+
+.dash-shell:not([data-theme='light']) .verdelo-search-pill input,
+.dash-shell[data-theme='dark'] .verdelo-search-pill input {
+  color: #eef4ee !important;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  font-size: 0.8rem !important;
+}
+
+.dash-shell:not([data-theme='light']) .verdelo-search-pill input::placeholder,
+.dash-shell[data-theme='dark'] .verdelo-search-pill input::placeholder {
+  color: #8caba0 !important;
+}
+
+.dash-shell:not([data-theme='light']) .verdelo-search-kbd,
+.dash-shell[data-theme='dark'] .verdelo-search-kbd {
+  font-size: 0.68rem !important;
+  background: rgba(80, 227, 150, 0.12) !important;
+  color: #50e396 !important;
+  border: 1px solid rgba(80, 227, 150, 0.28) !important;
+  border-radius: 6px !important;
+  padding: 2px 6px !important;
+  margin-left: auto !important;
+  font-family: var(--font-mono) !important;
+}
+
+/* Light Theme Search Styling */
+.dash-shell[data-theme='light'] .verdelo-search-pill {
+  background: #ffffff !important;
+  border: 1.5px solid #d6e0d9 !important;
+  border-radius: 9999px !important;
+  box-shadow: 0 2px 8px rgba(15, 40, 28, 0.04) !important;
+}
+
+.dash-shell[data-theme='light'] .verdelo-search-pill:hover,
+.dash-shell[data-theme='light'] .verdelo-search-pill:focus,
+.dash-shell[data-theme='light'] .verdelo-search-pill:focus-visible,
+.dash-shell[data-theme='light'] .verdelo-search-pill:focus-within {
+  border-color: #137a50 !important;
+  box-shadow: 0 0 0 3px rgba(19, 122, 80, 0.14), 0 2px 8px rgba(15, 40, 28, 0.08) !important;
+}
+
+.dash-shell[data-theme='light'] .verdelo-search-icon {
+  color: #137a50 !important;
+  stroke: #137a50 !important;
+  transition: color 0.2s ease, stroke 0.2s ease !important;
+}
+
+.dash-shell[data-theme='light'] .verdelo-search-text {
+  font-size: 0.8rem !important;
+  color: #729582 !important;
+  font-weight: 500 !important;
+  transition: color 0.2s ease !important;
+  text-shadow: none !important;
+}
+
+.dash-shell[data-theme='light'] .verdelo-search-pill input {
+  color: #0e5b3c !important;
+  background: transparent !important;
+  border: none !important;
+  outline: none !important;
+  font-size: 0.8rem !important;
+}
+
+.dash-shell[data-theme='light'] .verdelo-search-pill input::placeholder {
+  color: #729582 !important;
+}
+
+.dash-shell[data-theme='light'] .verdelo-search-kbd {
+  font-size: 0.68rem !important;
+  background: #eef4f0 !important;
+  color: #137a50 !important;
+  border: 1px solid #d2ded7 !important;
+  border-radius: 6px !important;
+  padding: 2px 6px !important;
+  margin-left: auto !important;
+  font-family: var(--font-mono) !important;
+}
+
+/* Circular Buttons */
+.verdelo-btn-circle {
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 50% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.18s cubic-bezier(0.22, 1, 0.36, 1) !important;
+  flex-shrink: 0 !important;
+}
+
+.verdelo-btn-circle--mint {
+  background: #50e396 !important;
+  color: #08120d !important;
+  border: none !important;
+  box-shadow: 0 2px 10px rgba(80, 227, 150, 0.45) !important;
+}
+
+.verdelo-btn-circle--mint:hover {
+  background: #6ee7b7 !important;
+  transform: scale(1.05) !important;
+  box-shadow: 0 4px 14px rgba(80, 227, 150, 0.6) !important;
+}
+
+.dash-shell[data-theme='light'] .verdelo-btn-circle--mint {
+  background: #0e5b3c !important;
+  color: #ffffff !important;
+  box-shadow: 0 2px 8px rgba(14, 91, 60, 0.3) !important;
+}
+
+.dash-shell[data-theme='light'] .verdelo-btn-circle--mint:hover {
+  background: #137a50 !important;
+}
+
+.verdelo-btn-circle--glass {
+  background: #08120d !important;
+  border: 1px solid #1d3327 !important;
+  color: #8caba0 !important;
+}
+
+.verdelo-btn-circle--glass:hover {
+  border-color: #50e396 !important;
+  color: #ffffff !important;
+  transform: scale(1.05) !important;
+}
+
+.dash-shell[data-theme='light'] .verdelo-btn-circle--glass {
+  background: #ffffff !important;
+  border: 1px solid #d6e0d9 !important;
+  color: #4a5b52 !important;
+}
+
+.dash-shell[data-theme='light'] .verdelo-btn-circle--glass:hover {
+  border-color: #0e5b3c !important;
+  color: #0f1d17 !important;
+}
+
+.dash-shell:not([data-theme='light']) .dash-topbar__btn-icon,
+.dash-shell:not([data-theme='light']) .dash-admin-profile,
+.dash-shell:not([data-theme='light']) .dash-topbar__status,
+.dash-shell[data-theme='dark'] .dash-topbar__btn-icon,
+.dash-shell[data-theme='dark'] .dash-admin-profile,
+.dash-shell[data-theme='dark'] .dash-topbar__status {
+  background: #0f1d16 !important;
+  border: 1px solid #1d3327 !important;
+  color: #ffffff !important;
+  border-radius: 9999px !important;
+}
+
+.dash-shell[data-theme='light'] .dash-topbar__btn-icon,
+.dash-shell[data-theme='light'] .dash-admin-profile,
+.dash-shell[data-theme='light'] .dash-topbar__status {
+  background: #ffffff !important;
+  border: 1px solid #d6e0d9 !important;
+  color: #0f1d17 !important;
+  border-radius: 9999px !important;
+}
+
+/* ── 4. Admin Sidebar (Preserving original rail layout, Customer Rounded-Pill Nav) ── */
 .dash-shell:not([data-theme='light']) .dash-sidebar,
 .dash-shell[data-theme='dark'] .dash-sidebar {
-  background: rgba(6, 21, 16, 0.94) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(140%) !important;
-  backdrop-filter: blur(20px) saturate(140%) !important;
-  border: 1px solid rgba(80, 227, 150, 0.14) !important;
+  background: #0c1210 !important;
+  border-right: 1px solid #1d3327 !important;
+  box-shadow: none !important;
 }
 
-/* Glassmorphic Elevated Surfaces with Specular Reflection & Border Highlights */
+.dash-shell[data-theme='light'] .dash-sidebar {
+  background: #f4f8f5 !important;
+  border-right: 1px solid #d6e0d9 !important;
+  box-shadow: none !important;
+}
+
+/* Admin Sidebar Nav Items & Floating Pill (Stable Position-Based Translation) */
+.dash-sidebar .dash-sidebar-nav-wrap {
+  position: relative !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+
+.dash-sidebar .dash-nav-section-btn {
+  position: relative !important;
+  z-index: 2 !important;
+}
+
+.dash-sidebar .dash-nav-list {
+  position: relative !important;
+  padding: 2px 2px 6px 2px !important;
+  box-sizing: border-box !important;
+}
+
+.dash-sidebar .dash-nav-pill {
+  position: absolute !important;
+  top: 0 !important;
+  left: 0 !important;
+  pointer-events: none !important;
+  opacity: 0;
+  z-index: 0 !important;
+  box-sizing: border-box !important;
+  transform: translate3d(0, 0, 0);
+  will-change: transform, opacity;
+  transition: transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+              width 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+              height 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+              opacity 0.2s ease,
+              border-radius 0.24s ease;
+}
+
+.dash-shell:not([data-theme='light']) .dash-sidebar .dash-nav-pill,
+.dash-shell[data-theme='dark'] .dash-sidebar .dash-nav-pill {
+  background: #50e396 !important;
+  box-shadow: 0 4px 14px rgba(80, 227, 150, 0.40) !important;
+}
+
+.dash-shell[data-theme='light'] .dash-sidebar .dash-nav-pill {
+  background: #0e5b3c !important;
+  box-shadow: 0 4px 12px rgba(14, 91, 60, 0.28) !important;
+}
+
+.dash-shell:not([data-theme='light']) .dash-sidebar .dash-nav-item,
+.dash-shell[data-theme='dark'] .dash-sidebar .dash-nav-item {
+  color: #8caba0 !important;
+  border-radius: 9999px !important;
+  height: 40px !important;
+  padding: 0 14px !important;
+  margin: 3px 0 !important;
+  border: 1px solid transparent !important;
+  transition: color 0.26s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+              background-color 0.22s ease !important;
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+.dash-shell:not([data-theme='light']) .dash-sidebar .dash-nav-item svg,
+.dash-shell[data-theme='dark'] .dash-sidebar .dash-nav-item svg {
+  color: #8caba0 !important;
+  transition: color 0.26s cubic-bezier(0.22, 1, 0.36, 1),
+              stroke 0.26s cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+
+.dash-shell:not([data-theme='light']) .dash-sidebar .dash-nav-item:hover:not(.is-active),
+.dash-shell[data-theme='dark'] .dash-sidebar .dash-nav-item:hover:not(.is-active) {
+  background: rgba(80, 227, 150, 0.08) !important;
+  color: #ffffff !important;
+  transform: translateX(3px) !important;
+}
+
+.dash-shell:not([data-theme='light']) .dash-sidebar .dash-nav-item.is-active,
+.dash-shell[data-theme='dark'] .dash-sidebar .dash-nav-item.is-active {
+  background: transparent !important;
+  border-color: transparent !important;
+  color: #08120d !important;
+  font-weight: 700 !important;
+  border-radius: 9999px !important;
+  box-shadow: none !important;
+  transform: translateX(0px) !important;
+}
+
+.dash-shell:not([data-theme='light']) .dash-sidebar .dash-nav-item.is-active::before,
+.dash-shell[data-theme='dark'] .dash-sidebar .dash-nav-item.is-active::before {
+  display: none !important;
+}
+
+.dash-shell:not([data-theme='light']) .dash-sidebar .dash-nav-item.is-active svg,
+.dash-shell[data-theme='dark'] .dash-sidebar .dash-nav-item.is-active svg {
+  color: #08120d !important;
+}
+
+.dash-shell[data-theme='light'] .dash-sidebar .dash-nav-item {
+  color: #4a5b52 !important;
+  border-radius: 9999px !important;
+  height: 40px !important;
+  padding: 0 14px !important;
+  margin: 3px 0 !important;
+  border: 1px solid transparent !important;
+  transition: color 0.26s cubic-bezier(0.22, 1, 0.36, 1),
+              transform 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+              background-color 0.22s ease !important;
+  position: relative !important;
+  z-index: 1 !important;
+}
+
+.dash-shell[data-theme='light'] .dash-sidebar .dash-nav-item svg {
+  color: #4a5b52 !important;
+  transition: color 0.26s cubic-bezier(0.22, 1, 0.36, 1),
+              stroke 0.26s cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+
+.dash-shell[data-theme='light'] .dash-sidebar .dash-nav-item:hover:not(.is-active) {
+  background: #f0f5f2 !important;
+  color: #0f1d17 !important;
+  transform: translateX(3px) !important;
+}
+
+.dash-shell[data-theme='light'] .dash-sidebar .dash-nav-item.is-active {
+  background: transparent !important;
+  border-color: transparent !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  border-radius: 9999px !important;
+  box-shadow: none !important;
+  transform: translateX(0px) !important;
+}
+
+.dash-shell[data-theme='light'] .dash-sidebar .dash-nav-item.is-active::before {
+  display: none !important;
+}
+
+.dash-shell[data-theme='light'] .dash-sidebar .dash-nav-item.is-active svg {
+  color: #ffffff !important;
+}
+
+/* Collapsed Sidebar Rail Mode */
+.dash-sidebar.is-collapsed .dash-nav-list {
+  padding: 2px 0 6px 0 !important;
+}
+
+.dash-sidebar.is-collapsed .dash-nav-item {
+  justify-content: center !important;
+  width: 44px !important;
+  height: 38px !important;
+  padding: 0 !important;
+  margin: 2px auto !important;
+  border-radius: 14px !important;
+}
+
+.dash-sidebar.is-collapsed .dash-nav-item:hover:not(.is-active) {
+  transform: none !important;
+}
+
+.dash-sidebar.is-collapsed .dash-nav-item.is-active {
+  transform: none !important;
+  border-radius: 14px !important;
+}
+
+/* ── 5. Admin Dashboard Cards, Panels & Bento Surfaces ── */
 .dash-shell:not([data-theme='light']) .dash-card,
 .dash-shell:not([data-theme='light']) .dash-stat-card,
 .dash-shell:not([data-theme='light']) .dash-panel-card,
@@ -121,7 +638,9 @@ body:has(.dash-shell),
 .dash-shell:not([data-theme='light']) .mw-gpu-card,
 .dash-shell:not([data-theme='light']) .mw-model-card,
 .dash-shell:not([data-theme='light']) .mw-modal,
+.dash-shell:not([data-theme='light']) .cust-table-card,
 .dash-shell:not([data-theme='light']) .xs-card,
+.dash-shell:not([data-theme='light']) .mw-geo-map-card,
 .dash-shell[data-theme='dark'] .dash-card,
 .dash-shell[data-theme='dark'] .dash-stat-card,
 .dash-shell[data-theme='dark'] .dash-panel-card,
@@ -135,151 +654,844 @@ body:has(.dash-shell),
 .dash-shell[data-theme='dark'] .mw-gpu-card,
 .dash-shell[data-theme='dark'] .mw-model-card,
 .dash-shell[data-theme='dark'] .mw-modal,
-.dash-shell[data-theme='dark'] .xs-card {
-  background: linear-gradient(145deg, rgba(9, 28, 20, 0.72) 0%, rgba(6, 20, 15, 0.85) 100%) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(140%) !important;
-  backdrop-filter: blur(20px) saturate(140%) !important;
-  border: 1px solid rgba(80, 227, 150, 0.14) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.08),
-    0 4px 16px rgba(0, 0, 0, 0.45) !important;
-  transition: transform 0.3s var(--ease), border-color 0.3s ease, box-shadow 0.3s ease, background 0.3s ease !important;
-}
-
-.dash-shell:not([data-theme='light']) .dash-modal,
-.dash-shell[data-theme='dark'] .dash-modal {
-  background: #061510 !important;
-  border: 1px solid rgba(80, 227, 150, 0.35) !important;
-  box-shadow:
-    0 24px 60px rgba(0, 0, 0, 0.95),
-    0 0 0 1px rgba(255, 255, 255, 0.08),
-    0 8px 24px rgba(80, 227, 150, 0.15) !important;
+.dash-shell[data-theme='dark'] .cust-table-card,
+.dash-shell[data-theme='dark'] .xs-card,
+.dash-shell[data-theme='dark'] .mw-geo-map-card {
+  background: linear-gradient(180deg, rgba(16, 29, 23, 0.94) 0%, rgba(11, 20, 16, 0.98) 100%) !important;
+  border: 1px solid rgba(220, 255, 236, 0.08) !important;
+  border-radius: 22px !important;
+  box-shadow: 
+    inset 0 1px 0 rgba(235, 255, 244, 0.18),
+    0 1px 2px rgba(0, 0, 0, 0.40),
+    0 22px 44px -26px rgba(0, 0, 0, 0.70) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  color: #ffffff !important;
 }
 
 .dash-shell:not([data-theme='light']) .dash-stat-card:hover,
 .dash-shell:not([data-theme='light']) .dash-panel-card:hover,
 .dash-shell:not([data-theme='light']) .dash-deploy-row:hover,
+.dash-shell:not([data-theme='light']) .mw-gpu-card:hover,
+.dash-shell:not([data-theme='light']) .mw-model-card:hover,
 .dash-shell[data-theme='dark'] .dash-stat-card:hover,
 .dash-shell[data-theme='dark'] .dash-panel-card:hover,
-.dash-shell[data-theme='dark'] .dash-deploy-row:hover {
-  background: linear-gradient(145deg, rgba(14, 38, 28, 0.82) 0%, rgba(9, 28, 20, 0.92) 100%) !important;
-  border-color: rgba(80, 227, 150, 0.38) !important;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.14),
-    0 16px 36px -12px rgba(0, 0, 0, 0.7),
-    0 0 28px -6px var(--brand-glow) !important;
+.dash-shell[data-theme='dark'] .dash-deploy-row:hover,
+.dash-shell[data-theme='dark'] .mw-gpu-card:hover,
+.dash-shell[data-theme='dark'] .mw-model-card:hover {
+  background: linear-gradient(180deg, rgba(20, 36, 28, 0.96) 0%, rgba(14, 25, 20, 0.99) 100%) !important;
+  border-color: rgba(80, 227, 150, 0.35) !important;
+  box-shadow: 
+    inset 0 1px 0 rgba(235, 255, 244, 0.30),
+    0 2px 6px rgba(0, 0, 0, 0.50),
+    0 32px 64px -22px rgba(0, 0, 0, 0.85) !important;
+  transform: translateY(-2px) !important;
 }
 
-/* Secondary Dark Surface Elements */
+/* Light Theme Cards */
+.dash-shell[data-theme='light'] .dash-card,
+.dash-shell[data-theme='light'] .dash-stat-card,
+.dash-shell[data-theme='light'] .dash-panel-card,
+.dash-shell[data-theme='light'] .dash-deploy-row,
+.dash-shell[data-theme='light'] .dash-role-card,
+.dash-shell[data-theme='light'] .dash-quota-card,
+.dash-shell[data-theme='light'] .dash-table-wrap,
+.dash-shell[data-theme='light'] .mw-panel,
+.dash-shell[data-theme='light'] .mw-card,
+.dash-shell[data-theme='light'] .mw-metric,
+.dash-shell[data-theme='light'] .mw-gpu-card,
+.dash-shell[data-theme='light'] .mw-model-card,
+.dash-shell[data-theme='light'] .mw-modal,
+.dash-shell[data-theme='light'] .cust-table-card,
+.dash-shell[data-theme='light'] .xs-card,
+.dash-shell[data-theme='light'] .mw-geo-map-card {
+  background: #ffffff !important;
+  border: 1px solid rgba(15, 40, 28, 0.10) !important;
+  border-radius: 22px !important;
+  box-shadow: 
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    0 1px 2px rgba(20, 50, 34, 0.06),
+    0 18px 40px -26px rgba(20, 50, 34, 0.20) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  color: #0f1d17 !important;
+}
+
+.dash-shell[data-theme='light'] .dash-stat-card:hover,
+.dash-shell[data-theme='light'] .dash-panel-card:hover,
+.dash-shell[data-theme='light'] .dash-deploy-row:hover,
+.dash-shell[data-theme='light'] .mw-gpu-card:hover,
+.dash-shell[data-theme='light'] .mw-model-card:hover {
+  background: #ffffff !important;
+  border-color: rgba(14, 91, 60, 0.38) !important;
+  box-shadow: 
+    inset 0 1px 0 #ffffff,
+    0 2px 6px rgba(20, 50, 34, 0.10),
+    0 30px 65px -24px rgba(20, 50, 34, 0.28) !important;
+  transform: translateY(-2px) !important;
+}
+
+/* ── 6. Tables & Data Lists ── */
+.dash-shell:not([data-theme='light']) .dash-table th,
+.dash-shell:not([data-theme='light']) .mw-table th,
+.dash-shell:not([data-theme='light']) .cust-table th,
+.dash-shell:not([data-theme='light']) .dash-deploy-header,
+.dash-shell[data-theme='dark'] .dash-table th,
+.dash-shell[data-theme='dark'] .mw-table th,
+.dash-shell[data-theme='dark'] .cust-table th,
+.dash-shell[data-theme='dark'] .dash-deploy-header {
+  background: rgba(14, 26, 20, 0.85) !important;
+  color: #8caba0 !important;
+  border-bottom: 1px solid rgba(220, 255, 236, 0.12) !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.02em !important;
+  padding: 14px 20px !important;
+}
+
+.dash-shell[data-theme='light'] .dash-table th,
+.dash-shell[data-theme='light'] .mw-table th,
+.dash-shell[data-theme='light'] .cust-table th,
+.dash-shell[data-theme='light'] .dash-deploy-header {
+  background: #f4f8f5 !important;
+  color: #4a5b52 !important;
+  border-bottom: 1px solid #d6e0d9 !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.02em !important;
+  padding: 14px 20px !important;
+}
+
+.dash-shell:not([data-theme='light']) .dash-table td,
+.dash-shell:not([data-theme='light']) .mw-table td,
+.dash-shell:not([data-theme='light']) .cust-table td,
+.dash-shell[data-theme='dark'] .dash-table td,
+.dash-shell[data-theme='dark'] .mw-table td,
+.dash-shell[data-theme='dark'] .cust-table td {
+  color: #ffffff !important;
+  border-bottom: 1px solid rgba(220, 255, 236, 0.06) !important;
+  padding: 14px 20px !important;
+}
+
+.dash-shell[data-theme='light'] .dash-table td,
+.dash-shell[data-theme='light'] .mw-table td,
+.dash-shell[data-theme='light'] .cust-table td {
+  color: #0f1d17 !important;
+  border-bottom: 1px solid #eef3f0 !important;
+  padding: 14px 20px !important;
+}
+
+.dash-shell:not([data-theme='light']) .dash-table tr:hover td,
+.dash-shell:not([data-theme='light']) .mw-table tr:hover td,
+.dash-shell:not([data-theme='light']) .cust-table tr:hover td,
+.dash-shell[data-theme='dark'] .dash-table tr:hover td,
+.dash-shell[data-theme='dark'] .mw-table tr:hover td,
+.dash-shell[data-theme='dark'] .cust-table tr:hover td {
+  background: rgba(80, 227, 150, 0.06) !important;
+}
+
+.dash-shell[data-theme='light'] .dash-table tr:hover td,
+.dash-shell[data-theme='light'] .mw-table tr:hover td,
+.dash-shell[data-theme='light'] .cust-table tr:hover td {
+  background: #f7faf8 !important;
+}
+
+/* ── 7. Controls, Inputs & Preset Filter Chips ── */
 .dash-shell:not([data-theme='light']) .dash-input,
-.dash-shell:not([data-theme='light']) .dash-chat-query,
-.dash-shell:not([data-theme='light']) .dash-deploy-gpu-badge,
-.dash-shell:not([data-theme='light']) .dash-topbar__btn-icon,
-.dash-shell:not([data-theme='light']) .dash-admin-profile,
-.dash-shell:not([data-theme='light']) .dash-theme-toggle,
-.dash-shell:not([data-theme='light']) .dash-topbar__status,
+.dash-shell:not([data-theme='light']) input[type="text"],
+.dash-shell:not([data-theme='light']) input[type="email"],
+.dash-shell:not([data-theme='light']) input[type="password"],
+.dash-shell:not([data-theme='light']) select,
 .dash-shell[data-theme='dark'] .dash-input,
-.dash-shell[data-theme='dark'] .dash-chat-query,
-.dash-shell[data-theme='dark'] .dash-deploy-gpu-badge,
-.dash-shell[data-theme='dark'] .dash-topbar__btn-icon,
-.dash-shell[data-theme='dark'] .dash-admin-profile,
-.dash-shell[data-theme='dark'] .dash-theme-toggle,
-.dash-shell[data-theme='dark'] .dash-topbar__status {
-  background: rgba(9, 28, 20, 0.85) !important;
-  border: 1px solid rgba(80, 227, 150, 0.16) !important;
+.dash-shell[data-theme='dark'] input[type="text"],
+.dash-shell[data-theme='dark'] input[type="email"],
+.dash-shell[data-theme='dark'] input[type="password"],
+.dash-shell[data-theme='dark'] select {
+  background: #09130f !important;
+  border: 1px solid rgba(220, 255, 236, 0.12) !important;
+  border-radius: 12px !important;
+  color: #ffffff !important;
+  transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1) !important;
 }
 
-/* Typography Hierarchy */
-.dash-shell:not([data-theme='light']) .dash-header-title,
-.dash-shell:not([data-theme='light']) .dash-form-title,
-.dash-shell:not([data-theme='light']) .dash-modal-title,
+.dash-shell:not([data-theme='light']) .dash-input:focus,
+.dash-shell[data-theme='dark'] .dash-input:focus {
+  border-color: #50e396 !important;
+  box-shadow: 0 0 0 2px rgba(80, 227, 150, 0.25) !important;
+}
+
+.dash-shell[data-theme='light'] .dash-input,
+.dash-shell[data-theme='light'] input[type="text"],
+.dash-shell[data-theme='light'] input[type="email"],
+.dash-shell[data-theme='light'] input[type="password"],
+.dash-shell[data-theme='light'] select {
+  background: #ffffff !important;
+  border: 1px solid #c9d6ce !important;
+  border-radius: 12px !important;
+  color: #0f1d17 !important;
+  transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+
+.dash-shell[data-theme='light'] .dash-input:focus {
+  border-color: #0e5b3c !important;
+  box-shadow: 0 0 0 2px rgba(14, 91, 60, 0.20) !important;
+}
+
+/* Preset Chips (Customer Management, Users Directory) */
+.dash-shell:not([data-theme='light']) .dash-preset-chip,
+.dash-shell[data-theme='dark'] .dash-preset-chip {
+  background: #0f1d16 !important;
+  border: 1px solid rgba(220, 255, 236, 0.12) !important;
+  border-radius: 9999px !important;
+  color: #8caba0 !important;
+  padding: 6px 14px !important;
+  font-weight: 500 !important;
+}
+
+.dash-shell:not([data-theme='light']) .dash-preset-chip:hover:not(.is-active),
+.dash-shell[data-theme='dark'] .dash-preset-chip:hover:not(.is-active) {
+  border-color: #50e396 !important;
+  color: #ffffff !important;
+  transform: translateY(-1px) !important;
+}
+
+.dash-shell:not([data-theme='light']) .dash-preset-chip.is-active,
+.dash-shell[data-theme='dark'] .dash-preset-chip.is-active {
+  background: #50e396 !important;
+  color: #062a16 !important;
+  font-weight: 700 !important;
+  border-color: #50e396 !important;
+  border-radius: 9999px !important;
+  box-shadow: 0 2px 10px rgba(80, 227, 150, 0.35) !important;
+}
+
+.dash-shell[data-theme='light'] .dash-preset-chip {
+  background: #ffffff !important;
+  border: 1px solid #d6e0d9 !important;
+  border-radius: 9999px !important;
+  color: #4a5b52 !important;
+  padding: 6px 14px !important;
+  font-weight: 500 !important;
+}
+
+.dash-shell[data-theme='light'] .dash-preset-chip:hover:not(.is-active) {
+  border-color: #0e5b3c !important;
+  color: #0f1d17 !important;
+  transform: translateY(-1px) !important;
+}
+
+.dash-shell[data-theme='light'] .dash-preset-chip.is-active {
+  background: #0e5b3c !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  border-color: #0e5b3c !important;
+  border-radius: 9999px !important;
+  box-shadow: 0 2px 8px rgba(14, 91, 60, 0.25) !important;
+}
+
+/* Telemetry Segmented Tabs & Pills */
+.dash-shell .dash-telemetry-tabs {
+  background: rgba(8, 18, 13, 0.65) !important;
+  border: 1px solid rgba(220, 255, 236, 0.08) !important;
+  border-radius: 9999px !important;
+  padding: 3px !important;
+  gap: 3px !important;
+}
+
+.dash-shell .dash-telemetry-tab {
+  border-radius: 9999px !important;
+  padding: 4px 12px !important;
+  font-size: 0.72rem !important;
+  font-weight: 600 !important;
+  color: #8caba0 !important;
+  transition: all 0.2s cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+
+.dash-shell:not([data-theme='light']) .dash-telemetry-tab.is-active,
+.dash-shell[data-theme='dark'] .dash-telemetry-tab.is-active {
+  background: #50e396 !important;
+  color: #08120d !important;
+  font-weight: 700 !important;
+  border-radius: 9999px !important;
+  box-shadow: 0 2px 10px rgba(80, 227, 150, 0.38) !important;
+}
+
+.dash-shell[data-theme='light'] .dash-telemetry-tabs {
+  background: #f0f5f2 !important;
+  border: 1px solid #d6e0d9 !important;
+}
+
+.dash-shell[data-theme='light'] .dash-telemetry-tab {
+  color: #4a5b52 !important;
+}
+
+.dash-shell[data-theme='light'] .dash-telemetry-tab.is-active {
+  background: #0e5b3c !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  border-radius: 9999px !important;
+  box-shadow: 0 2px 8px rgba(14, 91, 60, 0.25) !important;
+}
+
+/* Primary Action Buttons */
+.dash-shell .dash-btn-primary,
+.dash-shell .mw-primary {
+  border-radius: 9999px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.01em !important;
+  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.18s cubic-bezier(0.22, 1, 0.36, 1),
+              background 0.18s cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+
+.dash-shell:not([data-theme='light']) .dash-btn-primary,
+.dash-shell:not([data-theme='light']) .mw-primary,
+.dash-shell[data-theme='dark'] .dash-btn-primary,
+.dash-shell[data-theme='dark'] .mw-primary {
+  background: #50e396 !important;
+  color: #08120d !important;
+  border: none !important;
+  box-shadow: 0 4px 14px rgba(80, 227, 150, 0.40) !important;
+}
+
+.dash-shell:not([data-theme='light']) .dash-btn-primary:hover,
+.dash-shell:not([data-theme='light']) .mw-primary:hover,
+.dash-shell[data-theme='dark'] .dash-btn-primary:hover,
+.dash-shell[data-theme='dark'] .mw-primary:hover {
+  background: #6ee7b7 !important;
+  transform: translateY(-1px) scale(1.02) !important;
+  box-shadow: 0 6px 18px rgba(80, 227, 150, 0.55) !important;
+}
+
+.dash-shell[data-theme='light'] .dash-btn-primary,
+.dash-shell[data-theme='light'] .mw-primary {
+  background: #0e5b3c !important;
+  color: #ffffff !important;
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(14, 91, 60, 0.28) !important;
+}
+
+.dash-shell[data-theme='light'] .dash-btn-primary:hover,
+.dash-shell[data-theme='light'] .mw-primary:hover {
+  background: #137a50 !important;
+  transform: translateY(-1px) scale(1.02) !important;
+  box-shadow: 0 6px 16px rgba(14, 91, 60, 0.38) !important;
+}
+
+/* Sovereign Nodes Map card styling */
+.dash-shell .mw-geo-map-card {
+  border-radius: 22px !important;
+  overflow: hidden !important;
+}
+
+.dash-shell:not([data-theme='light']) .mw-geo-list-pane,
+.dash-shell[data-theme='dark'] .mw-geo-list-pane {
+  background: rgba(14, 25, 20, 0.75) !important;
+  border-right: 1px solid rgba(220, 255, 236, 0.08) !important;
+}
+
+.dash-shell[data-theme='light'] .mw-geo-list-pane {
+  background: #f8faf9 !important;
+  border-right: 1px solid #d6e0d9 !important;
+}
+
+/* Quota Card Progress Bar */
+.dash-shell .dash-quota-progress {
+  border-radius: 9999px !important;
+  background: rgba(0, 0, 0, 0.35) !important;
+  overflow: hidden !important;
+  height: 6px !important;
+}
+
+.dash-shell .dash-quota-bar {
+  background: linear-gradient(90deg, #137a50, #50e396) !important;
+  box-shadow: 0 0 10px rgba(80, 227, 150, 0.5) !important;
+  border-radius: 9999px !important;
+}
+
+.dash-shell[data-theme='light'] .dash-quota-progress {
+  background: #e5ece7 !important;
+}
+
+.dash-shell[data-theme='light'] .dash-quota-bar {
+  background: linear-gradient(90deg, #0e5b3c, #137a50) !important;
+  box-shadow: 0 0 6px rgba(14, 91, 60, 0.3) !important;
+}
+
+/* ── 8. Status Badges & Tags ── */
+.cust-status-badge--online,
+.tag--good {
+  background: rgba(80, 227, 150, 0.16) !important;
+  color: #50e396 !important;
+  border: 1px solid rgba(80, 227, 150, 0.35) !important;
+  border-radius: 9999px !important;
+}
+
+.dash-shell[data-theme='light'] .cust-status-badge--online,
+.dash-shell[data-theme='light'] .tag--good {
+  background: rgba(14, 91, 60, 0.12) !important;
+  color: #0e5b3c !important;
+  border-color: rgba(14, 91, 60, 0.3) !important;
+}
+
+.cust-status-badge--active,
+.tag--info {
+  background: rgba(56, 189, 248, 0.16) !important;
+  color: #38bdf8 !important;
+  border: 1px solid rgba(56, 189, 248, 0.35) !important;
+  border-radius: 9999px !important;
+}
+
+.dash-shell[data-theme='light'] .cust-status-badge--active,
+.dash-shell[data-theme='light'] .tag--info {
+  background: rgba(2, 132, 199, 0.12) !important;
+  color: #0284c7 !important;
+  border-color: rgba(2, 132, 199, 0.3) !important;
+}
+
+.cust-status-badge--inactive,
+.tag--warn {
+  background: rgba(245, 158, 11, 0.16) !important;
+  color: #fbbf24 !important;
+  border: 1px solid rgba(245, 158, 11, 0.35) !important;
+  border-radius: 9999px !important;
+}
+
+.dash-shell[data-theme='light'] .cust-status-badge--inactive,
+.dash-shell[data-theme='light'] .tag--warn {
+  background: rgba(217, 119, 6, 0.12) !important;
+  color: #d97706 !important;
+  border-color: rgba(217, 119, 6, 0.3) !important;
+}
+
+.tag--bad {
+  background: rgba(239, 68, 68, 0.16) !important;
+  color: #f87171 !important;
+  border: 1px solid rgba(239, 68, 68, 0.35) !important;
+  border-radius: 9999px !important;
+}
+
+/* ── 9. High-Contrast Typography & Admin Heading System ── */
+.dash-shell:not([data-theme='light']) .dash-stat-value,
 .dash-shell:not([data-theme='light']) .dash-admin-name,
 .dash-shell:not([data-theme='light']) .dash-deploy-name,
 .dash-shell:not([data-theme='light']) .dash-deploy-price,
-.dash-shell:not([data-theme='light']) .dash-stat-value,
-.dash-shell:not([data-theme='light']) .dash-table td,
-.dash-shell:not([data-theme='light']) .dash-input,
-.dash-shell:not([data-theme='light']) .dash-role-card__title,
-.dash-shell:not([data-theme='light']) .mw-panel h2,
-.dash-shell:not([data-theme='light']) .mw-panel h3,
-.dash-shell:not([data-theme='light']) .mw-table td,
-.dash-shell:not([data-theme='light']) .mw-list-main strong,
-.dash-shell:not([data-theme='light']) .xs-card__head strong,
-.dash-shell[data-theme='dark'] .dash-header-title,
-.dash-shell[data-theme='dark'] .dash-form-title,
-.dash-shell[data-theme='dark'] .dash-modal-title,
+.dash-shell[data-theme='dark'] .dash-stat-value,
 .dash-shell[data-theme='dark'] .dash-admin-name,
 .dash-shell[data-theme='dark'] .dash-deploy-name,
-.dash-shell[data-theme='dark'] .dash-deploy-price,
-.dash-shell[data-theme='dark'] .dash-stat-value,
-.dash-shell[data-theme='dark'] .dash-table td,
-.dash-shell[data-theme='dark'] .dash-input,
-.dash-shell[data-theme='dark'] .dash-role-card__title,
-.dash-shell[data-theme='dark'] .mw-panel h2,
-.dash-shell[data-theme='dark'] .mw-panel h3,
-.dash-shell[data-theme='dark'] .mw-table td,
-.dash-shell[data-theme='dark'] .mw-list-main strong,
-.dash-shell[data-theme='dark'] .xs-card__head strong {
+.dash-shell[data-theme='dark'] .dash-deploy-price {
   color: #ffffff !important;
 }
 
-/* Secondary Crisp Text */
 .dash-shell:not([data-theme='light']) .dash-header-desc,
-.dash-shell:not([data-theme='light']) .dash-form-desc,
-.dash-shell:not([data-theme='light']) .dash-nav-item,
 .dash-shell:not([data-theme='light']) .dash-stat-label,
-.dash-shell:not([data-theme='light']) .dash-panel-title,
-.dash-shell:not([data-theme='light']) .dash-deploy-model,
-.dash-shell:not([data-theme='light']) .dash-deploy-status,
-.dash-shell:not([data-theme='light']) .dash-label,
-.dash-shell:not([data-theme='light']) .dash-topbar__status,
-.dash-shell:not([data-theme='light']) .dash-role-card__desc,
-.dash-shell:not([data-theme='light']) .mw-table th,
-.dash-shell:not([data-theme='light']) .mw-metric-lbl,
-.dash-shell:not([data-theme='light']) .xs-label,
-.dash-shell:not([data-theme='light']) .xs-note,
+.dash-shell:not([data-theme='light']) .dash-nav-section-title,
+.dash-shell:not([data-theme='light']) .dash-nav-group-title,
 .dash-shell[data-theme='dark'] .dash-header-desc,
-.dash-shell[data-theme='dark'] .dash-form-desc,
-.dash-shell[data-theme='dark'] .dash-nav-item,
 .dash-shell[data-theme='dark'] .dash-stat-label,
-.dash-shell[data-theme='dark'] .dash-panel-title,
-.dash-shell[data-theme='dark'] .dash-deploy-model,
-.dash-shell[data-theme='dark'] .dash-deploy-status,
-.dash-shell[data-theme='dark'] .dash-label,
-.dash-shell[data-theme='dark'] .dash-topbar__status,
-.dash-shell[data-theme='dark'] .dash-role-card__desc,
-.dash-shell[data-theme='dark'] .mw-table th,
-.dash-shell[data-theme='dark'] .mw-metric-lbl,
-.dash-shell[data-theme='dark'] .xs-label,
-.dash-shell[data-theme='dark'] .xs-note {
-  color: #e2f5ee !important;
+.dash-shell[data-theme='dark'] .dash-nav-section-title,
+.dash-shell[data-theme='dark'] .dash-nav-group-title {
+  color: #8caba0 !important;
 }
 
-/* Tertiary Metadata / Timestamps */
-.dash-shell:not([data-theme='light']) .dash-nav-section-title,
-.dash-shell:not([data-theme='light']) .dash-help,
-.dash-shell:not([data-theme='light']) .dash-meta,
-.dash-shell:not([data-theme='light']) .dash-breadcrumb a,
-.dash-shell:not([data-theme='light']) .dash-breadcrumb__sep,
-.dash-shell:not([data-theme='light']) .dash-quota-card__label,
-.dash-shell:not([data-theme='light']) .dash-quota-card__sub,
-.dash-shell:not([data-theme='light']) .dash-field-hint,
-.dash-shell:not([data-theme='light']) .mw-footnote,
-.dash-shell:not([data-theme='light']) .mw-list-main small,
-.dash-shell:not([data-theme='light']) .mw-notification small,
-.dash-shell:not([data-theme='light']) .xs-card__head small,
-.dash-shell[data-theme='dark'] .dash-nav-section-title,
-.dash-shell[data-theme='dark'] .dash-help,
-.dash-shell[data-theme='dark'] .dash-meta,
-.dash-shell[data-theme='dark'] .dash-breadcrumb a,
-.dash-shell[data-theme='dark'] .dash-breadcrumb__sep,
-.dash-shell[data-theme='dark'] .dash-quota-card__label,
-.dash-shell[data-theme='dark'] .dash-quota-card__sub,
-.dash-shell[data-theme='dark'] .dash-field-hint,
-.dash-shell[data-theme='dark'] .mw-footnote,
-.dash-shell[data-theme='dark'] .mw-list-main small,
-.dash-shell[data-theme='dark'] .mw-notification small,
-.dash-shell[data-theme='dark'] .xs-card__head small {
+.dash-shell[data-theme='light'] .dash-stat-value,
+.dash-shell[data-theme='light'] .dash-admin-name,
+.dash-shell[data-theme='light'] .dash-deploy-name,
+.dash-shell[data-theme='light'] .dash-deploy-price {
+  color: #0f1d17 !important;
+}
+
+.dash-shell[data-theme='light'] .dash-header-desc,
+.dash-shell[data-theme='light'] .dash-stat-label,
+.dash-shell[data-theme='light'] .dash-nav-section-title,
+.dash-shell[data-theme='light'] .dash-nav-group-title {
+  color: #4a5b52 !important;
+}
+
+/* ── Admin Dashboard Section Heading Typography (Premium Refinement) ── */
+
+/* Light Theme Admin Headings:
+   - Heading colour: #123D2D (dark forest green)
+   - Subtle text shadow: 0 2px 5px rgba(8, 18, 13, 0.10)
+   - Preserves font family, font size, font weight, and alignment
+   - Consistent across Overview, Customers, Users, GPU Listings, Capacity, etc.
+   - Strictly scoped away from Customer Portal */
+.dash-shell:not([data-role='customer'])[data-theme='light'] .dash-header-title,
+.dash-shell:not([data-role='customer'])[data-theme='light'] .dash-header-row h1,
+.dash-shell:not([data-role='customer'])[data-theme='light'] .dash-section-title,
+.dash-shell:not([data-role='customer'])[data-theme='light'] .dash-panel-title,
+.dash-shell:not([data-role='customer'])[data-theme='light'] .dash-modal-title,
+.dash-shell:not([data-role='customer'])[data-theme='light'] .dash-modal__title,
+.dash-shell:not([data-role='customer'])[data-theme='light'] .dash-form-title,
+.dash-shell:not([data-role='customer'])[data-theme='light'] .verdelo-section-title,
+.dash-shell:not([data-role='customer'])[data-theme='light'] .mw-panel h2,
+.dash-shell:not([data-role='customer'])[data-theme='light'] .mw-panel h3,
+.dash-shell:not([data-role='customer'])[data-theme='light'] .mw-page h1,
+.dash-shell:not([data-role='customer'])[data-theme='light'] .mw-page h2,
+.dash-shell:not([data-role='customer'])[data-theme='light'] .mw-header h1,
+.dash-shell:not([data-role='customer'])[data-theme='light'] .mw-header h2,
+.dash-shell:not([data-role='customer'])[data-theme='light'] .cust-drawer-header h3,
+.dash-shell:not([data-role='customer'])[data-theme='light'] .dash-drawer h3,
+.dash-shell:not([data-role='customer'])[data-theme='light'] .dash-main h1,
+.dash-shell:not([data-role='customer'])[data-theme='light'] .dash-main h2,
+.dash-shell:not([data-role='customer'])[data-theme='light'] .dash-main h3 {
+  color: #123D2D !important;
+  text-shadow: 0 2px 5px rgba(8, 18, 13, 0.10) !important;
+}
+
+/* Dark Theme Admin Headings:
+   - Soft white / light sage text: #eef4ee
+   - Extremely subtle shadow: 0 1px 3px rgba(0, 0, 0, 0.25)
+   - Preserves font family, font size, font weight, and alignment
+   - Consistent across Overview, Customers, Users, GPU Listings, Capacity, etc.
+   - Strictly scoped away from Customer Portal */
+.dash-shell:not([data-role='customer']):not([data-theme='light']) .dash-header-title,
+.dash-shell:not([data-role='customer']):not([data-theme='light']) .dash-header-row h1,
+.dash-shell:not([data-role='customer']):not([data-theme='light']) .dash-section-title,
+.dash-shell:not([data-role='customer']):not([data-theme='light']) .dash-panel-title,
+.dash-shell:not([data-role='customer']):not([data-theme='light']) .dash-modal-title,
+.dash-shell:not([data-role='customer']):not([data-theme='light']) .dash-modal__title,
+.dash-shell:not([data-role='customer']):not([data-theme='light']) .dash-form-title,
+.dash-shell:not([data-role='customer']):not([data-theme='light']) .verdelo-section-title,
+.dash-shell:not([data-role='customer']):not([data-theme='light']) .mw-panel h2,
+.dash-shell:not([data-role='customer']):not([data-theme='light']) .mw-panel h3,
+.dash-shell:not([data-role='customer']):not([data-theme='light']) .mw-page h1,
+.dash-shell:not([data-role='customer']):not([data-theme='light']) .mw-page h2,
+.dash-shell:not([data-role='customer']):not([data-theme='light']) .mw-header h1,
+.dash-shell:not([data-role='customer']):not([data-theme='light']) .mw-header h2,
+.dash-shell:not([data-role='customer']):not([data-theme='light']) .cust-drawer-header h3,
+.dash-shell:not([data-role='customer']):not([data-theme='light']) .dash-drawer h3,
+.dash-shell:not([data-role='customer']):not([data-theme='light']) .dash-main h1,
+.dash-shell:not([data-role='customer']):not([data-theme='light']) .dash-main h2,
+.dash-shell:not([data-role='customer']):not([data-theme='light']) .dash-main h3,
+.dash-shell:not([data-role='customer'])[data-theme='dark'] .dash-header-title,
+.dash-shell:not([data-role='customer'])[data-theme='dark'] .dash-header-row h1,
+.dash-shell:not([data-role='customer'])[data-theme='dark'] .dash-section-title,
+.dash-shell:not([data-role='customer'])[data-theme='dark'] .dash-panel-title,
+.dash-shell:not([data-role='customer'])[data-theme='dark'] .dash-modal-title,
+.dash-shell:not([data-role='customer'])[data-theme='dark'] .dash-modal__title,
+.dash-shell:not([data-role='customer'])[data-theme='dark'] .dash-form-title,
+.dash-shell:not([data-role='customer'])[data-theme='dark'] .verdelo-section-title,
+.dash-shell:not([data-role='customer'])[data-theme='dark'] .mw-panel h2,
+.dash-shell:not([data-role='customer'])[data-theme='dark'] .mw-panel h3,
+.dash-shell:not([data-role='customer'])[data-theme='dark'] .mw-page h1,
+.dash-shell:not([data-role='customer'])[data-theme='dark'] .mw-page h2,
+.dash-shell:not([data-role='customer'])[data-theme='dark'] .mw-header h1,
+.dash-shell:not([data-role='customer'])[data-theme='dark'] .mw-header h2,
+.dash-shell:not([data-role='customer'])[data-theme='dark'] .cust-drawer-header h3,
+.dash-shell:not([data-role='customer'])[data-theme='dark'] .dash-drawer h3,
+.dash-shell:not([data-role='customer'])[data-theme='dark'] .dash-main h1,
+.dash-shell:not([data-role='customer'])[data-theme='dark'] .dash-main h2,
+.dash-shell:not([data-role='customer'])[data-theme='dark'] .dash-main h3 {
+  color: #eef4ee !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25) !important;
+}
+
+/* Modals & Dialogs */
+.dash-shell:not([data-theme='light']) .dash-modal,
+.dash-shell[data-theme='dark'] .dash-modal {
+  background: #0a1510 !important;
+  border: 1px solid rgba(80, 227, 150, 0.35) !important;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.85) !important;
+  color: #ffffff !important;
+  animation: adminModalPopIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+
+.dash-shell[data-theme='light'] .dash-modal {
+  background: #ffffff !important;
+  border: 1px solid #d6e0d9 !important;
+  box-shadow: 0 20px 50px rgba(15, 40, 28, 0.12) !important;
+  color: #0f1d17 !important;
+  animation: adminModalPopIn 0.28s cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+
+/* ── 10. Admin Animation & Micro-Interactions (Customer Reference Easing) ── */
+:root {
+  --admin-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Card Transitions & Entrance */
+.dash-shell .dash-card,
+.dash-shell .dash-stat-card,
+.dash-shell .dash-panel-card,
+.dash-shell .dash-deploy-row,
+.dash-shell .cust-table-card,
+.dash-shell .xs-card,
+.dash-shell .mw-card,
+.dash-shell .mw-gpu-card,
+.dash-shell .mw-geo-map-card {
+  transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+              border-color 0.24s cubic-bezier(0.22, 1, 0.36, 1),
+              background 0.24s cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+
+.dash-shell .dash-stat-card:hover,
+.dash-shell .dash-panel-card:hover,
+.dash-shell .dash-deploy-row:hover,
+.dash-shell .mw-gpu-card:hover {
+  transform: translateY(-2px) !important;
+}
+
+/* Button Micro-Interactions (Verdelo-style press & spring) */
+.dash-shell button,
+.dash-shell .dash-btn,
+.dash-shell .dash-btn-primary,
+.dash-shell .dash-btn-ghost,
+.dash-shell .dash-btn-outline,
+.dash-shell .dash-preset-chip {
+  transition: transform 0.16s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.16s cubic-bezier(0.22, 1, 0.36, 1),
+              background 0.16s cubic-bezier(0.22, 1, 0.36, 1),
+              border-color 0.16s cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+
+.dash-shell button:active,
+.dash-shell .dash-btn:active,
+.dash-shell .dash-btn-primary:active,
+.dash-shell .dash-btn-ghost:active,
+.dash-shell .dash-preset-chip:active {
+  transform: translateY(0.5px) scale(0.98) !important;
+}
+
+/* Table Row Micro-Transitions */
+.dash-shell .dash-table tr,
+.dash-shell .mw-table tr,
+.dash-shell .cust-table tr {
+  transition: background 0.18s cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+
+/* KPI Stat Cards & Spacing */
+.dash-shell .dash-stats-row {
+  gap: 16px !important;
+}
+
+.dash-shell .dash-stat-card {
+  padding: 22px 24px 18px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  justify-content: space-between !important;
+}
+
+.dash-shell .dash-panel-card {
+  padding: 24px !important;
+}
+
+.dash-shell:not([data-theme='light']) .dash-stat-label,
+.dash-shell[data-theme='dark'] .dash-stat-label {
+  font-family: 'Urbanist', system-ui, sans-serif !important;
+  font-size: 0.78rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.02em !important;
+  text-transform: none !important;
   color: #8caba0 !important;
-  font-weight: 500 !important;
+}
+
+.dash-shell[data-theme='light'] .dash-stat-label {
+  font-family: 'Urbanist', system-ui, sans-serif !important;
+  font-size: 0.78rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.02em !important;
+  text-transform: none !important;
+  color: #4a5b52 !important;
+}
+
+.dash-shell:not([data-theme='light']) .dash-stat-value,
+.dash-shell[data-theme='dark'] .dash-stat-value {
+  font-family: 'Urbanist', system-ui, sans-serif !important;
+  font-variant-numeric: tabular-nums !important;
+  font-size: 2.15rem !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.03em !important;
+  line-height: 1.15 !important;
+  margin: 6px 0 10px !important;
+  color: #ffffff !important;
+  text-shadow: none !important;
+}
+
+.dash-shell[data-theme='light'] .dash-stat-value {
+  font-family: 'Urbanist', system-ui, sans-serif !important;
+  font-variant-numeric: tabular-nums !important;
+  font-size: 2.15rem !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.03em !important;
+  line-height: 1.15 !important;
+  margin: 6px 0 10px !important;
+  color: #0f1d17 !important;
+  text-shadow: none !important;
+}
+
+.dash-shell[data-theme='light'] .dash-sparkline-wrap svg path {
+  stroke: #0e5b3c !important;
+  filter: drop-shadow(0 1px 3px rgba(14, 91, 60, 0.25)) !important;
+}
+
+/* Retention Notice Pill */
+.dash-shell .cust-retention-pill {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  padding: 12px 18px !important;
+  border-radius: 16px !important;
+  margin-bottom: 20px !important;
+  flex-wrap: wrap !important;
+  gap: 12px !important;
+}
+
+.dash-shell:not([data-theme='light']) .cust-retention-pill,
+.dash-shell[data-theme='dark'] .cust-retention-pill {
+  background: rgba(16, 29, 23, 0.70) !important;
+  border: 1px solid rgba(220, 255, 236, 0.08) !important;
+  box-shadow: inset 0 1px 0 rgba(235, 255, 244, 0.12), 0 2px 8px rgba(0, 0, 0, 0.25) !important;
+}
+
+.dash-shell[data-theme='light'] .cust-retention-pill {
+  background: #ffffff !important;
+  border: 1px solid #d6e0d9 !important;
+  box-shadow: inset 0 1px 0 #ffffff, 0 2px 6px rgba(15, 40, 28, 0.04) !important;
+}
+
+/* Detail Drawer Content */
+.dash-shell:not([data-theme='light']) .cust-drawer-content,
+.dash-shell[data-theme='dark'] .cust-drawer-content {
+  background: #0c1411 !important;
+  border-left: 1px solid rgba(220, 255, 236, 0.09) !important;
+  box-shadow: -12px 0 45px rgba(0, 0, 0, 0.75) !important;
+  color: #ffffff !important;
+}
+
+.dash-shell[data-theme='light'] .cust-drawer-content {
+  background: #ffffff !important;
+  border-left: 1px solid #d6e0d9 !important;
+  box-shadow: -10px 0 35px rgba(15, 40, 28, 0.12) !important;
+  color: #0f1d17 !important;
+}
+
+.dash-shell:not([data-theme='light']) .cust-drawer-header,
+.dash-shell[data-theme='dark'] .cust-drawer-header {
+  border-bottom: 1px solid rgba(220, 255, 236, 0.08) !important;
+}
+
+.dash-shell[data-theme='light'] .cust-drawer-header {
+  border-bottom: 1px solid #eef3f0 !important;
+}
+
+/* User pill in sidebar */
+.dash-shell .verdelo-user-pill {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  padding: 8px 10px !important;
+  border-radius: 14px !important;
+  cursor: pointer !important;
+  transition: background 0.18s cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+
+.dash-shell:not([data-theme='light']) .verdelo-user-pill:hover,
+.dash-shell[data-theme='dark'] .verdelo-user-pill:hover {
+  background: rgba(80, 227, 150, 0.08) !important;
+}
+
+.dash-shell[data-theme='light'] .verdelo-user-pill:hover {
+  background: rgba(14, 91, 60, 0.07) !important;
+}
+
+.dash-shell .verdelo-user-avatar {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 50% !important;
+  background: linear-gradient(135deg, #137a50 0%, #50e396 100%) !important;
+  color: #08120d !important;
+  font-size: 0.8rem !important;
+  font-weight: 700 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border: 1px solid rgba(220, 255, 236, 0.35) !important;
+  box-shadow: 0 2px 8px rgba(80, 227, 150, 0.30) !important;
+  flex-shrink: 0 !important;
+}
+
+.dash-shell[data-theme='light'] .verdelo-user-avatar {
+  background: linear-gradient(135deg, #0e5b3c 0%, #137a50 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(14, 91, 60, 0.25) !important;
+  box-shadow: 0 2px 6px rgba(14, 91, 60, 0.22) !important;
+}
+
+.dash-shell:not([data-theme='light']) .verdelo-user-name,
+.dash-shell[data-theme='dark'] .verdelo-user-name {
+  color: #ffffff !important;
+  font-size: 0.82rem !important;
+  font-weight: 700 !important;
+}
+
+.dash-shell[data-theme='light'] .verdelo-user-name {
+  color: #0f1d17 !important;
+  font-size: 0.82rem !important;
+  font-weight: 700 !important;
+}
+
+.dash-shell:not([data-theme='light']) .verdelo-user-email,
+.dash-shell[data-theme='dark'] .verdelo-user-email {
+  color: #8caba0 !important;
+  font-size: 0.7rem !important;
+}
+
+.dash-shell[data-theme='light'] .verdelo-user-email {
+  color: #4a5b52 !important;
+  font-size: 0.7rem !important;
+}
+
+.dash-shell:not([data-theme='light']) .verdelo-user-dots,
+.dash-shell[data-theme='dark'] .verdelo-user-dots {
+  color: #8caba0 !important;
+  font-size: 0.9rem !important;
+  margin-left: auto !important;
+}
+
+.dash-shell[data-theme='light'] .verdelo-user-dots {
+  color: #4a5b52 !important;
+  font-size: 0.9rem !important;
+  margin-left: auto !important;
+}
+
+/* Keyframe Animations */
+@keyframes adminModalPopIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes adminDrawerSlideIn {
+  0% {
+    transform: translateX(100%);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+@keyframes adminFadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* Accessibility: Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  .dash-shell *,
+  .dash-shell *::before,
+  .dash-shell *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

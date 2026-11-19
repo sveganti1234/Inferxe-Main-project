@@ -169,12 +169,31 @@ function getBotReply(query: string, currentPath: string = '/'): string {
   }
 
   // 3c. Account Login / Registration Guidance
-  if (q.includes('login') || q.includes('sign in') || q.includes('signup') || q.includes('register') || q.includes('create account')) {
+  if (
+    q.includes('login') ||
+    q.includes('sign in') ||
+    q.includes('signup') ||
+    q.includes('sign up') ||
+    q.includes('register') ||
+    q.includes('create account') ||
+    q.includes('forgot password') ||
+    q.includes('reset password') ||
+    q.includes('api key')
+  ) {
+    if (q.includes('create account') || q.includes('signup') || q.includes('sign up') || q.includes('register')) {
+      return "Go to [inferxe.com](https://inferxe.com), click **Get Started** or **Sign Up**, and register with your work email or GitHub/Google account. Once verified, you can add credits and generate an API key immediately—no manual GPU quota approval required."
+    }
+    if (q.includes('forgot password') || q.includes('reset password') || q.includes('cannot access')) {
+      return "On the Inferxe login page, click **Forgot Password** to receive a reset link via email. If you signed up using Google or GitHub, use that same sign-in button instead of a password. For locked accounts, contact Inferxe support through the dashboard or website."
+    }
+    if (q.includes('api key') || q.includes('api keys') || q.includes('find my key') || q.includes('where do i find')) {
+      return "After logging into your Inferxe dashboard, open the **API Keys** tab in the left navigation menu and click **Create New Key**. Copy and store the key immediately, as it is only displayed once."
+    }
     const session = getSession()
     if (session) {
-      return `You are currently logged in as **${session.user.fullName}** (${session.user.email}) with role **${session.user.role}**. You have full access to your Dashboard, GPU Marketplace, and Wallet.`
+      return `You are currently logged in as **${session.user.fullName}** (${session.user.email}). Click the **Dashboard** button to access your GPU Marketplace, Deployments, and API Keys.`
     }
-    return "To access the GPU Marketplace, launch instances, or manage your wallet, please visit the **[Sign In](/login)** page to log in or create your free account."
+    return "Click the **Sign In** or **Login** button in the top-right corner of [inferxe.com](https://inferxe.com). You can sign in using your registered email and password or your linked OAuth provider (such as Google or GitHub) to open your Inferxe dashboard."
   }
 
   // 3d. Project & Platform Overview / What is Inferxe

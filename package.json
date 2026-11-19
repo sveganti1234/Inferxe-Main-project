@@ -11,11 +11,15 @@
     "dev": "npx concurrently -n AUTH_SERVER,BACKEND,FRONTEND -c cyan,green,yellow --kill-others-on-fail \"npm run server:admin\" \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "node backend/scripts/dev-backend.mjs",
     "dev:frontend": "node backend/scripts/dev-frontend.mjs",
+    "dev:backend:venv": ".\\backend\\venv\\Scripts\\python.exe -m uvicorn backend.notifications.main:app --host 127.0.0.1 --port 8002 --reload",
     "dev:all": "concurrently -n BACKEND,FRONTEND -c cyan,green --kill-others-on-fail \"npm run dev:backend\" \"npm run dev:frontend\"",
     "build": "npm --prefix frontend run build",
     "preview": "npm --prefix frontend run preview",
     "typecheck": "npm --prefix frontend run typecheck",
-    "server:admin": "node backend/auth/adminAuthServer.mjs"
+    "test": "npm --prefix frontend test",
+    "server:admin": "node backend/auth/adminAuthServer.mjs",
+    "dataset:validate": "py -3 database/scripts/validate_dataset.py",
+    "dataset:expand": "py -3 database/scripts/expand_inferxe_dataset.py"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

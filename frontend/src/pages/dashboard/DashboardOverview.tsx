@@ -87,13 +87,13 @@ export default function DashboardOverview() {
                     height: 32,
                     display: 'block',
                     overflow: 'visible',
-                    filter: 'drop-shadow(0 0 5px rgba(118, 185, 0, 0.45))',
+                    filter: 'drop-shadow(0 0 5px rgba(80, 227, 150, 0.45))',
                   }}
                 >
                   <path
                     d="M 0 22 C 10 22, 16 28, 26 28 C 36 28, 42 8, 52 8 C 62 8, 68 28, 78 28 C 88 28, 94 14, 100 14"
                     fill="none"
-                    stroke="#a3e635"
+                    stroke="#50e396"
                     strokeWidth="2.2"
                     strokeLinecap="round"
                   />
@@ -121,13 +121,13 @@ export default function DashboardOverview() {
                     height: 32,
                     display: 'block',
                     overflow: 'visible',
-                    filter: 'drop-shadow(0 0 5px rgba(118, 185, 0, 0.45))',
+                    filter: 'drop-shadow(0 0 5px rgba(80, 227, 150, 0.45))',
                   }}
                 >
                   <path
                     d="M 0 24 C 35 22, 70 17, 100 8"
                     fill="none"
-                    stroke="#a3e635"
+                    stroke="#50e396"
                     strokeWidth="2.2"
                     strokeLinecap="round"
                   />
@@ -154,13 +154,13 @@ export default function DashboardOverview() {
                     height: 32,
                     display: 'block',
                     overflow: 'visible',
-                    filter: 'drop-shadow(0 0 5px rgba(118, 185, 0, 0.45))',
+                    filter: 'drop-shadow(0 0 5px rgba(80, 227, 150, 0.45))',
                   }}
                 >
                   <path
                     d="M 0 8 C 30 11, 55 19, 78 23 C 90 25, 100 26"
                     fill="none"
-                    stroke="#a3e635"
+                    stroke="#50e396"
                     strokeWidth="2.2"
                     strokeLinecap="round"
                   />
@@ -187,13 +187,13 @@ export default function DashboardOverview() {
                     height: 32,
                     display: 'block',
                     overflow: 'visible',
-                    filter: 'drop-shadow(0 0 5px rgba(118, 185, 0, 0.45))',
+                    filter: 'drop-shadow(0 0 5px rgba(80, 227, 150, 0.45))',
                   }}
                 >
                   <path
                     d="M 0 20 C 15 24, 25 14, 40 18 C 55 22, 70 12, 85 15 C 95 12, 100 10"
                     fill="none"
-                    stroke="#a3e635"
+                    stroke="#50e396"
                     strokeWidth="2.2"
                     strokeLinecap="round"
                   />
@@ -272,7 +272,7 @@ export default function DashboardOverview() {
                 <span className="tag" style={{
                   borderRadius: '9999px',
                   padding: '3px 14px',
-                  background: dep.status === 'Running' ? 'rgba(118, 185, 0, 0.14)' : 'rgba(245, 158, 11, 0.14)',
+                  background: dep.status === 'Running' ? 'rgba(80, 227, 150, 0.18)' : 'rgba(245, 158, 11, 0.14)',
                   color: dep.status === 'Running' ? 'var(--brand-hi)' : 'var(--amber)',
                   fontWeight: 500,
                   fontSize: '0.78rem'

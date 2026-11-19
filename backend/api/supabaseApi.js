@@ -5,7 +5,7 @@ import {
   CognitoIdentityProviderClient,
 } from '@aws-sdk/client-cognito-identity-provider'
 import { authenticateCognitoRequest, readCustomerJsonBody, sendCustomerJson } from '../auth/customerAuth.js'
-import { verifyAdminToken } from '../auth/adminAuth.js'
+import { extractAdminTokenFromRequest, verifyAdminSession } from '../auth/adminAuth.js'
 import { getSupabaseAdminClient } from '../lib/supabase.js'
 import { handleAdminCustomerApi } from './adminCustomersApi.js'
 
@@ -20,8 +20,8 @@ const WORKSPACE_SELECTS = {
   deployments: 'id, user_id, organization_id, listing_id, name, model_name, gpu_model, region, status, hourly_rate, currency, endpoint_url, started_at, stopped_at, metadata, created_at, updated_at',
   orders: 'id, user_id, organization_id, deployment_id, order_number, item_name, provider_name, order_date, duration_minutes, total_cost, currency, status, details, created_at, updated_at',
   usage_records: 'id, user_id, organization_id, deployment_id, order_id, model_name, gpu_model, input_tokens, output_tokens, duration_seconds, amount, currency, recorded_at, metadata',
-  wallet_accounts: 'id, user_id, organization_id, balance, currency, status, created_at, updated_at',
-  wallet_transactions: 'id, wallet_id, user_id, order_id, transaction_reference, transaction_type, direction, amount, currency, status, description, created_at',
+  wallets: 'user_id, balance, currency, low_balance_alert_level, updated_at',
+  wallet_transactions: 'id, user_id, amount, balance_after, currency, status, idempotency_key, description, created_at, updated_at, transaction_type, direction',
   api_keys: 'id, user_id, organization_id, name, key_prefix, created_at, last_used_at, expires_at, revoked_at, status',
   ssh_public_keys: 'id, user_id, name, public_key, fingerprint, created_at, revoked_at',
   notifications: 'id, user_id, title, detail, notification_type, is_read, created_at, read_at',
@@ -123,7 +123,8 @@ async function getWorkspace(context) {
     getRows(supabase, 'deployments', WORKSPACE_SELECTS.deployments, 'user_id', claims.sub),
     getRows(supabase, 'orders', WORKSPACE_SELECTS.orders, 'user_id', claims.sub),
     getRows(supabase, 'usage_records', WORKSPACE_SELECTS.usage_records, 'user_id', claims.sub),
-    getRows(supabase, 'wallet_accounts', WORKSPACE_SELECTS.wallet_accounts, 'user_id', claims.sub),
+    getRows(supabase, 'wallets', WORKSPACE_SELECTS.wallets, 'user_id', claims.sub)
+      .catch(() => []),
     getRows(supabase, 'wallet_transactions', WORKSPACE_SELECTS.wallet_transactions, 'user_id', claims.sub),
     getRows(supabase, 'api_keys', WORKSPACE_SELECTS.api_keys, 'user_id', claims.sub),
     getRows(supabase, 'ssh_public_keys', WORKSPACE_SELECTS.ssh_public_keys, 'user_id', claims.sub),
@@ -151,7 +152,7 @@ async function getWorkspace(context) {
     deployments,
     orders,
     usageRecords,
-    wallets,
+    walletRows,
     walletTransactions,
     apiKeys,
     sshKeys,
@@ -188,7 +189,7 @@ async function getWorkspace(context) {
     deployments,
     orders,
     usage_records: usageRecords,
-    wallet_accounts: wallets,
+    wallet: walletRows?.[0] || null,
     wallet_transactions: walletTransactions,
     api_keys: apiKeys,
     ssh_public_keys: sshKeys,
@@ -200,26 +201,35 @@ async function getWorkspace(context) {
   }
 }
 
-function verifyAdminRequest(req) {
-  const token = getBearerToken(req)
+async function verifyAdminRequest(req) {
+  const token = extractAdminTokenFromRequest(req)
   if (!token) {
     const error = new Error('Administrator token is required.')
     error.statusCode = 401
     throw error
   }
-  const secret = process.env.ADMIN_SESSION_SECRET || ''
+  const secret = String(process.env.ADMIN_SESSION_SECRET || '').trim()
   if (!secret || secret.length < 32) {
     const error = new Error('Administrator authentication is not configured.')
     error.statusCode = 503
     throw error
   }
-  const verification = verifyAdminToken(token, secret)
-  if (!verification.valid || !verification.payload) {
-    const error = new Error('Administrator authentication could not be verified.')
-    error.statusCode = 401
+  let verification
+  try {
+    verification = await verifyAdminSession(token, secret, {
+      allowedRoles: ['admin', 'superadmin'],
+    })
+  } catch {
+    const error = new Error('Administrator session verification service is temporarily unavailable.')
+    error.statusCode = 503
     throw error
   }
-  return verification.payload
+  if (!verification.valid || !verification.admin) {
+    const error = new Error(verification.error || 'Administrator authentication could not be verified.')
+    error.statusCode = verification.statusCode || 401
+    throw error
+  }
+  return verification.admin
 }
 
 async function getAdminUsers(supabase) {
@@ -509,7 +519,7 @@ async function handleCustomerApi(req, res, path) {
 async function handleAdminApi(req, res, path) {
   let admin
   try {
-    admin = verifyAdminRequest(req)
+    admin = await verifyAdminRequest(req)
   } catch (error) {
     return sendJson(res, error.statusCode || 401, { ok: false, error: error.message })
   }
@@ -517,7 +527,7 @@ async function handleAdminApi(req, res, path) {
   try {
     const supabase = getSupabaseAdminClient()
     if (path === '/api/admin/customers' || path.startsWith('/api/admin/customers/')) {
-      return await handleAdminCustomerApi(req, res, path, { supabase, admin, getCognitoClient: getCognitoAdminClient })
+      return await handleAdminCustomerApi(req, res, path, { supabase, admin })
     }
     if (path === '/api/admin/data/users' && req.method === 'GET') {
       return sendJson(res, 200, { ok: true, users: await getAdminUsers(supabase) })

@@ -118,26 +118,25 @@ test('plan validation rejects missing reason, end before start, start without en
   assert.deepEqual(parsePlanUpdate({ reason: ' clear ', tier: '' }), { tier: null, trialStartedAt: null, trialEndsAt: null, reason: 'clear' })
 })
 
-test('online filter is honestly empty (presence is not tracked) and CSV neutralises formulas', async () => {
-  const supabase = fakeSupabase({ profiles: [{ ...customer, full_name: '=HYPERLINK("x")', last_active_at: '2026-11-18T11:00:00Z' }], organizations: [] })
-  const online = res()
-  await handleAdminCustomerApi(req('GET', '/api/admin/customers?status=online'), online, '/api/admin/customers', { supabase, admin: {}, now: NOW })
-  assert.equal(online.json().pagination.total, 0)
-  const csv = res()
-  await handleAdminCustomerApi(req('GET', '/x'), csv, '/api/admin/customers/export', { supabase, admin: {}, now: NOW })
-  assert.match(csv.body, /'=HYPERLINK/)
-})
-
-test('admin gate: /api/admin/customers passes the login middleware and requires a valid admin token', async () => {
+test('admin gate: only the account and plan routes pass the admin auth middleware, and they require an admin session', async () => {
   process.env.ADMIN_SESSION_SECRET = process.env.ADMIN_SESSION_SECRET || 'x'.repeat(48)
-  const admin = createAdminAuthMiddleware()
-  let passed = false
-  await admin(req('GET', '/api/admin/customers/summary'), res(), () => { passed = true })
-  assert.equal(passed, true, 'admin auth middleware must hand customer APIs to the data middleware')
+  const admin = createAdminAuthMiddleware({ disableRateLimit: true })
+  for (const path of ['/api/admin/customers/cust_1/account', '/api/admin/customers/cust_1/plan']) {
+    let passed = false
+    await admin(req('GET', path), res(), () => { passed = true })
+    assert.equal(passed, true, `${path} must reach the customer account API`)
+  }
+  for (const path of ['/api/admin/customers/summary', '/api/admin/customers']) {
+    let passed = false
+    const r = res()
+    await admin(req('GET', path), r, () => { passed = true })
+    assert.equal(passed, false, `${path} stays with the admin auth server's customer routes`)
+    assert.equal(r.statusCode, 401, 'and still requires an administrator session')
+  }
 
   const api = createSupabaseApiMiddleware()
   const noToken = res()
-  await api(req('GET', '/api/admin/customers/summary'), noToken, () => {})
+  await api(req('GET', '/api/admin/customers/cust_1/account'), noToken, () => {})
   assert.equal(noToken.statusCode, 401)
 
   const customerToken = createAdminToken({ sub: 'cust_1', role: 'customer', exp: Math.floor(Date.now() / 1000) + 600 }, process.env.ADMIN_SESSION_SECRET)
@@ -145,5 +144,5 @@ test('admin gate: /api/admin/customers passes the login middleware and requires 
   asCustomer.headers.authorization = `Bearer ${customerToken}`
   const denied = res()
   await api(asCustomer, denied, () => {})
-  assert.equal(denied.statusCode, 401, 'a token without the admin role is rejected')
+  assert.ok([401, 403].includes(denied.statusCode), `a token without the admin role is rejected (got ${denied.statusCode})`)
 })

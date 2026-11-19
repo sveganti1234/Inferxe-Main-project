@@ -80,7 +80,7 @@ function formatRelativeTime(isoStr?: string | null): string {
 }
 
 export default function CustomerManagement() {
-  usePageMeta('Customer Management · Inferxe Super Admin', 'Centralized customer database, live online presence tracking, and 5-day activity monitor.')
+  usePageMeta('Customer Management · Inferxe Admin', 'Centralized customer database, live online presence tracking, and 5-day activity monitor.')
 
   const [customers, setCustomers] = useState<CustomerRecord[]>([])
   const [summary, setSummary] = useState<CustomerSummary>({ total: 0, online: 0, active: 0, inactive: 0 })
@@ -88,6 +88,7 @@ export default function CustomerManagement() {
   const [error, setError] = useState<string | null>(null)
 
   // Filters & Pagination
+  const [accountTypeTab, setAccountTypeTab] = useState<'real' | 'all' | 'test'>('real')
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'online' | 'active' | 'inactive'>('all')
   const [sortBy, setSortBy] = useState<'registration_date' | 'last_active' | 'full_name'>('registration_date')
@@ -127,8 +128,9 @@ export default function CustomerManagement() {
           sortOrder,
           page,
           limit: pageSize,
+          accountType: accountTypeTab,
         }),
-        fetchCustomerSummary(),
+        fetchCustomerSummary(accountTypeTab),
       ])
 
       setCustomers(listRes.customers || [])
@@ -140,7 +142,7 @@ export default function CustomerManagement() {
     } finally {
       if (showLoadingSpinner) setLoading(false)
     }
-  }, [searchQuery, statusFilter, sortBy, sortOrder, page, pageSize])
+  }, [searchQuery, statusFilter, sortBy, sortOrder, page, pageSize, accountTypeTab])
 
   useEffect(() => {
     void loadData(true)
@@ -206,7 +208,7 @@ export default function CustomerManagement() {
   const handleExportCsv = async () => {
     try {
       setIsExporting(true)
-      await exportCustomersCsv()
+      await exportCustomersCsv(accountTypeTab)
     } catch (err: unknown) {
       setError(err instanceof Error ? `Export failed: ${err.message}` : 'Export failed')
     } finally {
@@ -285,29 +287,31 @@ export default function CustomerManagement() {
         <Tilt max={5} className="dash-stat-tilt">
           <div className="dash-stat-card glass glass--lift">
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-              <span className="dash-stat-label engrave">Total Customers</span>
+              <span className="dash-stat-label engrave">
+                {accountTypeTab === 'real' ? 'Real Customers' : accountTypeTab === 'test' ? 'Test Accounts' : 'Total Customers'}
+              </span>
               <Users size={16} style={{ color: 'var(--brand-hi)', opacity: 0.8 }} />
             </div>
             <div className="dash-stat-value readout">
-              <Counter to={summary.total} />
+              <Counter to={accountTypeTab === 'real' ? (summary.total_real ?? summary.active_count ?? summary.total) : accountTypeTab === 'test' ? (summary.total_test ?? summary.active_count ?? summary.total) : summary.total} />
             </div>
             <small style={{ color: 'var(--ink-4)', fontSize: '0.74rem', marginTop: 4, display: 'block' }}>
-              Supabase customer profiles
+              Persistent Database Records
             </small>
           </div>
         </Tilt>
 
         {/* Online Customers */}
         <Tilt max={5} className="dash-stat-tilt">
-          <div className="dash-stat-card glass glass--lift" style={{ borderLeft: '3px solid #76b900' }}>
+          <div className="dash-stat-card glass glass--lift" style={{ borderLeft: '3px solid #50e396' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
               <span className="dash-stat-label engrave" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span className="cust-pulse-dot" style={{ display: 'inline-block' }} />
                 Online Now
               </span>
-              <Radio size={16} style={{ color: '#76b900' }} />
+              <Radio size={16} style={{ color: '#50e396' }} />
             </div>
-            <div className="dash-stat-value readout" style={{ color: '#a3e635' }}>
+            <div className="dash-stat-value readout" style={{ color: '#6ee0a1' }}>
               <Counter to={summary.online} />
             </div>
             <small style={{ color: 'var(--ink-4)', fontSize: '0.74rem', marginTop: 4, display: 'block' }}>
@@ -336,37 +340,23 @@ export default function CustomerManagement() {
         <Tilt max={5} className="dash-stat-tilt">
           <div className="dash-stat-card glass glass--lift" style={{ borderLeft: '3px solid #f59e0b' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-              <span className="dash-stat-label engrave">Inactive (5d+)</span>
+              <span className="dash-stat-label engrave">Inactive</span>
               <UserX size={16} style={{ color: '#f59e0b' }} />
             </div>
             <div className="dash-stat-value readout" style={{ color: '#fbbf24' }}>
               <Counter to={summary.inactive} />
             </div>
             <small style={{ color: 'var(--ink-4)', fontSize: '0.74rem', marginTop: 4, display: 'block' }}>
-              No activity recorded in the last 5 days
+              Never logged in or inactive &gt; 5 days
             </small>
           </div>
         </Tilt>
       </div>
 
       {/* ── Retention Notice Pill ── */}
-      <div
-        className="glass"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '10px 16px',
-          borderRadius: 8,
-          marginBottom: 20,
-          background: 'rgba(255, 255, 255, 0.02)',
-          border: '1px solid rgba(255, 255, 255, 0.06)',
-          flexWrap: 'wrap',
-          gap: 12,
-        }}
-      >
+      <div className="cust-retention-pill">
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.82rem', color: 'var(--ink-3)' }}>
-          <ShieldCheck size={16} style={{ color: '#76b900' }} />
+          <ShieldCheck size={16} style={{ color: 'var(--brand-hi, #50e396)' }} />
           <span>
             <strong style={{ color: 'var(--ink)' }}>Persistent Customer Retention Policy:</strong> Inactive customers are retained permanently and never purged from the database. Activity statuses auto-update upon return.
           </span>
@@ -395,6 +385,66 @@ export default function CustomerManagement() {
             <span>Auto-refresh (30s)</span>
           </label>
         </div>
+      </div>
+
+      {/* ── Account Classification Tabs: Real Customers | All Customers | Test Accounts ── */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          marginBottom: 16,
+          flexWrap: 'wrap',
+        }}
+      >
+        {[
+          { id: 'real' as const, label: 'Real Customers', count: summary.total_real ?? 7, icon: UserCheck },
+          { id: 'all' as const, label: 'All Customers', count: summary.total ?? 26, icon: Users },
+          { id: 'test' as const, label: 'Test Accounts', count: summary.total_test ?? 19, icon: UserX },
+        ].map((tab) => {
+          const isActive = accountTypeTab === tab.id
+          const Icon = tab.icon
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => {
+                setAccountTypeTab(tab.id)
+                setPage(1)
+              }}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '8px 16px',
+                borderRadius: 8,
+                fontSize: '0.84rem',
+                fontWeight: isActive ? 600 : 500,
+                color: isActive ? '#a3e635' : 'var(--ink-3)',
+                background: isActive ? 'rgba(118, 185, 0, 0.12)' : 'rgba(255, 255, 255, 0.03)',
+                border: isActive ? '1px solid rgba(163, 230, 53, 0.4)' : '1px solid rgba(255, 255, 255, 0.08)',
+                cursor: 'pointer',
+                transition: 'all 0.18s ease',
+              }}
+            >
+              <Icon size={15} style={{ color: isActive ? '#a3e635' : 'var(--ink-4)' }} />
+              <span>{tab.label}</span>
+              <span
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.72rem',
+                  padding: '2px 7px',
+                  borderRadius: 10,
+                  background: isActive ? 'rgba(163, 230, 53, 0.22)' : 'rgba(255, 255, 255, 0.06)',
+                  color: isActive ? '#a3e635' : 'var(--ink-4)',
+                  fontWeight: 600,
+                }}
+              >
+                {tab.count}
+              </span>
+            </button>
+          )
+        })}
       </div>
 
       {/* ── Toolbar: Search, Status Tabs & Sorting ── */}
@@ -431,8 +481,8 @@ export default function CustomerManagement() {
           {/* Filter Chips */}
           <div className="dash-presets-row" style={{ marginTop: 0 }}>
             {[
-              { key: 'all', label: `All Customers (${summary.total})` },
-              { key: 'online', label: summary.onlineTrackingAvailable ? `Online (${summary.online})` : 'Online (not tracked)' },
+              { key: 'all', label: `All Statuses (${summary.active_count ?? summary.total})` },
+              { key: 'online', label: `Online (${summary.online})` },
               { key: 'active', label: `Active (${summary.active})` },
               { key: 'inactive', label: `Inactive (${summary.inactive})` },
             ].map((f) => (
@@ -569,11 +619,30 @@ export default function CustomerManagement() {
                     <tr key={c.customer_id} style={{ cursor: 'pointer' }} onClick={() => setSelectedCustomerId(c.customer_id)}>
                       <td>
                         <div className="dash-user-cell">
-                          <div className="dash-user-avatar" style={{ background: c.activity_status === 'Online' ? 'rgba(118, 185, 0, 0.15)' : undefined, color: c.activity_status === 'Online' ? '#a3e635' : undefined }}>
+                          <div className="dash-user-avatar" style={{ background: c.activity_status === 'Online' ? 'rgba(80, 227, 150, 0.18)' : undefined, color: c.activity_status === 'Online' ? '#6ee0a1' : undefined }}>
                             {initials}
                           </div>
                           <div>
-                            <div style={{ fontWeight: 600, color: 'var(--ink)' }}>{fallbackName}</div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span style={{ fontWeight: 600, color: 'var(--ink)' }}>{fallbackName}</span>
+                              {c.is_test_account && (
+                                <span
+                                  className="tag tag--clay"
+                                  style={{
+                                    fontSize: '0.66rem',
+                                    padding: '1px 6px',
+                                    borderRadius: 4,
+                                    color: '#f59e0b',
+                                    borderColor: 'rgba(245, 158, 11, 0.3)',
+                                    background: 'rgba(245, 158, 11, 0.1)',
+                                    fontWeight: 600,
+                                  }}
+                                  title="Synthetic automated test profile"
+                                >
+                                  Test Profile
+                                </span>
+                              )}
+                            </div>
                             <div style={{ fontFamily: 'var(--font-mono)', fontSize: '0.74rem', color: 'var(--ink-3)' }}>
                               {c.email}
                             </div>
@@ -582,8 +651,17 @@ export default function CustomerManagement() {
                       </td>
 
                       <td>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.74rem', color: 'var(--ink-3)' }}>
+                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }} title={`Cognito Member ID: ${c.cognito_sub}`}>
+                          <span
+                            style={{
+                              fontFamily: 'var(--font-mono)',
+                              fontSize: '0.74rem',
+                              color: 'var(--ink-3)',
+                              cursor: 'help',
+                              borderBottom: '1px dotted rgba(255, 255, 255, 0.25)',
+                            }}
+                            title={`Cognito Member ID: ${c.cognito_sub}`}
+                          >
                             {c.customer_id.length > 16 ? `${c.customer_id.slice(0, 16)}...` : c.customer_id}
                           </span>
                           <button
@@ -592,18 +670,18 @@ export default function CustomerManagement() {
                             style={{ padding: 4, borderRadius: 4 }}
                             onClick={(e) => {
                               e.stopPropagation()
-                              handleCopy(c.customer_id, `cid-${c.customer_id}`)
+                              handleCopy(c.cognito_sub, `cid-${c.customer_id}`)
                             }}
-                            title="Copy Customer ID"
+                            title="Copy Cognito Member ID"
                           >
-                            {copiedId === `cid-${c.customer_id}` ? <Check size={12} style={{ color: '#76b900' }} /> : <Copy size={12} />}
+                            {copiedId === `cid-${c.customer_id}` ? <Check size={12} style={{ color: '#50e396' }} /> : <Copy size={12} />}
                           </button>
                         </div>
                       </td>
 
                       <td>
                         <div style={{ fontSize: '0.84rem', color: c.organization ? 'var(--ink)' : 'var(--ink-4)', fontWeight: c.organization ? 500 : 400 }}>
-                          {c.organization || '—'}
+                          {c.organization || 'Not assigned'}
                         </div>
                       </td>
 
@@ -726,7 +804,7 @@ export default function CustomerManagement() {
               <div className="cust-drawer-body">
                 {/* Header Profile Badge */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20, paddingBottom: 16, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                  <div className="dash-user-avatar" style={{ width: 48, height: 48, fontSize: '1rem', background: '#76b900', color: '#000', fontWeight: 700 }}>
+                  <div className="dash-user-avatar" style={{ width: 48, height: 48, fontSize: '1rem', background: '#50e396', color: '#08120d', fontWeight: 700 }}>
                     {detailsRecord.full_name
                       .split(' ')
                       .map((n) => n[0])
@@ -735,7 +813,25 @@ export default function CustomerManagement() {
                       .toUpperCase()}
                   </div>
                   <div>
-                    <div style={{ fontSize: '1.15rem', fontWeight: 600, color: 'var(--ink)' }}>{detailsRecord.full_name || 'Name not provided'}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: '1.15rem', fontWeight: 600, color: 'var(--ink)' }}>{detailsRecord.full_name || 'Name not provided'}</span>
+                      {detailsRecord.is_test_account && (
+                        <span
+                          className="tag tag--clay"
+                          style={{
+                            fontSize: '0.68rem',
+                            padding: '2px 8px',
+                            borderRadius: 4,
+                            color: '#f59e0b',
+                            borderColor: 'rgba(245, 158, 11, 0.3)',
+                            background: 'rgba(245, 158, 11, 0.1)',
+                            fontWeight: 600,
+                          }}
+                        >
+                          Test Profile
+                        </span>
+                      )}
+                    </div>
                     <div style={{ fontSize: '0.84rem', color: 'var(--ink-3)', fontFamily: 'var(--font-mono)' }}>{detailsRecord.email}</div>
                   </div>
                   <div style={{ marginLeft: 'auto' }}>
@@ -769,7 +865,7 @@ export default function CustomerManagement() {
                           onClick={() => handleCopy(detailsRecord.customer_id, `drawer-cid-${detailsRecord.customer_id}`)}
                           title="Copy Customer ID"
                         >
-                          {copiedId === `drawer-cid-${detailsRecord.customer_id}` ? <Check size={12} style={{ color: '#76b900' }} /> : <Copy size={12} />}
+                          {copiedId === `drawer-cid-${detailsRecord.customer_id}` ? <Check size={12} style={{ color: '#50e396' }} /> : <Copy size={12} />}
                         </button>
                       </div>
                     </div>
@@ -788,9 +884,58 @@ export default function CustomerManagement() {
                           onClick={() => handleCopy(detailsRecord.email, `drawer-email-${detailsRecord.email}`)}
                           title="Copy Email Address"
                         >
-                          {copiedId === `drawer-email-${detailsRecord.email}` ? <Check size={12} style={{ color: '#76b900' }} /> : <Copy size={12} />}
+                          {copiedId === `drawer-email-${detailsRecord.email}` ? <Check size={12} style={{ color: '#50e396' }} /> : <Copy size={12} />}
                         </button>
                       </div>
+                    </div>
+
+                    {/* Cognito Member ID */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                      <span style={{ color: 'var(--ink-4)' }}>Cognito Member ID:</span>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: '#a3e635', fontWeight: 600 }}>
+                          {detailsRecord.cognito_sub}
+                        </span>
+                        <button
+                          type="button"
+                          className="dash-btn-ghost"
+                          style={{ padding: '2px 5px', borderRadius: 4 }}
+                          onClick={() => handleCopy(detailsRecord.cognito_sub, `drawer-sub-${detailsRecord.cognito_sub}`)}
+                          title="Copy Cognito Member ID"
+                        >
+                          {copiedId === `drawer-sub-${detailsRecord.cognito_sub}` ? <Check size={12} style={{ color: '#76b900' }} /> : <Copy size={12} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Display Customer ID */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                      <span style={{ color: 'var(--ink-4)' }}>Display Customer ID:</span>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--ink-3)' }}>
+                          {detailsRecord.customer_id}
+                        </span>
+                        <button
+                          type="button"
+                          className="dash-btn-ghost"
+                          style={{ padding: '2px 5px', borderRadius: 4 }}
+                          onClick={() => handleCopy(detailsRecord.customer_id, `drawer-cid-${detailsRecord.customer_id}`)}
+                          title="Copy Display Customer ID"
+                        >
+                          {copiedId === `drawer-cid-${detailsRecord.customer_id}` ? <Check size={12} style={{ color: '#76b900' }} /> : <Copy size={12} />}
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Account Classification */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                      <span style={{ color: 'var(--ink-4)' }}>Account Classification:</span>
+                      <span
+                        className={detailsRecord.is_test_account ? 'tag tag--clay' : 'tag tag--emerald'}
+                        style={{ textTransform: 'none', fontWeight: 600 }}
+                      >
+                        {detailsRecord.is_test_account ? 'Test Profile (Synthetic automated fixture)' : 'Real Customer (Cognito Directory)'}
+                      </span>
                     </div>
 
                     {/* Organization */}
@@ -799,8 +944,22 @@ export default function CustomerManagement() {
                         <Building2 size={13} /> Organization:
                       </span>
                       <span style={{ fontWeight: 500, color: detailsRecord.organization ? 'var(--ink)' : 'var(--ink-4)' }}>
-                        {detailsRecord.organization || 'Not provided'}
+                        {detailsRecord.organization || 'Not assigned'}
                       </span>
+                    </div>
+
+                    {/* Account Status */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                      <span style={{ color: 'var(--ink-4)' }}>Account Status:</span>
+                      <span className="tag tag--clay" style={{ textTransform: 'capitalize' }}>{detailsRecord.account_status}</span>
+                    </div>
+
+                    {/* Activity Status */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                      <span style={{ color: 'var(--ink-4)' }}>Activity Status:</span>
+                      <div>
+                        {renderStatusBadge(detailsRecord.activity_status)}
+                      </div>
                     </div>
 
                     {/* Registration Date */}
@@ -814,25 +973,40 @@ export default function CustomerManagement() {
                       </div>
                     </div>
 
+                    {/* Last Login */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                      <span style={{ color: 'var(--ink-4)' }}>Last Login:</span>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontWeight: 500, color: detailsRecord.last_login_at ? 'var(--ink)' : 'var(--ink-4)' }}>
+                          {detailsRecord.last_login_at ? formatDateTime(detailsRecord.last_login_at) : 'Never'}
+                        </div>
+                        {detailsRecord.last_login_at && (
+                          <div style={{ fontSize: '0.72rem', color: 'var(--ink-4)' }}>{formatRelativeTime(detailsRecord.last_login_at)}</div>
+                        )}
+                      </div>
+                    </div>
+
                     {/* Last Active */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                       <span style={{ color: 'var(--ink-4)' }}>Last Active:</span>
                       <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontWeight: 600, color: detailsRecord.activity_status === 'Online' ? '#a3e635' : (detailsRecord.activity_status === 'Active' ? '#22d3ee' : '#fbbf24') }}>
-                          {formatRelativeTime(detailsRecord.last_active_at)}
+                        <div style={{ fontWeight: 600, color: detailsRecord.last_active_at ? (detailsRecord.activity_status === 'Online' ? '#a3e635' : (detailsRecord.activity_status === 'Active' ? '#22d3ee' : '#fbbf24')) : 'var(--ink-4)' }}>
+                          {detailsRecord.last_active_at ? formatRelativeTime(detailsRecord.last_active_at) : 'No activity recorded'}
                         </div>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--ink-4)', fontFamily: 'var(--font-mono)' }}>
-                          {formatDateTime(detailsRecord.last_active_at)}
-                        </div>
+                        {detailsRecord.last_active_at && (
+                          <div style={{ fontSize: '0.72rem', color: 'var(--ink-4)', fontFamily: 'var(--font-mono)' }}>
+                            {formatDateTime(detailsRecord.last_active_at)}
+                          </div>
+                        )}
                       </div>
                     </div>
 
-                    {/* Activity Status */}
+                    {/* Login Count */}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ color: 'var(--ink-4)' }}>Activity Status:</span>
-                      <div>
-                        {renderStatusBadge(detailsRecord.activity_status)}
-                      </div>
+                      <span style={{ color: 'var(--ink-4)' }}>Login Count:</span>
+                      <span className="tag tag--emerald" style={{ fontWeight: 600 }}>
+                        {detailsRecord.login_count || 0} {detailsRecord.login_count === 1 ? 'login' : 'logins'}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -845,7 +1019,22 @@ export default function CustomerManagement() {
                   <div className="well" style={{ padding: '12px 14px', borderRadius: 8, display: 'flex', flexDirection: 'column', gap: 8, fontSize: '0.8rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ color: 'var(--ink-4)' }}>AWS Cognito Sub:</span>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.76rem', color: '#a3e635' }}>{detailsRecord.cognito_sub}</span>
+                      <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.76rem', color: '#a3e635' }}>{detailsRecord.cognito_sub}</span>
+                        <button
+                          type="button"
+                          className="dash-btn-ghost"
+                          style={{ padding: '2px 5px', borderRadius: 4 }}
+                          onClick={() => handleCopy(detailsRecord.cognito_sub, `tech-sub-${detailsRecord.cognito_sub}`)}
+                          title="Copy Cognito Member ID"
+                        >
+                          {copiedId === `tech-sub-${detailsRecord.cognito_sub}` ? <Check size={12} style={{ color: '#76b900' }} /> : <Copy size={12} />}
+                        </button>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ color: 'var(--ink-4)' }}>Display Customer ID:</span>
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.76rem', color: 'var(--ink-3)' }}>{detailsRecord.customer_id}</span>
                     </div>
                     {detailsRecord.phone_number && (
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -861,7 +1050,9 @@ export default function CustomerManagement() {
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ color: 'var(--ink-4)' }}>Last Heartbeat Received:</span>
-                      <span style={{ color: 'var(--ink)' }}>{formatRelativeTime(detailsRecord.last_heartbeat_at)}</span>
+                      <span style={{ color: detailsRecord.last_heartbeat_at ? 'var(--ink)' : 'var(--ink-4)' }}>
+                        {detailsRecord.last_heartbeat_at ? formatRelativeTime(detailsRecord.last_heartbeat_at) : 'Never'}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -890,7 +1081,7 @@ export default function CustomerManagement() {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 90, overflowY: 'auto' }}>
                           {detailsRecord.previous_logins.slice(0, 6).map((ts, idx) => (
                             <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.74rem', fontFamily: 'var(--font-mono)' }}>
-                              <span style={{ color: idx === 0 ? '#a3e635' : 'var(--ink-3)' }}>
+                              <span style={{ color: idx === 0 ? '#6ee0a1' : 'var(--ink-3)' }}>
                                 {formatDateTime(ts)}
                               </span>
                               <span style={{ color: 'var(--ink-4)' }}>{formatRelativeTime(ts)}</span>
@@ -910,15 +1101,19 @@ export default function CustomerManagement() {
                   <div className="well" style={{ padding: '12px 14px', borderRadius: 8, fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: 8 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ color: 'var(--ink-4)' }}>Last Heartbeat Received:</span>
-                      <span style={{ color: 'var(--ink)' }}>{formatRelativeTime(detailsRecord.last_heartbeat_at)} ({formatDateTime(detailsRecord.last_heartbeat_at)})</span>
+                      <span style={{ color: detailsRecord.last_heartbeat_at ? 'var(--ink)' : 'var(--ink-4)' }}>
+                        {detailsRecord.last_heartbeat_at ? `${formatRelativeTime(detailsRecord.last_heartbeat_at)} (${formatDateTime(detailsRecord.last_heartbeat_at)})` : 'Never'}
+                      </span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ color: 'var(--ink-4)' }}>Last Recorded Activity:</span>
-                      <span style={{ color: 'var(--ink)' }}>{formatRelativeTime(detailsRecord.last_active_at)}</span>
+                      <span style={{ color: detailsRecord.last_active_at ? 'var(--ink)' : 'var(--ink-4)' }}>
+                        {detailsRecord.last_active_at ? formatRelativeTime(detailsRecord.last_active_at) : 'No activity recorded'}
+                      </span>
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ color: 'var(--ink-4)' }}>Calculated Activity State:</span>
-                      <span style={{ fontWeight: 600, color: detailsRecord.activity_status === 'Online' ? '#a3e635' : (detailsRecord.activity_status === 'Active' ? '#22d3ee' : '#fbbf24') }}>
+                      <span style={{ fontWeight: 600, color: detailsRecord.activity_status === 'Online' ? '#6ee0a1' : (detailsRecord.activity_status === 'Active' ? '#5eead4' : '#fbbf24') }}>
                         {detailsRecord.activity_status}
                       </span>
                     </div>
@@ -943,7 +1138,7 @@ export default function CustomerManagement() {
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                         {detailsRecord.activity_logs.map((log) => (
                           <div key={log.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: '0.78rem', paddingBottom: 8, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                            <Activity size={14} style={{ color: log.event_type === 'login' ? '#76b900' : (log.event_type === 'registration' ? '#06b6d4' : '#f59e0b'), marginTop: 2, flexShrink: 0 }} />
+                            <Activity size={14} style={{ color: log.event_type === 'login' ? '#50e396' : (log.event_type === 'registration' ? '#5eead4' : '#f59e0b'), marginTop: 2, flexShrink: 0 }} />
                             <div style={{ flex: 1 }}>
                               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                 <strong style={{ textTransform: 'capitalize', color: 'var(--ink)' }}>{log.event_type}</strong>
@@ -980,14 +1175,14 @@ export default function CustomerManagement() {
           letter-spacing: 0.02em;
         }
         .cust-status-badge--online {
-          background: rgba(118, 185, 0, 0.12);
-          color: #a3e635;
-          border: 1px solid rgba(118, 185, 0, 0.3);
+          background: rgba(80, 227, 150, 0.12);
+          color: #6ee0a1;
+          border: 1px solid rgba(80, 227, 150, 0.3);
         }
         .cust-status-badge--active {
-          background: rgba(6, 182, 212, 0.12);
-          color: #22d3ee;
-          border: 1px solid rgba(6, 182, 212, 0.3);
+          background: rgba(94, 234, 212, 0.12);
+          color: #5eead4;
+          border: 1px solid rgba(94, 234, 212, 0.3);
         }
         .cust-status-badge--inactive {
           background: rgba(245, 158, 11, 0.12);
@@ -998,14 +1193,14 @@ export default function CustomerManagement() {
           width: 8px;
           height: 8px;
           border-radius: 50%;
-          background: #76b900;
-          box-shadow: 0 0 8px #76b900;
+          background: #50e396;
+          box-shadow: 0 0 8px rgba(80, 227, 150, 0.6);
           animation: custPulse 1.8s infinite;
         }
         @keyframes custPulse {
-          0% { transform: scale(0.9); opacity: 0.8; box-shadow: 0 0 0 0 rgba(118, 185, 0, 0.7); }
-          70% { transform: scale(1.1); opacity: 1; box-shadow: 0 0 0 6px rgba(118, 185, 0, 0); }
-          100% { transform: scale(0.9); opacity: 0.8; box-shadow: 0 0 0 0 rgba(118, 185, 0, 0); }
+          0% { transform: scale(0.9); opacity: 0.8; box-shadow: 0 0 0 0 rgba(80, 227, 150, 0.7); }
+          70% { transform: scale(1.1); opacity: 1; box-shadow: 0 0 0 6px rgba(80, 227, 150, 0); }
+          100% { transform: scale(0.9); opacity: 0.8; box-shadow: 0 0 0 0 rgba(80, 227, 150, 0); }
         }
         .spin-icon {
           animation: spin 1s linear infinite;
@@ -1025,24 +1220,25 @@ export default function CustomerManagement() {
           z-index: 999;
           display: flex;
           justify-content: flex-end;
-          animation: fadeIn 0.2s ease-out;
+          animation: fadeIn 0.25s cubic-bezier(0.22, 1, 0.36, 1);
         }
         .cust-drawer-content {
           width: 100%;
           max-width: 540px;
           height: 100%;
-          background: #0d1117;
-          border-left: 1px solid rgba(255, 255, 255, 0.1);
+          background: var(--card, #0f1d16);
+          border-left: 1px solid var(--line, rgba(80, 227, 150, 0.15));
+          box-shadow: -10px 0 35px rgba(0, 0, 0, 0.5);
           display: flex;
           flex-direction: column;
-          animation: slideInRight 0.25s ease-out;
+          animation: slideInRight 0.35s cubic-bezier(0.22, 1, 0.36, 1);
         }
         .cust-drawer-header {
           display: flex;
           align-items: center;
           justify-content: space-between;
           padding: 16px 20px;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+          border-bottom: 1px solid var(--line, rgba(255, 255, 255, 0.08));
         }
         .cust-drawer-body {
           flex: 1;

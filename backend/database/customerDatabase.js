@@ -21,14 +21,42 @@ if (!fs.existsSync(BACKUP_DIR)) {
 
 let dbInstance = null
 
+export function getDatabasePath() {
+  return process.env.CUSTOMER_DB_PATH || DB_PATH
+}
+
+export function closeDatabase() {
+  if (dbInstance) {
+    try {
+      dbInstance.exec('PRAGMA wal_checkpoint(FULL);')
+      dbInstance.close()
+    } catch {}
+    dbInstance = null
+  }
+}
+
 export function getDatabase() {
-  if (!dbInstance) {
-    dbInstance = new DatabaseSync(DB_PATH)
+  const currentPath = getDatabasePath()
+  if (!dbInstance || dbInstance.currentPath !== currentPath) {
+    if (dbInstance) {
+      try {
+        dbInstance.exec('PRAGMA wal_checkpoint(FULL);')
+        dbInstance.close()
+      } catch {}
+    }
+    dbInstance = new DatabaseSync(currentPath)
+    dbInstance.currentPath = currentPath
     // Enable Write-Ahead Logging (WAL) for high concurrency and resilience
     dbInstance.exec('PRAGMA journal_mode = WAL;')
     dbInstance.exec('PRAGMA synchronous = NORMAL;')
     dbInstance.exec('PRAGMA busy_timeout = 5000;')
     dbInstance.exec('PRAGMA foreign_keys = ON;')
+    try {
+      const check = dbInstance.prepare('PRAGMA quick_check;').get()
+      if (check && check.quick_check !== 'ok') {
+        dbInstance.exec('REINDEX;')
+      }
+    } catch {}
     runMigrations(dbInstance)
   }
   return dbInstance
@@ -111,6 +139,265 @@ function runMigrations(db) {
       new Date().toISOString(),
     )
   }
+
+  // Migration 3: Add customer_sessions table for multi-session and restart persistence
+  if (!applied.has(3)) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS customer_sessions (
+        session_id TEXT PRIMARY KEY,
+        customer_id TEXT,
+        cognito_sub TEXT,
+        email TEXT,
+        token_hash TEXT,
+        login_at TEXT,
+        logout_at TEXT,
+        status TEXT NOT NULL DEFAULT 'active',
+        ip_address TEXT,
+        user_agent TEXT,
+        last_seen_at TEXT,
+        created_at TEXT
+      );
+      CREATE INDEX IF NOT EXISTS idx_customer_sessions_customer ON customer_sessions(customer_id);
+      CREATE INDEX IF NOT EXISTS idx_customer_sessions_sub ON customer_sessions(cognito_sub);
+      CREATE INDEX IF NOT EXISTS idx_customer_sessions_email ON customer_sessions(email);
+      CREATE INDEX IF NOT EXISTS idx_customer_sessions_last_seen ON customer_sessions(last_seen_at);
+    `)
+
+    db.prepare('INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)').run(
+      3,
+      '003_customer_sessions',
+      new Date().toISOString(),
+    )
+  }
+
+  // Migration 4: Add dedicated admin management, admin activity logs and sessions
+  if (!applied.has(4)) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS admin_users (
+        id TEXT PRIMARY KEY,
+        email TEXT UNIQUE NOT NULL,
+        full_name TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'admin', -- 'admin' | 'superadmin'
+        status TEXT NOT NULL DEFAULT 'active', -- 'active' | 'inactive' | 'suspended' | 'pending'
+        created_at TEXT NOT NULL,
+        last_login TEXT,
+        last_ip TEXT
+      );
+
+      CREATE TABLE IF NOT EXISTS admin_activity_logs (
+        id TEXT PRIMARY KEY,
+        admin_id TEXT,
+        admin_email TEXT NOT NULL,
+        action TEXT NOT NULL,
+        category TEXT NOT NULL, -- 'auth' | 'customer' | 'admin' | 'infra' | 'keys'
+        target_id TEXT,
+        target_type TEXT,
+        details TEXT,
+        ip_address TEXT,
+        created_at TEXT NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS admin_sessions (
+        session_id TEXT PRIMARY KEY,
+        admin_email TEXT NOT NULL,
+        token_hash TEXT,
+        login_at TEXT NOT NULL,
+        logout_at TEXT,
+        status TEXT NOT NULL DEFAULT 'active', -- 'active' | 'closed' | 'revoked'
+        ip_address TEXT,
+        user_agent TEXT
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_admin_users_email ON admin_users(email);
+      CREATE INDEX IF NOT EXISTS idx_admin_users_role ON admin_users(role);
+      CREATE INDEX IF NOT EXISTS idx_admin_users_status ON admin_users(status);
+      CREATE INDEX IF NOT EXISTS idx_admin_logs_email ON admin_activity_logs(admin_email);
+      CREATE INDEX IF NOT EXISTS idx_admin_logs_category ON admin_activity_logs(category);
+      CREATE INDEX IF NOT EXISTS idx_admin_logs_created ON admin_activity_logs(created_at);
+      CREATE INDEX IF NOT EXISTS idx_admin_sessions_email ON admin_sessions(admin_email);
+    `)
+
+    seedInitialAdmins(db)
+
+    db.prepare('INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)').run(
+      4,
+      '004_add_admin_management_and_audit',
+      new Date().toISOString(),
+    )
+  }
+}
+
+/**
+ * Seed registered admins into admin_users if empty.
+ */
+function seedInitialAdmins(db) {
+  const existing = db.prepare('SELECT COUNT(*) as count FROM admin_users').get()
+  if (existing && existing.count > 0) return
+
+  const nowIso = new Date().toISOString()
+  const initialAdmins = [
+    {
+      id: 'adm_super_bhumi',
+      email: 'bhumireddy@inferxe.com',
+      full_name: 'Bhumi Reddy',
+      role: 'superadmin',
+      status: 'active',
+      created_at: '2026-01-10T00:00:00.000Z',
+      last_login: nowIso,
+      last_ip: '127.0.0.1',
+    },
+    {
+      id: 'adm_super_main',
+      email: 'superadmin@inferxe.com',
+      full_name: 'Inferxe Platform Superadmin',
+      role: 'superadmin',
+      status: 'active',
+      created_at: '2026-01-10T00:00:00.000Z',
+      last_login: nowIso,
+      last_ip: '127.0.0.1',
+    },
+    {
+      id: 'adm_regular_main',
+      email: 'admin@inferxe.com',
+      full_name: 'Inferxe Administrator',
+      role: 'admin',
+      status: 'active',
+      created_at: '2026-02-01T00:00:00.000Z',
+      last_login: nowIso,
+      last_ip: '127.0.0.1',
+    },
+    {
+      id: 'adm_regular_alex',
+      email: 'alex.chen@inferxe.internal',
+      full_name: 'Alex Chen',
+      role: 'admin',
+      status: 'active',
+      created_at: '2026-03-01T00:00:00.000Z',
+      last_login: nowIso,
+      last_ip: '127.0.0.1',
+    },
+  ]
+
+  const insertStmt = db.prepare(`
+    INSERT INTO admin_users (id, email, full_name, role, status, created_at, last_login, last_ip)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `)
+
+  for (const adm of initialAdmins) {
+    insertStmt.run(
+      adm.id,
+      adm.email,
+      adm.full_name,
+      adm.role,
+      adm.status,
+      adm.created_at,
+      adm.last_login,
+      adm.last_ip,
+    )
+  }
+
+  // Add initial audit logs for bootstrap
+  const logStmt = db.prepare(`
+    INSERT INTO admin_activity_logs (id, admin_id, admin_email, action, category, target_id, target_type, details, ip_address, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `)
+
+  logStmt.run(
+    'log_' + crypto.randomUUID().replace(/-/g, ''),
+    'adm_super_bhumi',
+    'bhumireddy@inferxe.com',
+    'admin.system_init',
+    'admin',
+    'adm_super_bhumi',
+    'admin_user',
+    JSON.stringify({ description: 'Platform initial superadmin bootstrap initialized' }),
+    '127.0.0.1',
+    nowIso,
+  )
+}
+
+/**
+ * Record or update a customer session heartbeat in SQLite.
+ */
+export function recordSessionHeartbeat({ session_id, cognito_sub, email, last_seen_at }) {
+  if (!session_id) return
+  try {
+    const db = getDatabase()
+    const nowIso = last_seen_at || new Date().toISOString()
+    const cleanSub = cognito_sub ? String(cognito_sub).trim() : null
+    const cleanEmail = email ? String(email).trim().toLowerCase() : null
+
+    db.prepare(`
+      INSERT INTO customer_sessions (session_id, cognito_sub, email, last_seen_at, created_at)
+      VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(session_id) DO UPDATE SET
+        last_seen_at = excluded.last_seen_at,
+        cognito_sub = COALESCE(excluded.cognito_sub, customer_sessions.cognito_sub),
+        email = COALESCE(excluded.email, customer_sessions.email)
+    `).run(String(session_id).trim(), cleanSub, cleanEmail, nowIso, nowIso)
+  } catch (err) {
+    // Non-blocking log
+  }
+}
+
+/**
+ * Remove customer session on tab close / logout from SQLite.
+ */
+export function removeSession({ session_id, cognito_sub, email }) {
+  try {
+    const db = getDatabase()
+    if (session_id) {
+      db.prepare('DELETE FROM customer_sessions WHERE session_id = ?').run(String(session_id).trim())
+    } else if (cognito_sub || email) {
+      db.prepare('DELETE FROM customer_sessions WHERE cognito_sub = ? OR email = ?').run(
+        cognito_sub || '',
+        email ? String(email).trim().toLowerCase() : ''
+      )
+    }
+  } catch (err) {}
+}
+
+/**
+ * Prune expired sessions older than the retention window from SQLite.
+ */
+export function cleanExpiredSessionsDb(olderThanMs = 24 * 60 * 60 * 1000) {
+  try {
+    const db = getDatabase()
+    const cutoffIso = new Date(Date.now() - olderThanMs).toISOString()
+    const result = db.prepare('DELETE FROM customer_sessions WHERE last_seen_at < ?').run(cutoffIso)
+    return result.changes
+  } catch {
+    return 0
+  }
+}
+
+/**
+ * Check if the customer has any other active session within the online threshold in SQLite.
+ */
+export function hasOtherActiveSessionsDb({ cognito_sub, email, excluded_session_id, windowMs = 120000 }) {
+  if (!cognito_sub && !email) return false
+  try {
+    const db = getDatabase()
+    const thresholdIso = new Date(Date.now() - windowMs).toISOString()
+    const cleanSub = cognito_sub ? String(cognito_sub).trim() : null
+    const cleanEmail = email ? String(email).trim().toLowerCase() : null
+    const excludedId = excluded_session_id ? String(excluded_session_id).trim() : ''
+
+    const row = db.prepare(`
+      SELECT session_id, last_seen_at FROM customer_sessions
+      WHERE (
+        (? IS NOT NULL AND cognito_sub = ?) OR
+        (? IS NOT NULL AND email = ?)
+      )
+      AND session_id != ?
+      AND last_seen_at >= ?
+      LIMIT 1
+    `).get(cleanSub, cleanSub, cleanEmail, cleanEmail, excludedId, thresholdIso)
+
+    return Boolean(row)
+  } catch {
+    return false
+  }
 }
 
 /**
@@ -125,17 +412,17 @@ export function computeActivityStatus(lastActiveAt, lastHeartbeatAt) {
   const activeTime = lastActiveAt ? new Date(lastActiveAt).getTime() : 0
 
   // 1. Online: Heartbeat within previous 2 minutes (120,000 ms)
-  if (heartbeatTime > 0 && now - heartbeatTime <= 2 * 60 * 1000) {
+  if (heartbeatTime > 0 && !isNaN(heartbeatTime) && now - heartbeatTime <= 2 * 60 * 1000) {
     return 'Online'
   }
 
-  // 2. Active: Not Online, but activity occurred within 5 consecutive days
+  // 2. Active: Not Online, but genuine activity occurred within 5 consecutive days
   const fiveDaysMs = 5 * 24 * 60 * 60 * 1000
-  if (activeTime > 0 && now - activeTime < fiveDaysMs) {
+  if (activeTime > 0 && !isNaN(activeTime) && now - activeTime < fiveDaysMs) {
     return 'Active'
   }
 
-  // 3. Inactive: 5 consecutive days or more without activity
+  // 3. Inactive: No genuine activity recorded or 5 consecutive days or more without activity
   return 'Inactive'
 }
 
@@ -186,7 +473,7 @@ export function registerOrUpdateCustomer({
     const updatedOrg = organization || existing.organization
     const updatedRole = role || existing.role || 'customer'
     const lastLogin = isLogin ? nowIso : existing.last_login_at
-    const lastActive = nowIso
+    const lastActive = isLogin ? nowIso : existing.last_active_at
     const lastHeartbeat = isLogin ? nowIso : existing.last_heartbeat_at
 
     db.prepare(`
@@ -272,8 +559,8 @@ export function registerOrUpdateCustomer({
       role,
       nowIso,
       isLogin ? nowIso : null,
-      nowIso,
-      nowIso,
+      isLogin ? nowIso : '',
+      isLogin ? nowIso : '',
       account_status,
       isLogin ? 1 : 0,
       nowIso,
@@ -684,6 +971,9 @@ export function getCustomerDetails(idOrSubOrEmail) {
 
   return {
     ...customer,
+    last_login_at: customer.last_login_at || null,
+    last_active_at: customer.last_active_at || null,
+    last_heartbeat_at: customer.last_heartbeat_at || null,
     login_count: totalLogins,
     previous_logins: previousLogins,
     activity_status: activityStatus,
@@ -763,12 +1053,13 @@ export function backupDatabase() {
   const backupFilePath = path.join(BACKUP_DIR, backupFileName)
 
   const db = getDatabase()
-  // Run PRAGMA wal_checkpoint to ensure all WAL pages are committed
+  // Run PRAGMA wal_checkpoint to ensure all WAL pages are committed and truncated
   try {
-    db.exec('PRAGMA wal_checkpoint(FULL);')
+    db.exec('PRAGMA wal_checkpoint(TRUNCATE);')
   } catch {}
 
-  fs.copyFileSync(DB_PATH, backupFilePath)
+  const activePath = getDatabasePath()
+  fs.copyFileSync(activePath, backupFilePath)
   const stats = fs.statSync(backupFilePath)
 
   return {
@@ -799,23 +1090,27 @@ export function restoreDatabase(backupFileName) {
   // Close active connection
   if (dbInstance) {
     try {
-      dbInstance.exec('PRAGMA wal_checkpoint(FULL);')
+      dbInstance.exec('PRAGMA wal_checkpoint(TRUNCATE);')
       dbInstance.close()
     } catch {}
     dbInstance = null
   }
 
+  const activePath = getDatabasePath()
   // Remove existing WAL & SHM files to ensure clean state
   try {
-    if (fs.existsSync(DB_PATH + '-wal')) fs.unlinkSync(DB_PATH + '-wal')
-    if (fs.existsSync(DB_PATH + '-shm')) fs.unlinkSync(DB_PATH + '-shm')
+    if (fs.existsSync(activePath + '-wal')) fs.unlinkSync(activePath + '-wal')
+    if (fs.existsSync(activePath + '-shm')) fs.unlinkSync(activePath + '-shm')
   } catch {}
 
-  // Overwrite DB_PATH with backup file
-  fs.copyFileSync(backupFilePath, DB_PATH)
+  // Overwrite active database with backup file
+  fs.copyFileSync(backupFilePath, activePath)
 
   // Re-open and verify restored database
   const restoredDb = getDatabase()
+  try {
+    restoredDb.exec('REINDEX;')
+  } catch {}
   const countRow = restoredDb.prepare('SELECT COUNT(*) AS count FROM customers').get()
 
   return {
@@ -955,3 +1250,260 @@ export function seedInitialCustomersIfEmpty() {
 // Auto-initialize schema, migrations and initial seed upon load
 getDatabase()
 seedInitialCustomersIfEmpty()
+
+/**
+ * ────────────────────────────────────────────────────────────────
+ * Superadmin & Admin Management Service Layer
+ * ────────────────────────────────────────────────────────────────
+ */
+
+export function getAdminUserByEmail(email) {
+  if (!email) return null
+  const db = getDatabase()
+  const cleanEmail = email.trim().toLowerCase()
+  return db.prepare('SELECT * FROM admin_users WHERE LOWER(email) = ?').get(cleanEmail) || null
+}
+
+export function getAllAdminUsers() {
+  const db = getDatabase()
+  const admins = db.prepare(`
+    SELECT 
+      a.id,
+      a.email,
+      a.full_name,
+      a.role,
+      a.status,
+      a.created_at,
+      a.last_login,
+      a.last_ip,
+      (SELECT COUNT(*) FROM admin_activity_logs l WHERE l.admin_email = a.email) as activity_count
+    FROM admin_users a
+    ORDER BY 
+      CASE WHEN a.role = 'superadmin' THEN 0 ELSE 1 END,
+      a.created_at ASC
+  `).all()
+  return admins
+}
+
+export function updateAdminUserStatus(adminIdOrEmail, newStatus, reason = '', updatedByEmail = 'superadmin@inferxe.com') {
+  const db = getDatabase()
+  const validStatuses = ['active', 'inactive', 'suspended', 'pending']
+  if (!validStatuses.includes(newStatus)) {
+    throw new Error(`Invalid status: ${newStatus}. Must be one of: ${validStatuses.join(', ')}`)
+  }
+
+  const admin = db.prepare('SELECT * FROM admin_users WHERE id = ? OR LOWER(email) = LOWER(?)').get(adminIdOrEmail, adminIdOrEmail)
+  if (!admin) {
+    throw new Error(`Admin account not found: ${adminIdOrEmail}`)
+  }
+
+  db.prepare('UPDATE admin_users SET status = ? WHERE id = ?').run(newStatus, admin.id)
+
+  // Log audit event
+  logAdminActivity({
+    adminEmail: updatedByEmail,
+    action: `admin.status_update`,
+    category: 'admin',
+    targetId: admin.id,
+    targetType: 'admin_user',
+    details: {
+      target_email: admin.email,
+      old_status: admin.status,
+      new_status: newStatus,
+      reason: reason || 'Status modified by Superadmin',
+    },
+    ipAddress: '127.0.0.1',
+  })
+
+  return { ok: true, admin: { ...admin, status: newStatus } }
+}
+
+export function logAdminActivity({
+  adminEmail,
+  action,
+  category = 'admin',
+  targetId = null,
+  targetType = null,
+  details = null,
+  ipAddress = '127.0.0.1',
+}) {
+  try {
+    const db = getDatabase()
+    const logId = 'log_' + crypto.randomUUID().replace(/-/g, '')
+    const nowIso = new Date().toISOString()
+    const admin = getAdminUserByEmail(adminEmail)
+    const adminId = admin ? admin.id : null
+
+    db.prepare(`
+      INSERT INTO admin_activity_logs (
+        id, admin_id, admin_email, action, category, target_id, target_type, details, ip_address, created_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      logId,
+      adminId,
+      adminEmail.trim().toLowerCase(),
+      action,
+      category,
+      targetId,
+      targetType,
+      typeof details === 'object' && details !== null ? JSON.stringify(details) : (details || null),
+      ipAddress,
+      nowIso,
+    )
+    return { ok: true, id: logId }
+  } catch (err) {
+    console.error('[customerDatabase] Failed to record admin activity log:', err)
+    return { ok: false, error: err.message }
+  }
+}
+
+export function recordAdminSessionLogin({
+  adminEmail,
+  ipAddress = '127.0.0.1',
+  userAgent = 'Inferxe Web Client',
+  tokenHash = null,
+}) {
+  const db = getDatabase()
+  const cleanEmail = adminEmail.trim().toLowerCase()
+  const sessionId = 'ses_' + crypto.randomUUID().replace(/-/g, '')
+  const nowIso = new Date().toISOString()
+
+  // Update last_login and last_ip on admin_users table
+  db.prepare(`
+    UPDATE admin_users 
+    SET last_login = ?, last_ip = ?
+    WHERE LOWER(email) = ?
+  `).run(nowIso, ipAddress, cleanEmail)
+
+  // Insert session
+  db.prepare(`
+    INSERT INTO admin_sessions (
+      session_id, admin_email, token_hash, login_at, status, ip_address, user_agent
+    ) VALUES (?, ?, ?, ?, 'active', ?, ?)
+  `).run(sessionId, cleanEmail, tokenHash, nowIso, ipAddress, userAgent)
+
+  // Log activity
+  logAdminActivity({
+    adminEmail: cleanEmail,
+    action: 'admin.login',
+    category: 'auth',
+    targetId: sessionId,
+    targetType: 'admin_session',
+    details: { ip: ipAddress, userAgent },
+    ipAddress,
+  })
+
+  return sessionId
+}
+
+export function recordAdminSessionLogout({
+  adminEmail,
+  ipAddress = '127.0.0.1',
+}) {
+  try {
+    const db = getDatabase()
+    const cleanEmail = adminEmail.trim().toLowerCase()
+    const nowIso = new Date().toISOString()
+
+    // Close most recent active session
+    db.prepare(`
+      UPDATE admin_sessions
+      SET logout_at = ?, status = 'closed'
+      WHERE LOWER(admin_email) = ? AND status = 'active'
+    `).run(nowIso, cleanEmail)
+
+    logAdminActivity({
+      adminEmail: cleanEmail,
+      action: 'admin.logout',
+      category: 'auth',
+      targetId: cleanEmail,
+      targetType: 'admin_session',
+      details: { ip: ipAddress },
+      ipAddress,
+    })
+
+    return { ok: true }
+  } catch (err) {
+    console.error('[customerDatabase] Failed to record admin logout:', err)
+    return { ok: false, error: err.message }
+  }
+}
+
+export function getAdminActivityLogs({
+  limit = 50,
+  offset = 0,
+  category = null,
+  search = '',
+} = {}) {
+  const db = getDatabase()
+  const conditions = []
+  const params = []
+
+  if (category && category !== 'all') {
+    conditions.push('category = ?')
+    params.push(category)
+  }
+
+  if (search && search.trim()) {
+    conditions.push('(admin_email LIKE ? OR action LIKE ? OR target_id LIKE ? OR details LIKE ?)')
+    const s = `%${search.trim()}%`
+    params.push(s, s, s, s)
+  }
+
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
+  const countRow = db.prepare(`SELECT COUNT(*) as total FROM admin_activity_logs ${whereClause}`).get(...params)
+  const total = countRow ? countRow.total : 0
+
+  const queryParams = [...params, Number(limit), Number(offset)]
+  const rows = db.prepare(`
+    SELECT * FROM admin_activity_logs 
+    ${whereClause}
+    ORDER BY created_at DESC 
+    LIMIT ? OFFSET ?
+  `).all(...queryParams)
+
+  const parsed = rows.map((r) => {
+    let parsedDetails = {}
+    try {
+      if (r.details) parsedDetails = JSON.parse(r.details)
+    } catch {
+      parsedDetails = { raw: r.details }
+    }
+    return {
+      ...r,
+      details: parsedDetails,
+    }
+  })
+
+  return { total, logs: parsed }
+}
+
+export function getAdminSessionHistory({
+  limit = 50,
+  offset = 0,
+  email = null,
+} = {}) {
+  const db = getDatabase()
+  const conditions = []
+  const params = []
+
+  if (email && email.trim()) {
+    conditions.push('LOWER(admin_email) = ?')
+    params.push(email.trim().toLowerCase())
+  }
+
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
+  const countRow = db.prepare(`SELECT COUNT(*) as total FROM admin_sessions ${whereClause}`).get(...params)
+  const total = countRow ? countRow.total : 0
+
+  const queryParams = [...params, Number(limit), Number(offset)]
+  const sessions = db.prepare(`
+    SELECT * FROM admin_sessions
+    ${whereClause}
+    ORDER BY login_at DESC
+    LIMIT ? OFFSET ?
+  `).all(...queryParams)
+
+  return { total, sessions }
+}
+

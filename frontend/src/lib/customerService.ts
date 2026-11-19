@@ -1,4 +1,4 @@
-import { getSession, ensureFreshSession } from './authStore'
+import { getSession, ensureFreshSession, isJwtExpired, refreshCustomerSession, decodeJwt } from './authStore'
 import { NOTIFICATIONS_API_BASE } from './apiConfig'
 
 export type ActivityStatus = 'Online' | 'Active' | 'Inactive'
@@ -19,6 +19,7 @@ export interface CustomerRecord {
   account_status: AccountStatus
   activity_status: ActivityStatus
   login_count?: number | null
+  is_test_account?: boolean
   created_at: string
   updated_at: string | null
 }
@@ -39,10 +40,14 @@ export interface CustomerDetailsRecord extends CustomerRecord {
 
 export interface CustomerSummary {
   total: number
+  total_real?: number
+  total_test?: number
+  active_count?: number
   online: number
   onlineTrackingAvailable?: boolean
   active: number
   inactive: number
+  suspended?: number
 }
 
 export interface CustomerListResponse {
@@ -72,7 +77,7 @@ function getAdminAuthToken(): string | null {
 /**
  * Fetch dynamic customer summary cards metrics (Total, Online, Active, Inactive).
  */
-export async function fetchCustomerSummary(): Promise<CustomerSummary> {
+export async function fetchCustomerSummary(accountType?: 'all' | 'real' | 'test'): Promise<CustomerSummary> {
   const token = getAdminAuthToken()
   const headers: Record<string, string> = {
     Accept: 'application/json',
@@ -81,7 +86,8 @@ export async function fetchCustomerSummary(): Promise<CustomerSummary> {
     headers['Authorization'] = `Bearer ${token}`
   }
 
-  const res = await fetch('/api/admin/customers/summary', { headers })
+  const query = accountType ? `?accountType=${accountType}` : ''
+  const res = await fetch(`/api/admin/customers/summary${query}`, { headers })
   if (!res.ok) {
     throw new Error(`Failed to load customer summary: ${res.statusText}`)
   }
@@ -100,6 +106,7 @@ export async function fetchCustomers(params: {
   sortOrder?: 'asc' | 'desc'
   page?: number
   limit?: number
+  accountType?: 'all' | 'real' | 'test'
 }): Promise<CustomerListResponse> {
   const token = getAdminAuthToken()
   const query = new URLSearchParams()
@@ -109,6 +116,7 @@ export async function fetchCustomers(params: {
   if (params.sortOrder) query.set('sortOrder', params.sortOrder)
   if (params.page) query.set('page', String(params.page))
   if (params.limit) query.set('limit', String(params.limit))
+  if (params.accountType) query.set('accountType', params.accountType)
 
   const headers: Record<string, string> = {
     Accept: 'application/json',
@@ -175,7 +183,7 @@ export async function createDatabaseBackup(): Promise<DatabaseBackupResult> {
 /**
  * Export all customer records (including inactive) as an RFC 4180 CSV file downloaded in browser.
  */
-export async function exportCustomersCsv(): Promise<void> {
+export async function exportCustomersCsv(accountType?: 'all' | 'real' | 'test'): Promise<void> {
   const token = getAdminAuthToken()
   const headers: Record<string, string> = {
     Accept: 'text/csv',
@@ -184,7 +192,8 @@ export async function exportCustomersCsv(): Promise<void> {
     headers['Authorization'] = `Bearer ${token}`
   }
 
-  const res = await fetch('/api/admin/customers/export', { headers })
+  const query = accountType ? `?accountType=${accountType}` : ''
+  const res = await fetch(`/api/admin/customers/export${query}`, { headers })
   if (!res.ok) {
     throw new Error(`CSV Export failed: ${res.statusText}`)
   }
@@ -304,15 +313,24 @@ export async function recordCustomerActivity(data: {
 /**
  * Persist the authenticated Cognito user in Supabase using the server-side service role.
  */
-export async function syncCognitoProfile(idToken: string): Promise<void> {
+export async function syncCognitoProfile(
+  idToken: string,
+  extraProfile?: { organization?: string }
+): Promise<void> {
   let response: Response
   try {
+    const payload =
+      extraProfile && typeof extraProfile.organization === 'string' && extraProfile.organization.trim()
+        ? { organization: extraProfile.organization.trim() }
+        : {}
     response = await fetch('/api/customer/profile/sync', {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${idToken}`,
+        'Content-Type': 'application/json',
         Accept: 'application/json',
       },
+      body: JSON.stringify(payload),
     })
   } catch (error) {
     console.error('[profile-sync] Backend request failed.', {
@@ -350,26 +368,61 @@ export async function syncCognitoProfile(idToken: string): Promise<void> {
  * Send periodic heartbeat to keep customer status 'Online'.
  * Runs approximately every 30-60 seconds.
  */
-export async function sendCustomerHeartbeat(data: {
+export async function sendCustomerHeartbeat(data?: {
   cognito_sub?: string
-  email: string
+  email?: string
+  session_id?: string
 }): Promise<boolean> {
   try {
     const session = await ensureFreshSession()
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    }
-    if (session?.token) {
-      headers['Authorization'] = `Bearer ${session.token}`
+    if (!session || !session.token) return false
+
+    // Skip heartbeat if token is still expired
+    if (session.token.split('.').length === 3 && isJwtExpired(session.token, 10)) {
+      return false
     }
 
-    const res = await fetch('/api/customer/heartbeat', {
+    let cognitoSub = data?.cognito_sub || (session.user.id?.startsWith('usr_') ? undefined : session.user.id)
+    if (!cognitoSub && session.token.split('.').length === 3) {
+      const claims = decodeJwt(session.token)
+      if (claims?.sub && !claims.sub.startsWith('usr_')) {
+        cognitoSub = claims.sub
+      }
+    }
+
+    const payload = {
+      cognito_sub: cognitoSub,
+      email: data?.email || session.user.email,
+      session_id: data?.session_id,
+    }
+
+    let res = await fetch('/api/customer/heartbeat', {
       method: 'POST',
-      headers,
-      body: JSON.stringify(data),
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${session.token}`,
+      },
+      body: JSON.stringify(payload),
     })
+
+    // If backend returns 401, attempt refresh and retry once
+    if (res.status === 401) {
+      const refreshed = await refreshCustomerSession(true)
+      if (refreshed?.token) {
+        res = await fetch('/api/customer/heartbeat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${refreshed.token}`,
+          },
+          body: JSON.stringify(payload),
+        })
+      }
+    }
+
     return res.ok
-  } catch {
+  } catch (err) {
+    console.warn('[customerService] sendCustomerHeartbeat network failure:', err)
     return false
   }
 }
@@ -377,9 +430,11 @@ export async function sendCustomerHeartbeat(data: {
 /**
  * Notify server of customer logout to immediately update status.
  */
-export async function sendCustomerLogout(data: {
+export async function sendCustomerLogout(data?: {
   cognito_sub?: string
-  email: string
+  email?: string
+  session_id?: string
+  useKeepalive?: boolean
 }): Promise<boolean> {
   try {
     const session = await ensureFreshSession()
@@ -390,13 +445,34 @@ export async function sendCustomerLogout(data: {
       headers['Authorization'] = `Bearer ${session.token}`
     }
 
-    const res = await fetch('/api/customer/logout', {
+    let cognitoSub = data?.cognito_sub || (session?.user?.id?.startsWith('usr_') ? undefined : session?.user?.id)
+    if (!cognitoSub && session?.token && session.token.split('.').length === 3) {
+      const claims = decodeJwt(session.token)
+      if (claims?.sub && !claims.sub.startsWith('usr_')) {
+        cognitoSub = claims.sub
+      }
+    }
+
+    const payload = {
+      cognito_sub: cognitoSub,
+      email: data?.email || session?.user?.email,
+      session_id: data?.session_id,
+    }
+
+    const fetchOptions: RequestInit = {
       method: 'POST',
       headers,
-      body: JSON.stringify(data),
-    })
+      body: JSON.stringify(payload),
+    }
+
+    if (data?.useKeepalive) {
+      fetchOptions.keepalive = true
+    }
+
+    const res = await fetch('/api/customer/logout', fetchOptions)
     return res.ok
-  } catch {
+  } catch (err) {
+    console.warn('[customerService] sendCustomerLogout network failure:', err)
     return false
   }
 }

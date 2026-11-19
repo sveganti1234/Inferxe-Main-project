@@ -99,20 +99,20 @@ export function SovereignNodesMap({ selectedCountryId, onSelectCountry }: Sovere
           aria-label="High-precision interactive world map showing sovereign compute nodes distribution"
         >
           <defs>
-            {/* Bubble radial gradient for global edge nodes - Inferxe Signature Green */}
+            {/* Bubble radial gradient for global edge nodes - Customer Palette Mint/Emerald */}
             <radialGradient id="geo-bubble-green" cx="42%" cy="42%" r="58%">
-              <stop offset="0%" stopColor="#bef264" stopOpacity="0.95" />
-              <stop offset="40%" stopColor="#84cc16" stopOpacity="0.85" />
-              <stop offset="80%" stopColor="#65a300" stopOpacity="0.75" />
-              <stop offset="100%" stopColor="#4d7c0f" stopOpacity="0.60" />
+              <stop offset="0%" stopColor="#a7f3d0" stopOpacity="0.95" />
+              <stop offset="40%" stopColor="#50e396" stopOpacity="0.85" />
+              <stop offset="80%" stopColor="#137a50" stopOpacity="0.75" />
+              <stop offset="100%" stopColor="#0e5b3c" stopOpacity="0.60" />
             </radialGradient>
 
             {/* Bubble radial gradient for Indian Sovereign Core - Flagship Beacon */}
             <radialGradient id="geo-bubble-india" cx="40%" cy="40%" r="60%">
               <stop offset="0%" stopColor="#ffffff" stopOpacity="0.98" />
-              <stop offset="25%" stopColor="#bef264" stopOpacity="0.95" />
-              <stop offset="60%" stopColor="#76b900" stopOpacity="0.90" />
-              <stop offset="100%" stopColor="#3f6212" stopOpacity="0.75" />
+              <stop offset="25%" stopColor="#6ee0a1" stopOpacity="0.95" />
+              <stop offset="60%" stopColor="#50e396" stopOpacity="0.90" />
+              <stop offset="100%" stopColor="#0e5b3c" stopOpacity="0.75" />
             </radialGradient>
 
             <filter id="geo-shadow" x="-10%" y="-10%" width="120%" height="120%">
@@ -120,11 +120,11 @@ export function SovereignNodesMap({ selectedCountryId, onSelectCountry }: Sovere
             </filter>
 
             <filter id="bubble-glow-green" x="-45%" y="-45%" width="190%" height="190%">
-              <feDropShadow dx="0" dy="0" stdDeviation="6" floodColor="#76b900" floodOpacity="0.8" />
+              <feDropShadow dx="0" dy="0" stdDeviation="6" floodColor="#50e396" floodOpacity="0.8" />
             </filter>
 
             <filter id="bubble-glow-india" x="-50%" y="-50%" width="200%" height="200%">
-              <feDropShadow dx="0" dy="0" stdDeviation="9" floodColor="#84cc16" floodOpacity="0.95" />
+              <feDropShadow dx="0" dy="0" stdDeviation="9" floodColor="#6ee0a1" floodOpacity="0.95" />
             </filter>
           </defs>
 
@@ -138,8 +138,8 @@ export function SovereignNodesMap({ selectedCountryId, onSelectCountry }: Sovere
             const isIndia = m.id === 'in'
             const currentR = isHovered ? m.radius * 1.25 : m.radius
             const bubbleFill = isIndia ? 'url(#geo-bubble-india)' : 'url(#geo-bubble-green)'
-            const strokeColor = isIndia ? '#ecfccb' : 'rgba(163, 230, 53, 0.85)'
-            const pulseStroke = isIndia ? '#84cc16' : '#76b900'
+            const strokeColor = isIndia ? '#ffffff' : 'rgba(110, 224, 161, 0.85)'
+            const pulseStroke = isIndia ? '#6ee0a1' : '#50e396'
             const filterUrl = isIndia ? 'url(#bubble-glow-india)' : 'url(#bubble-glow-green)'
 
             return (
