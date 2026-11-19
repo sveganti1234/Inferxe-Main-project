@@ -1,7 +1,8 @@
-import { getSession, isJwtExpired, refreshCustomerSession, decodeJwt } from './authStore'
+import { getSession, ensureFreshSession, isJwtExpired, refreshCustomerSession, decodeJwt } from './authStore'
+import { NOTIFICATIONS_API_BASE } from './apiConfig'
 
 export type ActivityStatus = 'Online' | 'Active' | 'Inactive'
-export type AccountStatus = 'active' | 'suspended'
+export type AccountStatus = 'active' | 'inactive' | 'pending' | 'suspended' | 'unknown'
 
 export interface CustomerRecord {
   customer_id: string
@@ -13,14 +14,14 @@ export interface CustomerRecord {
   role: string
   registration_date: string
   last_login_at: string | null
-  last_active_at: string
-  last_heartbeat_at: string
+  last_active_at: string | null
+  last_heartbeat_at: string | null
   account_status: AccountStatus
   activity_status: ActivityStatus
-  login_count?: number
+  login_count?: number | null
   is_test_account?: boolean
   created_at: string
-  updated_at: string
+  updated_at: string | null
 }
 
 export interface CustomerActivityLog {
@@ -32,7 +33,7 @@ export interface CustomerActivityLog {
 }
 
 export interface CustomerDetailsRecord extends CustomerRecord {
-  login_count: number
+  login_count: number | null
   previous_logins?: string[]
   activity_logs: CustomerActivityLog[]
 }
@@ -43,6 +44,7 @@ export interface CustomerSummary {
   total_test?: number
   active_count?: number
   online: number
+  onlineTrackingAvailable?: boolean
   active: number
   inactive: number
   suspended?: number
@@ -153,7 +155,7 @@ export async function fetchCustomerDetails(customerId: string): Promise<Customer
 }
 
 /**
- * Trigger an automated backup of the SQLite customer database.
+ * Trigger an automated snapshot of Supabase customer profiles.
  */
 export async function createDatabaseBackup(): Promise<DatabaseBackupResult> {
   const token = getAdminAuthToken()
@@ -208,12 +210,14 @@ export async function exportCustomersCsv(accountType?: 'all' | 'real' | 'test'):
 }
 
 /**
- * Synchronize batch of existing Cognito customers into the central database.
- * Does not overwrite existing activity history or reset timestamps.
+ * Synchronize confirmed Cognito users through the backend's profile sync.
  */
-export async function syncCognitoCustomers(
-  customers?: Partial<CustomerRecord>[],
-): Promise<{ ok: boolean; syncedCount: number; updatedCount: number; newCount: number }> {
+export async function syncCognitoCustomers(): Promise<{
+  ok: boolean
+  syncedCount: number
+  updatedCount: number
+  newCount: number
+}> {
   const token = getAdminAuthToken()
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -226,7 +230,7 @@ export async function syncCognitoCustomers(
   const res = await fetch('/api/admin/customers/sync', {
     method: 'POST',
     headers,
-    body: JSON.stringify({ customers: customers || [] }),
+    body: JSON.stringify({}),
   })
 
   if (!res.ok) {
@@ -280,7 +284,7 @@ export async function recordCustomerActivity(data: {
   metadata?: Record<string, unknown>
 }): Promise<{ ok: boolean; customer?: CustomerRecord; error?: string }> {
   try {
-    const session = getSession()
+    const session = await ensureFreshSession()
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     }
@@ -370,11 +374,7 @@ export async function sendCustomerHeartbeat(data?: {
   session_id?: string
 }): Promise<boolean> {
   try {
-    let session = getSession()
-    if (!session || !session.token || (session.token.split('.').length === 3 && isJwtExpired(session.token, 60))) {
-      const refreshed = await refreshCustomerSession(true)
-      if (refreshed) session = refreshed
-    }
+    const session = await ensureFreshSession()
     if (!session || !session.token) return false
 
     // Skip heartbeat if token is still expired
@@ -437,7 +437,7 @@ export async function sendCustomerLogout(data?: {
   useKeepalive?: boolean
 }): Promise<boolean> {
   try {
-    const session = getSession()
+    const session = await ensureFreshSession()
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     }
@@ -475,4 +475,88 @@ export async function sendCustomerLogout(data?: {
     console.warn('[customerService] sendCustomerLogout network failure:', err)
     return false
   }
+}
+
+/* ── Administrator customer account (real records only) ── */
+
+export interface CustomerAccountTransaction {
+  id: string
+  type: string | null
+  direction: string | null
+  amount: number | null
+  currency: string | null
+  status: string | null
+  description: string | null
+  balance_after: number | null
+  created_at: string | null
+}
+
+export interface CustomerAccountDeployment {
+  id: string
+  name: string
+  model: string | null
+  gpu: string | null
+  region: string | null
+  status: string | null
+  hourly_rate: number | null
+  currency: string | null
+  created_at: string | null
+}
+
+export interface CustomerAccountHistoryEntry {
+  id: string
+  action: string
+  administrator_email: string | null
+  details: Record<string, unknown>
+  created_at: string | null
+}
+
+export interface CustomerAccount {
+  profile: CustomerRecord & { phone_number: string | null }
+  wallet: { balance: number | null; currency: string | null; low_balance_alert_level: string | null; updated_at: string | null } | null
+  transactions: CustomerAccountTransaction[]
+  spend: { month_start: string; currency: string; this_month: number; admin_spend_limit: number | null; customer_budget: number | null }
+  deployments: CustomerAccountDeployment[]
+  plan: { tier: string | null; trial_started_at: string | null; trial_ends_at: string | null; trial_status: 'none' | 'active' | 'expired'; updated_at: string | null } | null
+  history: CustomerAccountHistoryEntry[]
+}
+
+async function adminJson<T>(url: string, init: RequestInit = {}): Promise<T> {
+  const token = getAdminAuthToken()
+  if (!token) throw new Error('Administrator sign-in is required.')
+  const res = await fetch(url, {
+    ...init,
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json', Authorization: `Bearer ${token}`, ...init.headers },
+  })
+  const body = (await res.json().catch(() => null)) as Record<string, unknown> | null
+  if (!res.ok || !body) {
+    const message = (body && (typeof body.error === 'string' ? body.error : typeof body.detail === 'string' ? body.detail : null)) || `Request failed (${res.status}).`
+    throw new Error(message)
+  }
+  return body as T
+}
+
+/** Profile, wallet, transactions, deployments, spend, plan and audit history for one customer. */
+export async function fetchCustomerAccount(customerId: string): Promise<CustomerAccount> {
+  const body = await adminJson<{ ok: boolean; account: CustomerAccount }>(`/api/admin/customers/${encodeURIComponent(customerId)}/account`)
+  return body.account
+}
+
+/** Assign or update a customer's plan/trial. Audited server-side with the reason. */
+export async function updateCustomerPlan(
+  customerId: string,
+  plan: { tier: string | null; trial_started_at: string | null; trial_ends_at: string | null; reason: string },
+): Promise<void> {
+  await adminJson(`/api/admin/customers/${encodeURIComponent(customerId)}/plan`, { method: 'PUT', body: JSON.stringify(plan) })
+}
+
+/**
+ * Administrator wallet credit (notifications service). The credit, its transaction and the audit
+ * entry are written atomically; the idempotency key makes a double-submit credit only once.
+ */
+export async function creditCustomerWallet(customerId: string, amount: number, reason: string, idempotencyKey: string): Promise<{ new_balance?: number; status?: string }> {
+  return adminJson(`${NOTIFICATIONS_API_BASE}/api/wallet/transactions`, {
+    method: 'POST',
+    body: JSON.stringify({ amount, reason, target_user_id: customerId, idempotency_key: idempotencyKey, description: 'Administrator credit' }),
+  })
 }

@@ -10,7 +10,7 @@
  * - Raw token security: never persisted in localStorage.
  */
 
-import { getSession } from './authStore'
+import { ensureFreshSession } from './authStore'
 import {
   INFERENCE_API_BASE,
   formatApiConnectionError,
@@ -64,7 +64,7 @@ export async function fetchBackendNotebooks(): Promise<{
   unauthorized?: boolean
 }> {
   try {
-    const session = getSession()
+    const session = await ensureFreshSession()
     if (!session?.token) {
       return { ok: false, unauthorized: true, error: 'Please sign in to view your notebooks.' }
     }
@@ -102,7 +102,7 @@ export async function getBackendNotebook(id: string): Promise<{
   unauthorized?: boolean
 }> {
   try {
-    const session = getSession()
+    const session = await ensureFreshSession()
     if (!session?.token) {
       return { ok: false, unauthorized: true, error: 'Please sign in to view notebook details.' }
     }
@@ -121,7 +121,8 @@ export async function getBackendNotebook(id: string): Promise<{
       return { ok: false, error: data.detail || 'Notebook not found.' }
     }
 
-    return { ok: true, notebook: data.notebook }
+    // Create and get return the notebook itself; start/stop wrap it as { notebook }.
+    return { ok: true, notebook: data.notebook ?? data }
   } catch (err) {
     return {
       ok: false,
@@ -142,7 +143,7 @@ export async function createBackendNotebook(payload: NotebookCreatePayload): Pro
   unauthorized?: boolean
 }> {
   try {
-    const session = getSession()
+    const session = await ensureFreshSession()
     if (!session?.token) {
       return { ok: false, unauthorized: true, error: 'Please sign in to create a notebook.' }
     }
@@ -170,7 +171,8 @@ export async function createBackendNotebook(payload: NotebookCreatePayload): Pro
       return { ok: false, error: data.detail || 'Failed to create notebook instance.' }
     }
 
-    return { ok: true, notebook: data.notebook }
+    // Create and get return the notebook itself; start/stop wrap it as { notebook }.
+    return { ok: true, notebook: data.notebook ?? data }
   } catch (err) {
     return {
       ok: false,
@@ -190,7 +192,7 @@ export async function startBackendNotebook(id: string): Promise<{
   unauthorized?: boolean
 }> {
   try {
-    const session = getSession()
+    const session = await ensureFreshSession()
     if (!session?.token) {
       return { ok: false, unauthorized: true, error: 'Please sign in to start a notebook.' }
     }
@@ -229,7 +231,7 @@ export async function stopBackendNotebook(id: string): Promise<{
   unauthorized?: boolean
 }> {
   try {
-    const session = getSession()
+    const session = await ensureFreshSession()
     if (!session?.token) {
       return { ok: false, unauthorized: true, error: 'Please sign in to stop a notebook.' }
     }
@@ -268,7 +270,7 @@ export async function deleteBackendNotebook(id: string): Promise<{
   unauthorized?: boolean
 }> {
   try {
-    const session = getSession()
+    const session = await ensureFreshSession()
     if (!session?.token) {
       return { ok: false, unauthorized: true, error: 'Please sign in to terminate a notebook.' }
     }

@@ -5,7 +5,7 @@
  * to the PostgreSQL-backed SSH Key Management endpoints (/api/v1/ssh-keys).
  */
 
-import { getSession } from './authStore'
+import { ensureFreshSession } from './authStore'
 import {
   INFERENCE_API_BASE,
   formatApiConnectionError,
@@ -43,7 +43,7 @@ export async function fetchBackendSshKeys(): Promise<{
   unauthorized?: boolean
 }> {
   try {
-    const session = getSession()
+    const session = await ensureFreshSession()
     if (!session?.token) {
       return { ok: false, unauthorized: true, error: 'Please sign in to view your SSH keys.' }
     }
@@ -88,7 +88,7 @@ export async function createBackendSshKey(
   unauthorized?: boolean
 }> {
   try {
-    const session = getSession()
+    const session = await ensureFreshSession()
     if (!session?.token) {
       return { ok: false, unauthorized: true, error: 'Please sign in to add an SSH key.' }
     }
@@ -152,7 +152,7 @@ export async function deleteBackendSshKey(keyId: string): Promise<{
   unauthorized?: boolean
 }> {
   try {
-    const session = getSession()
+    const session = await ensureFreshSession()
     if (!session?.token) {
       return { ok: false, unauthorized: true, error: 'Please sign in to delete an SSH key.' }
     }

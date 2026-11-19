@@ -77,6 +77,90 @@ def is_cognito_configured() -> bool:
     )
 
 
+_PRODUCTION_ENV_VALUES = {"production", "prod"}
+_SERVER_MODULES = ("uvicorn", "gunicorn", "hypercorn")
+_test_mode_refusal_logged = False
+
+
+def is_test_mode_enabled() -> bool:
+    """
+    True only when INFERXE_TEST_MODE=1 is set inside a test process.
+
+    Test mode skips Cognito signature verification, so it is refused whenever the code runs
+    inside an ASGI server (uvicorn/gunicorn/hypercorn) or the environment is marked as
+    production (INFERXE_ENV / APP_ENV / ENVIRONMENT). A stray environment variable therefore
+    cannot disable signature verification on a running service.
+    """
+    global _test_mode_refusal_logged
+    if os.getenv("INFERXE_TEST_MODE") != "1":
+        return False
+    import sys
+
+    env_name = (os.getenv("INFERXE_ENV") or os.getenv("APP_ENV") or os.getenv("ENVIRONMENT") or "").strip().lower()
+    serving = any(module in sys.modules for module in _SERVER_MODULES)
+    if env_name in _PRODUCTION_ENV_VALUES or serving:
+        if not _test_mode_refusal_logged:
+            logger.error(
+                "INFERXE_TEST_MODE=1 ignored: test mode is only honoured inside test runners, "
+                "never in a running server or production environment."
+            )
+            _test_mode_refusal_logged = True
+        return False
+    return True
+
+
+# Short-lived cache of profiles confirmed active (user_id -> monotonic expiry).
+_ACTIVE_PROFILE_CACHE: Dict[str, float] = {}
+_ACTIVE_PROFILE_TTL_SECONDS = 60.0
+
+
+def assert_profile_active(user_id: str) -> None:
+    """
+    Reject protected operations for customers whose Supabase profile is suspended or inactive.
+
+    - Profile exists with status != 'active'  -> HTTP 403.
+    - No profile row                          -> allowed (profile is created at sign-in sync).
+    - Profile store unreachable               -> HTTP 503 (fail closed).
+    Skipped in test mode. Never logs tokens or personal data.
+    """
+    if not user_id or is_test_mode_enabled():
+        return
+    import time
+
+    now = time.monotonic()
+    if _ACTIVE_PROFILE_CACHE.get(user_id, 0.0) > now:
+        return
+    try:
+        import httpx2
+        from inference.supabase_config import get_supabase_settings
+
+        settings = get_supabase_settings(auto_load=False)
+        with httpx2.Client(timeout=5.0) as client:
+            response = client.get(
+                settings.rest_url("profiles"),
+                params={"select": "status", "user_id": f"eq.{user_id}", "limit": "1"},
+                headers=settings.auth_headers(),
+            )
+        if response.status_code >= 400:
+            raise RuntimeError(f"profile lookup returned HTTP {response.status_code}")
+        rows = response.json() or []
+    except Exception as lookup_err:
+        logger.error("Profile status lookup failed: %s", type(lookup_err).__name__)
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Account status could not be verified. Please try again shortly.",
+        )
+    if rows:
+        profile_status = str(rows[0].get("status") or "").strip().lower()
+        if profile_status != "active":
+            _ACTIVE_PROFILE_CACHE.pop(user_id, None)
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="This account is not active. Please contact Inferxe support.",
+            )
+    _ACTIVE_PROFILE_CACHE[user_id] = now + _ACTIVE_PROFILE_TTL_SECONDS
+
+
 # AWS Cognito Configuration (resolved defaults at module import)
 COGNITO_REGION, COGNITO_USER_POOL_ID, COGNITO_CLIENT_ID = get_cognito_runtime_config()
 
@@ -190,6 +274,9 @@ def verify_customer_api_key(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    # Suspended or inactive customers cannot use their API keys
+    assert_profile_active(str(key_record.user_id))
+
     # Update last_used_at timestamp in Supabase
     try:
         repo.update_last_used(key_id=key_record.id, user_id=key_record.user_id)
@@ -213,8 +300,9 @@ def verify_cognito_jwt(token: str) -> Dict[str, Any]:
     - Validates token expiration (exp).
     - Rejects expired tokens, invalid signatures, or wrong token_use with HTTP 401.
     """
-    # Test mode bypass allows unit tests to test business logic with mock payloads
-    if os.getenv("INFERXE_TEST_MODE") == "1":
+    # Test mode bypass allows unit tests to test business logic with mock payloads.
+    # It is refused inside running servers and production environments (see is_test_mode_enabled).
+    if is_test_mode_enabled():
         import json
         import base64
         import time
@@ -342,6 +430,8 @@ def require_cognito_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    # Suspended or inactive customers cannot perform protected operations
+    assert_profile_active(str(user_id))
     return user_id
 
 

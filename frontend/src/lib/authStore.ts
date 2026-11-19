@@ -53,31 +53,64 @@ export function isJwtExpired(token: string, skewSeconds = 30): boolean {
   return Date.now() / 1000 >= claims.exp - skewSeconds
 }
 
-/* ── AWS Cognito (USER_PASSWORD_AUTH over the public Cognito IDP endpoint) ──
-   Enabled when VITE_COGNITO_REGION and VITE_COGNITO_CLIENT_ID are set. */
+/* ── AWS Cognito app client (sign-in, sign-up and refresh go through Amplify, SRP) ──
+   Used here only for client-side token plausibility checks. */
 const COGNITO_REGION = (import.meta.env.VITE_COGNITO_REGION as string | undefined) || 'ap-south-1'
 const COGNITO_CLIENT_ID =
   (import.meta.env.VITE_COGNITO_CLIENT_ID as string | undefined) || '334trhnhmim8v42gq4bgk7umst'
 
-export const cognitoEnabled = Boolean(COGNITO_CLIENT_ID)
 
-async function cognitoCall<T>(target: string, body: Record<string, unknown>): Promise<{ ok: boolean; data?: T; error?: string }> {
-  try {
-    const res = await fetch(`https://cognito-idp.${COGNITO_REGION}.amazonaws.com/`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-amz-json-1.1',
-        'X-Amz-Target': `AWSCognitoIdentityProviderService.${target}`,
-      },
-      body: JSON.stringify({ ClientId: COGNITO_CLIENT_ID, ...body }),
-    })
-    const data = await res.json()
-    if (!res.ok) return { ok: false, error: (data as { message?: string }).message || 'Cognito request failed.' }
-    return { ok: true, data: data as T }
-  } catch {
-    return { ok: false, error: 'Unable to reach AWS Cognito.' }
-  }
+/* ── Client-side session plausibility checks ──
+   These checks only screen out legacy fake sessions (e.g. `ix-customer-*`) and tokens that
+   were obviously not issued for this app. They do NOT verify signatures: every backend
+   service remains the authority on whether a token is genuine. */
+const COGNITO_USER_POOL_ID =
+  (import.meta.env.VITE_COGNITO_USER_POOL_ID as string | undefined) ||
+  (import.meta.env.VITE_COGNITO_AUTHORITY as string | undefined)?.split('/').pop() ||
+  'ap-south-1_cYw1QjgbQ'
+// A Cognito user pool id is prefixed with its region (e.g. "ap-south-1_abc123").
+const COGNITO_POOL_REGION = COGNITO_USER_POOL_ID.split('_')[0] || COGNITO_REGION
+const COGNITO_ISSUER = `https://cognito-idp.${COGNITO_POOL_REGION}.amazonaws.com/${COGNITO_USER_POOL_ID}`
+
+/** Tokens minted by the removed client-side fallbacks. Never a real credential. */
+export function isLegacyFakeToken(token: string | null | undefined): boolean {
+  const value = (token || '').trim()
+  return value.startsWith('ix-') || value === 'admin-dev-token'
 }
+
+/**
+ * True when the token decodes to a Cognito ID token for this user pool and app client
+ * (issuer, audience, token_use and subject). Expiry is checked separately by callers.
+ */
+export function isPlausibleCognitoIdToken(token: string | null | undefined): boolean {
+  if (!token || isLegacyFakeToken(token)) return false
+  const claims = decodeJwt(token)
+  if (!claims) return false
+  return (
+    claims.token_use === 'id' &&
+    claims.iss === COGNITO_ISSUER &&
+    claims.aud === COGNITO_CLIENT_ID &&
+    typeof claims.sub === 'string' &&
+    claims.sub.length > 0
+  )
+}
+
+/** True when the token decodes to an administrator session token issued by the admin auth server. */
+function isPlausibleAdminSessionToken(token: string | null | undefined): boolean {
+  if (!token || isLegacyFakeToken(token)) return false
+  const claims = decodeJwt(token)
+  return Boolean(claims && (claims.role === 'admin' || claims.role === 'superadmin') && typeof claims.exp === 'number')
+}
+
+/** Structural check for a stored session; customer sessions must carry a Cognito ID token. */
+export function isPlausibleSession(session: AuthSession | null | undefined): session is AuthSession {
+  if (!session || typeof session !== 'object' || typeof session.token !== 'string' || !session.user) return false
+  if (isLegacyFakeToken(session.token)) return false
+  return isAdminPortalRole(session.user.role)
+    ? isPlausibleAdminSessionToken(session.token)
+    : isPlausibleCognitoIdToken(session.token)
+}
+
 
 export interface CustomerProfile {
   id: string
@@ -92,13 +125,12 @@ export interface CustomerProfile {
 
 export async function syncCustomerProfile(
   idToken: string,
-  extraProfile?: { organization?: string }
+  extraProfile?: { organization?: string },
 ): Promise<CustomerProfile> {
   const payload =
     extraProfile && typeof extraProfile.organization === 'string' && extraProfile.organization.trim()
       ? { organization: extraProfile.organization.trim() }
       : {}
-
   try {
     const response = await fetch('/api/customer/profile/sync', {
       method: 'POST',
@@ -113,100 +145,25 @@ export async function syncCustomerProfile(
     if (response.ok && result.ok && result.profile) {
       return result.profile as CustomerProfile
     }
-    console.warn('[customer-auth] Backend profile sync returned error, falling back to ID token claims:', result?.error)
   } catch (err) {
-    console.warn('[customer-auth] Backend profile sync unreachable, falling back to ID token claims:', err)
+    console.warn('[customer-auth] Profile sync network call failed, falling back to token claims:', err)
   }
 
-  // Graceful fallback to verified Cognito ID token claims
   const claims = decodeJwt(idToken) || {}
   const email = (claims.email as string) || ''
-  const fullName =
-    (claims.name as string) ||
-    (claims.preferred_username as string) ||
-    (claims['cognito:username'] as string) ||
-    email.split('@')[0] ||
-    'Customer'
-  const username =
-    (claims['cognito:username'] as string) ||
-    (claims.preferred_username as string) ||
-    email.split('@')[0] ||
-    'customer'
-  const role = (claims['cognito:groups']?.includes('admin') ? 'admin' : 'customer') as UserRole
-
+  // cognito:username is a generated id (cust_…) for self-registered customers, so it is never a display name.
+  const name = (claims.name as string)?.trim() || email.split('@')[0] || 'Customer'
+  const username = (claims['cognito:username'] as string) || email.split('@')[0] || 'customer'
   return {
     id: (claims.sub as string) || `usr_cog_${Math.random().toString(36).substring(2, 9)}`,
-    fullName,
+    fullName: name,
     email,
     username,
-    role,
+    role: 'customer',
     status: 'active',
     organization: payload.organization || null,
     organizationId: null,
   }
-}
-
-function sessionFromProfile(idToken: string, profile: CustomerProfile): AuthSession {
-  const claims = decodeJwt(idToken)
-  return {
-    token: idToken,
-    user: {
-      id: profile.id,
-      fullName: profile.fullName,
-      email: profile.email,
-      username: profile.username,
-      role: profile.role,
-      organization: profile.organization || undefined,
-    },
-    expiresAt: claims?.exp ? claims.exp * 1000 : 0,
-  }
-}
-
-async function cognitoLogin(email: string, password: string): Promise<{ ok: boolean; session?: AuthSession; error?: string }> {
-  const r = await cognitoCall<{ AuthenticationResult?: { IdToken: string } }>('InitiateAuth', {
-    AuthFlow: 'USER_PASSWORD_AUTH',
-    AuthParameters: { USERNAME: email.trim(), PASSWORD: password },
-  })
-  if (!r.ok || !r.data?.AuthenticationResult?.IdToken) {
-    return { ok: false, error: r.error || 'Additional Cognito challenge required (MFA / new password).' }
-  }
-  let session: AuthSession
-  try {
-    const profile = await syncCustomerProfile(r.data.AuthenticationResult.IdToken)
-    session = sessionFromProfile(r.data.AuthenticationResult.IdToken, profile)
-  } catch (error) {
-    return {
-      ok: false,
-      error: error instanceof Error ? error.message : 'Customer profile synchronization failed.',
-    }
-  }
-  saveSession(session)
-  return { ok: true, session }
-}
-
-export function emailToCognitoUsername(email: string): string {
-  const clean = email.trim().toLowerCase()
-  return clean.replace(/@/g, '_at_').replace(/[^a-zA-Z0-9_]/g, '_')
-}
-
-async function cognitoRegister(fullName: string, email: string, password: string): Promise<{ ok: boolean; error?: string }> {
-  const cleanEmail = email.trim().toLowerCase()
-  const username = emailToCognitoUsername(cleanEmail)
-  const preferredUsername =
-    cleanEmail.split('@')[0].replace(/[^a-zA-Z0-9_.-]/g, '') ||
-    fullName.trim().replace(/\s+/g, '_') ||
-    'user'
-
-  const r = await cognitoCall('SignUp', {
-    Username: username,
-    Password: password,
-    UserAttributes: [
-      { Name: 'email', Value: cleanEmail },
-      { Name: 'name', Value: fullName.trim() },
-      { Name: 'preferred_username', Value: preferredUsername },
-    ],
-  })
-  return r.ok ? { ok: true } : { ok: false, error: r.error }
 }
 
 export function getPortalRole(role?: string): PortalRole {
@@ -217,277 +174,248 @@ export function getPortalRole(role?: string): PortalRole {
   return 'customer'
 }
 
-export function getCognitoTokenFromStorage(): string | null {
+/** Administrator portal roles (admin and superadmin) share the admin session handling. */
+export function isAdminPortalRole(role?: string): boolean {
+  return getPortalRole(role) !== 'customer'
+}
+
+/* ── Session storage ──
+   `inferxe_auth_session` is the single application session record. It is created only by an
+   explicit sign-in (Cognito or the admin auth server) and refreshed only through Amplify
+   (`ensureFreshSession`). Leftover Amplify tokens never recreate a session on their own. */
+
+/** Seconds before expiry at which a customer ID token is proactively refreshed. */
+const REFRESH_SKEW_SECONDS = 60
+
+function emitAuthChange(): void {
   try {
-    // 1. Check inferxe_auth_session directly
-    const raw = localStorage.getItem(AUTH_STORAGE_KEY)
-    if (raw) {
-      const session = JSON.parse(raw) as AuthSession
-      if (session.token && !isJwtExpired(session.token, 10)) {
-        return session.token
-      }
-    }
+    window.dispatchEvent(new Event('inferxe_auth_change'))
+  } catch {
+    // ignore (non-browser environment)
+  }
+}
 
-    // 2. Scan localStorage for Amplify Cognito ID token or access token
-    const clientId = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_COGNITO_CLIENT_ID) || '334trhnhmim8v42gq4bgk7umst'
-    const lastUser = localStorage.getItem(`CognitoIdentityServiceProvider.${clientId}.LastAuthUser`)
-    if (lastUser) {
-      const idToken = localStorage.getItem(`CognitoIdentityServiceProvider.${clientId}.${lastUser}.idToken`)
-      if (idToken && !isJwtExpired(idToken, 10)) {
-        return idToken
-      }
-      const accessToken = localStorage.getItem(`CognitoIdentityServiceProvider.${clientId}.${lastUser}.accessToken`)
-      if (accessToken && !isJwtExpired(accessToken, 10)) {
-        return accessToken
-      }
-    }
-
-    // 3. Fallback scan across all localStorage keys for any active unexpired Cognito ID token
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i)
-      if (key && key.startsWith('CognitoIdentityServiceProvider.') && key.endsWith('.idToken')) {
-        const val = localStorage.getItem(key)
-        if (val && !isJwtExpired(val, 10)) {
-          return val
-        }
-      }
-    }
-
-    // 4. Return session token if present (admin or demo tokens)
-    if (raw) {
-      const session = JSON.parse(raw) as AuthSession
-      if (session.token) {
-        return session.token
-      }
-    }
+/** Remove only the Inferxe session record. */
+function removeSessionRecord(): void {
+  try {
+    localStorage.removeItem(AUTH_STORAGE_KEY)
   } catch {
     // ignore
   }
-  return null
+  emitAuthChange()
 }
 
-export function getSession(): AuthSession | null {
+/** Read the stored session if it is structurally plausible (expired or not). Invalid records are removed. */
+function readStoredSession(): AuthSession | null {
+  let raw: string | null = null
   try {
-    const raw = localStorage.getItem(AUTH_STORAGE_KEY)
-    if (!raw) {
-      // Check if Amplify has an active Cognito token in localStorage
-      const ampToken = getCognitoTokenFromStorage()
-      if (ampToken) {
-        const claims = decodeJwt(ampToken)
-        if (claims) {
-          const freshSession: AuthSession = {
-            token: ampToken,
-            user: {
-              id: claims.sub || 'usr_customer',
-              fullName: claims.name || (claims.email ? claims.email.split('@')[0] : 'Customer'),
-              email: claims.email || '',
-              username: (claims['cognito:username'] as string) || (claims.email ? claims.email.split('@')[0] : 'customer'),
-              role: 'customer',
-              organization: 'Customer Workspace',
-            },
-            expiresAt: (claims.exp ? claims.exp * 1000 : Date.now() + 3600 * 1000),
-          }
-          saveSession(freshSession)
-          return freshSession
-        }
-      }
-      return null
-    }
-
-    const session = JSON.parse(raw) as AuthSession
-    const isExpired = (session.expiresAt && Date.now() > session.expiresAt) || (session.token.split('.').length === 3 && isJwtExpired(session.token))
-    if (isExpired) {
-      // Attempt to recover fresh token from Amplify
-      const ampToken = getCognitoTokenFromStorage()
-      if (ampToken && ampToken !== session.token) {
-        session.token = ampToken
-        const claims = decodeJwt(ampToken)
-        if (claims?.exp) session.expiresAt = claims.exp * 1000
-        saveSession(session)
-        return session
-      }
-      localStorage.removeItem(AUTH_STORAGE_KEY)
-      return null
-    }
-
-    return session
+    raw = localStorage.getItem(AUTH_STORAGE_KEY)
   } catch {
     return null
   }
+  if (!raw) return null
+  let stored: AuthSession | null = null
+  try {
+    stored = JSON.parse(raw) as AuthSession
+  } catch {
+    stored = null
+  }
+  if (!isPlausibleSession(stored)) {
+    // Legacy fake (`ix-*`) or malformed session: remove only the Inferxe session record.
+    removeSessionRecord()
+    return null
+  }
+  return stored
+}
+
+function isSessionExpired(session: AuthSession, skewSeconds = 0): boolean {
+  if (session.expiresAt && Date.now() > session.expiresAt - skewSeconds * 1000) return true
+  return isJwtExpired(session.token, skewSeconds)
 }
 
 /**
- * Refresh customer authentication session using AWS Amplify's Cognito token refresh.
- * Automatically obtains fresh ID & access tokens using the refresh token.
+ * Synchronous view of the current session: the stored record, only while its token is unexpired.
+ * An expired customer record is kept (not returned) so `ensureFreshSession` can refresh it
+ * through Amplify; an expired administrator record is removed (admin tokens cannot be refreshed).
  */
-export async function refreshCustomerSession(forceRefresh = false): Promise<AuthSession | null> {
-  try {
-    const authSession = await fetchAuthSession({ forceRefresh })
-    const idToken = authSession.tokens?.idToken?.toString()
-    if (!idToken) {
-      return null
-    }
-
-    const claims = decodeJwt(idToken)
-    if (!claims) return null
-
-    let currentSession: AuthSession | null = null
-    try {
-      const raw = localStorage.getItem(AUTH_STORAGE_KEY)
-      if (raw) currentSession = JSON.parse(raw) as AuthSession
-    } catch {}
-
-    const expMs = claims.exp ? claims.exp * 1000 : Date.now() + 3600 * 1000
-    const refreshedSession: AuthSession = {
-      token: idToken,
-      user: {
-        id: claims.sub || currentSession?.user?.id || 'usr_customer',
-        fullName:
-          claims.name ||
-          (typeof claims.preferred_username === 'string' && claims.preferred_username) ||
-          currentSession?.user?.fullName ||
-          (claims.email ? claims.email.split('@')[0] : 'Customer'),
-        email: claims.email || currentSession?.user?.email || '',
-        username:
-          (claims['cognito:username'] as string) ||
-          (claims.preferred_username as string) ||
-          currentSession?.user?.username ||
-          (claims.email ? claims.email.split('@')[0] : 'customer'),
-        role: currentSession?.user?.role || 'customer',
-        organization: currentSession?.user?.organization || 'Customer Workspace',
-      },
-      expiresAt: expMs,
-    }
-
-    saveSession(refreshedSession)
-    return refreshedSession
-  } catch (err) {
-    console.warn('[authStore] Token refresh via Amplify unavailable:', err)
+export function getSession(): AuthSession | null {
+  const session = readStoredSession()
+  if (!session) return null
+  if (isSessionExpired(session)) {
+    if (isAdminPortalRole(session.user.role)) removeSessionRecord()
     return null
   }
+  return session
+}
+
+/** The current session's token (customers: a Cognito ID token; never an access token). */
+export function getCognitoTokenFromStorage(): string | null {
+  return getSession()?.token ?? null
 }
 
 export function saveSession(session: AuthSession): void {
   try {
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session))
-    window.dispatchEvent(new Event('inferxe_auth_change'))
+    emitAuthChange()
   } catch (err) {
     console.error('Failed to save auth session', err)
   }
 }
 
+/** Remove the Inferxe session record only. Use `signOutCurrentUser()` for a user-initiated sign-out. */
 export function clearSession(): void {
+  removeSessionRecord()
+}
+
+function isNetworkError(err: unknown): boolean {
+  const name = (err as { name?: unknown })?.name
+  const message = String((err as { message?: unknown })?.message || '')
+  return name === 'NetworkError' || (err instanceof TypeError && /fetch|network/i.test(message))
+}
+
+let refreshInFlight: Promise<AuthSession | null> | null = null
+
+/** Ask Amplify for the current Cognito session; Amplify refreshes expired tokens with its refresh token. */
+async function refreshStoredCustomerSession(stored: AuthSession): Promise<AuthSession | null> {
   try {
-    signOut().catch(() => {})
-  } catch {}
-
-  try {
-    // 1. Remove standard Inferxe session storage key
-    localStorage.removeItem(AUTH_STORAGE_KEY)
-
-    // 2. Clear all Amplify / Cognito token entries from localStorage to prevent session resurrection
-    const localKeysToRemove: string[] = []
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i)
-      if (
-        key &&
-        (key.startsWith('CognitoIdentityServiceProvider') ||
-          key.startsWith('amplify') ||
-          key.startsWith('inferxe_auth') ||
-          key.includes('LastAuthUser') ||
-          key.includes('.idToken') ||
-          key.includes('.accessToken') ||
-          key.includes('.refreshToken'))
-      ) {
-        localKeysToRemove.push(key)
-      }
+    let tokens = (await fetchAuthSession()).tokens
+    let idToken = tokens?.idToken?.toString()
+    if (idToken && isJwtExpired(idToken, REFRESH_SKEW_SECONDS)) {
+      tokens = (await fetchAuthSession({ forceRefresh: true })).tokens
+      idToken = tokens?.idToken?.toString()
     }
-    for (const key of localKeysToRemove) {
-      try {
-        localStorage.removeItem(key)
-      } catch {}
+    // Only an ID token is acceptable here — an access token is never substituted.
+    if (!idToken || !isPlausibleCognitoIdToken(idToken) || isJwtExpired(idToken, 10)) {
+      throw Object.assign(new Error('No valid Cognito ID token is available.'), { name: 'NoValidIdToken' })
     }
-
-    // 3. Clear all Amplify / Cognito token entries from sessionStorage
-    const sessionKeysToRemove: string[] = []
-    for (let i = 0; i < sessionStorage.length; i++) {
-      const key = sessionStorage.key(i)
-      if (
-        key &&
-        (key.startsWith('CognitoIdentityServiceProvider') ||
-          key.startsWith('amplify') ||
-          key.startsWith('inferxe_auth') ||
-          key.includes('LastAuthUser') ||
-          key.includes('.idToken') ||
-          key.includes('.accessToken') ||
-          key.includes('.refreshToken'))
-      ) {
-        sessionKeysToRemove.push(key)
-      }
+    // The Amplify session must belong to the same Cognito user as the stored session.
+    const freshClaims = decodeJwt(idToken)
+    const storedClaims = decodeJwt(stored.token)
+    if (!freshClaims?.sub || freshClaims.sub !== storedClaims?.sub) {
+      throw Object.assign(new Error('Cognito session belongs to a different user.'), { name: 'SessionUserMismatch' })
     }
-    for (const key of sessionKeysToRemove) {
-      try {
-        sessionStorage.removeItem(key)
-      } catch {}
+    const refreshed: AuthSession = {
+      ...stored,
+      token: idToken,
+      expiresAt: typeof freshClaims.exp === 'number' ? freshClaims.exp * 1000 : stored.expiresAt,
     }
-
-    window.dispatchEvent(new Event('inferxe_auth_change'))
+    saveSession(refreshed)
+    return refreshed
   } catch (err) {
-    console.error('Failed to clear auth session', err)
+    // Never log token values: the error name is enough to diagnose.
+    const name = (err as { name?: string })?.name || 'Error'
+    if (isNetworkError(err)) {
+      // Temporary connectivity problem: keep the record so a later attempt can refresh it.
+      console.warn('[auth] Cognito session refresh unavailable (network):', name)
+      return null
+    }
+    console.warn('[auth] Cognito session refresh failed; signing out locally:', name)
+    removeSessionRecord()
+    return null
   }
 }
 
-export async function performSignOut(redirectUrl = '/'): Promise<void> {
-  try {
-    await signOut().catch(() => {})
-  } catch {}
-  clearSession()
-  if (typeof window !== 'undefined') {
-    window.location.replace(redirectUrl)
+/**
+ * Authoritative async session accessor used before every authenticated request and by route guards.
+ * - Customer: returns a session whose Cognito ID token is valid, refreshing it through Amplify when
+ *   it is expired or about to expire. Concurrent callers share a single refresh.
+ * - Administrator: returns the admin session while unexpired (the admin server verifies it).
+ */
+export function ensureFreshSession(): Promise<AuthSession | null> {
+  const stored = readStoredSession()
+  if (!stored) return Promise.resolve(null)
+  if (isAdminPortalRole(stored.user.role)) return Promise.resolve(getSession())
+  if (!isSessionExpired(stored, REFRESH_SKEW_SECONDS)) return Promise.resolve(stored)
+  if (!refreshInFlight) {
+    refreshInFlight = refreshStoredCustomerSession(stored).finally(() => {
+      refreshInFlight = null
+    })
   }
+  return refreshInFlight
+}
+
+/**
+ * Refresh the signed-in customer's Cognito ID token through Amplify (shared with ensureFreshSession).
+ * Only an existing customer session is refreshed, and only for the same Cognito user: leftover Amplify
+ * tokens never create a session on their own. `forceRefresh` is accepted for API compatibility.
+ */
+export async function refreshCustomerSession(_forceRefresh = false): Promise<AuthSession | null> {
+  const stored = readStoredSession()
+  if (!stored || isAdminPortalRole(stored.user.role)) return null
+  return refreshStoredCustomerSession(stored)
+}
+
+/** Remove Amplify's persisted tokens for this app client (used only if Amplify sign-out failed). */
+function clearAmplifyTokenStore(): void {
+  try {
+    const prefix = `CognitoIdentityServiceProvider.${COGNITO_CLIENT_ID}.`
+    const keys: string[] = []
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i)
+      if (key && key.startsWith(prefix)) keys.push(key)
+    }
+    keys.forEach((key) => localStorage.removeItem(key))
+  } catch {
+    // ignore
+  }
+}
+
+/**
+ * Complete sign-out for the current user. Always ends with no Inferxe session, even if a step fails.
+ * - Customers: awaits Amplify `signOut()` (clears Cognito tokens); if it fails, Amplify's stored
+ *   tokens for this app client are removed so they cannot be reused.
+ * - Administrators: notifies the admin auth server; Cognito sign-out is not involved.
+ */
+export async function signOutCurrentUser(): Promise<void> {
+  const stored = readStoredSession()
+  const isAdmin = stored ? isAdminPortalRole(stored.user.role) : false
+  // Remove the application session first so nothing looks authenticated while sign-out runs.
+  removeSessionRecord()
+  // Signed-in assistant history is stored under fixed keys (chatStore SCOPE_STORAGE_KEYS; not imported to
+  // avoid a circular import), so it must not survive for the next person on this browser.
+  try {
+    localStorage.removeItem('inferxe_chat_history_customer_v1')
+    localStorage.removeItem('inferxe_chat_history_admin_v1')
+  } catch {
+    // storage unavailable: nothing persisted
+  }
+  if (isAdmin && stored) {
+    try {
+      await fetch(`${ADMIN_API_BASE}/logout`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${stored.token}` },
+        body: '{}',
+      })
+    } catch {
+      // The admin token is already discarded locally; the server endpoint is best-effort.
+    }
+    return
+  }
+  try {
+    await signOut()
+  } catch (err) {
+    console.warn('[auth] Cognito sign-out failed; clearing local Cognito tokens:', (err as { name?: string })?.name || 'Error')
+    clearAmplifyTokenStore()
+  } finally {
+    removeSessionRecord()
+  }
+}
+
+/** Sign out (see signOutCurrentUser) and leave the page with a history replace. */
+export async function performSignOut(redirectUrl = '/'): Promise<void> {
+  await signOutCurrentUser()
+  if (typeof window !== 'undefined') window.location.replace(redirectUrl)
 }
 
 const ADMIN_API_BASE =
   (import.meta.env.VITE_ADMIN_AUTH_ENDPOINT as string | undefined)?.replace(/\/$/, '') ||
   '/api/admin'
 
-export const SUPERADMIN_EMAILS = [
-  'bhumireddy@inferxe.com',
-  'superadmin@inferxe.com',
-]
-
-export function isSuperAdminEmail(email?: string): boolean {
-  if (!email) return false
-  const clean = email.trim().toLowerCase()
-  return SUPERADMIN_EMAILS.includes(clean)
-}
-
-function getAdminApiEndpoints(subpath: string): string[] {
-  const normalized = subpath.startsWith('/') ? subpath : '/' + subpath.replace(/^\//, '')
-  const endpoints: string[] = []
-
-  // Same-origin endpoint (handled directly by Vite dev server middleware or reverse proxy)
-  const sameOrigin = '/api/admin' + normalized
-  endpoints.push(sameOrigin)
-
-  // Configured standalone endpoint (if specified and distinct)
-  const configured = (import.meta.env.VITE_ADMIN_AUTH_ENDPOINT as string | undefined)?.trim().replace(/\/$/, '')
-  if (configured) {
-    const base = configured.endsWith('/api/admin') ? configured : configured + '/api/admin'
-    const ext = base + normalized
-    if (!endpoints.includes(ext)) {
-      endpoints.push(ext)
-    }
-  }
-
-  return endpoints
-}
-
 export const ADMIN_EMAILS = [
   'admin@inferxe.com',
   'alex.chen@inferxe.internal',
   'bhumireddy@inferxe.com',
-  'superadmin@inferxe.com',
 ]
 
 export function isAdministratorEmail(email: string): boolean {
@@ -495,7 +423,6 @@ export function isAdministratorEmail(email: string): boolean {
   const clean = email.trim().toLowerCase()
   return (
     ADMIN_EMAILS.includes(clean) ||
-    SUPERADMIN_EMAILS.includes(clean) ||
     clean.startsWith('admin@') ||
     clean.endsWith('@inferxe.internal')
   )
@@ -504,119 +431,98 @@ export function isAdministratorEmail(email: string): boolean {
 export interface AdminLoginResult {
   ok: boolean
   isAdmin: boolean
+  backendError?: boolean
+  statusCode?: number
+  code?: string
   session?: AuthSession
   error?: string
 }
 
+export type AuthUser = AuthSession['user']
+
+export interface AdminVerifyResult {
+  valid: boolean
+  user?: AuthUser
+}
+
 /**
  * Validate submitted credentials against the backend admin authentication endpoint.
- * Tries the same-origin /api/admin endpoint first (embedded in Vite dev server / reverse proxy),
- * with graceful fallback to the configured standalone admin server if defined.
- * Credentials are verified exclusively on the server side.
+ * Credentials are verified exclusively on the server side against Supabase `admin_users`
+ * with Argon2 password verification and DB-backed `admin_sessions`.
  */
 export async function loginAdminBackend(
   email: string,
   password: string,
 ): Promise<AdminLoginResult> {
   const cleanEmail = email.trim().toLowerCase()
-  const isAdminCandidate = isAdministratorEmail(cleanEmail)
-  const endpoints = getAdminApiEndpoints('/login')
 
-  let connectionError = false
+  try {
+    const res = await fetch(`${ADMIN_API_BASE}/login`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({ email: cleanEmail, password }),
+    })
 
-  for (const endpoint of endpoints) {
-    try {
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        body: JSON.stringify({ email: cleanEmail, password }),
-      })
+    const data = await res.json().catch(() => ({}))
 
-      const data = await res.json().catch(() => ({}))
-
-      if (data.isAdmin === true) {
-        if (res.ok && data.ok && data.token && data.user) {
-          const session: AuthSession = {
-            token: data.token,
-            user: data.user,
-            expiresAt: data.expiresAt || Date.now() + 7 * 24 * 60 * 60 * 1000,
-          }
-          saveSession(session)
-          return { ok: true, isAdmin: true, session }
+    if (data.isAdmin === true) {
+      if (res.ok && data.ok && data.token && data.user) {
+        const session: AuthSession = {
+          token: data.token,
+          user: data.user,
+          expiresAt: data.expiresAt || Date.now() + 12 * 60 * 60 * 1000,
         }
+        saveSession(session)
+        return { ok: true, isAdmin: true, statusCode: res.status, session }
+      }
+      if (!res.ok) {
         return {
           ok: false,
           isAdmin: true,
-          error: data.error || 'Incorrect email or password. Please verify your credentials and try again.',
+          backendError: res.status >= 500,
+          statusCode: res.status,
+          code: typeof data.code === 'string' ? data.code : undefined,
+          error:
+            data.error ||
+            (res.status >= 500
+              ? 'Administrator authentication service is temporarily unavailable.'
+              : 'Incorrect email or password. Please verify your credentials and try again.'),
         }
       }
-
-      if (data.isAdmin === false) {
-        return { ok: false, isAdmin: false, error: data.error || data.message }
-      }
-
-      if (data.error && typeof data.error === 'string') {
-        return {
-          ok: false,
-          isAdmin: Boolean(data.isAdmin ?? isAdminCandidate),
-          error: data.error,
-        }
-      }
-    } catch (err) {
-      console.warn(`Admin login request to ${endpoint} failed:`, err)
-      connectionError = true
     }
-  }
 
-  if (isAdminCandidate) {
-    return {
-      ok: false,
-      isAdmin: true,
-      error: connectionError
-        ? 'Authentication service is unreachable. Please verify your server is running.'
-        : 'Incorrect email or password. Please verify your credentials and try again.',
+    if (res.ok && data.isAdmin === false) {
+      return { ok: false, isAdmin: false, statusCode: res.status }
     }
-  }
 
-  // Resilient fallback for admin emails
-  if (isAdministratorEmail(cleanEmail)) {
-    const allowedAdminPasswords = [
-      'admin123',
-      'admin@123',
-      'Admin@123',
-      'admin',
-      'Admin123',
-      'Inferxe@2026',
-      'Qwerty@123',
-      'password',
-      'admin2026',
-    ]
-    if (allowedAdminPasswords.includes(password) || import.meta.env.DEV) {
-      const isSuper = isSuperAdminEmail(cleanEmail)
-      const role = isSuper ? 'superadmin' : 'admin'
-      const session: AuthSession = {
-        token: 'ix-tok-' + Math.random().toString(36).substring(2, 12),
-        user: {
-          id: isSuper ? 'usr_superadmin' : 'usr_admin',
-          fullName: isSuper ? 'Bhumi Reddy' : 'Inferxe Administrator',
-          email: cleanEmail,
-          username: cleanEmail.split('@')[0],
-          role,
-          organization: 'Inferxe Platform Org',
-        },
-        expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
+    if (!res.ok) {
+      const isAdminCandidate = isAdministratorEmail(cleanEmail)
+      if (!isAdminCandidate) {
+        return { ok: false, isAdmin: false, statusCode: res.status }
       }
-      saveSession(session)
-      return { ok: true, isAdmin: true, session }
-    } else {
       return {
         ok: false,
-        isAdmin: true,
-        error: 'Incorrect email or password. Please verify your credentials and try again.',
+        isAdmin: false,
+        backendError: res.status >= 500 || Boolean(data.backendError),
+        statusCode: res.status,
+        code: typeof data.code === 'string' ? data.code : undefined,
+        error:
+          data.error ||
+          'Administrator authentication service is currently unavailable. Please check backend configuration.',
       }
+    }
+  } catch (err) {
+    console.error('Admin backend login request failed:', err)
+    const isAdminCandidate = isAdministratorEmail(cleanEmail)
+    return {
+      ok: false,
+      isAdmin: false,
+      backendError: isAdminCandidate,
+      error: isAdminCandidate ? 'Unable to reach the administrator authentication backend.' : undefined,
     }
   }
 
@@ -624,74 +530,64 @@ export async function loginAdminBackend(
 }
 
 /**
+ * Validate an active admin session against the backend database-backed session store
+ * and return the authoritative server user record (including role).
+ */
+export async function verifyAdminSessionWithDetails(token: string): Promise<AdminVerifyResult> {
+  if (!token || token.startsWith('ix-') || token === 'admin-dev-token') {
+    return { valid: false }
+  }
+
+  try {
+    const res = await fetch(`${ADMIN_API_BASE}/verify`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ token }),
+    })
+
+    if (!res.ok) {
+      return { valid: false }
+    }
+
+    const data = await res.json().catch(() => ({}))
+    if (!data.ok || !data.valid || !data.user) {
+      return { valid: false }
+    }
+
+    const currentSession = getSession()
+    if (currentSession && currentSession.token === token) {
+      const serverUser = data.user as AuthUser
+      if (
+        currentSession.user.role !== serverUser.role ||
+        currentSession.user.email !== serverUser.email ||
+        currentSession.user.id !== serverUser.id
+      ) {
+        saveSession({
+          ...currentSession,
+          user: {
+            ...currentSession.user,
+            ...serverUser,
+          },
+        })
+      }
+    }
+
+    return { valid: true, user: data.user as AuthUser }
+  } catch {
+    return { valid: false }
+  }
+}
+
+/**
  * Validate an active admin session token with the backend server.
  */
 export async function verifyAdminSessionServer(token: string): Promise<boolean> {
-  if (!token) return false
-  if (token.startsWith('ix-')) return true
-
-  const endpoints = getAdminApiEndpoints('/verify')
-  if (!endpoints.includes(`${ADMIN_API_BASE}/verify`)) {
-    endpoints.push(`${ADMIN_API_BASE}/verify`)
-  }
-
-  for (const endpoint of endpoints) {
-    try {
-      const res = await fetch(endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ token }),
-      })
-
-      if (!res.ok) continue
-      const data = await res.json().catch(() => ({}))
-      if (typeof data.valid === 'boolean') {
-        return data.valid
-      }
-      if (data.ok && data.valid) {
-        return true
-      }
-    } catch {
-      // try next candidate endpoint
-    }
-  }
-
-  return false
-}
-
-export async function loginUser(
-  email: string,
-  _password?: string,
-  _explicitRole?: string
-): Promise<{ ok: boolean; session?: AuthSession; error?: string }> {
-  if (cognitoEnabled && _password) {
-    return cognitoLogin(email, _password)
-  }
-  return {
-    ok: false,
-    error: 'AWS Cognito authentication is required. Please sign in with valid credentials.',
-  }
-}
-
-export async function registerUser(
-  fullName: string,
-  email: string,
-  _password?: string,
-  _organization?: string,
-  _explicitRole: string = 'customer'
-): Promise<{ ok: boolean; session?: AuthSession; error?: string }> {
-  if (cognitoEnabled && _password) {
-    const r = await cognitoRegister(fullName, email, _password)
-    if (!r.ok) return { ok: false, error: r.error }
-    return { ok: false, error: 'Account created. Check your email for the Cognito verification code, confirm it, then sign in.' }
-  }
-  return {
-    ok: false,
-    error: 'AWS Cognito registration is required.',
-  }
+  const result = await verifyAdminSessionWithDetails(token)
+  return result.valid
 }
 
 export function getUserPasswordLastUpdated(email: string): string | null {
@@ -751,20 +647,22 @@ export async function changeUserPassword(
   }
 }
 
-/**
- * ────────────────────────────────────────────────────────────────
- * Superadmin API Client Layer
- * ────────────────────────────────────────────────────────────────
- */
+export function emailToCognitoUsername(email: string): string {
+  const clean = email.trim().toLowerCase()
+  return clean.replace(/@/g, '_at_').replace(/[^a-zA-Z0-9_]/g, '_')
+}
 
 export interface SuperadminAdminRecord {
   id: string
   email: string
   full_name: string
   role: 'admin' | 'superadmin'
+  is_active?: boolean
   status: 'active' | 'inactive' | 'suspended' | 'pending'
+  session_version?: number
   created_at: string
-  last_login?: string
+  updated_at?: string | null
+  last_login?: string | null
   last_ip?: string
   activity_count?: number
 }
@@ -847,6 +745,8 @@ function getSuperadminAuthHeaders(): HeadersInit {
 export async function fetchSuperadminAdmins(): Promise<{ ok: boolean; admins?: SuperadminAdminRecord[]; error?: string }> {
   try {
     const res = await fetch('/api/superadmin/admins', {
+      cache: 'no-store',
+      credentials: 'include',
       headers: getSuperadminAuthHeaders(),
     })
     const data = await res.json()
@@ -859,6 +759,45 @@ export async function fetchSuperadminAdmins(): Promise<{ ok: boolean; admins?: S
   }
 }
 
+export async function createDeveloperAdminAccount(input: {
+  email: string
+  password: string
+}): Promise<{
+  ok: boolean
+  admin?: SuperadminAdminRecord
+  statusCode?: number
+  code?: string
+  isDuplicate?: boolean
+  error?: string
+}> {
+  try {
+    const res = await fetch('/api/superadmin/admins', {
+      method: 'POST',
+      cache: 'no-store',
+      credentials: 'include',
+      headers: getSuperadminAuthHeaders(),
+      body: JSON.stringify({
+        email: input.email.trim().toLowerCase(),
+        password: input.password,
+      }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      const code = typeof data.code === 'string' ? data.code : undefined
+      return {
+        ok: false,
+        statusCode: res.status,
+        code,
+        isDuplicate: res.status === 409 || code === 'DUPLICATE_ADMIN_EMAIL',
+        error: data.error || `HTTP ${res.status}`,
+      }
+    }
+    return { ok: true, statusCode: res.status, admin: data.admin }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Failed to create developer admin account.' }
+  }
+}
+
 export async function updateAdminAccountStatus(
   adminId: string,
   status: 'active' | 'inactive' | 'suspended',
@@ -867,6 +806,7 @@ export async function updateAdminAccountStatus(
   try {
     const res = await fetch('/api/superadmin/admins/status', {
       method: 'POST',
+      credentials: 'include',
       headers: getSuperadminAuthHeaders(),
       body: JSON.stringify({ admin_id: adminId, status, reason }),
     })
@@ -894,6 +834,7 @@ export async function fetchSuperadminAuditLogs(params?: {
     if (params?.offset) q.set('offset', String(params.offset))
 
     const res = await fetch(`/api/superadmin/audit-logs?${q.toString()}`, {
+      credentials: 'include',
       headers: getSuperadminAuthHeaders(),
     })
     const data = await res.json()
@@ -909,6 +850,7 @@ export async function fetchSuperadminAuditLogs(params?: {
 export async function fetchSuperadminTelemetry(): Promise<{ ok: boolean; telemetry?: SuperadminTelemetryData; error?: string }> {
   try {
     const res = await fetch('/api/superadmin/telemetry', {
+      credentials: 'include',
       headers: getSuperadminAuthHeaders(),
     })
     const data = await res.json()
@@ -924,6 +866,7 @@ export async function fetchSuperadminTelemetry(): Promise<{ ok: boolean; telemet
 export async function fetchSuperadminKeys(): Promise<{ ok: boolean; keys?: SuperadminKeyRecord[]; error?: string }> {
   try {
     const res = await fetch('/api/superadmin/keys', {
+      credentials: 'include',
       headers: getSuperadminAuthHeaders(),
     })
     const data = await res.json()
@@ -944,6 +887,7 @@ export async function revokeSuperadminKey(
   try {
     const res = await fetch('/api/superadmin/keys/revoke', {
       method: 'POST',
+      credentials: 'include',
       headers: getSuperadminAuthHeaders(),
       body: JSON.stringify({ key_id: keyId, key_type: keyType, reason }),
     })
@@ -956,4 +900,3 @@ export async function revokeSuperadminKey(
     return { ok: false, error: err instanceof Error ? err.message : 'Failed to revoke key.' }
   }
 }
-

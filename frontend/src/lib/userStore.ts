@@ -154,12 +154,10 @@ function toUserRecord(value: unknown): UserRecord {
     : row.email.split('@')[0]
   const lastActive = typeof row.last_active_at === 'string' ? new Date(row.last_active_at) : null
 
-  const totalRequests = typeof row.total_requests === 'number'
-    ? row.total_requests
-    : (typeof row.totalRequests === 'number' ? row.totalRequests : (row.status === 'active' ? 12500 : 0))
-  const successRate = typeof row.success_rate === 'number'
-    ? row.success_rate
-    : (typeof row.successRate === 'number' ? row.successRate : (row.status === 'active' ? 99.8 : 100.0))
+  // Real metrics from the server only; never substitute a value when it is missing.
+  const totalRequests = typeof row.total_requests === 'number' && Number.isFinite(row.total_requests) ? row.total_requests : null
+  const successRate =
+    totalRequests && typeof row.success_rate === 'number' && Number.isFinite(row.success_rate) ? row.success_rate : null
 
   return {
     id: row.user_id,

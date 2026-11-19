@@ -2,9 +2,14 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { fetchWalletBalance, fetchWalletTransactionHistory, topUpWallet } from '../lib/walletService'
 import { getSession } from '../lib/authStore'
 
-vi.mock('../lib/authStore', () => ({
-  getSession: vi.fn(),
-}))
+vi.mock('../lib/authStore', () => {
+  const getSession = vi.fn()
+  return {
+    getSession,
+    // Services obtain the (refreshed) session asynchronously; mirror the mocked getSession.
+    ensureFreshSession: vi.fn(async () => getSession()),
+  }
+})
 
 const mockGetSession = vi.mocked(getSession)
 const mockFetch = vi.mocked(globalThis.fetch)

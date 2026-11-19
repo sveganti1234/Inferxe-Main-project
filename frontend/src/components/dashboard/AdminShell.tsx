@@ -34,8 +34,8 @@ import {
 } from 'lucide-react'
 import { LogoMark } from '../Logo'
 import { Ambient } from '../layout/Ambient'
-import { getSession, clearSession, getPortalRole, type AuthSession, type PortalRole } from '../../lib/authStore'
-import { getAdminAccounts } from '../../lib/adminAccountStore'
+import { getSession, performSignOut, getPortalRole, type AuthSession, type PortalRole } from '../../lib/authStore'
+import { getAdminAccounts, syncAdminAccountsFromBackend } from '../../lib/adminAccountStore'
 import { getAllRoles } from '../../lib/adminRoleStore'
 import { animateNavPill } from './navPillAnimation'
 import { AdminViewTransition, getAdminRouteOrder } from './AdminViewTransition'
@@ -87,37 +87,12 @@ export function AdminShell() {
   const [adminSectionOpen, setAdminSectionOpen] = useState(true)
   const [providerSectionOpen, setProviderSectionOpen] = useState(true)
 
-  // Dev preview mode for Super Admin vs Normal Admin view
-  const [devSuperAdminMode, setDevSuperAdminMode] = useState<boolean>(() => {
-    try {
-      const saved = localStorage.getItem('inferxe_dev_super_admin_mode')
-      return saved === null ? true : saved === 'true'
-    } catch {
-      return true
-    }
-  })
-
-  useEffect(() => {
-    const handleRoleToggle = () => {
-      try {
-        const saved = localStorage.getItem('inferxe_dev_super_admin_mode')
-        setDevSuperAdminMode(saved === null ? true : saved === 'true')
-      } catch {}
-    }
-    window.addEventListener('inferxe_admin_role_toggle', handleRoleToggle)
-    window.addEventListener('storage', handleRoleToggle)
-    return () => {
-      window.removeEventListener('inferxe_admin_role_toggle', handleRoleToggle)
-      window.removeEventListener('storage', handleRoleToggle)
-    }
-  }, [])
-
-  // Live Admin Accounts Count (synced dynamically with adminAccountStore)
+  // Live Admin Accounts Count (synced dynamically with Supabase via adminAccountStore)
   const [adminAccountsCount, setAdminAccountsCount] = useState<number>(() => {
     try {
       return getAdminAccounts().length
     } catch {
-      return 10
+      return 0
     }
   })
 
@@ -126,6 +101,12 @@ export function AdminShell() {
       try {
         setAdminAccountsCount(getAdminAccounts().length)
       } catch {}
+    }
+    const currentPortalRole = getPortalRole(getSession()?.user?.role)
+    if (currentPortalRole === 'superadmin') {
+      void syncAdminAccountsFromBackend().then((res) => {
+        if (res.ok) setAdminAccountsCount(res.accounts.length)
+      })
     }
     window.addEventListener('inferxe_admin_accounts_change', syncAdminCount)
     window.addEventListener('storage', syncAdminCount)
@@ -423,14 +404,10 @@ export function AdminShell() {
     .substring(0, 2)
     .toUpperCase() || 'IX'
 
-  // Access control gating for Super Admin Governance modules
-  const isSuperAdmin = Boolean(
-    portalRole === 'superadmin' ||
-    user.role === 'super_admin' ||
-    (import.meta.env.DEV && (devSuperAdminMode || location.pathname.startsWith('/dashboard/super-admin')))
-  )
+  // Strict server-verified Super Admin access gating (no dev bypasses)
+  const isSuperAdmin = portalRole === 'superadmin'
 
-  const roleLabel = portalRole === 'superadmin' || isSuperAdmin ? 'Super Admin' : 'Admin'
+  const roleLabel = isSuperAdmin ? 'Super Admin' : 'Admin'
 
   // Nav Items
   // 0. Super Admin Governance (RBAC, Accounts, Permissions, Activity & Audit)
@@ -854,36 +831,12 @@ export function AdminShell() {
                     </div>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 2, paddingTop: 4 }}>
-                      {import.meta.env.DEV && (
-                        <div style={{ paddingBottom: 6, marginBottom: 4, borderBottom: '1px solid var(--line)' }}>
-                          <div style={{ fontSize: '0.66rem', color: 'var(--ink-3)', textTransform: 'uppercase', letterSpacing: '0.06em', padding: '2px 8px 4px', fontFamily: 'var(--font-mono)' }}>
-                            Dev Preview Role
-                          </div>
-                          <button
-                            type="button"
-                            className="dash-nav-item"
-                            style={{ fontSize: '0.78rem', padding: '6px 8px', width: '100%' }}
-                            onClick={() => {
-                              const next = !devSuperAdminMode
-                              setDevSuperAdminMode(next)
-                              try {
-                                localStorage.setItem('inferxe_dev_super_admin_mode', String(next))
-                                window.dispatchEvent(new Event('inferxe_admin_role_toggle'))
-                              } catch {}
-                            }}
-                          >
-                            <ShieldCheck size={13} style={{ color: devSuperAdminMode ? '#50e396' : 'var(--ink-3)' }} />
-                            <span>{devSuperAdminMode ? 'Switch to Normal Admin' : 'Switch to Super Admin'}</span>
-                          </button>
-                        </div>
-                      )}
                       <button
                         type="button"
                         className="dash-nav-item dash-nav-item--danger"
                         onClick={async () => {
                           setAdminMenuOpen(false)
-                          clearSession()
-                          window.location.replace('/')
+                          await performSignOut('/')
                         }}
                       >
                         <LogOut size={15} /> Sign Out

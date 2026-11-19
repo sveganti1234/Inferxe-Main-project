@@ -17,45 +17,9 @@ import {
   checkDomainGatekeeper,
   OUT_OF_SCOPE_REFUSAL,
 } from '../../lib/llmService'
-import { fetchWalletBalance } from '../../lib/walletService'
-
-function readWallet(): number {
-  try {
-    const session = getSession()
-    const sub = session?.user?.id || ''
-    const key = sub ? `inferxe_demo_wallet_balance_v1_${sub}` : 'inferxe_demo_wallet_balance_v1'
-    const raw = localStorage.getItem(key)
-    return raw ? Number(JSON.parse(raw)) : 10000
-  } catch {
-    return 10000
-  }
-}
-
-function readBurnPerHour(): number {
-  try {
-    const raw = localStorage.getItem('inferxe_demo_deployments_v1')
-    if (!raw) return 160
-    const deps = JSON.parse(raw) as { status: string; hourlyRate?: number }[]
-    return deps.filter((d) => d.status === 'Running').reduce((s, d) => s + (d.hourlyRate ?? 0), 0)
-  } catch {
-    return 160
-  }
-}
-
-// Latest balance fetched from the wallet backend (source of truth). Kept at module
-// scope so the module-level reply builders (getBotReply → walletSummary) can read it.
-// Updated by GlobalBotCompanion's syncBotWalletBalance; null until synced / when signed out.
-let latestBackendWalletBalance: number | null = null
 
 function walletSummary(): string {
-  const balance = latestBackendWalletBalance ?? readWallet()
-  const burn = readBurnPerHour()
-  const hrs = burn > 0 ? balance / burn : null
-  return `Your wallet balance is ₹${balance.toLocaleString('en-IN')}. ${
-    hrs === null
-      ? 'No GPUs are running, so nothing is being billed.'
-      : `Running GPUs cost ₹${burn}/hr, so you have about ${hrs.toFixed(1)} hours of runtime left.`
-  }${balance < 2000 ? ' ⚠️ Balance is low — top up from Dashboard → Wallet.' : ''}`
+  return 'Your wallet balance and transaction history are shown, read-only, on the [Billing & wallet](/dashboard/app/billing) page. Adding funds and payments are not available yet, and inference requests are not currently charged.'
 }
 
 function recommendGpu(q: string): string | null {
@@ -82,11 +46,9 @@ const PUBLIC_WALLET_REPLY =
 
 function getDashboardWalletReply(): string {
   return (
-    "Navigate to Wallet: Once logged in, navigate to the Dashboard and open the [Wallet](/dashboard/wallet) section (Dashboard -> Wallet).\n\n" +
-    "Choose Top-Up Amount: In the Wallet section, choose your top-up amount in Indian Rupees (INR) or USD (e.g., ₹2,000, ₹5,000, ₹10,000, or custom amount).\n\n" +
-    "Pay Using UPI, Credit/Debit Cards, or NetBanking: Choose a payment method: UPI (Google Pay, PhonePe, Paytm), Indian Debit/Credit Cards (Visa, MasterCard, RuPay), NetBanking, or Enterprise Invoicing.\n\n" +
-    "Complete Payment: Your prepaid balance is credited to your account instantly.\n\n" +
-    `Current Balance Status: ${walletSummary()}`
+    "Your wallet in the console: open [Billing & wallet](/dashboard/app/billing) to see your balance and transaction history.\n\n" +
+    "Not available yet: adding funds and payments (UPI, cards, NetBanking) cannot be used from the console today, so there is no top-up flow to follow. Pricing is not configured, and inference requests are not currently charged to your wallet.\n\n" +
+    `Status: ${walletSummary()}`
   )
 }
 
@@ -171,7 +133,7 @@ function getBotReply(query: string, currentPath: string = '/'): string {
     q.includes('assist me') ||
     q === 'help'
   ) {
-    return "Hi! How can I help you with Inferxe today—are you looking for GPU pricing, model sizing, or API setup?"
+    return "Hi there! I am your Inferxe AI Assistant. Ask me anything about:\n• **Project & Architecture**: Overview of Inferxe and the multi-provider orchestration.\n• **GPU Specs & Sizing**: Reference specs and memory sizing for NVIDIA H100, L40S, and L4.\n• **Wallet & Billing**: What the console shows today (balance and history are read-only; payments are not available yet).\n• **Customer Console**: API keys, usage, notifications, and what is not available yet.\n• **Inference API**: Sending requests with your Inferxe API key.\n• **Authentication**: Customer and Admin login with AWS Cognito.\n\nWhat would you like to know?"
   }
 
   const isInsideDashboard = currentPath.startsWith('/dashboard')
@@ -274,18 +236,14 @@ function getBotReply(query: string, currentPath: string = '/'): string {
     q.includes('burn rate') ||
     q.includes('runtime')
   ) {
-    return "### Customer Dashboard & Workspace Guide (`/dashboard/customer`):\n\n" +
-      "• **Compute Balance & Credits Hero Card**:\n" +
-      "  - Displays your available balance in INR (e.g. ₹5,000).\n" +
-      "  - Calculates live **hourly burn rate** (e.g. `₹60/hr` for active L4 instances).\n" +
-      "  - Estimates **remaining runtime** (e.g. `≈ 83.3 hrs left`).\n" +
-      "  - Shows active GPU count and Sovereign Tier status.\n" +
-      "  - Features quick-action buttons: `+ Add Funds`, `Playground`, `API Keys`, and `Compare`.\n\n" +
-      "• **3-Column Kanban Workflow Board**:\n" +
-      "  1. **To Do**: Pending inference tasks, prompt engineering jobs, and scheduled runs.\n" +
-      "  2. **Done – Waiting for you**: Finished jobs awaiting authorization or payout.\n" +
-      "  3. **Paid / Active**: Live GPU deployments and fulfilled compute allocations.\n\n" +
-      "• **30-Day Activity Sparklines**: Tracks daily token throughput and cluster consumption."
+    return "### Customer Console Guide:\n\n" +
+      "• [Overview](/dashboard/app): your account at a glance, built from your real records.\n" +
+      "• [Model marketplace](/dashboard/app/models): a reference catalogue of open-weight models and a GPU memory estimator. Reference specs only, not live availability or pricing.\n" +
+      "• [GPU marketplace](/dashboard/app/gpus): GPU capacity listed by providers. You can save listings; ordering is not available yet.\n" +
+      "• [Inference playground](/dashboard/app/playground): send a prompt with your API key when the inference service is available.\n" +
+      "• [Deployments](/dashboard/app/deployments): read-only records. Provisioning is not available yet.\n" +
+      "• [API keys](/dashboard/app/api-keys), [Usage & analytics](/dashboard/app/usage), [Billing & wallet](/dashboard/app/billing) (read-only), [Notifications](/dashboard/app/notifications), and [Settings](/dashboard/app/settings).\n" +
+      "• [SSH keys & notebooks](/dashboard/app/developer): notebook sessions are simulated records, with no real runtime."
   }
 
   // 3g. Deploying Models & Running Inference
@@ -300,23 +258,13 @@ function getBotReply(query: string, currentPath: string = '/'): string {
     q.includes('supported models') ||
     q.includes('what models')
   ) {
-    return "### How to Deploy Models and Run Inference on Inferxe:\n\n" +
-      "1. **Sign In**: Log in to your account at [Sign In](/login).\n" +
-      "2. **Check Balance**: Make sure you have compute credits in [Wallet & Cards](/dashboard/wallet). Top up anytime via `+ Top Up`.\n" +
-      "3. **Choose Hardware**: Select an optimal GPU (NVIDIA L4 for ≤8B at ₹60/hr, L40S for 14B–34B at ₹100/hr, or H100 for 70B+ at ₹280/hr).\n" +
-      "4. **Supported Models**: Meta Llama 3.3 70B, Qwen 2.5 14B/72B, Mistral 7B, and DeepSeek distilled models with FP8 FlashAttention.\n" +
-      "5. **Invoke API**: Use the standard OpenAI SDK:\n" +
-      "```python\n" +
-      "from openai import OpenAI\n" +
-      "client = OpenAI(\n" +
-      "    base_url='https://api.inferxe.com/v1',\n" +
-      "    api_key='your_inferxe_api_key'\n" +
-      ")\n" +
-      "response = client.chat.completions.create(\n" +
-      "    model='llama-3.3-70b',\n" +
-      "    messages=[{'role': 'user', 'content': 'Hello Inferxe!'}]\n" +
-      ")\n" +
-      "```"
+    return "### Deployments and inference on Inferxe:\n\n" +
+      "**Deployments are not available yet.** Inferxe does not provision GPUs or serve models from deployments today, so there is nothing to deploy from the console. The [Deployments](/dashboard/app/deployments) page lists any existing records read-only.\n\n" +
+      "**What you can do today:**\n" +
+      "1. Create an API key on [API keys](/dashboard/app/api-keys) and copy it when it is shown (it is displayed only once).\n" +
+      "2. Send a request with `POST /api/v1/inference`, using your key as a bearer token and a JSON body with a `prompt` (optionally `max_tokens` and `temperature`). The server chooses the model.\n" +
+      "3. Try it in the [Inference playground](/dashboard/app/playground) when the inference service reports that its provider is configured.\n" +
+      "4. Size a model for a GPU with the [Model marketplace](/dashboard/app/models) estimator (reference estimates only)."
   }
 
   // 4. Specific Factual Queries
@@ -366,7 +314,7 @@ function getBotReply(query: string, currentPath: string = '/'): string {
   }
 
   if (q.includes('api') || q.includes('openai') || q.includes('sdk') || q.includes('endpoint') || q.includes('python')) {
-    return 'Inferxe is 100% drop-in compatible with the OpenAI API! Simply point your OpenAI SDK client to baseURL: "https://api.inferxe.com/v1" and supply your Inferxe API key.'
+    return 'The Inferxe inference API is a simple HTTP endpoint: POST /api/v1/inference with your Inferxe API key as a bearer token and a JSON body containing a prompt (optionally max_tokens and temperature). It is not an OpenAI-compatible API, and the server currently chooses the model. See the API keys page in your console for examples.'
   }
 
   if (q.includes('user') || q.includes('dashboard') || q.includes('admin') || q.includes('seat') || q.includes('rbac')) {
@@ -524,35 +472,6 @@ export function GlobalBotCompanion() {
   const [messages, setMessages] = useState<ChatMessage[]>(() => loadScopeMessages(activeScope))
   const [isTyping, setIsTyping] = useState(false)
 
-  const [botWalletBalance, setBotWalletBalance] = useState<number | null>(null)
-  const [botWalletLoading, setBotWalletLoading] = useState<boolean>(true)
-
-  const syncBotWalletBalance = async () => {
-    const session = getSession()
-    if (!session?.token) {
-      latestBackendWalletBalance = null
-      setBotWalletBalance(null)
-      setBotWalletLoading(false)
-      return
-    }
-    try {
-      const res = await fetchWalletBalance()
-      if (res.ok && res.balance) {
-        latestBackendWalletBalance = res.balance.balance
-        setBotWalletBalance(res.balance.balance)
-        try {
-          const sub = session.user?.id || ''
-          const key = sub ? `inferxe_demo_wallet_balance_v1_${sub}` : 'inferxe_demo_wallet_balance_v1'
-          localStorage.setItem(key, JSON.stringify(res.balance.balance))
-        } catch {}
-      }
-    } catch {
-      /* keep existing localStorage balance */
-    } finally {
-      setBotWalletLoading(false)
-    }
-  }
-
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const chatWindowRef = useRef<HTMLDivElement>(null)
@@ -599,22 +518,6 @@ export function GlobalBotCompanion() {
     }
   }, [location.pathname])
 
-  // Sync wallet balance from backend on mount and on wallet change events
-  useEffect(() => {
-    syncBotWalletBalance()
-
-    const handleWalletChange = () => {
-      void syncBotWalletBalance()
-    }
-
-    window.addEventListener('inferxe_wallet_change', handleWalletChange)
-    window.addEventListener('storage', handleWalletChange)
-    return () => {
-      window.removeEventListener('inferxe_wallet_change', handleWalletChange)
-      window.removeEventListener('storage', handleWalletChange)
-    }
-  }, [])
-
   // Automatically save messages for the active scope whenever they change
   useEffect(() => {
     if (messages && messages.length > 0) {
@@ -648,43 +551,12 @@ export function GlobalBotCompanion() {
     return () => observer.disconnect()
   }, [])
 
-  const botColor = isLight ? '#9be015' : '#76b900'
+  // Console mint (forest accent #6ee0a1); a deeper mint keeps contrast on light pages.
+  const botColor = isLight ? '#49c27f' : '#6ee0a1'
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
-
-  // Proactive wallet / GPU notification from the bot (once per browser session).
-  // Waits for the backend balance sync so the alert isn't based on a stale cached value.
-  useEffect(() => {
-    if (botWalletLoading) return
-    const check = () => {
-      try {
-        if (sessionStorage.getItem('inferxe_bot_wallet_alert') === '1') return
-        const balance = botWalletBalance ?? readWallet()
-        const burn = readBurnPerHour()
-        if (balance < 2000 || (burn > 0 && balance / burn < 6)) {
-          sessionStorage.setItem('inferxe_bot_wallet_alert', '1')
-          const nowTs = Date.now()
-          setMessages((prev) => [
-            ...prev,
-            {
-              id: `bot-alert-${nowTs}`,
-              sender: 'bot',
-              text: `⚠️ Heads up: ${walletSummary()}`,
-              time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              timestamp: nowTs,
-            },
-          ])
-        }
-      } catch {
-        /* storage unavailable */
-      }
-    }
-    check()
-    const t = setInterval(check, 60000)
-    return () => clearInterval(t)
-  }, [botWalletLoading, botWalletBalance])
 
   useEffect(() => {
     if (isOpen) {

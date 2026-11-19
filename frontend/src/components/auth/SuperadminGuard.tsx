@@ -1,16 +1,21 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
-import { getSession, getPortalRole, clearSession, verifyAdminSessionServer } from '../../lib/authStore'
+import {
+  getSession,
+  getPortalRole,
+  clearSession,
+  verifyAdminSessionWithDetails,
+} from '../../lib/authStore'
 
 interface SuperadminGuardProps {
   children?: ReactNode
 }
 
 /**
- * Route guard that strictly protects Superadmin routes (/dashboard/superadmin/*).
- * Enforces both client-side role validation and server-side cryptographic token verification.
- * Strictly prevents standard Admins, Customers, and unauthenticated users from accessing the Superadmin Portal.
- * If a regular Admin attempts access, they are redirected to /dashboard.
+ * Route guard that strictly protects Superadmin routes (/dashboard/superadmin/* and /dashboard/super-admin/*).
+ * Enforces authoritative server-side DB-backed session & role verification.
+ * Strictly prevents standard Admins, Customers, revoked sessions, and unauthenticated users from accessing Superadmin modules.
+ * If a regular Admin attempts direct URL access, they are redirected to /dashboard.
  */
 export function SuperadminGuard({ children }: SuperadminGuardProps) {
   const location = useLocation()
@@ -21,7 +26,7 @@ export function SuperadminGuard({ children }: SuperadminGuardProps) {
     if (portalRole === 'admin') return 'to_admin'
     if (portalRole === 'customer') return 'to_customer'
     if (portalRole !== 'superadmin') return 'to_login'
-    return 'authorized'
+    return 'checking'
   })
 
   useEffect(() => {
@@ -36,7 +41,7 @@ export function SuperadminGuard({ children }: SuperadminGuardProps) {
         return
       }
 
-      // 2. Must hold the 'superadmin' role
+      // 2. Fast client-side check before authoritative backend verification
       const portalRole = getPortalRole(session.user?.role)
       if (portalRole === 'admin') {
         if (isMounted) setAuthState('to_admin')
@@ -53,12 +58,21 @@ export function SuperadminGuard({ children }: SuperadminGuardProps) {
         return
       }
 
-      // 3. Cryptographic server-side verification
-      const isServerValid = await verifyAdminSessionServer(session.token)
+      // 3. Authoritative server-side DB-backed session and role verification
+      const verification = await verifyAdminSessionWithDetails(session.token)
       if (!isMounted) return
 
-      if (isServerValid) {
+      if (!verification.valid) {
+        clearSession()
+        setAuthState('to_login')
+        return
+      }
+
+      const verifiedRole = getPortalRole(verification.user?.role)
+      if (verifiedRole === 'superadmin') {
         setAuthState('authorized')
+      } else if (verifiedRole === 'admin') {
+        setAuthState('to_admin')
       } else {
         clearSession()
         setAuthState('to_login')
