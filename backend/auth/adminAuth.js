@@ -1335,7 +1335,26 @@ export function createAdminAuthMiddleware(config = {}) {
         // Doing this before checking ADMIN_SESSION_SECRET ensures customer emails still
         // receive `{ isAdmin: false }` and proceed to AWS Cognito, while admin accounts
         // receive an explicit 503 configuration error instead of being misrouted to Cognito.
-        const dbAdmin = await findAdminByEmailForAuth(email, supabaseClient)
+        let dbAdmin = null
+        try {
+          dbAdmin = await findAdminByEmailForAuth(email, supabaseClient)
+        } catch (dbErr) {
+          // If Supabase admin store is unconfigured or offline, allow non-admin emails
+          // (such as customer emails) to cleanly proceed to customer auth instead of returning 503.
+          const isAdminPattern =
+            isSuperadminEmail(email) ||
+            email.startsWith('admin@') ||
+            email.endsWith('@inferxe.com') ||
+            email.endsWith('@inferxe.internal')
+          if (!isAdminPattern) {
+            return sendJson(req, res, 200, {
+              ok: false,
+              isAdmin: false,
+              message: 'Not an admin account',
+            })
+          }
+          throw dbErr
+        }
 
         if (!dbAdmin) {
           // Not an admin account — allow frontend to continue customer Cognito sign-in cleanly.
