@@ -1,11 +1,10 @@
 # Node & Frontend
 node_modules/
-*/node_modules/
-frontend/node_modules/
+**/node_modules/
 dist/
-*/dist/
-frontend/dist/
+**/dist/
 build/
+**/build/
 .env
 .env.*
 !.env.example
