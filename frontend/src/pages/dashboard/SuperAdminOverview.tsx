@@ -17,9 +17,7 @@ import {
   Headphones,
   FileText,
   Activity,
-  SlidersHorizontal,
   RefreshCw,
-  RotateCcw,
 } from 'lucide-react'
 import { DashboardLayout } from '../../components/dashboard/DashboardLayout'
 import { Tilt } from '../../components/ui/Tilt'
@@ -29,7 +27,7 @@ import {
   getAdminSummaryStats,
   getAdminActivities,
   getAdminSecurityEvents,
-  resetToDefaultAccounts,
+  syncAdminAccountsFromBackend,
   ADMIN_ROLE_METADATA,
   type AdminRole,
   type AdminActivityLog,
@@ -38,6 +36,7 @@ import {
 
 const ROLE_ICONS: Record<AdminRole, typeof ShieldCheck> = {
   super_admin: ShieldCheck,
+  admin: Users,
   infrastructure_admin: Server,
   billing_admin: DollarSign,
   support_admin: Headphones,
@@ -51,17 +50,10 @@ export default function SuperAdminOverview() {
   const [activities, setActivities] = useState<AdminActivityLog[]>(() => getAdminActivities())
   const [securityEvents, setSecurityEvents] = useState<AdminSecurityEvent[]>(() => getAdminSecurityEvents())
 
-  // Dev preview mode toggle (stored in localStorage)
-  const [isSuperAdminView, setIsSuperAdminView] = useState<boolean>(() => {
-    try {
-      const saved = localStorage.getItem('inferxe_dev_super_admin_mode')
-      return saved === null ? true : saved === 'true'
-    } catch {
-      return true
-    }
-  })
-
   const refreshData = () => {
+    void syncAdminAccountsFromBackend().then(() => {
+      setStats(getAdminSummaryStats())
+    })
     setStats(getAdminSummaryStats())
     setActivities(getAdminActivities())
     setSecurityEvents(getAdminSecurityEvents())
@@ -69,7 +61,14 @@ export default function SuperAdminOverview() {
 
   // Cross-component and cross-tab synchronization
   useEffect(() => {
-    const handleSync = () => refreshData()
+    void syncAdminAccountsFromBackend().then(() => {
+      setStats(getAdminSummaryStats())
+    })
+    const handleSync = () => {
+      setStats(getAdminSummaryStats())
+      setActivities(getAdminActivities())
+      setSecurityEvents(getAdminSecurityEvents())
+    }
     window.addEventListener('inferxe_admin_accounts_change', handleSync)
     window.addEventListener('inferxe_admin_activities_change', handleSync)
     window.addEventListener('storage', handleSync)
@@ -79,24 +78,6 @@ export default function SuperAdminOverview() {
       window.removeEventListener('storage', handleSync)
     }
   }, [])
-
-  const toggleDevView = () => {
-    const next = !isSuperAdminView
-    setIsSuperAdminView(next)
-    try {
-      localStorage.setItem('inferxe_dev_super_admin_mode', String(next))
-      window.dispatchEvent(new Event('inferxe_admin_role_toggle'))
-    } catch {
-      /* ignore */
-    }
-  }
-
-  const handleResetData = () => {
-    if (window.confirm('Reset all administrator accounts and logs to the default 10 seeded prototype accounts?')) {
-      resetToDefaultAccounts()
-      refreshData()
-    }
-  }
 
   return (
     <DashboardLayout
@@ -127,44 +108,21 @@ export default function SuperAdminOverview() {
               <h2 className="sa-banner-title">Super Admin Governance Tier</h2>
               <span className="sa-scope-badge">
                 <span className="sa-scope-badge__dot" />
-                SOVEREIGN RBAC v1
+                LIVE SUPABASE AUTH
               </span>
-              <span className="sa-demo-chip">PROTOTYPE SANDBOX</span>
             </div>
             <div className="sa-banner-sub">
-              Strict corporate domain policy active: <strong style={{ color: '#50e396' }}>@inferxe.com</strong> accounts only.
+              Live database-backed administrator governance with Argon2id credentials and server-side sessions.
             </div>
           </div>
         </div>
 
         <div className="sa-banner-actions">
-          {/* Dev view toggle to test normal admin vs super admin experience */}
-          <button
-            type="button"
-            className="sa-dev-toggle-btn"
-            onClick={toggleDevView}
-            title="Toggle between Super Admin and Normal Admin preview in navigation"
-          >
-            <SlidersHorizontal size={13} style={{ color: '#50e396' }} />
-            <span>Mode: {isSuperAdminView ? 'Super Admin' : 'Normal Admin'}</span>
-          </button>
-
-          <button
-            type="button"
-            className="dash-filter-btn"
-            onClick={handleResetData}
-            title="Reset to default 10 seeded administrator accounts"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-          >
-            <RotateCcw size={13} />
-            <span>Reset Seed Data</span>
-          </button>
-
           <button
             type="button"
             className="dash-filter-btn"
             onClick={refreshData}
-            title="Refresh local administration metrics"
+            title="Refresh live administration metrics from Supabase"
           >
             <RefreshCw size={13} />
             <span>Refresh</span>
@@ -181,15 +139,7 @@ export default function SuperAdminOverview() {
         </div>
       </motion.div>
 
-      {/* ── 2. Demo Transparency Callout Banner ────────────── */}
-      <div className="sa-demo-banner" role="status">
-        <AlertTriangle size={18} style={{ color: '#f59e0b', flexShrink: 0, marginTop: 1 }} />
-        <div>
-          <strong>Demonstration Data Environment:</strong> Displaying live aggregated metrics from the shared prototype administrator dataset (10 seeded administrators). Adding, modifying, or deactivating accounts reflects immediately across this overview. All activities and security events shown are simulated sample data for Phase 1 preview.
-        </div>
-      </div>
-
-      {/* ── 3. Top KPI Cards: Admin Account Overview ───────── */}
+      {/* ── 2. Top KPI Cards: Admin Account Overview ───────── */}
       <motion.div
         className="sa-kpi-grid"
         initial={{ opacity: 0, y: 14 }}

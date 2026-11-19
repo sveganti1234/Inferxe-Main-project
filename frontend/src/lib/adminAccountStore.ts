@@ -1,15 +1,15 @@
 /**
- * Super Admin & Platform Administrator Accounts Store (Phase 1 Development)
- * =========================================================================
- * Manages local UI state for platform administrators (@inferxe.com).
- * 
- * NOTE: For Phase 1 development, this store uses client-side state and localStorage
- * persistence. In Phase 2, this will be connected directly to Supabase Auth & RBAC APIs.
- * NO plaintext passwords are collected or stored.
+ * Super Admin & Platform Administrator Accounts Store
+ * ===================================================
+ * Synchronizes live platform administrator accounts directly from the backend
+ * Supabase-backed endpoints (`/api/superadmin/admins`, `/api/superadmin/admins/status`).
+ * All hardcoded placeholder/demo administrator accounts have been removed.
  */
+import { fetchSuperadminAdmins, type SuperadminAdminRecord } from './authStore'
 
 export type AdminRole =
   | 'super_admin'
+  | 'admin'
   | 'infrastructure_admin'
   | 'billing_admin'
   | 'support_admin'
@@ -31,6 +31,8 @@ export interface AdminAccount {
   avatarGradient: string
   phone?: string
   notes?: string
+  sessionVersion?: number
+  isSuperAdmin?: boolean
   isDemo?: boolean
 }
 
@@ -91,6 +93,13 @@ export const ADMIN_ROLE_METADATA: Record<
     color: '#50e396',
     permissionsSummary: ['Full Platform Control', 'Manage Admin Accounts', 'RBAC & Key Access', 'Global Overrides'],
   },
+  admin: {
+    title: 'Admin',
+    description: 'Standard platform administrator with operational console access and no Super Admin privileges.',
+    badgeClass: 'chip--cyan',
+    color: '#06b6d4',
+    permissionsSummary: ['Admin Console', 'Customer Management', 'Users Directory', 'Provider Operations'],
+  },
   infrastructure_admin: {
     title: 'Infrastructure Admin',
     description: 'GPU fleet orchestration, sovereign cluster nodes, topology, and hardware health.',
@@ -145,149 +154,55 @@ export function getAdminRoleMeta(role: string): {
   }
 }
 
-// 10 Initial Platform Administrators (@inferxe.com) - Seed Prototype Dataset
-export const DEFAULT_ADMIN_ACCOUNTS: AdminAccount[] = [
-  {
-    id: 'adm-001',
-    fullName: 'Bhumireddy Sahith',
-    email: 'bhumireddy@inferxe.com',
-    role: 'super_admin',
-    status: 'active',
-    department: 'Executive Engineering',
-    createdAt: '2026-01-15T08:30:00Z',
-    lastActiveAt: '12 mins ago',
-    avatarInitials: 'BS',
-    avatarGradient: 'linear-gradient(135deg, #50e396, #0e3820)',
-    notes: 'Principal architect and platform owner.',
-    isDemo: true,
-  },
-  {
-    id: 'adm-002',
-    fullName: 'Alex Chen',
-    email: 'alex.chen@inferxe.com',
-    role: 'infrastructure_admin',
-    status: 'active',
-    department: 'Platform Architecture',
-    createdAt: '2026-01-18T10:15:00Z',
-    lastActiveAt: '25 mins ago',
-    avatarInitials: 'AC',
-    avatarGradient: 'linear-gradient(135deg, #06b6d4, #083344)',
-    notes: 'Platform infrastructure and sovereign datacenter ops lead.',
-    isDemo: true,
-  },
-  {
-    id: 'adm-003',
-    fullName: 'Vikram Malhotra',
-    email: 'vikram.malhotra@inferxe.com',
-    role: 'infrastructure_admin',
-    status: 'active',
-    department: 'Cluster Operations',
-    createdAt: '2026-02-01T09:00:00Z',
-    lastActiveAt: '45 mins ago',
-    avatarInitials: 'VM',
-    avatarGradient: 'linear-gradient(135deg, #0ea5e9, #0369a1)',
-    notes: 'NVIDIA H100 / L40S cluster orchestration and node health.',
-    isDemo: true,
-  },
-  {
-    id: 'adm-004',
-    fullName: 'Priya Sharma',
-    email: 'priya.sharma@inferxe.com',
-    role: 'billing_admin',
-    status: 'active',
-    department: 'FinOps & Settlements',
-    createdAt: '2026-02-10T11:20:00Z',
-    lastActiveAt: '2 hours ago',
-    avatarInitials: 'PS',
-    avatarGradient: 'linear-gradient(135deg, #f59e0b, #451a03)',
-    notes: 'NVLink pricing topology, spend caps, and customer credit balance management.',
-    isDemo: true,
-  },
-  {
-    id: 'adm-005',
-    fullName: 'Kavita Patel',
-    email: 'kavita.patel@inferxe.com',
-    role: 'security_auditor',
-    status: 'active',
-    department: 'InfoSec & Compliance',
-    createdAt: '2026-02-15T14:45:00Z',
-    lastActiveAt: '3 hours ago',
-    avatarInitials: 'KP',
-    avatarGradient: 'linear-gradient(135deg, #ef4444, #7f1d1d)',
-    notes: 'SOC2 Type II compliance audit, key rotation, and privileged access review.',
-    isDemo: true,
-  },
-  {
-    id: 'adm-006',
-    fullName: 'Arjun Nair',
-    email: 'arjun.nair@inferxe.com',
-    role: 'support_admin',
-    status: 'active',
-    department: 'Customer Engineering',
-    createdAt: '2026-02-22T13:10:00Z',
-    lastActiveAt: '5 hours ago',
-    avatarInitials: 'AN',
-    avatarGradient: 'linear-gradient(135deg, #a855f7, #3b0764)',
-    notes: 'Enterprise account escalation and model inference troubleshooting.',
-    isDemo: true,
-  },
-  {
-    id: 'adm-007',
-    fullName: 'Neha Deshmukh',
-    email: 'neha.deshmukh@inferxe.com',
-    role: 'infrastructure_admin',
-    status: 'active',
-    department: 'Hardware & RoCE Fabric',
-    createdAt: '2026-03-01T16:00:00Z',
-    lastActiveAt: '1 hour ago',
-    avatarInitials: 'ND',
-    avatarGradient: 'linear-gradient(135deg, #14b8a6, #134e4a)',
-    notes: 'Infiniband fabric, RoCE telemetry, and thermal envelope management.',
-    isDemo: true,
-  },
-  {
-    id: 'adm-008',
-    fullName: 'Rohan Mehta',
-    email: 'rohan.mehta@inferxe.com',
-    role: 'support_admin',
-    status: 'inactive',
-    department: 'Customer Engineering',
-    createdAt: '2026-03-05T09:30:00Z',
-    lastActiveAt: '3 days ago',
-    avatarInitials: 'RM',
-    avatarGradient: 'linear-gradient(135deg, #64748b, #1e293b)',
-    notes: 'Account placed on temporary hold pending credential rotation.',
-    isDemo: true,
-  },
-  {
-    id: 'adm-009',
-    fullName: 'Devon Vance',
-    email: 'devon.vance@inferxe.com',
-    role: 'security_auditor',
-    status: 'active',
-    department: 'Security Compliance',
-    createdAt: '2026-03-12T10:00:00Z',
-    lastActiveAt: '30 mins ago',
-    avatarInitials: 'DV',
-    avatarGradient: 'linear-gradient(135deg, #f87171, #450a0a)',
-    notes: 'Perimeter access audits and sovereign boundary verification.',
-    isDemo: true,
-  },
-  {
-    id: 'adm-010',
-    fullName: 'Ananya Rao',
-    email: 'ananya.rao@inferxe.com',
-    role: 'billing_admin',
-    status: 'invited',
-    department: 'Financial Operations',
-    createdAt: '2026-03-25T11:00:00Z',
-    lastActiveAt: 'Demo invite pending',
-    avatarInitials: 'AR',
-    avatarGradient: 'linear-gradient(135deg, #d97706, #78350f)',
-    notes: 'New joiner; demonstration invitation record pending Supabase Auth activation.',
-    isDemo: true,
-  },
-]
+// All hardcoded placeholder/demo administrators have been removed.
+// Administrator records are loaded exclusively from the backend Supabase database.
+export const DEFAULT_ADMIN_ACCOUNTS: AdminAccount[] = []
+
+function isLegacyDemoAccount(account: AdminAccount | null | undefined): boolean {
+  if (!account || typeof account !== 'object') return true
+  if (account.isDemo === true) return true
+  const id = String(account.id || '').trim()
+  if (!id || id.startsWith('adm-')) return true
+  return false
+}
+
+export function mapBackendAdminToAccount(record: SuperadminAdminRecord): AdminAccount {
+  const isSuper = record.role === 'superadmin'
+  const role: AdminRole = isSuper ? 'super_admin' : 'admin'
+  const email = String(record.email || '').trim().toLowerCase()
+  const fullName = String(record.full_name || '').trim() || (isSuper ? 'Inferxe Super Admin' : email.split('@')[0] || 'Administrator')
+  const initials =
+    fullName
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((part) => part[0])
+      .join('')
+      .substring(0, 2)
+      .toUpperCase() || (isSuper ? 'SA' : 'AD')
+  const isActive = record.is_active !== undefined ? Boolean(record.is_active) : record.status === 'active'
+  const status: AdminStatus = isActive ? 'active' : 'inactive'
+
+  return {
+    id: String(record.id),
+    fullName,
+    email,
+    role,
+    status,
+    department: isSuper ? 'Platform Governance' : 'Platform Operations',
+    createdAt: record.created_at || new Date().toISOString(),
+    lastActiveAt: record.last_login ? formatRelativeTime(record.last_login) : 'Never signed in',
+    avatarInitials: initials,
+    avatarGradient: isSuper
+      ? 'linear-gradient(135deg, #50e396, #0e3820)'
+      : 'linear-gradient(135deg, #06b6d4, #083344)',
+    notes: isSuper
+      ? 'Primary Super Admin account (protected).'
+      : 'Database-backed platform administrator (role: admin).',
+    sessionVersion: Number(record.session_version || 1),
+    isSuperAdmin: isSuper,
+    isDemo: false,
+  }
+}
 
 export function formatRelativeTime(isoString: string): string {
   try {
@@ -628,8 +543,19 @@ export const DEFAULT_SECURITY_EVENTS: AdminSecurityEvent[] = [
   },
 ]
 
-const STORAGE_KEY = 'inferxe_dev_admin_accounts_v2'
+const STORAGE_KEY = 'inferxe_live_admin_accounts_v3'
+const LEGACY_STORAGE_KEYS = ['inferxe_dev_admin_accounts_v2', 'inferxe_super_admin_accounts_v1']
 const ACTIVITIES_STORAGE_KEY = 'inferxe_dev_admin_activities_v3'
+
+function purgeLegacyLocalAdminCaches(): void {
+  try {
+    for (const legacyKey of LEGACY_STORAGE_KEYS) {
+      localStorage.removeItem(legacyKey)
+    }
+  } catch {
+    /* storage unavailable */
+  }
+}
 
 function getStored<T>(key: string, fallback: T): T {
   try {
@@ -649,23 +575,46 @@ function setStored<T>(key: string, data: T): void {
 }
 
 export function getAdminAccounts(): AdminAccount[] {
-  return getStored<AdminAccount[]>(STORAGE_KEY, DEFAULT_ADMIN_ACCOUNTS)
+  purgeLegacyLocalAdminCaches()
+  const stored = getStored<AdminAccount[]>(STORAGE_KEY, [])
+  if (!Array.isArray(stored)) return []
+  const liveOnly = stored.filter((acc) => !isLegacyDemoAccount(acc))
+  if (liveOnly.length !== stored.length) {
+    setStored(STORAGE_KEY, liveOnly)
+  }
+  return liveOnly
 }
 
 export function saveAdminAccounts(accounts: AdminAccount[]): void {
-  setStored(STORAGE_KEY, accounts)
+  purgeLegacyLocalAdminCaches()
+  const liveOnly = accounts.filter((acc) => !isLegacyDemoAccount(acc))
+  setStored(STORAGE_KEY, liveOnly)
   if (typeof window !== 'undefined') {
     window.dispatchEvent(new CustomEvent('inferxe_admin_accounts_change'))
   }
 }
 
-export function resetToDefaultAccounts(): AdminAccount[] {
-  setStored(STORAGE_KEY, DEFAULT_ADMIN_ACCOUNTS)
-  resetToDefaultActivities()
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('inferxe_admin_accounts_change'))
+export async function syncAdminAccountsFromBackend(): Promise<{
+  ok: boolean
+  accounts: AdminAccount[]
+  error?: string
+}> {
+  const result = await fetchSuperadminAdmins()
+  if (!result.ok || !result.admins) {
+    return {
+      ok: false,
+      accounts: getAdminAccounts(),
+      error: result.error || 'Failed to load administrator accounts from backend.',
+    }
   }
-  return DEFAULT_ADMIN_ACCOUNTS
+  const mapped = result.admins.map(mapBackendAdminToAccount)
+  saveAdminAccounts(mapped)
+  return { ok: true, accounts: mapped }
+}
+
+export function resetToDefaultAccounts(): AdminAccount[] {
+  saveAdminAccounts([])
+  return []
 }
 
 export function getAdminActivities(): AdminActivityLog[] {
@@ -914,6 +863,7 @@ export function getAdminSummaryStats() {
 
   const roleDistribution: Record<AdminRole, number> = {
     super_admin: 0,
+    admin: 0,
     infrastructure_admin: 0,
     billing_admin: 0,
     support_admin: 0,

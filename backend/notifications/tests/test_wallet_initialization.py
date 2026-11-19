@@ -107,6 +107,8 @@ def run_wallet_tests():
 
     headers_a = {"Authorization": f"Bearer {token_cust_a}"}
     headers_b = {"Authorization": f"Bearer {token_cust_b}"}
+    # Wallet credits are administrator-only (no verified payment flow yet).
+    headers_admin = {"Authorization": f"Bearer {create_cognito_test_jwt('admin_wallet_' + uuid.uuid4().hex[:6], 'wallet-admin@inferxe.com', ['admin'])}"}
 
     passed = 0
     failed = 0
@@ -140,12 +142,18 @@ def run_wallet_tests():
     # ── TEST 3: Customer A recharge does not affect Customer B ──
     print("\n─── TEST 3: Wallet recharge isolation ───")
     recharge_key = f"recharge_{uuid.uuid4().hex[:8]}"
-    resp = client.post(
+    resp_self = client.post(
         "/api/wallet/transactions",
-        json={"amount": 5000.0, "idempotency_key": recharge_key},
+        json={"amount": 5000.0, "idempotency_key": f"self_{recharge_key}"},
         headers=headers_a,
     )
-    check("3A. Customer A recharge returns HTTP 200", resp.status_code == 200, f"got {resp.status_code}")
+    check("3-. Customer cannot credit their own wallet (HTTP 403)", resp_self.status_code == 403, f"got {resp_self.status_code}")
+    resp = client.post(
+        "/api/wallet/transactions",
+        json={"amount": 5000.0, "idempotency_key": recharge_key, "target_user_id": cust_a_id},
+        headers=headers_admin,
+    )
+    check("3A. Admin credit to Customer A returns HTTP 200", resp.status_code == 200, f"got {resp.status_code}")
     if resp.status_code == 200:
         check("3B. Customer A new balance is 5000", resp.json()["new_balance"] == 5000.0, f"got {resp.json()['new_balance']}")
 

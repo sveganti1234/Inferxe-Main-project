@@ -6,10 +6,15 @@ import {
 } from '../lib/apiKeyService'
 import { getSession, decodeJwt } from '../lib/authStore'
 
-vi.mock('../lib/authStore', () => ({
-  getSession: vi.fn(),
-  decodeJwt: vi.fn(),
-}))
+vi.mock('../lib/authStore', () => {
+  const getSession = vi.fn()
+  return {
+    getSession,
+    decodeJwt: vi.fn(),
+    // Services obtain the (refreshed) session asynchronously; mirror the mocked getSession.
+    ensureFreshSession: vi.fn(async () => getSession()),
+  }
+})
 
 const mockGetSession = vi.mocked(getSession)
 const mockDecodeJwt = vi.mocked(decodeJwt)

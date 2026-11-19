@@ -45,11 +45,11 @@ export const GUEST_QUICK_PROMPTS = [
 ]
 
 export const CUSTOMER_QUICK_PROMPTS = [
-  'how wallet works in this web site',
-  'Check my wallet balance',
-  'How do I deploy an LLM on Inferxe?',
+  'Show me the customer dashboard guide',
+  'How does the wallet work?',
+  'Can I deploy a model on a GPU?',
   'Which GPU for 14B model?',
-  'OpenAI API compatibility example',
+  'How do I call the inference API?',
 ]
 
 export const ADMIN_QUICK_PROMPTS = [
@@ -92,7 +92,7 @@ export function getInitialMessagesForScope(scope: ChatScope): ChatMessage[] {
         {
           id: `welcome-customer-${now}`,
           sender: 'bot',
-          text: "Welcome to your Customer Workspace! I can help you with GPU deployments, sizing models, prepaid wallet top-ups, and developer API keys.",
+          text: "Welcome to your Customer Workspace! I can help you find your way around the console, size models for GPUs, and use the inference API with your API keys. Some features, such as deployments and wallet payments, are not available yet.",
           time: timeStr,
           timestamp: now,
         },

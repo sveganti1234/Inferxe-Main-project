@@ -1,38 +1,35 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Search,
   UserPlus,
   Eye,
-  Edit2,
-  Trash2,
+  EyeOff,
   UserX,
   UserCheck,
-  AlertTriangle,
+  RefreshCw,
   RotateCcw,
   X,
-  Check,
   AlertCircle,
   Lock,
   CheckCircle2,
   Users,
+  ShieldCheck,
 } from 'lucide-react'
 import { DashboardLayout } from '../../components/dashboard/DashboardLayout'
 import { usePageMeta } from '../../lib/hooks'
 import {
-  getAdminAccounts,
-  createAdminAccount,
-  updateAdminAccount,
-  setAdminStatus,
-  deleteAdminAccount,
-  resetToDefaultAccounts,
+  mapBackendAdminToAccount,
+  syncAdminAccountsFromBackend,
   getAdminRoleMeta,
   type AdminAccount,
-  type AdminRole,
-  type AdminStatus,
-  type CreateAdminInput,
 } from '../../lib/adminAccountStore'
-import { getAllRoles, type AdminRoleDefinition } from '../../lib/adminRoleStore'
+import {
+  createDeveloperAdminAccount,
+  updateAdminAccountStatus,
+} from '../../lib/authStore'
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 
 function formatProvisionedDate(isoStr?: string): string {
   if (!isoStr) return '—'
@@ -45,70 +42,80 @@ function formatProvisionedDate(isoStr?: string): string {
   }
 }
 
-export default function AdminAccounts() {
-  usePageMeta('Admin Accounts · Inferxe Dashboard', 'Provision, audit, and configure privileges for platform administrators.')
+function isProtectedSuperAdmin(acc: AdminAccount): boolean {
+  return Boolean(acc.isSuperAdmin || acc.role === 'super_admin')
+}
 
-  const [accounts, setAccounts] = useState<AdminAccount[]>(() => getAdminAccounts())
-  const [allRoles, setAllRoles] = useState<AdminRoleDefinition[]>(() => getAllRoles())
+function validateNewAdminPassword(password: string): string | null {
+  if (password.length < 12) return 'Password must be at least 12 characters long.'
+  if (password.length > 128) return 'Password must not exceed 128 characters.'
+  if (!/[A-Z]/.test(password)) return 'Password must include at least one uppercase letter.'
+  if (!/[a-z]/.test(password)) return 'Password must include at least one lowercase letter.'
+  if (!/[0-9]/.test(password)) return 'Password must include at least one number.'
+  if (!/[^A-Za-z0-9]/.test(password)) return 'Password must include at least one special character.'
+  return null
+}
+
+export default function AdminAccounts() {
+  usePageMeta(
+    'Admin Accounts · Inferxe Dashboard',
+    'Provision, audit, and govern real database-backed platform administrator accounts.',
+  )
+
+  const [accounts, setAccounts] = useState<AdminAccount[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [roleFilter, setRoleFilter] = useState<string>('all')
   const [statusFilter, setStatusFilter] = useState<string>('all')
 
   // Modals state
   const [isAddModalOpen, setIsAddModalOpen] = useState(false)
-  const [editingAdmin, setEditingAdmin] = useState<AdminAccount | null>(null)
   const [viewingAdmin, setViewingAdmin] = useState<AdminAccount | null>(null)
   const [deactivatingAdmin, setDeactivatingAdmin] = useState<AdminAccount | null>(null)
   const [reactivatingAdmin, setReactivatingAdmin] = useState<AdminAccount | null>(null)
-  const [deletingAdmin, setDeletingAdmin] = useState<AdminAccount | null>(null)
+  const [statusReason, setStatusReason] = useState('')
+  const [submittingStatus, setSubmittingStatus] = useState(false)
   const [notification, setNotification] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
-  // Add Admin form state
-  const [newAdmin, setNewAdmin] = useState<CreateAdminInput>({
-    fullName: '',
-    email: '',
-    role: 'infrastructure_admin',
-    department: 'Infrastructure Operations',
-    status: 'active',
-    notes: '',
-  })
-  const [formErrors, setFormErrors] = useState<{ fullName?: string; email?: string }>({})
+  // Add Administrator form state (backed by POST /api/superadmin/admins)
+  const [newEmail, setNewEmail] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [creatingAdmin, setCreatingAdmin] = useState(false)
+  const [formErrors, setFormErrors] = useState<{
+    email?: string
+    password?: string
+    confirmPassword?: string
+    submit?: string
+  }>({})
 
-  const refreshAccounts = () => {
-    setAccounts(getAdminAccounts())
-  }
-
-  // Cross-component and cross-tab synchronization
-  useEffect(() => {
-    const handleSync = () => {
-      refreshAccounts()
-      setAllRoles(getAllRoles())
+  const loadAccountsFromBackend = useCallback(async () => {
+    setLoading(true)
+    setLoadError(null)
+    const result = await syncAdminAccountsFromBackend()
+    if (result.ok) {
+      setAccounts(result.accounts)
+    } else {
+      setLoadError(result.error || 'Failed to fetch administrator accounts from Supabase.')
     }
-    window.addEventListener('inferxe_admin_accounts_change', handleSync)
-    window.addEventListener('inferxe_admin_roles_change', handleSync)
-    window.addEventListener('storage', handleSync)
-    return () => {
-      window.removeEventListener('inferxe_admin_accounts_change', handleSync)
-      window.removeEventListener('inferxe_admin_roles_change', handleSync)
-      window.removeEventListener('storage', handleSync)
-    }
+    setLoading(false)
   }, [])
+
+  useEffect(() => {
+    void loadAccountsFromBackend()
+  }, [loadAccountsFromBackend])
 
   // Auto-dismiss notification
   useEffect(() => {
     if (!notification) return
-    const timer = setTimeout(() => setNotification(null), 4000)
+    const timer = setTimeout(() => setNotification(null), 5000)
     return () => clearTimeout(timer)
   }, [notification])
 
-  // Check if any modal is active to lock background body scroll
   const isAnyModalOpen = Boolean(
-    isAddModalOpen ||
-    editingAdmin ||
-    viewingAdmin ||
-    deactivatingAdmin ||
-    reactivatingAdmin ||
-    deletingAdmin
+    isAddModalOpen || viewingAdmin || deactivatingAdmin || reactivatingAdmin,
   )
 
   useEffect(() => {
@@ -120,38 +127,51 @@ export default function AdminAccounts() {
       document.body.style.paddingRight = `${scrollbarWidth}px`
     }
     document.body.style.overflow = 'hidden'
-
     return () => {
       document.body.style.overflow = originalOverflow
       document.body.style.paddingRight = originalPaddingRight
     }
   }, [isAnyModalOpen])
 
-  // Escape key closes whichever modal is open
+  const closeAddModal = useCallback(() => {
+    if (creatingAdmin) return
+    setIsAddModalOpen(false)
+    setNewEmail('')
+    setNewPassword('')
+    setConfirmPassword('')
+    setShowPassword(false)
+    setFormErrors({})
+  }, [creatingAdmin])
+
   useEffect(() => {
     if (!isAnyModalOpen) return
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        if (deletingAdmin) {
-          setDeletingAdmin(null)
-        } else if (deactivatingAdmin) {
+        if (deactivatingAdmin && !submittingStatus) {
           setDeactivatingAdmin(null)
-        } else if (reactivatingAdmin) {
+          setStatusReason('')
+        } else if (reactivatingAdmin && !submittingStatus) {
           setReactivatingAdmin(null)
-        } else if (editingAdmin) {
-          setEditingAdmin(null)
+          setStatusReason('')
         } else if (viewingAdmin) {
           setViewingAdmin(null)
         } else if (isAddModalOpen) {
-          setIsAddModalOpen(false)
+          closeAddModal()
         }
       }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [isAnyModalOpen, deletingAdmin, deactivatingAdmin, reactivatingAdmin, editingAdmin, viewingAdmin, isAddModalOpen])
+  }, [
+    isAnyModalOpen,
+    deactivatingAdmin,
+    reactivatingAdmin,
+    viewingAdmin,
+    isAddModalOpen,
+    submittingStatus,
+    closeAddModal,
+  ])
 
-  // Filtered accounts list
   const filteredAccounts = useMemo(() => {
     return accounts.filter((acc) => {
       const q = searchQuery.toLowerCase().trim()
@@ -159,7 +179,7 @@ export default function AdminAccounts() {
         !q ||
         acc.fullName.toLowerCase().includes(q) ||
         acc.email.toLowerCase().includes(q) ||
-        acc.department.toLowerCase().includes(q)
+        acc.id.toLowerCase().includes(q)
 
       const matchesRole = roleFilter === 'all' || acc.role === roleFilter
       const matchesStatus = statusFilter === 'all' || acc.status === statusFilter
@@ -168,138 +188,167 @@ export default function AdminAccounts() {
     })
   }, [accounts, searchQuery, roleFilter, statusFilter])
 
-  // Validate Add Admin form
-  const validateForm = (): boolean => {
-    const errors: { fullName?: string; email?: string } = {}
-    if (!newAdmin.fullName.trim() || newAdmin.fullName.trim().length < 2) {
-      errors.fullName = 'Full Name is required (at least 2 characters).'
-    }
+  const activeCount = useMemo(() => accounts.filter((a) => a.status === 'active').length, [accounts])
+  const superAdminCount = useMemo(() => accounts.filter((a) => isProtectedSuperAdmin(a)).length, [accounts])
+  const standardAdminCount = accounts.length - superAdminCount
 
-    const email = newAdmin.email.trim().toLowerCase()
-    if (!email) {
-      errors.email = 'Corporate email is required.'
-    } else if (!email.endsWith('@inferxe.com')) {
-      errors.email = 'Company email MUST end with @inferxe.com'
-    } else if (accounts.some((a) => a.email.toLowerCase() === email)) {
-      errors.email = 'An administrator account with this email already exists.'
-    }
-
-    setFormErrors(errors)
-    return Object.keys(errors).length === 0
-  }
-
-  const handleAddAdminSubmit = (e: React.FormEvent) => {
+  const handleAddAdminSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!validateForm()) return
+    const errors: typeof formErrors = {}
+    const cleanEmail = newEmail.trim().toLowerCase()
 
-    const result = createAdminAccount(newAdmin)
-    if (result.ok && result.account) {
-      refreshAccounts()
-      setIsAddModalOpen(false)
-      setNewAdmin({
-        fullName: '',
-        email: '',
-        role: 'infrastructure_admin',
-        department: 'Infrastructure Operations',
-        status: 'active',
-        notes: '',
+    if (!cleanEmail || !EMAIL_REGEX.test(cleanEmail)) {
+      errors.email = 'Please enter a valid administrator email address.'
+    }
+
+    const pwError = validateNewAdminPassword(newPassword)
+    if (pwError) {
+      errors.password = pwError
+    }
+
+    if (newPassword !== confirmPassword) {
+      errors.confirmPassword = 'Password confirmation does not match.'
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors)
+      return
+    }
+
+    // If the email already exists in the synced live directory, refresh from backend
+    // and inform the user clearly instead of leaving them uncertain.
+    const existingAccount = accounts.find((a) => a.email.toLowerCase() === cleanEmail)
+    if (existingAccount) {
+      await loadAccountsFromBackend()
+      setFormErrors({
+        email: `An administrator account for "${cleanEmail}" already exists (${existingAccount.status === 'active' ? 'Active' : 'Inactive'}). The directory has been refreshed.`,
       })
-      setFormErrors({})
+      return
+    }
+
+    setCreatingAdmin(true)
+    setFormErrors({})
+
+    const result = await createDeveloperAdminAccount({
+      email: cleanEmail,
+      password: newPassword,
+    })
+
+    setCreatingAdmin(false)
+
+    if (result.ok && result.admin) {
+      const createdAccount = mapBackendAdminToAccount(result.admin)
+      setAccounts((prev) =>
+        prev.some((a) => a.id === createdAccount.id || a.email === createdAccount.email)
+          ? prev.map((a) => (a.id === createdAccount.id ? createdAccount : a))
+          : [...prev, createdAccount],
+      )
+      setNewEmail('')
+      setNewPassword('')
+      setConfirmPassword('')
+      setShowPassword(false)
+      setIsAddModalOpen(false)
+      setSearchQuery('')
+      setRoleFilter('all')
+      setStatusFilter('all')
       setNotification({
-        message: `Prototype administrator ${result.account.fullName} provisioned in local store.`,
+        message: `Administrator "${result.admin.email}" created in Supabase with role "admin".`,
         type: 'success',
       })
-    } else {
+      await loadAccountsFromBackend()
+    } else if (result.isDuplicate) {
+      // Backend confirmed 409 Conflict: refresh live directory immediately so the existing account is visible.
+      await loadAccountsFromBackend()
+      setSearchQuery('')
+      setRoleFilter('all')
+      setStatusFilter('all')
+      setFormErrors({
+        email: `An administrator account for "${cleanEmail}" already exists in Supabase. The administrator list has been refreshed so you can view or manage it.`,
+      })
       setNotification({
-        message: result.error || 'Failed to create administrator account.',
+        message: `"${cleanEmail}" already exists in Supabase. Refreshed administrator directory.`,
         type: 'error',
+      })
+    } else {
+      setFormErrors({
+        submit: result.error || 'Failed to create administrator account.',
       })
     }
   }
 
   const handleStartDeactivate = (acc: AdminAccount) => {
-    if (acc.id === 'adm-001') {
+    if (isProtectedSuperAdmin(acc)) {
       setNotification({
-        message: 'Primary Super Admin account cannot be deactivated.',
+        message: 'The primary Super Admin account cannot be deactivated.',
         type: 'error',
       })
       return
     }
+    setStatusReason('')
     setDeactivatingAdmin(acc)
   }
 
   const handleStartReactivate = (acc: AdminAccount) => {
+    setStatusReason('')
     setReactivatingAdmin(acc)
   }
 
-  const handleStartDelete = (acc: AdminAccount) => {
-    if (acc.id === 'adm-001') {
+  const handleConfirmDeactivate = async () => {
+    if (!deactivatingAdmin) return
+    setSubmittingStatus(true)
+    const target = deactivatingAdmin
+    const res = await updateAdminAccountStatus(
+      target.id,
+      'inactive',
+      statusReason.trim() || 'Deactivated by Super Admin',
+    )
+    setSubmittingStatus(false)
+
+    if (res.ok) {
+      setDeactivatingAdmin(null)
+      setStatusReason('')
+      if (viewingAdmin?.id === target.id) {
+        setViewingAdmin({ ...viewingAdmin, status: 'inactive' })
+      }
       setNotification({
-        message: 'Primary Super Admin account cannot be deleted.',
+        message: `Administrator ${target.email} deactivated. All active sessions have been revoked.`,
+        type: 'success',
+      })
+      await loadAccountsFromBackend()
+    } else {
+      setNotification({
+        message: res.error || 'Failed to deactivate administrator account.',
         type: 'error',
       })
-      return
     }
-    setDeletingAdmin(acc)
   }
 
-  const handleConfirmDelete = () => {
-    if (!deletingAdmin) return
-    if (deletingAdmin.id === 'adm-001') {
-      setNotification({ message: 'Primary Super Admin account cannot be deleted.', type: 'error' })
-      setDeletingAdmin(null)
-      return
-    }
-    const target = deletingAdmin
-    const res = deleteAdminAccount(target.id)
+  const handleConfirmReactivate = async () => {
+    if (!reactivatingAdmin) return
+    setSubmittingStatus(true)
+    const target = reactivatingAdmin
+    const res = await updateAdminAccountStatus(
+      target.id,
+      'active',
+      statusReason.trim() || 'Reactivated by Super Admin',
+    )
+    setSubmittingStatus(false)
+
     if (res.ok) {
-      refreshAccounts()
+      setReactivatingAdmin(null)
+      setStatusReason('')
       if (viewingAdmin?.id === target.id) {
-        setViewingAdmin(null)
+        setViewingAdmin({ ...viewingAdmin, status: 'active' })
       }
-      const name = target.fullName
-      const email = target.email
-      setDeletingAdmin(null)
       setNotification({
-        message: `Administrator ${name} (${email}) was permanently deleted.`,
+        message: `Administrator ${target.email} reactivated. They can now sign in with a fresh session.`,
         type: 'success',
       })
+      await loadAccountsFromBackend()
     } else {
-      setNotification({ message: res.error || 'Failed to delete administrator.', type: 'error' })
-    }
-  }
-
-  const handleEditSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!editingAdmin) return
-
-    const res = updateAdminAccount(editingAdmin.id, {
-      fullName: editingAdmin.fullName,
-      role: editingAdmin.role,
-      department: editingAdmin.department,
-      status: editingAdmin.status,
-      notes: editingAdmin.notes,
-    })
-
-    if (res.ok) {
-      refreshAccounts()
-      setEditingAdmin(null)
       setNotification({
-        message: `Privileges for ${editingAdmin.fullName} updated successfully.`,
-        type: 'success',
-      })
-    } else {
-      setNotification({ message: res.error || 'Failed to update admin account.', type: 'error' })
-    }
-  }
-
-  const handleResetData = () => {
-    if (window.confirm('Reset all administrator accounts and logs to the default 10 seeded prototype accounts?')) {
-      resetToDefaultAccounts()
-      refreshAccounts()
-      setNotification({
-        message: 'Restored 10 default prototype administrator records.',
-        type: 'success',
+        message: res.error || 'Failed to reactivate administrator account.',
+        type: 'error',
       })
     }
   }
@@ -313,7 +362,7 @@ export default function AdminAccounts() {
         { label: 'Accounts' },
       ]}
       heading="Platform Administrator Accounts"
-      description="Provision, audit, and configure privileges for @inferxe.com platform administrators."
+      description="Provision and govern database-backed platform administrators authenticated with Argon2id and server-side sessions."
       backButtonTo="/dashboard/super-admin"
       backButtonLabel="Super Admin Console"
     >
@@ -349,11 +398,18 @@ export default function AdminAccounts() {
           </div>
           <div>
             <h2 className="sa-banner-title">
-              <span>{accounts.length} Platform Administrators Configured</span>
-              <span className="sa-demo-chip">PROTOTYPE SANDBOX</span>
+              <span>
+                {loading && accounts.length === 0
+                  ? 'Loading Platform Administrators...'
+                  : `${accounts.length} Database-Backed Administrator${accounts.length === 1 ? '' : 's'}`}
+              </span>
+              <span className="sa-scope-badge">
+                <span className="sa-scope-badge__dot" />
+                LIVE SUPABASE AUTH
+              </span>
             </h2>
             <div className="sa-banner-sub">
-              Target pool: 9–10 enterprise platform administrators. Identity authority will integrate with Supabase Auth in Phase 2.
+              {activeCount} active · {superAdminCount} Super Admin · {standardAdminCount} standard Admin{standardAdminCount === 1 ? '' : 's'}. All credentials are hashed server-side with Argon2id.
             </div>
           </div>
         </div>
@@ -362,18 +418,22 @@ export default function AdminAccounts() {
           <button
             type="button"
             className="dash-filter-btn"
-            onClick={handleResetData}
-            title="Reset to default 10 seeded administrator accounts"
+            onClick={() => void loadAccountsFromBackend()}
+            disabled={loading}
+            title="Refresh administrator accounts from Supabase"
             style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
           >
-            <RotateCcw size={13} />
-            <span>Reset Seed Data</span>
+            <RefreshCw size={13} className={loading ? 'spin-icon' : ''} />
+            <span>Refresh</span>
           </button>
 
           <button
             type="button"
             className="dash-primary-btn"
-            onClick={() => setIsAddModalOpen(true)}
+            onClick={() => {
+              setFormErrors({})
+              setIsAddModalOpen(true)
+            }}
             style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
           >
             <UserPlus size={15} />
@@ -382,23 +442,28 @@ export default function AdminAccounts() {
         </div>
       </div>
 
-      {/* ── 2. Demo Transparency Callout ──────────────────── */}
-      <div className="sa-demo-banner" role="status">
-        <AlertCircle size={18} style={{ color: '#f59e0b', flexShrink: 0, marginTop: 1 }} />
-        <div>
-          <strong>Demonstration Data Environment:</strong> Displaying 10 seeded prototype platform administrators. Adding, editing, or deactivating accounts updates local prototype simulation state only. No real invitation emails or Supabase Auth invitations are dispatched in Phase 1.
+      {/* Backend Load Error Banner */}
+      {loadError && (
+        <div
+          className="sa-demo-banner"
+          role="alert"
+          style={{ borderColor: 'rgba(239, 68, 68, 0.45)', background: 'rgba(127, 29, 29, 0.2)' }}
+        >
+          <AlertCircle size={18} style={{ color: '#f87171', flexShrink: 0, marginTop: 1 }} />
+          <div>
+            <strong>Unable to load administrator directory:</strong> {loadError}
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* ── 3. Search & Filter Bar ────────────────────────── */}
+      {/* ── 2. Search & Filter Bar ────────────────────────── */}
       <div className="sa-filter-bar">
-        {/* Search */}
         <div className="sa-search-wrap">
           <Search size={15} className="sa-search-icon" aria-hidden="true" />
           <input
             type="text"
             className="sa-search-input"
-            placeholder="Search by administrator name, corporate email, or department..."
+            placeholder="Search by administrator name, email, or account ID..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             aria-label="Search platform administrators"
@@ -416,25 +481,17 @@ export default function AdminAccounts() {
           )}
         </div>
 
-        {/* Role Filter */}
         <select
           className="sa-select"
           value={roleFilter}
           onChange={(e) => setRoleFilter(e.target.value)}
-          aria-label="Filter by RBAC Role"
+          aria-label="Filter by Role"
         >
-          <option value="all">All Roles ({allRoles.length})</option>
-          {allRoles.map((r) => {
-            const count = accounts.filter((a) => a.role === r.id).length
-            return (
-              <option key={r.id} value={r.id}>
-                {r.name} ({count})
-              </option>
-            )
-          })}
+          <option value="all">All Roles ({accounts.length})</option>
+          <option value="super_admin">Super Admin ({superAdminCount})</option>
+          <option value="admin">Admin ({standardAdminCount})</option>
         </select>
 
-        {/* Status Filter */}
         <select
           className="sa-select"
           value={statusFilter}
@@ -444,10 +501,8 @@ export default function AdminAccounts() {
           <option value="all">All Statuses</option>
           <option value="active">Active Only</option>
           <option value="inactive">Inactive Only</option>
-          <option value="invited">Pending Invitations (Demo)</option>
         </select>
 
-        {/* Reset */}
         {(searchQuery || roleFilter !== 'all' || statusFilter !== 'all') && (
           <button
             type="button"
@@ -466,46 +521,58 @@ export default function AdminAccounts() {
         )}
       </div>
 
-      {/* ── 4. Admin Accounts Table (Aligned Separate Columns) */}
+      {/* ── 3. Live Admin Accounts Table ──────────────────── */}
       <div className="sa-table-container">
         <table className="sa-table">
           <thead>
             <tr>
               <th style={{ width: '25%' }}>Administrator</th>
-              <th style={{ width: '23%' }}>Corporate Email</th>
-              <th style={{ width: '17%' }}>Assigned RBAC Role</th>
+              <th style={{ width: '25%' }}>Email</th>
+              <th style={{ width: '14%' }}>Role</th>
               <th style={{ width: '11%' }}>Status</th>
-              <th style={{ width: '12%' }}>Provisioned</th>
-              <th style={{ width: '12%' }}>Last Active</th>
-              <th style={{ width: '140px', textAlign: 'right' }}>Actions</th>
+              <th style={{ width: '12%' }}>Created</th>
+              <th style={{ width: '13%' }}>Last Login</th>
+              <th style={{ width: '110px', textAlign: 'right' }}>Actions</th>
             </tr>
           </thead>
           <tbody>
-            {filteredAccounts.length === 0 ? (
+            {loading && accounts.length === 0 ? (
+              <tr>
+                <td colSpan={7} style={{ textAlign: 'center', padding: '48px 16px', color: 'var(--ink-3)' }}>
+                  Loading live administrator accounts from Supabase...
+                </td>
+              </tr>
+            ) : filteredAccounts.length === 0 ? (
               <tr>
                 <td colSpan={7} style={{ textAlign: 'center', padding: '48px 16px', color: 'var(--ink-3)' }}>
                   <Users size={32} style={{ margin: '0 auto 10px', opacity: 0.4, display: 'block' }} />
-                  <div>No administrators match your active filter criteria.</div>
-                  <button
-                    type="button"
-                    className="sa-link-action"
-                    onClick={() => {
-                      setSearchQuery('')
-                      setRoleFilter('all')
-                      setStatusFilter('all')
-                    }}
-                    style={{ marginTop: 8, background: 'none', border: 'none', cursor: 'pointer' }}
-                  >
-                    Reset all filters
-                  </button>
+                  <div>
+                    {accounts.length === 0
+                      ? 'No administrator accounts loaded.'
+                      : 'No administrators match your active filter criteria.'}
+                  </div>
+                  {(searchQuery || roleFilter !== 'all' || statusFilter !== 'all') && (
+                    <button
+                      type="button"
+                      className="sa-link-action"
+                      onClick={() => {
+                        setSearchQuery('')
+                        setRoleFilter('all')
+                        setStatusFilter('all')
+                      }}
+                      style={{ marginTop: 8, background: 'none', border: 'none', cursor: 'pointer' }}
+                    >
+                      Reset all filters
+                    </button>
+                  )}
                 </td>
               </tr>
             ) : (
               filteredAccounts.map((acc) => {
                 const roleMeta = getAdminRoleMeta(acc.role)
+                const isProtected = isProtectedSuperAdmin(acc)
                 return (
                   <tr key={acc.id} className={acc.status === 'inactive' ? 'sa-row--inactive' : ''}>
-                    {/* Column 1: Admin Name, Initials Avatar & Dept */}
                     <td>
                       <div className="sa-user-cell">
                         <div
@@ -522,36 +589,29 @@ export default function AdminAccounts() {
                       </div>
                     </td>
 
-                    {/* Column 2: Corporate Email (Fixed: No duplicate @inferxe.com badge) */}
                     <td>
                       <div className="sa-email-cell">
                         <span className="sa-email-text">{acc.email}</span>
                       </div>
                     </td>
 
-                    {/* Column 3: Assigned Role */}
                     <td>
                       <span className={`sa-role-pill sa-role-pill--${acc.role}`}>
                         {roleMeta.title}
                       </span>
                     </td>
 
-                    {/* Column 4: Status */}
                     <td>
                       <span className={`sa-status-pill sa-status-pill--${acc.status}`}>
                         <span className="sa-status-pill__dot" />
-                        {acc.status === 'active' && 'Active'}
-                        {acc.status === 'inactive' && 'Inactive'}
-                        {acc.status === 'invited' && 'Invited (Demo)'}
+                        {acc.status === 'active' ? 'Active' : 'Inactive'}
                       </span>
                     </td>
 
-                    {/* Column 5: Created / Provisioned Date */}
                     <td>
                       <span className="sa-date-text">{formatProvisionedDate(acc.createdAt)}</span>
                     </td>
 
-                    {/* Column 6: Last Active */}
                     <td>
                       <span
                         className="sa-date-text"
@@ -561,27 +621,16 @@ export default function AdminAccounts() {
                       </span>
                     </td>
 
-                    {/* Column 7: Actions (Aligned & Accessible) */}
                     <td style={{ textAlign: 'right' }}>
                       <div className="sa-action-group">
                         <button
                           type="button"
                           className="sa-action-btn"
-                          title="View administrator profile & privileges"
+                          title="View administrator details"
                           onClick={() => setViewingAdmin(acc)}
-                          aria-label={`View details for ${acc.fullName}`}
+                          aria-label={`View details for ${acc.email}`}
                         >
                           <Eye size={14} />
-                        </button>
-
-                        <button
-                          type="button"
-                          className="sa-action-btn"
-                          title="Edit administrator role"
-                          onClick={() => setEditingAdmin(acc)}
-                          aria-label={`Edit ${acc.fullName}`}
-                        >
-                          <Edit2 size={14} />
                         </button>
 
                         {acc.status === 'active' ? (
@@ -589,53 +638,28 @@ export default function AdminAccounts() {
                             type="button"
                             className="sa-action-btn sa-action-btn--warning"
                             title={
-                              acc.id === 'adm-001'
+                              isProtected
                                 ? 'Primary Super Admin cannot be deactivated'
-                                : 'Deactivate administrator account'
+                                : 'Deactivate administrator account and revoke all active sessions'
                             }
-                            disabled={acc.id === 'adm-001'}
+                            disabled={isProtected}
                             onClick={() => handleStartDeactivate(acc)}
-                            aria-label={`Deactivate ${acc.fullName}`}
+                            aria-label={`Deactivate ${acc.email}`}
                           >
                             <UserX size={14} />
-                          </button>
-                        ) : acc.status === 'inactive' ? (
-                          <button
-                            type="button"
-                            className="sa-action-btn sa-action-btn--success"
-                            title="Reactivate administrator account"
-                            disabled={acc.id === 'adm-001'}
-                            onClick={() => handleStartReactivate(acc)}
-                            aria-label={`Reactivate ${acc.fullName}`}
-                          >
-                            <UserCheck size={14} />
                           </button>
                         ) : (
                           <button
                             type="button"
-                            className="sa-action-btn sa-action-btn--warning"
-                            title="Revoke / Deactivate invitation"
-                            onClick={() => handleStartDeactivate(acc)}
-                            aria-label={`Revoke invitation for ${acc.fullName}`}
+                            className="sa-action-btn sa-action-btn--success"
+                            title="Reactivate administrator account"
+                            disabled={isProtected}
+                            onClick={() => handleStartReactivate(acc)}
+                            aria-label={`Reactivate ${acc.email}`}
                           >
-                            <UserX size={14} />
+                            <UserCheck size={14} />
                           </button>
                         )}
-
-                        <button
-                          type="button"
-                          className="sa-action-btn sa-action-btn--delete"
-                          title={
-                            acc.id === 'adm-001'
-                              ? 'Primary Super Admin cannot be deleted'
-                              : 'Delete administrator permanently'
-                          }
-                          disabled={acc.id === 'adm-001'}
-                          onClick={() => handleStartDelete(acc)}
-                          aria-label={`Delete ${acc.fullName}`}
-                        >
-                          <Trash2 size={14} />
-                        </button>
                       </div>
                     </td>
                   </tr>
@@ -646,10 +670,10 @@ export default function AdminAccounts() {
         </table>
       </div>
 
-      {/* ── 5. Add Administrator Modal ────────────────────── */}
+      {/* ── 4. Add Administrator Modal (POST /api/superadmin/admins) ── */}
       <AnimatePresence>
         {isAddModalOpen && (
-          <div className="sa-modal-overlay" onClick={() => setIsAddModalOpen(false)}>
+          <div className="sa-modal-overlay" onClick={closeAddModal}>
             <motion.div
               className="sa-modal-container"
               onClick={(e) => e.stopPropagation()}
@@ -666,14 +690,15 @@ export default function AdminAccounts() {
                   <div>
                     <h3 className="sa-modal-title">Add Platform Administrator</h3>
                     <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
-                      Enforce strict @inferxe.com corporate identity.
+                      Creates a real database-backed Admin account in Supabase.
                     </div>
                   </div>
                 </div>
                 <button
                   type="button"
                   className="sa-modal-close-btn"
-                  onClick={() => setIsAddModalOpen(false)}
+                  onClick={closeAddModal}
+                  disabled={creatingAdmin}
                   aria-label="Close modal"
                 >
                   <X size={18} />
@@ -682,121 +707,138 @@ export default function AdminAccounts() {
 
               <form onSubmit={handleAddAdminSubmit} className="sa-modal-form">
                 <div className="sa-modal-body">
-                  {/* Full Name */}
+                  {formErrors.submit && (
+                    <div className="sa-confirm-box sa-confirm-box--danger">
+                      <strong>Creation Failed</strong>
+                      <div>{formErrors.submit}</div>
+                    </div>
+                  )}
+
+                  {/* Email */}
                   <div className="sa-form-group">
-                    <label className="sa-form-label">
-                      <span>Full Name</span>
+                    <label className="sa-form-label" htmlFor="sa-new-admin-email">
+                      <span>Administrator Email</span>
                       <span style={{ color: '#50e396' }}>*</span>
                     </label>
                     <input
-                      type="text"
-                      className="sa-form-input"
-                      placeholder="e.g. Vikram Malhotra"
-                      value={newAdmin.fullName}
-                      onChange={(e) => {
-                        setNewAdmin({ ...newAdmin, fullName: e.target.value })
-                        if (formErrors.fullName) setFormErrors({ ...formErrors, fullName: undefined })
-                      }}
-                    />
-                    {formErrors.fullName && <span className="sa-form-error">{formErrors.fullName}</span>}
-                  </div>
-
-                  {/* Corporate Email */}
-                  <div className="sa-form-group">
-                    <label className="sa-form-label">
-                      <span>Corporate Email Address</span>
-                      <span style={{ color: '#50e396' }}>* (@inferxe.com)</span>
-                    </label>
-                    <input
+                      id="sa-new-admin-email"
                       type="email"
+                      required
                       className="sa-form-input"
-                      placeholder="name@inferxe.com"
-                      value={newAdmin.email}
+                      placeholder="developer@inferxe.com"
+                      value={newEmail}
                       onChange={(e) => {
-                        setNewAdmin({ ...newAdmin, email: e.target.value })
+                        setNewEmail(e.target.value)
                         if (formErrors.email) setFormErrors({ ...formErrors, email: undefined })
                       }}
                     />
-                    <span className="sa-form-hint">
-                      Must use official corporate domain: <code>@inferxe.com</code>
-                    </span>
                     {formErrors.email && <span className="sa-form-error">{formErrors.email}</span>}
                   </div>
 
-                  {/* RBAC Role Selection */}
+                  {/* Password */}
                   <div className="sa-form-group">
-                    <label className="sa-form-label">
-                      <span>Assigned RBAC Role</span>
+                    <label className="sa-form-label" htmlFor="sa-new-admin-password">
+                      <span>Initial Password</span>
                       <span style={{ color: '#50e396' }}>*</span>
                     </label>
-                    <select
-                      className="sa-form-input"
-                      value={newAdmin.role}
-                      onChange={(e) => setNewAdmin({ ...newAdmin, role: e.target.value as AdminRole })}
-                    >
-                      <optgroup label="Standard Platform Roles">
-                        {allRoles.filter((r) => r.isStandard).map((r) => (
-                          <option key={r.id} value={r.id}>
-                            {r.name} — {r.description}
-                          </option>
-                        ))}
-                      </optgroup>
-                      {allRoles.some((r) => !r.isStandard) && (
-                        <optgroup label="Custom Configured Roles">
-                          {allRoles.filter((r) => !r.isStandard).map((r) => (
-                            <option key={r.id} value={r.id}>
-                              {r.name} — {r.description}
-                            </option>
-                          ))}
-                        </optgroup>
-                      )}
-                    </select>
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        id="sa-new-admin-password"
+                        type={showPassword ? 'text' : 'password'}
+                        required
+                        autoComplete="new-password"
+                        className="sa-form-input"
+                        style={{ paddingRight: 40 }}
+                        placeholder="Minimum 12 characters with upper, lower, number, symbol"
+                        value={newPassword}
+                        onChange={(e) => {
+                          setNewPassword(e.target.value)
+                          if (formErrors.password) setFormErrors({ ...formErrors, password: undefined })
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword((prev) => !prev)}
+                        aria-label={showPassword ? 'Hide password' : 'Show password'}
+                        style={{
+                          position: 'absolute',
+                          right: 10,
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          background: 'none',
+                          border: 'none',
+                          color: '#94a3b8',
+                          cursor: 'pointer',
+                          padding: 4,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                        }}
+                      >
+                        {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                      </button>
+                    </div>
+                    <span className="sa-form-hint">
+                      12–128 characters, including uppercase, lowercase, digit, and special character.
+                    </span>
+                    {formErrors.password && <span className="sa-form-error">{formErrors.password}</span>}
                   </div>
 
-                  {/* Department */}
+                  {/* Confirm Password */}
                   <div className="sa-form-group">
-                    <label className="sa-form-label">Department / Unit</label>
+                    <label className="sa-form-label" htmlFor="sa-new-admin-confirm-password">
+                      <span>Confirm Password</span>
+                      <span style={{ color: '#50e396' }}>*</span>
+                    </label>
                     <input
-                      type="text"
+                      id="sa-new-admin-confirm-password"
+                      type={showPassword ? 'text' : 'password'}
+                      required
+                      autoComplete="new-password"
                       className="sa-form-input"
-                      placeholder="e.g. Infrastructure Operations, Security, Billing"
-                      value={newAdmin.department}
-                      onChange={(e) => setNewAdmin({ ...newAdmin, department: e.target.value })}
+                      placeholder="Re-enter initial password"
+                      value={confirmPassword}
+                      onChange={(e) => {
+                        setConfirmPassword(e.target.value)
+                        if (formErrors.confirmPassword) {
+                          setFormErrors({ ...formErrors, confirmPassword: undefined })
+                        }
+                      }}
                     />
+                    {formErrors.confirmPassword && (
+                      <span className="sa-form-error">{formErrors.confirmPassword}</span>
+                    )}
                   </div>
 
-                  {/* Initial Account Status */}
+                  {/* Assigned Role (Strictly locked to standard Admin) */}
                   <div className="sa-form-group">
-                    <label className="sa-form-label">Initial Account Status</label>
-                    <select
+                    <label className="sa-form-label">Assigned Role</label>
+                    <div
                       className="sa-form-input"
-                      value={newAdmin.status}
-                      onChange={(e) => setNewAdmin({ ...newAdmin, status: e.target.value as AdminStatus })}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        opacity: 0.9,
+                        cursor: 'not-allowed',
+                      }}
                     >
-                      <option value="active">Active (Immediate platform access)</option>
-                      <option value="invited">Pending Invitation (Simulated invitation)</option>
-                    </select>
+                      <span>Admin (Standard Platform Administrator)</span>
+                      <span className="sa-role-pill sa-role-pill--admin" style={{ fontSize: '0.7rem' }}>
+                        role = admin
+                      </span>
+                    </div>
+                    <span className="sa-form-hint">
+                      Additional Super Admin accounts cannot be created. Standard Admins have operational console access and cannot access Super Admin routes.
+                    </span>
                   </div>
 
-                  {/* Optional Notes */}
-                  <div className="sa-form-group">
-                    <label className="sa-form-label">Internal Provisioning Notes</label>
-                    <input
-                      type="text"
-                      className="sa-form-input"
-                      placeholder="e.g. Approved during Q4 engineering security review"
-                      value={newAdmin.notes || ''}
-                      onChange={(e) => setNewAdmin({ ...newAdmin, notes: e.target.value })}
-                    />
-                  </div>
-
-                  {/* Security Notice: No Plaintext Passwords */}
+                  {/* Security Notice */}
                   <div className="sa-security-notice">
-                    <Lock size={18} style={{ color: '#38bdf8', flexShrink: 0, marginTop: 2 }} />
+                    <Lock size={18} style={{ color: '#50e396', flexShrink: 0, marginTop: 2 }} />
                     <div>
-                      <strong>Zero-Knowledge Invitation Policy (Phase 1 Sandbox):</strong>
+                      <strong>Server-Side Argon2id Provisioning:</strong>
                       <div>
-                        No plaintext passwords are collected or stored. In Phase 2, an encrypted Supabase Auth invite link will be dispatched to this corporate address for cryptographic key setup.
+                        The password is transmitted over the authenticated Super Admin channel, hashed server-side with Argon2id, never stored in plaintext, and never returned in API responses.
                       </div>
                     </div>
                   </div>
@@ -806,140 +848,17 @@ export default function AdminAccounts() {
                   <button
                     type="button"
                     className="dash-filter-btn"
-                    onClick={() => setIsAddModalOpen(false)}
+                    onClick={closeAddModal}
+                    disabled={creatingAdmin}
                   >
                     Cancel
                   </button>
-                  <button type="submit" className="dash-primary-btn">
-                    Provision Administrator
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* ── 6. Edit Administrator Modal ───────────────────── */}
-      <AnimatePresence>
-        {editingAdmin && (
-          <div className="sa-modal-overlay" onClick={() => setEditingAdmin(null)}>
-            <motion.div
-              className="sa-modal-container"
-              onClick={(e) => e.stopPropagation()}
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
-            >
-              <div className="sa-modal-header">
-                <div>
-                  <h3 className="sa-modal-title">Modify Administrator Privileges</h3>
-                  <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
-                    {editingAdmin.fullName} ({editingAdmin.email})
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  className="sa-modal-close-btn"
-                  onClick={() => setEditingAdmin(null)}
-                  aria-label="Close modal"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              <form onSubmit={handleEditSubmit} className="sa-modal-form">
-                <div className="sa-modal-body">
-                  <div className="sa-form-group">
-                    <label className="sa-form-label">Full Name</label>
-                    <input
-                      type="text"
-                      className="sa-form-input"
-                      value={editingAdmin.fullName}
-                      onChange={(e) => setEditingAdmin({ ...editingAdmin, fullName: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="sa-form-group">
-                    <label className="sa-form-label">Assigned RBAC Role</label>
-                    <select
-                      className="sa-form-input"
-                      value={editingAdmin.role}
-                      onChange={(e) => setEditingAdmin({ ...editingAdmin, role: e.target.value as AdminRole })}
-                    >
-                      <optgroup label="Standard Platform Roles">
-                        {allRoles.filter((r) => r.isStandard).map((r) => (
-                          <option key={r.id} value={r.id}>
-                            {r.name}
-                          </option>
-                        ))}
-                      </optgroup>
-                      {allRoles.some((r) => !r.isStandard) && (
-                        <optgroup label="Custom Configured Roles">
-                          {allRoles.filter((r) => !r.isStandard).map((r) => (
-                            <option key={r.id} value={r.id}>
-                              {r.name}
-                            </option>
-                          ))}
-                        </optgroup>
-                      )}
-                    </select>
-                    <span className="sa-form-hint">
-                      {getAdminRoleMeta(editingAdmin.role).description}
-                    </span>
-                  </div>
-
-                  <div className="sa-form-group">
-                    <label className="sa-form-label">Department / Unit</label>
-                    <input
-                      type="text"
-                      className="sa-form-input"
-                      value={editingAdmin.department}
-                      onChange={(e) => setEditingAdmin({ ...editingAdmin, department: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="sa-form-group">
-                    <label className="sa-form-label">Account Status</label>
-                    <select
-                      className="sa-form-input"
-                      value={editingAdmin.status}
-                      disabled={editingAdmin.id === 'adm-001'}
-                      onChange={(e) => setEditingAdmin({ ...editingAdmin, status: e.target.value as AdminStatus })}
-                    >
-                      <option value="active">Active</option>
-                      <option value="inactive">Inactive (Suspended)</option>
-                      <option value="invited">Pending Invitation (Demo)</option>
-                    </select>
-                    {editingAdmin.id === 'adm-001' && (
-                      <span className="sa-form-hint" style={{ color: '#fbbf24' }}>
-                        Primary Super Admin cannot be suspended.
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="sa-form-group">
-                    <label className="sa-form-label">Administrative Notes</label>
-                    <input
-                      type="text"
-                      className="sa-form-input"
-                      value={editingAdmin.notes || ''}
-                      onChange={(e) => setEditingAdmin({ ...editingAdmin, notes: e.target.value })}
-                    />
-                  </div>
-                </div>
-
-                <div className="sa-modal-footer">
                   <button
-                    type="button"
-                    className="dash-filter-btn"
-                    onClick={() => setEditingAdmin(null)}
+                    type="submit"
+                    className="dash-primary-btn"
+                    disabled={creatingAdmin}
                   >
-                    Cancel
-                  </button>
-                  <button type="submit" className="dash-primary-btn">
-                    Save Changes
+                    {creatingAdmin ? 'Creating Account...' : 'Create Administrator'}
                   </button>
                 </div>
               </form>
@@ -948,7 +867,7 @@ export default function AdminAccounts() {
         )}
       </AnimatePresence>
 
-      {/* ── 7. View Administrator Details Drawer ───────────── */}
+      {/* ── 5. View Administrator Details Drawer ───────────── */}
       <AnimatePresence>
         {viewingAdmin && (
           <div className="sa-modal-overlay" onClick={() => setViewingAdmin(null)}>
@@ -986,157 +905,81 @@ export default function AdminAccounts() {
               </div>
 
               <div className="sa-modal-body">
-                {/* Meta details list */}
-                <div className="sa-detail-list">
-                  <div className="sa-detail-row">
-                    <span className="sa-detail-label">Account Identifier:</span>
-                    <span className="sa-detail-val"><code>{viewingAdmin.id}</code></span>
-                  </div>
-
-                  <div className="sa-detail-row">
-                    <span className="sa-detail-label">Assigned RBAC Role:</span>
-                    <span className="sa-detail-val">
-                      <span className={`sa-role-pill sa-role-pill--${viewingAdmin.role}`}>
-                        {getAdminRoleMeta(viewingAdmin.role).title}
-                      </span>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div className="sa-detail-field">
+                    <span className="sa-detail-label">Account ID</span>
+                    <span className="sa-detail-value" style={{ fontFamily: 'var(--font-mono)', fontSize: '0.74rem', wordBreak: 'break-all' }}>
+                      {viewingAdmin.id}
                     </span>
                   </div>
-
-                  <div className="sa-detail-row">
-                    <span className="sa-detail-label">Account Status:</span>
-                    <span className="sa-detail-val">
-                      <span className={`sa-status-pill sa-status-pill--${viewingAdmin.status}`}>
-                        <span className="sa-status-pill__dot" />
-                        {viewingAdmin.status.toUpperCase()}
-                      </span>
+                  <div className="sa-detail-field">
+                    <span className="sa-detail-label">Role</span>
+                    <span className={`sa-role-pill sa-role-pill--${viewingAdmin.role}`}>
+                      {getAdminRoleMeta(viewingAdmin.role).title}
                     </span>
                   </div>
-
-                  <div className="sa-detail-row">
-                    <span className="sa-detail-label">Department / Unit:</span>
-                    <span className="sa-detail-val">{viewingAdmin.department}</span>
+                  <div className="sa-detail-field">
+                    <span className="sa-detail-label">Status</span>
+                    <span className={`sa-status-pill sa-status-pill--${viewingAdmin.status}`}>
+                      <span className="sa-status-pill__dot" />
+                      {viewingAdmin.status === 'active' ? 'Active' : 'Inactive'}
+                    </span>
                   </div>
-
-                  <div className="sa-detail-row">
-                    <span className="sa-detail-label">Provisioned Date:</span>
-                    <span className="sa-detail-val">{formatProvisionedDate(viewingAdmin.createdAt)}</span>
+                  <div className="sa-detail-field">
+                    <span className="sa-detail-label">Session Version</span>
+                    <span className="sa-detail-value">v{viewingAdmin.sessionVersion ?? 1}</span>
                   </div>
-
-                  <div className="sa-detail-row">
-                    <span className="sa-detail-label">Last Active:</span>
-                    <span className="sa-detail-val">{viewingAdmin.lastActiveAt}</span>
+                  <div className="sa-detail-field">
+                    <span className="sa-detail-label">Provisioned</span>
+                    <span className="sa-detail-value">{formatProvisionedDate(viewingAdmin.createdAt)}</span>
                   </div>
+                  <div className="sa-detail-field">
+                    <span className="sa-detail-label">Last Login</span>
+                    <span className="sa-detail-value">{viewingAdmin.lastActiveAt}</span>
+                  </div>
+                </div>
 
-                  {viewingAdmin.notes && (
-                    <div className="sa-detail-row">
-                      <span className="sa-detail-label">Internal Notes:</span>
-                      <span className="sa-detail-val">{viewingAdmin.notes}</span>
+                {isProtectedSuperAdmin(viewingAdmin) && (
+                  <div className="sa-security-notice" style={{ marginTop: 12 }}>
+                    <ShieldCheck size={18} style={{ color: '#50e396', flexShrink: 0, marginTop: 2 }} />
+                    <div>
+                      <strong>Protected Super Admin Identity:</strong>
+                      <div>
+                        This account holds primary platform governance authority and cannot be deactivated or removed through the Admin Accounts UI.
+                      </div>
                     </div>
-                  )}
-                </div>
-
-                {/* Role Permissions Matrix */}
-                <div style={{ marginTop: 12 }}>
-                  <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#ffffff', marginBottom: 8 }}>
-                    Granted Role Capabilities:
                   </div>
-                  <div className="sa-perm-badges">
-                    {getAdminRoleMeta(viewingAdmin.role).permissionsSummary.map((perm: string) => (
-                      <span key={perm} className="sa-perm-chip">
-                        <Check size={12} style={{ color: '#50e396' }} />
-                        {perm}
-                      </span>
-                    ))}
-                  </div>
-                </div>
+                )}
               </div>
 
-              <div className="sa-modal-footer" style={{ justifyContent: 'space-between', gap: 12 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  {viewingAdmin.id !== 'adm-001' ? (
-                    <>
-                      {viewingAdmin.status === 'active' ? (
-                        <button
-                          type="button"
-                          className="dash-warning-btn"
-                          style={{ padding: '7px 12px', fontSize: '0.78rem' }}
-                          onClick={() => handleStartDeactivate(viewingAdmin)}
-                        >
-                          <UserX size={14} />
-                          <span>Deactivate</span>
-                        </button>
-                      ) : viewingAdmin.status === 'inactive' ? (
-                        <button
-                          type="button"
-                          className="dash-primary-btn"
-                          style={{ padding: '7px 12px', fontSize: '0.78rem' }}
-                          onClick={() => handleStartReactivate(viewingAdmin)}
-                        >
-                          <UserCheck size={14} />
-                          <span>Reactivate</span>
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          className="dash-warning-btn"
-                          style={{ padding: '7px 12px', fontSize: '0.78rem' }}
-                          onClick={() => handleStartDeactivate(viewingAdmin)}
-                        >
-                          <UserX size={14} />
-                          <span>Revoke Invite</span>
-                        </button>
-                      )}
-                      <button
-                        type="button"
-                        className="dash-danger-btn"
-                        style={{ padding: '7px 12px', fontSize: '0.78rem' }}
-                        onClick={() => handleStartDelete(viewingAdmin)}
-                      >
-                        <Trash2 size={14} />
-                        <span>Delete</span>
-                      </button>
-                    </>
-                  ) : (
-                    <span className="sa-scope-badge" title="Protected root administrator">
-                      <span className="sa-scope-badge__dot" />
-                      Primary Super Admin Protected
-                    </span>
-                  )}
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <button
-                    type="button"
-                    className="dash-filter-btn"
-                    onClick={() => setViewingAdmin(null)}
-                  >
-                    Close
-                  </button>
-                  <button
-                    type="button"
-                    className="dash-primary-btn"
-                    onClick={() => {
-                      const target = viewingAdmin
-                      setViewingAdmin(null)
-                      setEditingAdmin(target)
-                    }}
-                  >
-                    <Edit2 size={13} />
-                    <span>Edit Role</span>
-                  </button>
-                </div>
+              <div className="sa-modal-footer">
+                <button
+                  type="button"
+                  className="dash-filter-btn"
+                  onClick={() => setViewingAdmin(null)}
+                >
+                  Close
+                </button>
               </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
 
-      {/* ── 8. Deactivate Confirmation Modal ──────────────── */}
+      {/* ── 6. Deactivate Confirmation Modal ──────────────── */}
       <AnimatePresence>
         {deactivatingAdmin && (
-          <div className="sa-modal-overlay" onClick={() => setDeactivatingAdmin(null)}>
+          <div
+            className="sa-modal-overlay"
+            onClick={() => {
+              if (!submittingStatus) {
+                setDeactivatingAdmin(null)
+                setStatusReason('')
+              }
+            }}
+          >
             <motion.div
-              className="sa-modal-container sa-modal-container--warning"
+              className="sa-modal-container"
               style={{ maxWidth: 490 }}
               onClick={(e) => e.stopPropagation()}
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
@@ -1152,14 +995,18 @@ export default function AdminAccounts() {
                   <div>
                     <h3 className="sa-modal-title">Deactivate Administrator</h3>
                     <div style={{ fontSize: '0.74rem', color: '#fbbf24' }}>
-                      Suspend platform console access privileges
+                      Immediately revokes all active database sessions
                     </div>
                   </div>
                 </div>
                 <button
                   type="button"
                   className="sa-modal-close-btn"
-                  onClick={() => setDeactivatingAdmin(null)}
+                  disabled={submittingStatus}
+                  onClick={() => {
+                    setDeactivatingAdmin(null)
+                    setStatusReason('')
+                  }}
                   aria-label="Close modal"
                 >
                   <X size={18} />
@@ -1167,97 +1014,69 @@ export default function AdminAccounts() {
               </div>
 
               <div className="sa-modal-body">
-                {deactivatingAdmin.id === 'adm-001' ? (
-                  <div className="sa-confirm-box sa-confirm-box--danger">
-                    <strong>Primary Super Admin Protected</strong>
-                    <div>
-                      The primary Super Admin account (<code>bhumireddy@inferxe.com</code>) cannot be deactivated. Platform governance requires an active primary administrator.
-                    </div>
+                <div className="sa-confirm-box sa-confirm-box--warning">
+                  <div>
+                    Are you sure you want to deactivate <strong>{deactivatingAdmin.email}</strong>?
                   </div>
-                ) : (
-                  <>
-                    <div className="sa-confirm-box sa-confirm-box--warning">
-                      <div>
-                        Are you sure you want to deactivate <strong>{deactivatingAdmin.fullName}</strong>?
-                      </div>
-                      <div style={{ fontSize: '0.76rem', color: '#fef3c7' }}>
-                        Deactivation retains the administrator record, role configuration, and audit logs, but immediately terminates active sessions and prevents further platform access.
-                      </div>
-                    </div>
+                  <div style={{ fontSize: '0.76rem', color: '#fef3c7' }}>
+                    Deactivation sets <code>is_active = false</code>, increments <code>session_version</code>, revokes all active rows in <code>admin_sessions</code>, and blocks further sign-in across both Node.js and Python services.
+                  </div>
+                </div>
 
-                    <div className="sa-confirm-target-card">
-                      <div
-                        className="sa-avatar-circle"
-                        style={{ background: deactivatingAdmin.avatarGradient, width: 36, height: 36, fontSize: '0.82rem' }}
-                        aria-hidden="true"
-                      >
-                        {deactivatingAdmin.avatarInitials}
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
-                        <span style={{ fontWeight: 600, color: '#ffffff', fontSize: '0.86rem' }}>
-                          {deactivatingAdmin.fullName}
-                        </span>
-                        <span style={{ fontFamily: 'var(--font-mono, monospace)', color: '#cbd5e1', fontSize: '0.78rem' }}>
-                          {deactivatingAdmin.email}
-                        </span>
-                      </div>
-                      <span className={`sa-role-pill sa-role-pill--${deactivatingAdmin.role}`} style={{ fontSize: '0.7rem' }}>
-                        {getAdminRoleMeta(deactivatingAdmin.role).title}
-                      </span>
-                    </div>
-
-                    <div style={{ fontSize: '0.74rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}>
-                      <CheckCircle2 size={13} style={{ color: '#50e396', flexShrink: 0 }} />
-                      <span>This account can be reactivated at any time by a Super Admin.</span>
-                    </div>
-                  </>
-                )}
+                <div className="sa-form-group" style={{ marginTop: 12 }}>
+                  <label className="sa-form-label" htmlFor="sa-deactivate-reason">
+                    Reason for Audit Log (Optional)
+                  </label>
+                  <input
+                    id="sa-deactivate-reason"
+                    type="text"
+                    className="sa-form-input"
+                    placeholder="e.g. Offboarding / temporary access suspension"
+                    value={statusReason}
+                    onChange={(e) => setStatusReason(e.target.value)}
+                  />
+                </div>
               </div>
 
               <div className="sa-modal-footer">
                 <button
                   type="button"
                   className="dash-filter-btn"
-                  onClick={() => setDeactivatingAdmin(null)}
+                  disabled={submittingStatus}
+                  onClick={() => {
+                    setDeactivatingAdmin(null)
+                    setStatusReason('')
+                  }}
                 >
                   Cancel
                 </button>
-                {deactivatingAdmin.id !== 'adm-001' && (
-                  <button
-                    type="button"
-                    className="dash-warning-btn"
-                    onClick={() => {
-                      const target = deactivatingAdmin
-                      const res = setAdminStatus(target.id, 'inactive')
-                      if (res.ok) {
-                        refreshAccounts()
-                        if (viewingAdmin?.id === target.id) {
-                          setViewingAdmin({ ...viewingAdmin, status: 'inactive' })
-                        }
-                        setDeactivatingAdmin(null)
-                        setNotification({
-                          message: `Administrator ${target.fullName} has been deactivated. Access suspended.`,
-                          type: 'success',
-                        })
-                      } else {
-                        setNotification({ message: res.error || 'Deactivation failed.', type: 'error' })
-                      }
-                    }}
-                  >
-                    <UserX size={14} />
-                    <span>Deactivate Account</span>
-                  </button>
-                )}
+                <button
+                  type="button"
+                  className="dash-warning-btn"
+                  disabled={submittingStatus}
+                  onClick={() => void handleConfirmDeactivate()}
+                >
+                  <UserX size={14} />
+                  <span>{submittingStatus ? 'Deactivating...' : 'Deactivate Account'}</span>
+                </button>
               </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
 
-      {/* ── 9. Reactivate Confirmation Modal ──────────────── */}
+      {/* ── 7. Reactivate Confirmation Modal ──────────────── */}
       <AnimatePresence>
         {reactivatingAdmin && (
-          <div className="sa-modal-overlay" onClick={() => setReactivatingAdmin(null)}>
+          <div
+            className="sa-modal-overlay"
+            onClick={() => {
+              if (!submittingStatus) {
+                setReactivatingAdmin(null)
+                setStatusReason('')
+              }
+            }}
+          >
             <motion.div
               className="sa-modal-container"
               style={{ maxWidth: 490 }}
@@ -1273,16 +1092,20 @@ export default function AdminAccounts() {
                     <UserCheck size={18} />
                   </div>
                   <div>
-                    <h3 className="sa-modal-title">Reactivate Platform Administrator</h3>
+                    <h3 className="sa-modal-title">Reactivate Administrator</h3>
                     <div style={{ fontSize: '0.74rem', color: '#50e396' }}>
-                      Restore platform console access privileges
+                      Restore standard Admin sign-in access
                     </div>
                   </div>
                 </div>
                 <button
                   type="button"
                   className="sa-modal-close-btn"
-                  onClick={() => setReactivatingAdmin(null)}
+                  disabled={submittingStatus}
+                  onClick={() => {
+                    setReactivatingAdmin(null)
+                    setStatusReason('')
+                  }}
                   aria-label="Close modal"
                 >
                   <X size={18} />
@@ -1290,29 +1113,22 @@ export default function AdminAccounts() {
               </div>
 
               <div className="sa-modal-body">
-                <div className="sa-confirm-target-card">
-                  <div
-                    className="sa-avatar-circle"
-                    style={{ background: reactivatingAdmin.avatarGradient, width: 36, height: 36, fontSize: '0.82rem' }}
-                    aria-hidden="true"
-                  >
-                    {reactivatingAdmin.avatarInitials}
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
-                    <span style={{ fontWeight: 600, color: '#ffffff', fontSize: '0.86rem' }}>
-                      {reactivatingAdmin.fullName}
-                    </span>
-                    <span style={{ fontFamily: 'var(--font-mono, monospace)', color: '#cbd5e1', fontSize: '0.78rem' }}>
-                      {reactivatingAdmin.email}
-                    </span>
-                  </div>
-                  <span className={`sa-role-pill sa-role-pill--${reactivatingAdmin.role}`} style={{ fontSize: '0.7rem' }}>
-                    {getAdminRoleMeta(reactivatingAdmin.role).title}
-                  </span>
+                <div style={{ fontSize: '0.84rem', color: '#cbd5e1', lineHeight: 1.5 }}>
+                  Reactivating <strong>{reactivatingAdmin.email}</strong> sets <code>is_active = true</code> so they can sign in with a new session. Previously revoked sessions remain permanently invalid.
                 </div>
 
-                <div style={{ fontSize: '0.82rem', color: '#cbd5e1', lineHeight: 1.5 }}>
-                  Reactivating <strong>{reactivatingAdmin.fullName}</strong> will restore full administrative privileges corresponding to their assigned <strong>{getAdminRoleMeta(reactivatingAdmin.role).title}</strong> role.
+                <div className="sa-form-group" style={{ marginTop: 12 }}>
+                  <label className="sa-form-label" htmlFor="sa-reactivate-reason">
+                    Reason for Audit Log (Optional)
+                  </label>
+                  <input
+                    id="sa-reactivate-reason"
+                    type="text"
+                    className="sa-form-input"
+                    placeholder="e.g. Access restored after review"
+                    value={statusReason}
+                    onChange={(e) => setStatusReason(e.target.value)}
+                  />
                 </div>
               </div>
 
@@ -1320,137 +1136,23 @@ export default function AdminAccounts() {
                 <button
                   type="button"
                   className="dash-filter-btn"
-                  onClick={() => setReactivatingAdmin(null)}
+                  disabled={submittingStatus}
+                  onClick={() => {
+                    setReactivatingAdmin(null)
+                    setStatusReason('')
+                  }}
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   className="dash-primary-btn"
-                  onClick={() => {
-                    const target = reactivatingAdmin
-                    const res = setAdminStatus(target.id, 'active')
-                    if (res.ok) {
-                      refreshAccounts()
-                      if (viewingAdmin?.id === target.id) {
-                        setViewingAdmin({ ...viewingAdmin, status: 'active' })
-                      }
-                      setReactivatingAdmin(null)
-                      setNotification({
-                        message: `Administrator ${target.fullName} has been reactivated. Access restored.`,
-                        type: 'success',
-                      })
-                    } else {
-                      setNotification({ message: res.error || 'Reactivation failed.', type: 'error' })
-                    }
-                  }}
+                  disabled={submittingStatus}
+                  onClick={() => void handleConfirmReactivate()}
                 >
                   <UserCheck size={14} />
-                  <span>Reactivate Account</span>
+                  <span>{submittingStatus ? 'Reactivating...' : 'Reactivate Account'}</span>
                 </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* ── 10. Delete Confirmation Modal ─────────────────── */}
-      <AnimatePresence>
-        {deletingAdmin && (
-          <div className="sa-modal-overlay" onClick={() => setDeletingAdmin(null)}>
-            <motion.div
-              className="sa-modal-container sa-modal-container--danger"
-              style={{ maxWidth: 490 }}
-              onClick={(e) => e.stopPropagation()}
-              initial={{ opacity: 0, scale: 0.95, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              transition={{ duration: 0.2, ease: [0.25, 1, 0.5, 1] }}
-            >
-              <div className="sa-modal-header">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div className="sa-modal-icon-wrap--danger">
-                    <AlertTriangle size={18} />
-                  </div>
-                  <div>
-                    <h3 className="sa-modal-title">Delete Administrator</h3>
-                    <div style={{ fontSize: '0.74rem', color: '#f87171' }}>
-                      Permanent account removal
-                    </div>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  className="sa-modal-close-btn"
-                  onClick={() => setDeletingAdmin(null)}
-                  aria-label="Close modal"
-                >
-                  <X size={18} />
-                </button>
-              </div>
-
-              <div className="sa-modal-body">
-                {deletingAdmin.id === 'adm-001' ? (
-                  <div className="sa-confirm-box sa-confirm-box--danger">
-                    <strong>Primary Super Admin Protected</strong>
-                    <div>
-                      The primary Super Admin account (<code>bhumireddy@inferxe.com</code>) cannot be deleted under any circumstances. Platform security requires the primary root administrator to remain intact.
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <div style={{ fontSize: '1rem', fontWeight: 600, color: '#ffffff', lineHeight: 1.4 }}>
-                      Are you sure you want to delete this administrator?
-                    </div>
-
-                    <div className="sa-confirm-box sa-confirm-box--danger">
-                      <div>
-                        This action is permanent and cannot be undone. The administrator record, permissions, and platform access will be permanently removed from local prototype storage.
-                      </div>
-                    </div>
-
-                    <div className="sa-confirm-target-card">
-                      <div
-                        className="sa-avatar-circle"
-                        style={{ background: deletingAdmin.avatarGradient, width: 38, height: 38, fontSize: '0.86rem' }}
-                        aria-hidden="true"
-                      >
-                        {deletingAdmin.avatarInitials}
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1 }}>
-                        <span style={{ fontWeight: 600, color: '#ffffff', fontSize: '0.9rem' }}>
-                          {deletingAdmin.fullName}
-                        </span>
-                        <span style={{ fontFamily: 'var(--font-mono, monospace)', color: '#cbd5e1', fontSize: '0.8rem' }}>
-                          {deletingAdmin.email}
-                        </span>
-                      </div>
-                      <span className={`sa-role-pill sa-role-pill--${deletingAdmin.role}`} style={{ fontSize: '0.72rem' }}>
-                        {getAdminRoleMeta(deletingAdmin.role).title}
-                      </span>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              <div className="sa-modal-footer">
-                <button
-                  type="button"
-                  className="dash-filter-btn"
-                  onClick={() => setDeletingAdmin(null)}
-                >
-                  No, Cancel
-                </button>
-                {deletingAdmin.id !== 'adm-001' && (
-                  <button
-                    type="button"
-                    className="dash-danger-btn"
-                    onClick={handleConfirmDelete}
-                  >
-                    <Trash2 size={14} />
-                    <span>Yes, Delete</span>
-                  </button>
-                )}
               </div>
             </motion.div>
           </div>

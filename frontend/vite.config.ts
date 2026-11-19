@@ -37,7 +37,7 @@ export default defineConfig(({ command, mode }) => {
     loadBackendEnv()
   }
 
-  const notificationsPort = process.env.NOTIFICATIONS_PORT || '8000'
+  const notificationsPort = process.env.NOTIFICATIONS_PORT || '8002'
   const inferencePort = process.env.INFERENCE_PORT || '8001'
   const notificationsTarget = `http://127.0.0.1:${notificationsPort}`
   const inferenceTarget = `http://127.0.0.1:${inferencePort}`

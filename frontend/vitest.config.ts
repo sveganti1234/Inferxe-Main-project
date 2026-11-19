@@ -6,7 +6,9 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     globals: true,
-    include: ['src/tests/**/*.test.ts'],
+    include: ['src/tests/**/*.test.ts', 'src/tests/**/*.test.tsx'],
     setupFiles: ['./src/tests/setup.ts'],
+    // Tests that render the whole app cold-load the lazy console bundle; allow for slow machines.
+    testTimeout: 20000,
   },
 })

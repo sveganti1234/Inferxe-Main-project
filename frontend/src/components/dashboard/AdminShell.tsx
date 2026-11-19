@@ -33,8 +33,8 @@ import {
   FileText,
 } from 'lucide-react'
 import { Ambient } from '../layout/Ambient'
-import { getSession, clearSession, getPortalRole, type AuthSession, type PortalRole } from '../../lib/authStore'
-import { getAdminAccounts } from '../../lib/adminAccountStore'
+import { getSession, performSignOut, getPortalRole, type AuthSession, type PortalRole } from '../../lib/authStore'
+import { getAdminAccounts, syncAdminAccountsFromBackend } from '../../lib/adminAccountStore'
 import { getAllRoles } from '../../lib/adminRoleStore'
 import { animateNavPill } from './navPillAnimation'
 import { AdminViewTransition, getAdminRouteOrder } from './AdminViewTransition'
@@ -114,12 +114,12 @@ export function AdminShell() {
     }
   }, [])
 
-  // Live Admin Accounts Count (synced dynamically with adminAccountStore)
+  // Live Admin Accounts Count (synced dynamically with Supabase via adminAccountStore)
   const [adminAccountsCount, setAdminAccountsCount] = useState<number>(() => {
     try {
       return getAdminAccounts().length
     } catch {
-      return 10
+      return 0
     }
   })
 
@@ -128,6 +128,12 @@ export function AdminShell() {
       try {
         setAdminAccountsCount(getAdminAccounts().length)
       } catch {}
+    }
+    const currentPortalRole = getPortalRole(getSession()?.user?.role)
+    if (currentPortalRole === 'superadmin') {
+      void syncAdminAccountsFromBackend().then((res) => {
+        if (res.ok) setAdminAccountsCount(res.accounts.length)
+      })
     }
     window.addEventListener('inferxe_admin_accounts_change', syncAdminCount)
     window.addEventListener('storage', syncAdminCount)
@@ -436,7 +442,7 @@ export function AdminShell() {
     (import.meta.env.DEV && (devSuperAdminMode || location.pathname.startsWith('/dashboard/super-admin') || location.pathname.startsWith('/dashboard/superadmin')))
   )
 
-  const roleLabel = portalRole === 'superadmin' || isSuperAdmin ? 'Super Admin' : 'Admin'
+  const roleLabel = isSuperAdmin ? 'Super Admin' : 'Admin'
 
   // 0. Super Admin Governance Items
   const adminSuperAdminItems: NavItem[] = [
@@ -1130,8 +1136,7 @@ export function AdminShell() {
                           className="dash-nav-item dash-nav-item--danger"
                           onClick={async () => {
                             setAdminMenuOpen(false)
-                            clearSession()
-                            window.location.replace('/')
+                            await performSignOut('/')
                           }}
                         >
                           <LogOut size={15} /> Sign Out

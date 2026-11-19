@@ -5,7 +5,7 @@
  * Inference API key management endpoints (/api/v1/api-keys).
  */
 
-import { getSession, decodeJwt } from './authStore'
+import { decodeJwt, ensureFreshSession } from './authStore'
 import {
   INFERENCE_API_BASE,
   formatApiConnectionError,
@@ -66,7 +66,7 @@ export async function fetchBackendApiKeys(): Promise<{
   unauthorized?: boolean
 }> {
   try {
-    const session = getSession()
+    const session = await ensureFreshSession()
     if (!session?.token) {
       return { ok: false, unauthorized: true, error: 'Please sign in to view your API keys.' }
     }
@@ -112,7 +112,7 @@ export async function createBackendApiKey(
   unauthorized?: boolean
 }> {
   try {
-    const session = getSession()
+    const session = await ensureFreshSession()
     if (!session?.token) {
       return { ok: false, unauthorized: true, error: 'Please sign in to create an API key.' }
     }
@@ -157,7 +157,7 @@ export async function revokeBackendApiKey(keyId: string): Promise<{
   unauthorized?: boolean
 }> {
   try {
-    const session = getSession()
+    const session = await ensureFreshSession()
     if (!session?.token) {
       return { ok: false, unauthorized: true, error: 'Please sign in to revoke an API key.' }
     }

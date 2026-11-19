@@ -28,6 +28,9 @@ import DashboardOverview from './pages/dashboard/DashboardOverview'
 import MarketplaceWorkspace from './pages/dashboard/MarketplaceWorkspace'
 import CustomerManagement from './pages/dashboard/CustomerManagement'
 const CustomerVerdeloWorkspace = lazy(() => import('./components/dashboard/CustomerVerdeloWorkspace'))
+const CustomerApp = lazy(() => import('./features/customer/CustomerApp'))
+const CustomerEntryRedirect = lazy(() => import('./features/customer/CustomerEntryRedirect'))
+const LegacyWorkspaceRedirect = lazy(() => import('./features/customer/LegacyWorkspaceRedirect'))
 import SuperadminOverview from './pages/dashboard/superadmin/SuperadminOverview'
 import AdminManagement from './pages/dashboard/superadmin/AdminManagement'
 import AuditLogs from './pages/dashboard/superadmin/AuditLogs'
@@ -95,14 +98,16 @@ export default function App() {
                 </AdminGuard>
               }
             >
-              {/* Super Admin Governance Modules (Unified inside persistent AdminShell) */}
-              <Route path="/dashboard/super-admin" element={<SuperAdminOverview />} />
-              <Route path="/dashboard/super-admin/accounts" element={<AdminAccounts />} />
-              <Route path="/dashboard/super-admin/roles" element={<AdminRoles />} />
-              <Route path="/dashboard/super-admin/permissions" element={<AdminPermissions />} />
-              <Route path="/dashboard/super-admin/activity" element={<AdminActivity />} />
-              <Route path="/dashboard/super-admin/audit" element={<AdminAudit />} />
-              <Route path="/dashboard/super-admin/:module" element={<SuperAdminFutureModule />} />
+              {/* Super Admin Governance Modules (Strictly protected by SuperadminGuard inside persistent AdminShell) */}
+              <Route element={<SuperadminGuard />}>
+                <Route path="/dashboard/super-admin" element={<SuperAdminOverview />} />
+                <Route path="/dashboard/super-admin/accounts" element={<AdminAccounts />} />
+                <Route path="/dashboard/super-admin/roles" element={<AdminRoles />} />
+                <Route path="/dashboard/super-admin/permissions" element={<AdminPermissions />} />
+                <Route path="/dashboard/super-admin/activity" element={<AdminActivity />} />
+                <Route path="/dashboard/super-admin/audit" element={<AdminAudit />} />
+                <Route path="/dashboard/super-admin/:module" element={<SuperAdminFutureModule />} />
+              </Route>
 
               {/* Superadmin direct routes (Protected by SuperadminGuard inside persistent AdminShell) */}
               <Route
@@ -165,7 +170,7 @@ export default function App() {
               path="/dashboard/customer"
               element={
                 <CustomerGuard>
-                  <CustomerVerdeloWorkspace />
+                  <CustomerEntryRedirect />
                 </CustomerGuard>
               }
             />
@@ -173,7 +178,33 @@ export default function App() {
               path="/dashboard/customer/*"
               element={
                 <CustomerGuard>
+                  <CustomerEntryRedirect />
+                </CustomerGuard>
+              }
+            />
+            {/* Explicit, guarded legacy/rollback route: the previous Verdelo iframe dashboard, unchanged. Never a login destination. */}
+            <Route
+              path="/dashboard/legacy"
+              element={
+                <CustomerGuard>
                   <CustomerVerdeloWorkspace />
+                </CustomerGuard>
+              }
+            />
+            <Route
+              path="/dashboard/legacy/*"
+              element={
+                <CustomerGuard>
+                  <CustomerVerdeloWorkspace />
+                </CustomerGuard>
+              }
+            />
+            {/* Inferxe Console: the native customer dashboard. */}
+            <Route
+              path="/dashboard/app/*"
+              element={
+                <CustomerGuard>
+                  <CustomerApp />
                 </CustomerGuard>
               }
             />
@@ -185,11 +216,12 @@ export default function App() {
               path="/dashboard/verdelo/*"
               element={<CustomerVerdeloWorkspace />}
             />
+            {/* Customer catch-all: old /dashboard/<page> workspace pages go to their native console equivalent. */}
             <Route
               path="/dashboard/*"
               element={
                 <CustomerGuard>
-                  <MarketplaceWorkspace />
+                  <LegacyWorkspaceRedirect />
                 </CustomerGuard>
               }
             />
