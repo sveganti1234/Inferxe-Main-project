@@ -21,25 +21,25 @@ const Developers = lazy(() => import('./pages/Developers'))
 const Roadmap = lazy(() => import('./pages/Roadmap'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 
-// Dashboard pages
-const AddUser = lazy(() => import('./pages/dashboard/AddUser'))
-const UsersList = lazy(() => import('./pages/dashboard/UsersList'))
-const DashboardOverview = lazy(() => import('./pages/dashboard/DashboardOverview'))
-const MarketplaceWorkspace = lazy(() => import('./pages/dashboard/MarketplaceWorkspace'))
-const CustomerManagement = lazy(() => import('./pages/dashboard/CustomerManagement'))
+// Dashboard pages — statically imported for instantaneous 0ms tab switching without suspension or skeleton flicker
+import AddUser from './pages/dashboard/AddUser'
+import UsersList from './pages/dashboard/UsersList'
+import DashboardOverview from './pages/dashboard/DashboardOverview'
+import MarketplaceWorkspace from './pages/dashboard/MarketplaceWorkspace'
+import CustomerManagement from './pages/dashboard/CustomerManagement'
 const CustomerVerdeloWorkspace = lazy(() => import('./components/dashboard/CustomerVerdeloWorkspace'))
-const SuperadminOverview = lazy(() => import('./pages/dashboard/superadmin/SuperadminOverview'))
-const AdminManagement = lazy(() => import('./pages/dashboard/superadmin/AdminManagement'))
-const AuditLogs = lazy(() => import('./pages/dashboard/superadmin/AuditLogs'))
-const InfrastructureTelemetry = lazy(() => import('./pages/dashboard/superadmin/InfrastructureTelemetry'))
-const KeyManagement = lazy(() => import('./pages/dashboard/superadmin/KeyManagement'))
-const SuperAdminOverview = lazy(() => import('./pages/dashboard/SuperAdminOverview'))
-const AdminAccounts = lazy(() => import('./pages/dashboard/AdminAccounts'))
-const AdminRoles = lazy(() => import('./pages/dashboard/AdminRoles'))
-const AdminPermissions = lazy(() => import('./pages/dashboard/AdminPermissions'))
-const AdminActivity = lazy(() => import('./pages/dashboard/AdminActivity'))
-const AdminAudit = lazy(() => import('./pages/dashboard/AdminAudit'))
-const SuperAdminFutureModule = lazy(() => import('./pages/dashboard/SuperAdminFutureModule'))
+import SuperadminOverview from './pages/dashboard/superadmin/SuperadminOverview'
+import AdminManagement from './pages/dashboard/superadmin/AdminManagement'
+import AuditLogs from './pages/dashboard/superadmin/AuditLogs'
+import InfrastructureTelemetry from './pages/dashboard/superadmin/InfrastructureTelemetry'
+import KeyManagement from './pages/dashboard/superadmin/KeyManagement'
+import SuperAdminOverview from './pages/dashboard/SuperAdminOverview'
+import AdminAccounts from './pages/dashboard/AdminAccounts'
+import AdminRoles from './pages/dashboard/AdminRoles'
+import AdminPermissions from './pages/dashboard/AdminPermissions'
+import AdminActivity from './pages/dashboard/AdminActivity'
+import AdminAudit from './pages/dashboard/AdminAudit'
+import SuperAdminFutureModule from './pages/dashboard/SuperAdminFutureModule'
 import { CustomerHeartbeat } from './components/dashboard/CustomerHeartbeat'
 import { AdminShell } from './components/dashboard/AdminShell'
 const Login = lazy(() => import('./pages/Login'))
@@ -87,49 +87,7 @@ export default function App() {
         <CommandPalette />
         <Suspense fallback={<PageFallback />}>
           <Routes location={location}>
-            {/* ── Superadmin Portal Routes (Strict SuperadminGuard) ── */}
-            <Route
-              path="/dashboard/superadmin"
-              element={
-                <SuperadminGuard>
-                  <SuperadminOverview />
-                </SuperadminGuard>
-              }
-            />
-            <Route
-              path="/dashboard/superadmin/admins"
-              element={
-                <SuperadminGuard>
-                  <AdminManagement />
-                </SuperadminGuard>
-              }
-            />
-            <Route
-              path="/dashboard/superadmin/audit-logs"
-              element={
-                <SuperadminGuard>
-                  <AuditLogs />
-                </SuperadminGuard>
-              }
-            />
-            <Route
-              path="/dashboard/superadmin/telemetry"
-              element={
-                <SuperadminGuard>
-                  <InfrastructureTelemetry />
-                </SuperadminGuard>
-              }
-            />
-            <Route
-              path="/dashboard/superadmin/keys"
-              element={
-                <SuperadminGuard>
-                  <KeyManagement />
-                </SuperadminGuard>
-              }
-            />
-
-            {/* ── Admin Portal Routes (AdminGuard allows Admin and Superadmin) ── */}
+            {/* ── Admin & Super Admin Portal Routes (Integrated inside persistent AdminShell) ── */}
             <Route
               element={
                 <AdminGuard>
@@ -137,7 +95,7 @@ export default function App() {
                 </AdminGuard>
               }
             >
-              {/* Super Admin Governance Modules (Integrated inside persistent AdminShell) */}
+              {/* Super Admin Governance Modules (Unified inside persistent AdminShell) */}
               <Route path="/dashboard/super-admin" element={<SuperAdminOverview />} />
               <Route path="/dashboard/super-admin/accounts" element={<AdminAccounts />} />
               <Route path="/dashboard/super-admin/roles" element={<AdminRoles />} />
@@ -145,6 +103,48 @@ export default function App() {
               <Route path="/dashboard/super-admin/activity" element={<AdminActivity />} />
               <Route path="/dashboard/super-admin/audit" element={<AdminAudit />} />
               <Route path="/dashboard/super-admin/:module" element={<SuperAdminFutureModule />} />
+
+              {/* Superadmin direct routes (Protected by SuperadminGuard inside persistent AdminShell) */}
+              <Route
+                path="/dashboard/superadmin"
+                element={
+                  <SuperadminGuard>
+                    <SuperadminOverview />
+                  </SuperadminGuard>
+                }
+              />
+              <Route
+                path="/dashboard/superadmin/admins"
+                element={
+                  <SuperadminGuard>
+                    <AdminManagement />
+                  </SuperadminGuard>
+                }
+              />
+              <Route
+                path="/dashboard/superadmin/audit-logs"
+                element={
+                  <SuperadminGuard>
+                    <AuditLogs />
+                  </SuperadminGuard>
+                }
+              />
+              <Route
+                path="/dashboard/superadmin/telemetry"
+                element={
+                  <SuperadminGuard>
+                    <InfrastructureTelemetry />
+                  </SuperadminGuard>
+                }
+              />
+              <Route
+                path="/dashboard/superadmin/keys"
+                element={
+                  <SuperadminGuard>
+                    <KeyManagement />
+                  </SuperadminGuard>
+                }
+              />
 
               <Route path="/dashboard" element={<DashboardOverview />} />
               <Route path="/dashboard/customers" element={<CustomerManagement />} />

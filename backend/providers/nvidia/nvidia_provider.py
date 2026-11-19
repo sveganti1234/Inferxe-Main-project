@@ -69,3 +69,20 @@ class NVIDIAProvider:
                 "total_tokens": usage.total_tokens if usage else 0
             }
         }
+
+
+if __name__ == "__main__":
+    print("Executing NVIDIAProvider test runner...")
+    try:
+        provider = NVIDIAProvider()
+        print(f"NVIDIAProvider initialized. Model: {provider.model}")
+        print("Sending test prompt: 'Hello from Inferxe'...")
+        result = provider.generate("Hello from Inferxe", max_tokens=50)
+        print("Response received:")
+        print(result)
+    except ValueError as e:
+        print(f"Configuration note: {e}")
+        print("To enable NVIDIA live generation, provide NVIDIA_API_KEY in backend/.env")
+    except Exception as e:
+        print(f"Execution error: {type(e).__name__}: {e}")
+
