@@ -832,7 +832,7 @@ export function listCustomers({
   sortOrder = 'desc',
   page = 1,
   limit = 20,
-}) {
+} = {}) {
   const db = getDatabase()
   const cleanSearch = (search || '').trim().toLowerCase()
 

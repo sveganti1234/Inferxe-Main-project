@@ -569,11 +569,45 @@ class DatasetIngester:
         self.process_inferxe_dpr_document()
         self.process_guardrails_and_policies()
         self.process_inferxe_website_knowledge()
+        self.process_5000_customer_qa()
+        self.save()
         self.sync_documents_to_supabase()
 
+    def process_5000_customer_qa(self):
+        candidate_paths = [
+            os.path.join(self.dataset_dir, "knowledge", "inferxe_5000_customer_queries.json"),
+            os.path.join(self.dataset_dir, "inferxe_5000_customer_queries.json"),
+        ]
+        filepath = next((p for p in candidate_paths if os.path.exists(p)), None)
+        if not filepath:
+            return
+
+        with open(filepath, "r", encoding="utf-8") as f:
+            items = json.load(f)
+
+        print(f"  -> Ingesting {len(items)} customer query Q&A chunks from {os.path.basename(filepath)}...")
+        for it in items:
+            q = it.get("question", "")
+            a = it.get("answer", "")
+            cat = it.get("category", "customer_query")
+            src = it.get("verified_source", "https://inferxe.com/")
+            if q and a:
+                text = f"CUSTOMER INQUIRY & VERIFIED ANSWER:\nQuestion: {q}\nAnswer: {a}\nSource: {src}"
+                self.add_chunk(text, {
+                    "source_file": "inferxe_5000_customer_queries.json",
+                    "category": cat,
+                    "doc_type": "customer_faq",
+                    "pricing_type": "inr_usd" if "pricing" in cat else "none",
+                })
+        self.report["processed_files"].append("inferxe_5000_customer_queries.json")
+
     def process_inferxe_website_knowledge(self):
-        filepath = "rag/data/inferxe_website_complete_knowledge.json"
-        if not os.path.exists(filepath):
+        candidate_paths = [
+            os.path.join(self.dataset_dir, "knowledge", "inferxe_website_complete_knowledge.json"),
+            "rag/data/inferxe_website_complete_knowledge.json",
+        ]
+        filepath = next((p for p in candidate_paths if os.path.exists(p)), None)
+        if not filepath:
             return
 
         with open(filepath, "r", encoding="utf-8") as f:
@@ -591,6 +625,7 @@ class DatasetIngester:
             })
         self.report["processed_files"].append("inferxe_website_complete_knowledge.json")
 
+    def save(self):
         os.makedirs(OUTPUT_DIR, exist_ok=True)
         self.report["total_chunks_created"] = len(self.chunks)
 
@@ -600,12 +635,12 @@ class DatasetIngester:
         with open(OUTPUT_REPORT_FILE, "w", encoding="utf-8") as f:
             json.dump(self.report, f, indent=2, ensure_ascii=False)
 
-        print(f"âœ… Ingestion Complete!")
+        print(f"✅ Ingestion Complete!")
         print(f"Total Chunks Generated: {len(self.chunks)}")
         print(f"Duplicate / Skipped:   {self.report['skipped_or_duplicate']}")
         print(f"Categories Breakdown:")
         for cat, cnt in sorted(self.report["category_counts"].items()):
-            print(f"  â€¢ {cat.ljust(22)}: {cnt} chunks")
+            print(f"  • {cat.ljust(25)}: {cnt} chunks")
         print(f"\nSaved chunks to: {OUTPUT_CHUNKS_FILE}")
         print(f"Saved audit report to: {OUTPUT_REPORT_FILE}")
         print("=" * 80)
