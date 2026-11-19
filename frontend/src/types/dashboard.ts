@@ -41,8 +41,10 @@ export interface UserRecord {
   apiAccess: boolean
   analyticsAccess: boolean
   monthlySpendLimit: number | null // null means unlimited
-  totalRequests?: number // Total inference requests processed
-  successRate?: number // Reliability percentage of user API requests (0-100)
+  /** Real inference request count (inference_requests); null when not reported. */
+  totalRequests?: number | null
+  /** Share of successful requests (0-100); null when there are no requests or no data. */
+  successRate?: number | null
   rateLimit: string
   internalNote: string
   createdAt: string

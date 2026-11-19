@@ -141,7 +141,7 @@ cp .env.example .env
 | `VITE_COGNITO_DOMAIN` | Cognito hosted UI domain | `your-domain.auth.ap-south-1.amazoncognito.com` |
 | `VITE_COGNITO_REDIRECT_SIGN_IN` | Post-sign-in callback URL | `http://127.0.0.1:5173/login/callback` |
 | `VITE_COGNITO_REDIRECT_SIGN_OUT` | Post-sign-out redirect URL | `http://127.0.0.1:5173` |
-| `VITE_NOTIFICATIONS_API_ENDPOINT` | Backend API base URL | `http://127.0.0.1:8000` |
+| `VITE_NOTIFICATIONS_API_ENDPOINT` | Backend API base URL | `http://127.0.0.1:8002` |
 
 **`DATABASE_URL`** is the Supabase **PostgreSQL** connection string used by the
 notifications/wallet service to connect directly to the shared database. Format:
@@ -192,7 +192,7 @@ cp frontend/.env.example frontend/.env
 | `VITE_COGNITO_REDIRECT_SIGN_OUT` | Post-sign-out redirect URL | `http://127.0.0.1:5173` |
 | `VITE_COGNITO_AUTHORITY` | Cognito token issuer URL | `https://cognito-idp.ap-south-1.amazonaws.com/ap-south-1_xxxxxxxxx` |
 | `VITE_COGNITO_SCOPE` | OAuth scopes | `phone openid email` |
-| `VITE_NOTIFICATIONS_API_ENDPOINT` | Backend API base URL | `http://127.0.0.1:8000` |
+| `VITE_NOTIFICATIONS_API_ENDPOINT` | Backend API base URL | `http://127.0.0.1:8002` |
 
 **Distinguishing the two `DATABASE_URL` variables:**
 
@@ -221,7 +221,7 @@ npm run dev
 npm run server:admin
 ```
 
-### Terminal 3 — FastAPI Notifications Backend (port 8000)
+### Terminal 3 — FastAPI Notifications Backend (port 8002)
 
 ```bash
 # From project root
@@ -230,7 +230,7 @@ npm run dev:backend
 
 Or directly with uvicorn:
 ```bash
-uvicorn backend.notifications.main:app --host 127.0.0.1 --port 8000 --reload
+uvicorn backend.notifications.main:app --host 127.0.0.1 --port 8002 --reload
 ```
 
 ## 4. How Wallet & Notifications Connect to Supabase
@@ -253,7 +253,7 @@ schema and data.
 
 **Data flow:**
 
-1. Frontend calls `GET/POST /api/wallet/...` (proxied via Vite to port 8000,
+1. Frontend calls `GET/POST /api/wallet/...` (proxied via Vite to port 8002,
    or direct in production via `VITE_NOTIFICATIONS_API_ENDPOINT`).
 2. FastAPI backend validates the Cognito JWT, then reads/writes
    `wallets` / `wallet_transactions` in Supabase PostgreSQL via `psycopg2`.

@@ -514,10 +514,14 @@ class NotificationService:
         cls,
         user_id: str,
         amount: float,
-        idempotency_key: Optional[str] = None
+        idempotency_key: Optional[str] = None,
+        admin_credit: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
-        Scenario B: Customer adds money to wallet.
+        Scenario B: Money is added to a wallet (administrator credit).
+        `admin_credit` ({administrator_email, reason}) makes this an audited administrator credit:
+        the target must be an existing customer profile, the transaction is labelled with the
+        reason, and an audit_logs row is written in the same database transaction.
         - Validates idempotency.
         - Updates wallet balance atomically.
         - Creates wallet transaction record.
@@ -544,6 +548,13 @@ class NotificationService:
             if is_duplicate:
                 conn.rollback()
                 return {"status": "skipped", "message": "Duplicate wallet recharge event ignored."}
+
+            if admin_credit is not None:
+                cur.execute("SELECT role FROM profiles WHERE user_id = %s;", (user_id,))
+                target = cur.fetchone()
+                if not target or target.get("role") != "customer":
+                    conn.rollback()
+                    raise ValueError("Customer profile was not found.")
 
             cur.execute("SELECT balance, low_balance_alert_level FROM wallets WHERE user_id = %s FOR UPDATE;", (user_id,))
             wallet = cur.fetchone()
@@ -574,13 +585,14 @@ class NotificationService:
             tx_cols = _get_table_columns(cur, "wallet_transactions")
             tx_id = str(uuid.uuid4()) if tx_cols.get("id") == "uuid" else f"tx_{uuid.uuid4().hex[:10]}"
             tx_now = now_iso()
+            tx_description = f"Administrator credit: {admin_credit['reason']}"[:500] if admin_credit else "Wallet recharge top-up"
             if "direction" in tx_cols and "transaction_type" in tx_cols:
                 cur.execute(
                     """
                     INSERT INTO wallet_transactions (id, user_id, transaction_type, direction, amount, balance_after, currency, status, idempotency_key, description, created_at, updated_at)
                     VALUES (%s, %s, 'top_up', 'credit', %s, %s, 'INR', 'completed', %s, %s, %s, %s);
                     """,
-                    (tx_id, user_id, float(amount), new_balance, idem_key, "Wallet recharge top-up", tx_now, tx_now)
+                    (tx_id, user_id, float(amount), new_balance, idem_key, tx_description, tx_now, tx_now)
                 )
             else:
                 cur.execute(
@@ -588,7 +600,25 @@ class NotificationService:
                     INSERT INTO wallet_transactions (id, user_id, amount, balance_after, currency, status, idempotency_key, description, created_at, updated_at)
                     VALUES (%s, %s, %s, %s, 'INR', 'completed', %s, %s, %s, %s);
                     """,
-                    (tx_id, user_id, amount, new_balance, idem_key, "Wallet recharge top-up", tx_now, tx_now)
+                    (tx_id, user_id, amount, new_balance, idem_key, tx_description, tx_now, tx_now)
+                )
+
+            if admin_credit is not None:
+                cur.execute(
+                    """
+                    INSERT INTO audit_logs (action, target_type, target_id, details)
+                    VALUES ('admin.wallet.credited', 'wallet', %s, %s::jsonb);
+                    """,
+                    (user_id, json.dumps({
+                        "administrator_email": admin_credit["administrator_email"],
+                        "reason": admin_credit["reason"],
+                        "amount": float(amount),
+                        "currency": "INR",
+                        "transaction_id": tx_id,
+                        "balance_before": curr_balance,
+                        "balance_after": new_balance,
+                        "idempotency_key": idem_key,
+                    }))
                 )
 
             title = "Wallet Recharge Successful"
@@ -1002,7 +1032,7 @@ class NotificationService:
             if not row:
                 raise KeyError(f"Deployment {deployment_id} not found.")
 
-            if row["user_id"] != user_id and user_id != "usr_demo_admin":
+            if row["user_id"] != user_id:
                 raise PermissionError(f"Customer {user_id} cannot access metrics for deployment {deployment_id}.")
 
             vram_raw = str(row.get("vram", "24 GB"))
@@ -1136,7 +1166,7 @@ class NotificationService:
             if not row:
                 raise KeyError(f"Deployment {deployment_id} not found.")
 
-            if row["user_id"] != user_id and user_id != "usr_demo_admin":
+            if row["user_id"] != user_id:
                 raise PermissionError(f"Customer {user_id} cannot access recommendations for deployment {deployment_id}.")
 
             gpu_model = row.get("gpu", "NVIDIA L4")
@@ -1243,48 +1273,55 @@ class NotificationService:
     # ── Workspace Settings & Quotas Persistence ──
 
     @staticmethod
+    def _ensure_workspace_settings_table(cur) -> None:
+        """
+        Create/upgrade workspace_settings. `budget_configured` is TRUE only once the customer saved a
+        budget; reading never stores a default. Backfill: a budget other than the old 10000 default can
+        only have come from a save, so it is marked configured (rows at exactly 10000 stay unknown/unset).
+        """
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS workspace_settings (
+                user_id VARCHAR(128) PRIMARY KEY,
+                monthly_budget NUMERIC(14,2) NOT NULL DEFAULT 10000.0,
+                spending_alerts_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+                weekly_report_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+                cors_origins TEXT NOT NULL DEFAULT 'https://app.novatech.ai, http://localhost:3000',
+                updated_at TEXT NOT NULL
+            );
+        """)
+        cur.execute("ALTER TABLE workspace_settings ADD COLUMN IF NOT EXISTS budget_configured BOOLEAN NOT NULL DEFAULT FALSE;")
+        cur.execute("UPDATE workspace_settings SET budget_configured = TRUE WHERE budget_configured = FALSE AND monthly_budget <> 10000.0;")
+
+    @staticmethod
     def get_workspace_settings(user_id: str) -> Dict[str, Any]:
         """
-        Retrieves workspace configuration and quotas for the user.
-        Enforces customer tenant isolation.
+        Retrieves workspace configuration for the user (tenant-isolated). Read-only: nothing is stored.
+        `monthly_budget` is None unless the customer configured one (`budget_configured`).
+        Spend is not returned here; it is computed from real wallet debits by the caller.
         """
         with DBConnection(autocommit=True) as conn:
             cur = conn.cursor(cursor_factory=RealDictCursor)
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS workspace_settings (
-                    user_id VARCHAR(128) PRIMARY KEY,
-                    monthly_budget NUMERIC(14,2) NOT NULL DEFAULT 10000.0,
-                    spending_alerts_enabled BOOLEAN NOT NULL DEFAULT TRUE,
-                    weekly_report_enabled BOOLEAN NOT NULL DEFAULT FALSE,
-                    cors_origins TEXT NOT NULL DEFAULT 'https://app.novatech.ai, http://localhost:3000',
-                    updated_at TEXT NOT NULL
-                );
-            """)
+            NotificationService._ensure_workspace_settings_table(cur)
             cur.execute("SELECT * FROM workspace_settings WHERE user_id = %s;", (user_id,))
             row = cur.fetchone()
             if not row:
-                now = datetime.now(timezone.utc).isoformat()
-                cur.execute("""
-                    INSERT INTO workspace_settings (user_id, monthly_budget, spending_alerts_enabled, weekly_report_enabled, cors_origins, updated_at)
-                    VALUES (%s, 10000.0, TRUE, FALSE, %s, %s)
-                    ON CONFLICT (user_id) DO NOTHING;
-                """, (user_id, 'https://app.novatech.ai, http://localhost:3000', now))
                 return {
                     "user_id": user_id,
-                    "monthly_budget": 10000.0,
+                    "monthly_budget": None,
+                    "budget_configured": False,
                     "spending_alerts_enabled": True,
                     "weekly_report_enabled": False,
                     "cors_origins": "https://app.novatech.ai, http://localhost:3000",
-                    "current_month_spend": 4820.0,
-                    "updated_at": now,
+                    "updated_at": None,
                 }
+            configured = bool(row["budget_configured"])
             return {
                 "user_id": row["user_id"],
-                "monthly_budget": float(row["monthly_budget"]),
+                "monthly_budget": float(row["monthly_budget"]) if configured else None,
+                "budget_configured": configured,
                 "spending_alerts_enabled": bool(row["spending_alerts_enabled"]),
                 "weekly_report_enabled": bool(row["weekly_report_enabled"]),
                 "cors_origins": str(row["cors_origins"]),
-                "current_month_spend": 4820.0,
                 "updated_at": str(row["updated_at"]),
             }
 
@@ -1292,6 +1329,7 @@ class NotificationService:
     def save_workspace_settings(user_id: str, data: Dict[str, Any]) -> Dict[str, Any]:
         """
         Updates and persists workspace settings with customer tenant isolation.
+        Saving marks the budget as configured by the customer.
         """
         monthly_budget = float(data.get("monthly_budget", 10000.0))
         if monthly_budget < 0:
@@ -1304,21 +1342,13 @@ class NotificationService:
 
         with DBConnection(autocommit=True) as conn:
             cur = conn.cursor(cursor_factory=RealDictCursor)
+            NotificationService._ensure_workspace_settings_table(cur)
             cur.execute("""
-                CREATE TABLE IF NOT EXISTS workspace_settings (
-                    user_id VARCHAR(128) PRIMARY KEY,
-                    monthly_budget NUMERIC(14,2) NOT NULL DEFAULT 10000.0,
-                    spending_alerts_enabled BOOLEAN NOT NULL DEFAULT TRUE,
-                    weekly_report_enabled BOOLEAN NOT NULL DEFAULT FALSE,
-                    cors_origins TEXT NOT NULL DEFAULT 'https://app.novatech.ai, http://localhost:3000',
-                    updated_at TEXT NOT NULL
-                );
-            """)
-            cur.execute("""
-                INSERT INTO workspace_settings (user_id, monthly_budget, spending_alerts_enabled, weekly_report_enabled, cors_origins, updated_at)
-                VALUES (%s, %s, %s, %s, %s, %s)
+                INSERT INTO workspace_settings (user_id, monthly_budget, budget_configured, spending_alerts_enabled, weekly_report_enabled, cors_origins, updated_at)
+                VALUES (%s, %s, TRUE, %s, %s, %s, %s)
                 ON CONFLICT (user_id) DO UPDATE SET
                     monthly_budget = EXCLUDED.monthly_budget,
+                    budget_configured = TRUE,
                     spending_alerts_enabled = EXCLUDED.spending_alerts_enabled,
                     weekly_report_enabled = EXCLUDED.weekly_report_enabled,
                     cors_origins = EXCLUDED.cors_origins,
@@ -1329,10 +1359,10 @@ class NotificationService:
                 "status": "success",
                 "user_id": user_id,
                 "monthly_budget": monthly_budget,
+                "budget_configured": True,
                 "spending_alerts_enabled": spending_alerts_enabled,
                 "weekly_report_enabled": weekly_report_enabled,
                 "cors_origins": cors_origins,
-                "current_month_spend": 4820.0,
                 "updated_at": now,
             }
 

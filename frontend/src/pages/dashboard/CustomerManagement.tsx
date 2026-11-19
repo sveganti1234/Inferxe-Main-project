@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   Search,
   RefreshCw,
@@ -23,6 +24,7 @@ import {
   Download,
 } from 'lucide-react'
 import { DashboardLayout } from '../../components/dashboard/DashboardLayout'
+import { CustomerAccountPanel } from '../../components/dashboard/CustomerAccountPanel'
 import { Tilt } from '../../components/ui/Tilt'
 import { Counter } from '../../components/ui/Counter'
 import { usePageMeta } from '../../lib/hooks'
@@ -99,6 +101,13 @@ export default function CustomerManagement() {
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null)
   const [detailsRecord, setDetailsRecord] = useState<CustomerDetailsRecord | null>(null)
   const [detailsLoading, setDetailsLoading] = useState<boolean>(false)
+
+  // Deep link from Users & Access Control: /dashboard/customers?customer=<id> opens that customer.
+  const [searchParams] = useSearchParams()
+  useEffect(() => {
+    const linked = searchParams.get('customer')
+    if (linked) setSelectedCustomerId(linked)
+  }, [searchParams])
 
   // Backup & UI state
   const [isBackingUp, setIsBackingUp] = useState<boolean>(false)
@@ -208,20 +217,7 @@ export default function CustomerManagement() {
   const handleSyncCognito = async () => {
     try {
       setIsSyncing(true)
-      let localUsers: Array<{ email: string; full_name?: string; organization?: string }> = []
-      try {
-        const raw = localStorage.getItem('inferxe_registered_users')
-        if (raw) {
-          const parsed = JSON.parse(raw) as Record<string, { fullName?: string; name?: string; organization?: string }>
-          localUsers = Object.entries(parsed).map(([em, val]) => ({
-            email: em,
-            full_name: val.fullName || val.name,
-            organization: val.organization,
-          }))
-        }
-      } catch {}
-
-      const res = await syncCognitoCustomers(localUsers)
+      const res = await syncCognitoCustomers()
       setBackupMessage(`Cognito Sync complete: ${res.syncedCount} records evaluated (${res.newCount} new, ${res.updatedCount} refreshed).`)
       setTimeout(() => setBackupMessage(null), 6000)
       await loadData(true)
@@ -296,7 +292,7 @@ export default function CustomerManagement() {
               <Counter to={summary.total} />
             </div>
             <small style={{ color: 'var(--ink-4)', fontSize: '0.74rem', marginTop: 4, display: 'block' }}>
-              Persistent SQLite Database Records
+              Supabase customer profiles
             </small>
           </div>
         </Tilt>
@@ -315,7 +311,7 @@ export default function CustomerManagement() {
               <Counter to={summary.online} />
             </div>
             <small style={{ color: 'var(--ink-4)', fontSize: '0.74rem', marginTop: 4, display: 'block' }}>
-              Heartbeat within previous 2 minutes
+              {summary.onlineTrackingAvailable ? 'Heartbeat within previous 2 minutes' : 'Heartbeat data is not stored in Supabase'}
             </small>
           </div>
         </Tilt>
@@ -331,7 +327,7 @@ export default function CustomerManagement() {
               <Counter to={summary.active} />
             </div>
             <small style={{ color: 'var(--ink-4)', fontSize: '0.74rem', marginTop: 4, display: 'block' }}>
-              Logged in within last 5 days
+              Last recorded activity within 5 days
             </small>
           </div>
         </Tilt>
@@ -347,7 +343,7 @@ export default function CustomerManagement() {
               <Counter to={summary.inactive} />
             </div>
             <small style={{ color: 'var(--ink-4)', fontSize: '0.74rem', marginTop: 4, display: 'block' }}>
-              Never hidden · Automatically retained
+              No activity recorded in the last 5 days
             </small>
           </div>
         </Tilt>
@@ -436,7 +432,7 @@ export default function CustomerManagement() {
           <div className="dash-presets-row" style={{ marginTop: 0 }}>
             {[
               { key: 'all', label: `All Customers (${summary.total})` },
-              { key: 'online', label: `Online (${summary.online})` },
+              { key: 'online', label: summary.onlineTrackingAvailable ? `Online (${summary.online})` : 'Online (not tracked)' },
               { key: 'active', label: `Active (${summary.active})` },
               { key: 'inactive', label: `Inactive (${summary.inactive})` },
             ].map((f) => (
@@ -870,6 +866,9 @@ export default function CustomerManagement() {
                   </div>
                 </div>
 
+                {/* Wallet, spending, plan/trial, deployments, transactions and audit history */}
+                <CustomerAccountPanel key={detailsRecord.customer_id} customerId={detailsRecord.customer_id} />
+
                 {/* Login & Authentication History */}
                 <div style={{ marginBottom: 20 }}>
                   <span className="engrave" style={{ fontSize: '0.72rem', letterSpacing: '0.08em', display: 'block', marginBottom: 8 }}>
@@ -879,7 +878,7 @@ export default function CustomerManagement() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ color: 'var(--ink-4)' }}>Total Recorded Logins:</span>
                       <span className="tag tag--emerald" style={{ fontWeight: 600 }}>
-                        {detailsRecord.login_count || 1} logins
+                        {detailsRecord.login_count === null ? 'Not recorded' : `${detailsRecord.login_count} logins`}
                       </span>
                     </div>
 
@@ -932,7 +931,7 @@ export default function CustomerManagement() {
                     <span className="engrave" style={{ fontSize: '0.72rem', letterSpacing: '0.08em' }}>
                       Activity History Ledger ({detailsRecord.activity_logs?.length || 0})
                     </span>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--ink-4)' }}>Preserved in customer_activity_logs</span>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--ink-4)' }}>Supabase activity events are not available</span>
                   </div>
 
                   <div className="well" style={{ padding: '12px 14px', borderRadius: 8, maxHeight: 220, overflowY: 'auto' }}>

@@ -99,7 +99,7 @@ function validateEnvironment() {
 
   if (!hasNotifDb && !isConfiguredValue(dbUrl)) {
     warnings.push(
-      'SUPABASE_DATABASE_URL is not set in backend/.env. Notifications/Wallet endpoints (port 8000) will fail DB checks until configured.',
+      'SUPABASE_DATABASE_URL is not set in backend/.env. Notifications/Wallet endpoints will fail DB checks until configured.',
     )
   }
 
@@ -134,7 +134,7 @@ function validateEnvironment() {
     fatalErrors,
     warnings,
     inferencePort: Number(effective.INFERENCE_PORT || process.env.INFERENCE_PORT || 8001),
-    notificationsPort: Number(effective.NOTIFICATIONS_PORT || process.env.NOTIFICATIONS_PORT || 8000),
+    notificationsPort: Number(effective.NOTIFICATIONS_PORT || process.env.NOTIFICATIONS_PORT || 8002),
     searchPort: Number(effective.SEARCH_PORT || process.env.SEARCH_PORT || 8765),
   }
 }
@@ -242,6 +242,9 @@ function isPortOpen(port, host = '127.0.0.1') {
     socket.once('error', () => finish(false))
   })
 }
+
+// Health endpoints do database and provider checks and can take several seconds on a cold service.
+const REUSE_PROBE_TIMEOUT_MS = 12000
 
 function httpGetJson(url, timeoutMs = 2000) {
   return new Promise((resolve) => {
@@ -402,14 +405,14 @@ async function main() {
   const reloadArgs = NO_RELOAD ? [] : ['--reload']
   const spawnSpecs = []
 
-  // 1. Notifications & RAG Service (Port 8000)
+  // 1. Notifications & RAG Service (Port 8002 by default)
   if (notifPortOpen) {
-    const probe = await httpGetJson(`http://127.0.0.1:${notificationsPort}/api/notifications/db-status`)
+    const probe = await httpGetJson(`http://127.0.0.1:${notificationsPort}/api/notifications/db-status`, REUSE_PROBE_TIMEOUT_MS)
     if (probe.ok) {
       console.log(`[notifications:${notificationsPort}] Already running and healthy; reusing existing service.`)
     } else {
       console.error(
-        `[error] Port ${notificationsPort} is already in use by another process. Free port ${notificationsPort} or set NOTIFICATIONS_PORT in backend/.env.`,
+        `[error] Port ${notificationsPort} is occupied, but the notifications health check failed. The existing listener will not be stopped; set NOTIFICATIONS_PORT in backend/.env to an available port.`,
       )
       process.exit(1)
     }
@@ -434,7 +437,7 @@ async function main() {
 
   // 2. Inference, API Keys, SSH Keys & Notebooks Service (Port 8001)
   if (infPortOpen) {
-    const probe = await httpGetJson(`http://127.0.0.1:${inferencePort}/api/v1/health`)
+    const probe = await httpGetJson(`http://127.0.0.1:${inferencePort}/api/v1/health`, REUSE_PROBE_TIMEOUT_MS)
     if (probe.ok && probe.json?.service === 'inferxe-inference-api') {
       console.log(`[inference:${inferencePort}] Already running and healthy; reusing existing service.`)
     } else {

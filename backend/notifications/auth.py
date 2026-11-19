@@ -54,7 +54,10 @@ COGNITO_CLIENT_ID = (
 _EFFECTIVE_ISSUER_POOL = COGNITO_USER_POOL_ID or "unconfigured-pool"
 COGNITO_ISSUER = f"https://cognito-idp.{COGNITO_REGION}.amazonaws.com/{_EFFECTIVE_ISSUER_POOL}"
 JWKS_URL = f"{COGNITO_ISSUER}/.well-known/jwks.json"
-ADMIN_SESSION_SECRET = os.environ.get("ADMIN_SESSION_SECRET", "inferxe_dev_secret_key_2026_super_secure")
+# Shared with the Node admin auth server. No default: without a configured secret (>= 32 chars)
+# administrator HS256 session tokens are rejected.
+ADMIN_SESSION_SECRET = (os.environ.get("ADMIN_SESSION_SECRET") or "").strip()
+_MIN_ADMIN_SECRET_LENGTH = 32
 
 # In-memory JWK client cache
 _jwks_client: Optional[PyJWKClient] = None
@@ -113,63 +116,76 @@ class AuthenticatedUser:
             "is_admin": self.is_admin,
         }
 
+def _unauthorized(detail: str) -> HTTPException:
+    return HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail=detail,
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
+def _verify_admin_session_token(token: str) -> AuthenticatedUser:
+    """
+    Verify an administrator session token issued by the Node admin auth server
+    (HS256, shared ADMIN_SESSION_SECRET). Requires role='admin', exp and sub.
+    """
+    if len(ADMIN_SESSION_SECRET) < _MIN_ADMIN_SECRET_LENGTH:
+        logger.error("Administrator session tokens rejected: ADMIN_SESSION_SECRET is not configured.")
+        raise _unauthorized("Administrator sessions are not accepted by this service.")
+    try:
+        payload = jwt.decode(
+            token,
+            ADMIN_SESSION_SECRET,
+            algorithms=["HS256"],
+            options={"require": ["exp", "sub", "role"], "verify_aud": False},
+        )
+    except ExpiredSignatureError:
+        raise _unauthorized("Administrator session has expired.")
+    except InvalidTokenError as hs_err:
+        logger.warning("Invalid administrator session token: %s", type(hs_err).__name__)
+        raise _unauthorized("Invalid administrator session token.")
+    if payload.get("role") != "admin":
+        raise _unauthorized("Invalid administrator session token.")
+    return AuthenticatedUser(
+        user_id=str(payload["sub"]),
+        email=str(payload.get("email") or ""),
+        roles=["admin"],
+        claims=payload,
+    )
+
+
 def verify_cognito_jwt(token: str) -> AuthenticatedUser:
     """
-    Cryptographically verifies the Cognito JWT signature and claims:
-    - Signature validated against Cognito JWKS (or verified test key fixture).
-    - Supports Admin session tokens (HS256) and AWS Cognito tokens (RS256).
-    - Expiration (exp) check.
-    - Issuer (iss) check.
-    - Token use ('id' or 'access') and client_id/aud check.
+    Verify a bearer token and return the authenticated identity.
+
+    Cognito ID tokens (RS256):
+    - Signature verified against the user pool's JWKS (or a key registered by the test suite).
+    - Required claims: exp, iss, aud, sub, token_use.
+    - Issuer must be the configured user pool; audience must be the configured app client ID.
+    - token_use must be 'id' (access tokens are rejected).
+    - Administrator rights only from the 'admin' Cognito group (managed by AWS administrators);
+      user-editable attributes such as custom:role are never trusted for authorization.
+
+    Administrator session tokens (HS256) from the Node admin auth server are also accepted
+    when correctly signed with ADMIN_SESSION_SECRET and carrying role='admin'.
     """
     if not token or not token.strip():
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Missing authentication token.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-
-    # 1. Dev Admin token bypass (for local testing / dev environment)
-    if token.startswith("ix-tok-") or token.startswith("ix-admin-") or token == "admin-dev-token":
-        return AuthenticatedUser(
-            user_id="usr_admin",
-            email="admin@inferxe.com",
-            roles=["admin"],
-            claims={"sub": "usr_admin", "email": "admin@inferxe.com", "role": "admin"},
-        )
+        raise _unauthorized("Missing authentication token.")
+    token = token.strip()
 
     try:
-        # Extract unverified header to get the key ID ('kid') and algorithm
+        # Unverified header is used only to route between the two token types and find 'kid'.
         unverified_header = jwt.get_unverified_header(token)
-        kid = unverified_header.get("kid")
-        alg = unverified_header.get("alg", "RS256")
     except Exception as e:
-        logger.warning(f"Malformed token header: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token structure.",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        logger.warning("Malformed token header: %s", type(e).__name__)
+        raise _unauthorized("Invalid token structure.")
+    kid = unverified_header.get("kid")
+    alg = unverified_header.get("alg")
 
-    # 2. Support Admin HMAC-SHA256 (HS256) JWTs signed by Admin Auth Server
     if alg == "HS256":
-        try:
-            payload = jwt.decode(token, ADMIN_SESSION_SECRET, algorithms=["HS256"])
-            user_id = payload.get("sub") or "usr_admin"
-            email = payload.get("email") or "admin@inferxe.com"
-            return AuthenticatedUser(
-                user_id=str(user_id),
-                email=str(email),
-                roles=["admin"],
-                claims=payload,
-            )
-        except Exception as hs_err:
-            logger.warning(f"Invalid HS256 admin token: {hs_err}")
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid admin token signature.",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
+        return _verify_admin_session_token(token)
+    if alg != "RS256":
+        raise _unauthorized("Unsupported token algorithm.")
 
     # Resolve signing key
     signing_key = None
@@ -213,76 +229,102 @@ def verify_cognito_jwt(token: str) -> AuthenticatedUser:
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    if COGNITO_CLIENT_ID in _COGNITO_PLACEHOLDERS:
+        logger.error("Cognito app client ID not configured for notifications service.")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Cognito authentication service is not configured on this backend.",
+        )
+
     # Decode and verify signature & claims
     try:
-        # Validate issuer, expiration, and algorithm
-        decode_kwargs: Dict[str, Any] = {
-            "algorithms": [alg],
-            "issuer": COGNITO_ISSUER,
-            "options": {
+        payload = jwt.decode(
+            token,
+            signing_key,
+            algorithms=["RS256"],
+            issuer=COGNITO_ISSUER,
+            audience=COGNITO_CLIENT_ID,
+            options={
                 "verify_signature": True,
                 "verify_exp": True,
                 "verify_iss": True,
-                # Aud check: Cognito ID token has 'aud', access token has 'client_id'
-                "verify_aud": False,
+                "verify_aud": True,
+                "require": ["exp", "iss", "aud", "sub", "token_use"],
             },
-        }
-
-        payload = jwt.decode(token, signing_key, **decode_kwargs)
-
-        # Validate token_use
-        token_use = payload.get("token_use")
-        if token_use not in ("id", "access"):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=f"Invalid token_use: {token_use}",
-            )
-
-        # Validate audience if client ID is configured and present in token
-        if COGNITO_CLIENT_ID:
-            aud = payload.get("aud") or payload.get("client_id")
-            if aud and aud != COGNITO_CLIENT_ID:
-                raise HTTPException(
-                    status_code=status.HTTP_401_UNAUTHORIZED,
-                    detail="Token audience does not match configured Client ID.",
-                )
-
-        # Extract user identity (sub)
-        user_id = payload.get("sub") or payload.get("username")
-        if not user_id:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Token is missing required user identifier ('sub').",
-            )
-
-        email = payload.get("email") or payload.get("cognito:username") or f"{user_id}@inferxe.internal"
-        groups = payload.get("cognito:groups", [])
-        if isinstance(groups, str):
-            groups = [groups]
-        role = payload.get("custom:role") or payload.get("role")
-        if role and role not in groups:
-            groups.append(role)
-
-        return AuthenticatedUser(
-            user_id=str(user_id),
-            email=str(email),
-            roles=groups,
-            claims=payload,
         )
-
     except ExpiredSignatureError:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Authentication token has expired.",
-            headers={"WWW-Authenticate": "Bearer error=\"invalid_token\", error_description=\"The access token expired\""},
+            headers={"WWW-Authenticate": "Bearer error=\"invalid_token\", error_description=\"The token expired\""},
         )
     except InvalidTokenError as e:
-        logger.warning(f"Invalid token: {e}")
+        # Log only the error class; never echo token contents or verifier details to clients.
+        logger.warning("Rejected Cognito token: %s", type(e).__name__)
+        raise _unauthorized("Invalid authentication token.")
+
+    if payload.get("token_use") != "id":
+        raise _unauthorized("A Cognito ID token is required.")
+
+    user_id = payload.get("sub")
+    if not user_id:
+        raise _unauthorized("Token is missing required user identifier ('sub').")
+
+    email = payload.get("email") or payload.get("cognito:username") or ""
+    groups = payload.get("cognito:groups") or []
+    if isinstance(groups, str):
+        groups = [groups]
+    roles = [str(g) for g in groups if isinstance(g, str)]
+
+    return AuthenticatedUser(
+        user_id=str(user_id),
+        email=str(email),
+        roles=roles,
+        claims=payload,
+    )
+
+
+# Short-lived cache of profiles confirmed active (user_id -> monotonic expiry).
+_ACTIVE_PROFILE_CACHE: Dict[str, float] = {}
+_ACTIVE_PROFILE_TTL_SECONDS = 60.0
+
+
+def assert_profile_active(user: AuthenticatedUser) -> None:
+    """
+    Reject protected operations for customers whose profile is suspended or inactive.
+
+    - Administrator session tokens (no customer profile) are not checked here.
+    - Profile row exists with status != 'active' -> HTTP 403.
+    - No profile row                             -> allowed (profiles are created at sign-in sync).
+    - Database unavailable                       -> HTTP 503 (fail closed).
+    """
+    if user.claims.get("token_use") != "id":
+        return
+    now = time.monotonic()
+    if _ACTIVE_PROFILE_CACHE.get(user.user_id, 0.0) > now:
+        return
+    try:
+        from .db import DBConnection  # local import keeps auth importable without a database
+
+        with DBConnection(autocommit=True) as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT status FROM profiles WHERE user_id = %s LIMIT 1;", (user.user_id,))
+            row = cur.fetchone()
+    except Exception as db_err:
+        logger.error("Profile status lookup failed: %s", type(db_err).__name__)
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid token: {str(e)}",
-            headers={"WWW-Authenticate": "Bearer"},
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Account status could not be verified. Please try again shortly.",
         )
+    if row is not None:
+        profile_status = row["status"] if isinstance(row, dict) else row[0]
+        if str(profile_status or "").strip().lower() != "active":
+            _ACTIVE_PROFILE_CACHE.pop(user.user_id, None)
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="This account is not active. Please contact Inferxe support.",
+            )
+    _ACTIVE_PROFILE_CACHE[user.user_id] = now + _ACTIVE_PROFILE_TTL_SECONDS
 
 async def get_current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Security(security_bearer),
@@ -294,7 +336,9 @@ async def get_current_user(
             detail="Missing Authorization header with Bearer token.",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    return verify_cognito_jwt(credentials.credentials)
+    user = verify_cognito_jwt(credentials.credentials)
+    assert_profile_active(user)
+    return user
 
 async def require_admin_user(
     user: AuthenticatedUser = Security(get_current_user),
@@ -328,10 +372,12 @@ async def get_optional_user(
         return None
 
     try:
-        return verify_cognito_jwt(token)
+        user = verify_cognito_jwt(token)
     except HTTPException:
         raise
     except Exception as e:
-        logger.warning(f"Optional token resolution warning: {e}")
+        logger.warning("Optional token resolution warning: %s", type(e).__name__)
         return None
+    assert_profile_active(user)
+    return user
 

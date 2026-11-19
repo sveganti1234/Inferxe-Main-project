@@ -12,7 +12,7 @@ import { AdminGuard } from '../../components/auth/AdminGuard'
 import { usePageMeta } from '../../lib/hooks'
 import { MODELS, QUANTS, type Quant } from '../../data/gpus'
 import { estimateMemory, recommend, fmtGB, inr } from '../../lib/calc'
-import { getSession, saveSession, changeUserPassword, getUserPasswordLastUpdated } from '../../lib/authStore'
+import { getSession, ensureFreshSession, saveSession, changeUserPassword, getUserPasswordLastUpdated } from '../../lib/authStore'
 import {
   fetchBackendApiKeys,
   createBackendApiKey,
@@ -417,7 +417,7 @@ type ToastNotice = {
   const [showJwtModal, setShowJwtModal] = useState(false)
 
   const loadApiKeys = async () => {
-    const session = getSession()
+    const session = await ensureFreshSession()
     if (!session?.token) {
       return
     }
@@ -458,7 +458,7 @@ type ToastNotice = {
   const [sshKeyToDelete, setSshKeyToDelete] = useState<SshKey | null>(null)
 
   const loadSshKeys = async () => {
-    const session = getSession()
+    const session = await ensureFreshSession()
     if (!session?.token) {
       setSshKeys([])
       return
@@ -908,7 +908,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
   const handleCreateKey = async (e: FormEvent) => {
     e.preventDefault()
     const name = newKeyName.trim() || `API Key ${keys.length + 1}`
-    const session = getSession()
+    const session = await ensureFreshSession()
 
     if (!session?.token) {
       flash('Please sign in with Cognito to generate production API keys.')

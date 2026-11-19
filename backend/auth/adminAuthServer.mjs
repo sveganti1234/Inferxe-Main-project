@@ -45,6 +45,52 @@ const server = http.createServer((req, res) => {
   })
 })
 
+/**
+ * Is the process already listening on `port` this same Inferxe auth/customer API?
+ * An unauthenticated GET /api/customer/workspace is answered by this server with a JSON 401
+ * ({ ok: false, error: "...authentication..." }); an unrelated application will not produce that.
+ */
+function probeExistingInferxeServer(port) {
+  return new Promise((resolve) => {
+    const req = http.get(
+      { host: '127.0.0.1', port, path: '/api/customer/workspace', timeout: 5000 },
+      (res) => {
+        let body = ''
+        res.setEncoding('utf8')
+        res.on('data', (chunk) => { if (body.length < 4096) body += chunk })
+        res.on('end', () => {
+          try {
+            const json = JSON.parse(body)
+            resolve(res.statusCode === 401 && json?.ok === false && /authentication/i.test(String(json?.error || '')))
+          } catch {
+            resolve(false)
+          }
+        })
+      },
+    )
+    req.on('error', () => resolve(false))
+    req.on('timeout', () => { req.destroy(); resolve(false) })
+  })
+}
+
+server.on('error', async (err) => {
+  if (err?.code !== 'EADDRINUSE') {
+    console.error(`[Inferxe] Authentication & SSO Server failed to start: ${err?.code || err?.name || 'error'}`)
+    process.exit(1)
+  }
+  if (await probeExistingInferxeServer(PORT)) {
+    // A healthy copy is already serving this port (e.g. left from an earlier `npm run dev`): reuse it.
+    console.log(`[Inferxe] Authentication & SSO Server is already running on http://127.0.0.1:${PORT}; reusing the existing service.`)
+    process.exit(0)
+  }
+  console.error(
+    `[Inferxe] Port ${PORT} is in use by a process that does not look like the Inferxe auth/customer API, and it was not stopped.\n` +
+      `  Find it with: netstat -ano | findstr :${PORT}   (then check the PID in Task Manager)\n` +
+      `  The Vite dev proxy for /api/customer expects port 5174; if you change ADMIN_AUTH_PORT, update the proxy too.`,
+  )
+  process.exit(1)
+})
+
 server.listen(PORT, '127.0.0.1', () => {
   console.log(`[Inferxe] Authentication & SSO Server running at http://127.0.0.1:${PORT}`)
 })

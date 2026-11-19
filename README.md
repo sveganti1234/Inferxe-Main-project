@@ -78,32 +78,32 @@ python -m pip install -r backend/requirements.txt
 
 Open two terminals from the repository root:
 
-**Terminal 1 — Unified Python Backends (Ports `8000` & `8001`):**
+**Terminal 1 — Unified Python Backends (Ports `8002` & `8001`):**
 ```bash
 npm run dev:backend
 ```
-Starts both `backend.notifications.main:app` (`http://127.0.0.1:8000`, shared Supabase PostgreSQL + RAG `/api/chat`) and `inference.main:app` (`http://127.0.0.1:8001`, API keys, SSH keys, notebooks, NVIDIA inference via Supabase REST) automatically using the first valid workspace `.venv311` / `.venv` or system Python.
+Starts both `backend.notifications.main:app` (`http://127.0.0.1:8002`, shared Supabase PostgreSQL + RAG `/api/chat`) and `inference.main:app` (`http://127.0.0.1:8001`, API keys, SSH keys, notebooks, NVIDIA inference via Supabase REST) automatically using the first valid workspace `.venv311` / `.venv` or system Python.
 
 **Terminal 2 — Frontend & Auth Middleware (Port `5173`):**
 ```bash
 npm run dev
 ```
 
-Open **http://127.0.0.1:5173** (or `http://localhost:5173`). Vite proxies `/api/v1/*` → `8001`, `/api/notifications`, `/api/wallet`, `/api/deployments`, `/api/gpu`, `/api/workspace`, `/api/chat`, `/api/health` → `8000`, and serves `/api/auth/*` + `/api/admin/*` directly.
+Open **http://127.0.0.1:5173** (or `http://localhost:5173`). Vite proxies `/api/v1/*` → `8001`, `/api/notifications`, `/api/wallet`, `/api/deployments`, `/api/gpu`, `/api/workspace`, `/api/chat`, `/api/health` → `8002`, and serves `/api/auth/*` + `/api/admin/*` directly.
 
-**Windows one-click:** double-click **`start-website.bat`**. It starts `npm run dev:backend` (ports `8000` & `8001`), opens your browser, and starts `npm run dev`.
+**Windows one-click:** double-click **`start-website.bat`**. It starts `npm run dev:backend` (ports `8002` & `8001`), opens your browser, and starts `npm run dev`.
 
 ## 0.3 Every command
 
 | Command | What it does | When to use it |
 | --- | --- | --- |
 | `npm install` | Installs root and workspace dependencies from `package.json` / `package-lock.json`. | First run, or after pulling changes that touch `package.json`. |
-| `npm run dev:backend` | Validates env & Python runtime, then launches Notifications+RAG (`8000`) and Inference (`8001`). Pass `-- --with-search` to also start web search (`8765`), or `-- --check` to validate setup. | Whenever running the app locally. |
+| `npm run dev:backend` | Validates env & Python runtime, then launches Notifications+RAG (`8002` by default) and Inference (`8001`). Pass `-- --with-search` to also start web search (`8765`), or `-- --check` to validate setup. | Whenever running the app locally. |
 | `npm run dev` | Starts Vite's dev server on `127.0.0.1:5173` with hot reload, API proxies, and SSO/Admin auth middleware. | Day-to-day development and demos. |
 | `npm run typecheck` | Runs `tsc --noEmit` — strict TypeScript type-check, no output files. | Before committing; fast sanity check. |
 | `npm run build` | `tsc --noEmit && vite build` → optimised production bundle in `dist/`. | Before deploying; fails on any type error. |
 | `npm run preview` | Serves the built `dist/` on `127.0.0.1:4173` with backend proxies & auth middleware. | Verify the production build locally (run `npm run build` first). |
-| `start-website.bat` | Windows launcher: starts backend (`8000` & `8001`), opens browser, runs `npm run dev`. | Non-developers / demos. |
+| `start-website.bat` | Windows launcher: starts backend (`8002` & `8001`), opens browser, runs `npm run dev`. | Non-developers / demos. |
 
 ## 0.4 Useful variations
 

@@ -84,6 +84,7 @@ from inference.auth import (
     extract_cognito_sub,
     require_cognito_user,
     is_cognito_configured,
+    is_test_mode_enabled,
 )
 from inference.service import InferenceService
 
@@ -134,7 +135,7 @@ def health_check(db: Session = Depends(get_db)):
     supabase_status = "unconfigured"
     try:
         sb_settings = get_supabase_settings(auto_load=False)
-        if os.getenv("INFERXE_TEST_MODE") == "1":
+        if is_test_mode_enabled():
             supabase_ok = True
             supabase_status = "configured"
         else:

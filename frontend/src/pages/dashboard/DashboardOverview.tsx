@@ -6,6 +6,7 @@ import { Tilt } from '../../components/ui/Tilt'
 import { Counter } from '../../components/ui/Counter'
 import { usePageMeta } from '../../lib/hooks'
 import { getSession, getPortalRole } from '../../lib/authStore'
+import { CUSTOMER_HOME_PATH } from '../../features/customer/home'
 
 interface DeploymentItem {
   id: string
@@ -50,7 +51,7 @@ export default function DashboardOverview() {
   const portalRole = getPortalRole(session?.user?.role)
 
   if (portalRole === 'customer') {
-    return <Navigate to="/dashboard/customer" replace />
+    return <Navigate to={CUSTOMER_HOME_PATH} replace />
   }
 
   return (

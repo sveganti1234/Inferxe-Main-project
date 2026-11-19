@@ -1,7 +1,6 @@
 import { useEffect, useState, useRef, type ReactNode } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
-import { signOut } from 'aws-amplify/auth'
 import {
   Activity as ActivityIcon,
   BarChart3,
@@ -33,8 +32,7 @@ import {
 } from 'lucide-react'
 import { LogoMark } from '../Logo'
 import { Ambient } from '../layout/Ambient'
-import { getSession, clearSession, getPortalRole, type AuthSession, type PortalRole } from '../../lib/authStore'
-import { getCognitoContext } from '../../lib/cognitoContext'
+import { getSession, signOutCurrentUser, getPortalRole, type AuthSession, type PortalRole } from '../../lib/authStore'
 interface BreadcrumbItem {
   label: string
   to?: string
@@ -1105,13 +1103,8 @@ export function DashboardLayout({
                           className="dash-nav-item dash-nav-item--danger"
                           onClick={async () => {
                             setAdminMenuOpen(false)
-                            try {
-                              await signOut(getCognitoContext())
-                            } catch (error) {
-                              console.error('[customer-auth] Cognito sign-out failed.', error)
-                            }
-                            clearSession()
-                            window.location.replace('/')
+                            await signOutCurrentUser()
+                            window.location.replace('/login')
                           }}
                         >
                           <LogOut size={15} /> Sign Out
@@ -1466,8 +1459,8 @@ export function DashboardLayout({
                       className="dash-nav-item dash-nav-item--danger"
                       onClick={async () => {
                         setAdminMenuOpen(false)
-                        clearSession()
-                        window.location.replace('/')
+                        await signOutCurrentUser()
+                        window.location.replace('/login')
                       }}
                     >
                       <LogOut size={15} /> Sign Out

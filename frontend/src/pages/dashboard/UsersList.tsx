@@ -129,7 +129,11 @@ export default function UsersList() {
               <span className="engrave" style={{ fontSize: '0.62rem', opacity: 0.7 }}>ALL TIME</span>
             </div>
             <div className="dash-stat-value readout">
-              <Counter to={users.reduce((acc, u) => acc + (u.totalRequests ?? 0), 0) || 398070} />
+              {users.some((u) => typeof u.totalRequests === 'number') ? (
+                <Counter to={users.reduce((acc, u) => acc + (u.totalRequests ?? 0), 0)} />
+              ) : (
+                <span style={{ fontSize: '1rem', color: 'var(--ink-4)' }}>Not available</span>
+              )}
             </div>
             <small style={{ color: 'var(--ink-4)', fontSize: '0.72rem', marginTop: 4 }}>Inference queries routed</small>
           </div>
@@ -285,7 +289,7 @@ export default function UsersList() {
 
                       <td>
                         <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--ink)', fontWeight: 600 }}>
-                          {(u.totalRequests ?? 0).toLocaleString('en-IN')}
+                          {typeof u.totalRequests === 'number' ? u.totalRequests.toLocaleString('en-IN') : 'Not available'}
                         </span>
                       </td>
 
@@ -298,11 +302,11 @@ export default function UsersList() {
                               borderRadius: '50%',
                               display: 'inline-block',
                               backgroundColor:
-                                (u.successRate ?? 100) >= 99.5
+                                (u.successRate ?? -1) >= 99.5
                                   ? 'var(--brand-hi, #76b900)'
-                                  : (u.successRate ?? 100) >= 98.0
+                                  : (u.successRate ?? -1) >= 98.0
                                   ? '#38bdf8'
-                                  : '#f59e0b',
+                                  : u.successRate === null || u.successRate === undefined ? 'var(--ink-4)' : '#f59e0b',
                             }}
                           />
                           <span
@@ -311,15 +315,15 @@ export default function UsersList() {
                               fontSize: '0.78rem',
                               fontWeight: 600,
                               color:
-                                (u.successRate ?? 100) >= 99.5
+                                (u.successRate ?? -1) >= 99.5
                                   ? 'var(--brand-hi, #76b900)'
-                                  : (u.successRate ?? 100) >= 98.0
+                                  : (u.successRate ?? -1) >= 98.0
                                   ? '#38bdf8'
-                                  : '#f59e0b',
+                                  : u.successRate === null || u.successRate === undefined ? 'var(--ink-4)' : '#f59e0b',
                             }}
                             title="Reliability of the user's API requests"
                           >
-                            {u.totalRequests === 0 ? '100%' : `${(u.successRate ?? 99.8).toFixed(1)}%`}
+                            {typeof u.successRate === 'number' ? `${u.successRate.toFixed(1)}%` : 'Not available'}
                           </span>
                         </div>
                       </td>
@@ -412,14 +416,14 @@ export default function UsersList() {
               <div style={{ padding: 12, borderRadius: 8, background: 'var(--bg-2)', border: '1px solid var(--line)' }}>
                 <span className="readout-label">Total Requests</span>
                 <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--ink)', fontSize: '0.95rem' }}>
-                  {(selectedUser.totalRequests ?? 0).toLocaleString('en-IN')} reqs
+                  {typeof selectedUser.totalRequests === 'number' ? `${selectedUser.totalRequests.toLocaleString('en-IN')} reqs` : 'Not available'}
                 </div>
               </div>
 
               <div style={{ padding: 12, borderRadius: 8, background: 'var(--bg-2)', border: '1px solid var(--line)' }}>
                 <span className="readout-label">Success Rate</span>
                 <div style={{ fontFamily: 'var(--font-mono)', fontWeight: 600, color: 'var(--brand-hi)', fontSize: '0.95rem' }}>
-                  {selectedUser.totalRequests === 0 ? '100%' : `${(selectedUser.successRate ?? 99.8).toFixed(1)}%`}
+                  {typeof selectedUser.successRate === 'number' ? `${selectedUser.successRate.toFixed(1)}%` : 'Not available'}
                 </div>
                 <small style={{ fontSize: '0.68rem', color: 'var(--ink-4)', display: 'block', marginTop: 2 }}>
                   API request reliability
@@ -447,6 +451,19 @@ export default function UsersList() {
               <button type="button" className="dash-btn-secondary" onClick={() => setSelectedUser(null)}>
                 Close
               </button>
+              {selectedUser.role === 'customer' && (
+                <button
+                  type="button"
+                  className="dash-btn-secondary"
+                  onClick={() => {
+                    const id = selectedUser.id
+                    setSelectedUser(null)
+                    navigate(`/dashboard/customers?customer=${encodeURIComponent(id)}`)
+                  }}
+                >
+                  Manage customer account
+                </button>
+              )}
               <button
                 type="button"
                 className="dash-btn-primary"

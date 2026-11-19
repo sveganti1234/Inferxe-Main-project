@@ -7,15 +7,17 @@ import {
 import { authenticateCognitoRequest, readCustomerJsonBody, sendCustomerJson } from '../auth/customerAuth.js'
 import { verifyAdminToken } from '../auth/adminAuth.js'
 import { getSupabaseAdminClient } from '../lib/supabase.js'
+import { handleAdminCustomerApi } from './adminCustomersApi.js'
 
 const WORKSPACE_SELECTS = {
   organizations: 'id, name, slug, billing_email, status, created_at',
   organization_members: 'id, organization_id, user_id, member_role, status, joined_at, created_at',
+  customer_plans: 'user_id, tier, trial_started_at, trial_ends_at, updated_at',
   user_access_policies: 'id, user_id, organization_id, model_access, selected_models, provider_access, selected_providers, api_access, analytics_access, monthly_spend_limit, rate_limit, created_at, updated_at',
   gpu_providers: 'id, name, slug, region, status, created_at, updated_at',
   gpu_listings: 'id, provider_id, name, gpu_model, vram, architecture, bandwidth, tflops, region, quantity, hourly_price, currency, status, created_at, updated_at',
   saved_gpu_listings: 'id, user_id, listing_id, created_at',
-  deployments: 'id, user_id, organization_id, listing_id, name, model_name, gpu_model, region, status, hourly_rate, endpoint_url, started_at, stopped_at, metadata, created_at, updated_at',
+  deployments: 'id, user_id, organization_id, listing_id, name, model_name, gpu_model, region, status, hourly_rate, currency, endpoint_url, started_at, stopped_at, metadata, created_at, updated_at',
   orders: 'id, user_id, organization_id, deployment_id, order_number, item_name, provider_name, order_date, duration_minutes, total_cost, currency, status, details, created_at, updated_at',
   usage_records: 'id, user_id, organization_id, deployment_id, order_id, model_name, gpu_model, input_tokens, output_tokens, duration_seconds, amount, currency, recorded_at, metadata',
   wallet_accounts: 'id, user_id, organization_id, balance, currency, status, created_at, updated_at',
@@ -37,8 +39,8 @@ const STORAGE_BUCKETS = new Set([
 let cognitoAdminClient
 
 function getCognitoAdminClient() {
-  const region = process.env.AWS_REGION || process.env.AWS_COGNITO_REGION
-  if (!region) throw new Error('AWS_REGION must be configured for administrator invitations.')
+  const region = process.env.AWS_REGION || process.env.AWS_COGNITO_REGION || process.env.COGNITO_REGION
+  if (!region) throw new Error('A Cognito AWS region must be configured on the backend.')
   if (!cognitoAdminClient) cognitoAdminClient = new CognitoIdentityProviderClient({ region })
   return cognitoAdminClient
 }
@@ -130,6 +132,7 @@ async function getWorkspace(context) {
     getRows(supabase, 'notebook_sessions', WORKSPACE_SELECTS.notebook_sessions, 'user_id', claims.sub),
     getRows(supabase, 'inference_requests', WORKSPACE_SELECTS.inference_requests, 'user_id', claims.sub),
     getRows(supabase, 'user_access_policies', WORKSPACE_SELECTS.user_access_policies, 'user_id', claims.sub),
+    getRows(supabase, 'customer_plans', WORKSPACE_SELECTS.customer_plans, 'user_id', claims.sub),
   ]
 
   if (organizationIds.length) {
@@ -157,6 +160,7 @@ async function getWorkspace(context) {
     notebookSessions,
     inferenceRequests,
     accessPolicies,
+    customerPlans,
     organizationsResult,
   ] = results
 
@@ -192,6 +196,7 @@ async function getWorkspace(context) {
     order_reviews: reviews,
     notebook_sessions: notebookSessions,
     inference_requests: inferenceRequests,
+    customer_plans: customerPlans,
   }
 }
 
@@ -238,10 +243,40 @@ async function getAdminUsers(supabase) {
     policy,
   ]))
 
-  return users.map((user) => ({
-    ...user,
-    access_policy: policies.get(`${user.user_id}:${user.organization_id || ''}`) || null,
-  }))
+  const requestStats = await getInferenceRequestStats(supabase)
+
+  return users.map((user) => {
+    const stats = requestStats.get(user.user_id)
+    const total = stats?.total ?? 0
+    return {
+      ...user,
+      access_policy: policies.get(`${user.user_id}:${user.organization_id || ''}`) || null,
+      // Real counts from inference_requests; no rate exists without requests.
+      total_requests: total,
+      success_rate: total > 0 ? Math.round((stats.succeeded / total) * 1000) / 10 : null,
+    }
+  })
+}
+
+/**
+ * Per-user request totals from inference_requests (status 'success' counts as succeeded).
+ * shortcut: scans rows in pages of 1000 in Node; move to a SQL view/RPC once request volume grows.
+ */
+async function getInferenceRequestStats(supabase) {
+  const stats = new Map()
+  const pageSize = 1000
+  for (let from = 0; ; from += pageSize) {
+    const page = await supabase.from('inference_requests').select('user_id, status').order('id').range(from, from + pageSize - 1)
+    if (page.error) throw page.error
+    for (const row of page.data || []) {
+      const entry = stats.get(row.user_id) || { total: 0, succeeded: 0 }
+      entry.total += 1
+      if (typeof row.status === 'string' && row.status.toLowerCase() === 'success') entry.succeeded += 1
+      stats.set(row.user_id, entry)
+    }
+    if (!page.data || page.data.length < pageSize) break
+  }
+  return stats
 }
 
 function validateStoragePath(path, userId) {
@@ -481,6 +516,9 @@ async function handleAdminApi(req, res, path) {
 
   try {
     const supabase = getSupabaseAdminClient()
+    if (path === '/api/admin/customers' || path.startsWith('/api/admin/customers/')) {
+      return await handleAdminCustomerApi(req, res, path, { supabase, admin, getCognitoClient: getCognitoAdminClient })
+    }
     if (path === '/api/admin/data/users' && req.method === 'GET') {
       return sendJson(res, 200, { ok: true, users: await getAdminUsers(supabase) })
     }
@@ -755,7 +793,9 @@ export function createSupabaseApiMiddleware() {
   return async function supabaseApiMiddleware(req, res, next) {
     const path = (req.url || '/').split('?')[0]
     if (path.startsWith('/api/customer/')) return handleCustomerApi(req, res, path)
-    if (path.startsWith('/api/admin/data/')) return handleAdminApi(req, res, path)
+    if (path.startsWith('/api/admin/data/') || path === '/api/admin/customers' || path.startsWith('/api/admin/customers/')) {
+      return handleAdminApi(req, res, path)
+    }
     return next()
   }
 }

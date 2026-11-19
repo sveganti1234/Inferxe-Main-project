@@ -28,6 +28,9 @@ const DashboardOverview = lazy(() => import('./pages/dashboard/DashboardOverview
 const MarketplaceWorkspace = lazy(() => import('./pages/dashboard/MarketplaceWorkspace'))
 const CustomerManagement = lazy(() => import('./pages/dashboard/CustomerManagement'))
 const CustomerVerdeloWorkspace = lazy(() => import('./components/dashboard/CustomerVerdeloWorkspace'))
+const CustomerApp = lazy(() => import('./features/customer/CustomerApp'))
+const CustomerEntryRedirect = lazy(() => import('./features/customer/CustomerEntryRedirect'))
+const LegacyWorkspaceRedirect = lazy(() => import('./features/customer/LegacyWorkspaceRedirect'))
 import { CustomerHeartbeat } from './components/dashboard/CustomerHeartbeat'
 const Login = lazy(() => import('./pages/Login'))
 import { AdminGuard } from './components/auth/AdminGuard'
@@ -129,11 +132,12 @@ export default function App() {
                 </AdminGuard>
               }
             />
+            {/* Old customer entry: signed-in customers land in the native console; Verdelo-only tabs keep working via /dashboard/legacy. */}
             <Route
               path="/dashboard/customer"
               element={
                 <CustomerGuard>
-                  <CustomerVerdeloWorkspace />
+                  <CustomerEntryRedirect />
                 </CustomerGuard>
               }
             />
@@ -141,7 +145,33 @@ export default function App() {
               path="/dashboard/customer/*"
               element={
                 <CustomerGuard>
+                  <CustomerEntryRedirect />
+                </CustomerGuard>
+              }
+            />
+            {/* Explicit, guarded legacy/rollback route: the previous Verdelo iframe dashboard, unchanged. Never a login destination. */}
+            <Route
+              path="/dashboard/legacy"
+              element={
+                <CustomerGuard>
                   <CustomerVerdeloWorkspace />
+                </CustomerGuard>
+              }
+            />
+            <Route
+              path="/dashboard/legacy/*"
+              element={
+                <CustomerGuard>
+                  <CustomerVerdeloWorkspace />
+                </CustomerGuard>
+              }
+            />
+            {/* Inferxe Console: the native customer dashboard. */}
+            <Route
+              path="/dashboard/app/*"
+              element={
+                <CustomerGuard>
+                  <CustomerApp />
                 </CustomerGuard>
               }
             />
@@ -153,11 +183,12 @@ export default function App() {
               path="/dashboard/verdelo/*"
               element={<CustomerVerdeloWorkspace />}
             />
+            {/* Customer catch-all: old /dashboard/<page> workspace pages go to their native console equivalent. */}
             <Route
               path="/dashboard/*"
               element={
                 <CustomerGuard>
-                  <MarketplaceWorkspace />
+                  <LegacyWorkspaceRedirect />
                 </CustomerGuard>
               }
             />

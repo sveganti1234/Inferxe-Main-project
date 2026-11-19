@@ -156,11 +156,14 @@ function sendJson(req, res, statusCode, data) {
  * Creates connect/http middleware to handle `/api/admin/*` authentication endpoints.
  */
 export function createAdminAuthMiddleware(config = {}) {
+  // Administrator credentials come only from server-side configuration — there are no defaults.
+  // ADMIN_INITIAL_PASSWORD is accepted when ADMIN_PASSWORD is not set.
   const getAdminEmail = () =>
-    (process.env.ADMIN_EMAIL || config.adminEmail || 'admin@inferxe.com').trim().toLowerCase()
-  const getAdminPassword = () => process.env.ADMIN_PASSWORD || config.adminPassword || 'admin123'
+    String(process.env.ADMIN_EMAIL || config.adminEmail || '').trim().toLowerCase()
+  const getAdminPassword = () =>
+    String(process.env.ADMIN_PASSWORD || process.env.ADMIN_INITIAL_PASSWORD || config.adminPassword || '')
   const getSessionSecret = () =>
-    process.env.ADMIN_SESSION_SECRET || config.sessionSecret || 'inferxe_dev_secret_key_2026_super_secure'
+    String(process.env.ADMIN_SESSION_SECRET || config.sessionSecret || '')
   const isConfigured = () =>
     Boolean(getAdminEmail() && getAdminPassword() && getSessionSecret().length >= 32)
 
@@ -207,9 +210,8 @@ export function createAdminAuthMiddleware(config = {}) {
         const normalizedEmail = email.toLowerCase()
         const targetAdminEmail = getAdminEmail()
 
-        // Check if the submitted email matches configured admin email
-        const adminEmails = [targetAdminEmail, 'admin@inferxe.com', 'alex.chen@inferxe.internal', 'bhumireddy@inferxe.com']
-        if (!adminEmails.includes(normalizedEmail)) {
+        // Only the configured administrator email is an admin account
+        if (normalizedEmail !== targetAdminEmail) {
           // Not an admin account. Inform frontend so it can cleanly proceed to customer login.
           return sendJson(req, res, 200, {
             ok: false,
@@ -218,21 +220,8 @@ export function createAdminAuthMiddleware(config = {}) {
           })
         }
 
-        const targetAdminPassword = getAdminPassword()
-
-        // Accept configured password, plus standard admin passwords used by the team
-        const validAdminPasswords = [
-          targetAdminPassword,
-          'admin123',
-          'admin@123',
-          'Admin@123',
-          'admin',
-          'Admin123',
-          'Inferxe@2026',
-          'Qwerty@123',
-        ].filter(Boolean)
-
-        const isPasswordValid = validAdminPasswords.some((p) => constantTimeCompare(password, p))
+        // Only the configured administrator password is accepted
+        const isPasswordValid = constantTimeCompare(password, getAdminPassword())
 
         if (!isPasswordValid) {
           return sendJson(req, res, 401, {

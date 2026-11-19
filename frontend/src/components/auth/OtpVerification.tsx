@@ -267,10 +267,18 @@ export function OtpVerification({
         msg = 'Incorrect verification code. Please check your email and try again.'
       } else if (errName === 'ExpiredCodeException' || rawMsg.includes('ExpiredCode') || rawMsg.toLowerCase().includes('expired')) {
         msg = 'The verification code has expired. Please click Resend to receive a new code.'
-      } else if (errName === 'NotAuthorizedException' && rawMsg.toLowerCase().includes('already confirmed')) {
+      } else if (
+        errName === 'NotAuthorizedException' &&
+        /already confirmed|current status is confirmed/i.test(rawMsg)
+      ) {
+        // Cognito reports the account is already confirmed: verification is genuinely complete.
         msg = 'This account has already been verified in AWS Cognito. Redirecting to Sign In...'
         window.setTimeout(() => onSuccessRedirect(), 1200)
-      } else if (errName === 'LimitExceededException' || rawMsg.toLowerCase().includes('limit')) {
+      } else if (
+        errName === 'LimitExceededException' ||
+        errName === 'TooManyFailedAttemptsException' ||
+        rawMsg.toLowerCase().includes('limit')
+      ) {
         msg = 'Attempt limit exceeded. Please wait a few moments before trying again.'
       } else if (errName === 'ResourceNotFoundException') {
         msg = 'AWS Cognito User Pool or Client ID not found (ResourceNotFoundException). Please verify your AWS Cognito configuration in ap-south-1.'
@@ -307,6 +315,12 @@ export function OtpVerification({
       let msg = 'Failed to resend verification code. Please try again.'
       if (errName === 'LimitExceededException') {
         msg = 'Attempt limit exceeded. Please wait a few moments before requesting a new code.'
+      } else if (errName === 'InvalidParameterException' && /already confirmed/i.test(rawMsg)) {
+        msg = 'This account has already been verified. Please sign in.'
+      } else if (errName === 'CodeDeliveryFailureException') {
+        msg = 'The verification email could not be delivered. Please check the address or try again later.'
+      } else if (errName === 'UserNotFoundException') {
+        msg = 'We could not find this pending sign-up in AWS Cognito. Please create your account again.'
       } else if (errName === 'ResourceNotFoundException') {
         msg = 'AWS Cognito User Pool or Client ID not found (ResourceNotFoundException).'
       } else if (rawMsg && rawMsg !== 'Unknown error') {

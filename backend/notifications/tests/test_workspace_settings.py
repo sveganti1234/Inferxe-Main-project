@@ -1,7 +1,7 @@
 """
 Backend Test Suite for Workspace Settings & Quotas Persistence
 Tests:
-1. Retrieval of default workspace settings and current spend
+1. Unconfigured budget is reported as not set (no default stored on read, no invented spend)
 2. Updating monthly spending limit, threshold alerts, and CORS origins
 3. Validation: Negative spending limit rejection (400)
 4. Customer tenant isolation between multiple users
@@ -41,12 +41,14 @@ def run_tests():
     assert res.status_code == 200, f"Expected 200, got {res.status_code}: {res.text}"
     data = res.json()
     assert data["user_id"] == uid_a
-    assert data["monthly_budget"] == 10000.0
+    assert data["monthly_budget"] is None
+    assert data["budget_configured"] is False
     assert data["spending_alerts_enabled"] is True
     assert data["weekly_report_enabled"] is False
-    assert "https://app.novatech.ai" in data["cors_origins"]
-    assert data["current_month_spend"] == 4820.0
-    print("      Default settings retrieved successfully (Budget: ₹10,000, Spend: ₹4,820)")
+    assert "current_month_spend" not in data
+    # Reading must not store a default that would later look like a configured budget
+    assert client.get("/api/workspace/settings", headers=headers_a).json()["budget_configured"] is False
+    print("      Unconfigured budget reported as not set; nothing stored on read")
 
     # 2. Test POST update settings
     print("\n[TEST 2] Updating workspace budget and preferences for User A...")
@@ -60,6 +62,7 @@ def run_tests():
     assert res.status_code == 200, f"Expected 200, got {res.status_code}: {res.text}"
     data = res.json()
     assert data["monthly_budget"] == 25000.0
+    assert data["budget_configured"] is True
     assert data["weekly_report_enabled"] is True
     assert "http://localhost:5173" in data["cors_origins"]
     print("      Workspace settings updated to ₹25,000 budget and weekly reporting active")
@@ -80,7 +83,7 @@ def run_tests():
     assert res_b.status_code == 200
     data_b = res_b.json()
     assert data_b["user_id"] == uid_b
-    assert data_b["monthly_budget"] == 10000.0, f"User B should see their own default budget, got {data_b['monthly_budget']}"
+    assert data_b["monthly_budget"] is None and data_b["budget_configured"] is False, f"User B must not see a budget, got {data_b}"
 
     # Update User B to ₹50,000
     client.post("/api/workspace/settings", json={"monthly_budget": 50000.0}, headers=headers_b)
@@ -95,6 +98,7 @@ def run_tests():
     res_final = client.get("/api/workspace/settings", headers=headers_a)
     data_final = res_final.json()
     assert data_final["monthly_budget"] == 25000.0
+    assert data_final["budget_configured"] is True
     assert data_final["weekly_report_enabled"] is True
     print("      Persistence verified successfully across all storage fields.")
 

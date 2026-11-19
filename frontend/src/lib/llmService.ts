@@ -12,7 +12,7 @@
  */
 
 import { OLLAMA_CHAT_ENDPOINT, RAG_CHAT_ENDPOINT } from './apiConfig'
-import { getSession, getCognitoTokenFromStorage } from './authStore'
+import { ensureFreshSession } from './authStore'
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant'
@@ -127,7 +127,7 @@ export async function queryFineTunedModel(
     const ragController = new AbortController()
     const ragTimeout = setTimeout(() => ragController.abort(), 15000)
 
-    const token = getCognitoTokenFromStorage() || getSession()?.token
+    const token = (await ensureFreshSession())?.token
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
     }

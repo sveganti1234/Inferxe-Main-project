@@ -7,7 +7,7 @@
  * the backend derives user_id strictly from the JWT 'sub' claim.
  */
 
-import { getSession } from './authStore'
+import { getSession, ensureFreshSession } from './authStore'
 
 const NOTIFICATIONS_API_BASE =
   (import.meta.env.VITE_NOTIFICATIONS_API_ENDPOINT as string | undefined)?.replace(/\/$/, '') ||
@@ -81,7 +81,7 @@ export async function fetchWalletBalance(): Promise<{
   unauthorized?: boolean
 }> {
   try {
-    const session = getSession()
+    const session = await ensureFreshSession()
     if (!session?.token) {
       return { ok: false, unauthorized: true, error: 'Please sign in to view your wallet balance.' }
     }
@@ -130,7 +130,7 @@ export async function topUpWallet(
   unauthorized?: boolean
 }> {
   try {
-    const session = getSession()
+    const session = await ensureFreshSession()
     if (!session?.token) {
       return { ok: false, unauthorized: true, error: 'Please sign in to top up your wallet.' }
     }

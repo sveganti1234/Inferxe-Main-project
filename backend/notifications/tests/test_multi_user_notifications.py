@@ -147,11 +147,17 @@ def run_multi_user_verification():
     tx_key_a = f"tx_recharge_{uuid.uuid4().hex[:8]}"
     resp = client.post(
         "/api/wallet/transactions",
-        json={"amount": 5000.0, "idempotency_key": tx_key_a},
+        json={"amount": 5000.0, "idempotency_key": f"self_{tx_key_a}"},
         headers=headers_a
     )
+    assert resp.status_code == 403, f"Customer self-credit must be rejected, got {resp.status_code}"
+    resp = client.post(
+        "/api/wallet/transactions",
+        json={"amount": 5000.0, "idempotency_key": tx_key_a, "target_user_id": cust_a_id},
+        headers=headers_admin
+    )
     assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text}"
-    print(f"[PASS] Test 7: Customer A wallet recharge successful (amount=₹5000, balance=₹{resp.json()['new_balance']})")
+    print(f"[PASS] Test 7: Admin credit to Customer A wallet successful (amount=₹5000, balance=₹{resp.json()['new_balance']})")
 
     # Verify Customer A has WALLET_RECHARGE_SUCCESS notification
     resp_a = client.get("/api/notifications", headers=headers_a)

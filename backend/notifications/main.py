@@ -1,6 +1,6 @@
 """
 FastAPI Application Entry Point for Inferxe Notification Service.
-Runs standalone on port 8000 or can be imported into existing services.
+Runs standalone on port 8002 or can be imported into existing services.
 """
 
 import sys
@@ -416,5 +416,5 @@ def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.getenv("NOTIFICATIONS_PORT", 8000))
+    port = int(os.getenv("NOTIFICATIONS_PORT", 8002))
     uvicorn.run("backend.notifications.main:app", host="127.0.0.1", port=port, reload=True)

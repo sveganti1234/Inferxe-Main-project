@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
-import { getSession, getPortalRole } from '../../lib/authStore'
+import { ensureFreshSession, getPortalRole } from '../../lib/authStore'
 
 interface CustomerGuardProps {
   children: ReactNode
@@ -16,36 +16,56 @@ export function CustomerGuard({ children }: CustomerGuardProps) {
   const [authState, setAuthState] = useState<'checking' | 'authorized' | 'to_admin' | 'to_login'>('checking')
 
   useEffect(() => {
-    const session = getSession()
+    let active = true
 
-    // 1. Must have an active session
-    if (!session || !session.token) {
-      setAuthState('to_login')
-      return
-    }
+    const evaluate = async () => {
+      // 1. Must have a session with a currently valid token. Customer sessions are refreshed
+      //    through Amplify when expired; a failed refresh clears the session.
+      const session = await ensureFreshSession()
+      if (!active) return
 
-    const role = getPortalRole(session.user?.role)
-    const subpath = location.pathname.replace(/^\/dashboard\/?/, '')
-    const isAdminRoute = subpath.startsWith('provider') || subpath === 'users/map'
-
-    // 2. Admin accounts accessing admin/provider routes are authorized; customer-only routes redirect to /dashboard
-    if (role === 'admin') {
-      if (isAdminRoute) {
-        setAuthState('authorized')
+      if (!session || !session.token) {
+        setAuthState('to_login')
         return
       }
-      setAuthState('to_admin')
-      return
+
+      const role = getPortalRole(session.user?.role)
+      const subpath = location.pathname.replace(/^\/dashboard\/?/, '')
+      const isAdminRoute = subpath.startsWith('provider') || subpath === 'users/map'
+
+      // 2. Admin accounts accessing admin/provider routes are authorized (AdminGuard verifies them
+      //    with the server); customer-only routes redirect to /dashboard
+      if (role === 'admin') {
+        setAuthState(isAdminRoute ? 'authorized' : 'to_admin')
+        return
+      }
+
+      // 3. Customer accounts must not access admin/provider management routes
+      if (isAdminRoute) {
+        setAuthState('to_admin')
+        return
+      }
+
+      // 4. Authorized customer
+      setAuthState('authorized')
     }
 
-    // 3. Customer accounts must not access admin/provider management routes
-    if (isAdminRoute) {
-      setAuthState('to_admin')
-      return
+    void evaluate()
+    // Re-evaluate when the session changes elsewhere (sign-out, refresh failure, another tab).
+    const onAuthChange = () => void evaluate()
+    window.addEventListener('inferxe_auth_change', onAuthChange)
+    window.addEventListener('storage', onAuthChange)
+    // Back/forward navigation can restore a stale page from the bfcache: re-verify the session then.
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) void evaluate()
     }
-
-    // 4. Authorized customer
-    setAuthState('authorized')
+    window.addEventListener('pageshow', onPageShow)
+    return () => {
+      window.removeEventListener('pageshow', onPageShow)
+      active = false
+      window.removeEventListener('inferxe_auth_change', onAuthChange)
+      window.removeEventListener('storage', onAuthChange)
+    }
   }, [location.pathname])
 
   if (authState === 'checking') {

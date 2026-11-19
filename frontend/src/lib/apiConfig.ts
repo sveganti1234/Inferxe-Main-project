@@ -17,12 +17,12 @@ export const INFERENCE_API_BASE = cleanBaseUrl(
   import.meta.env.VITE_INFERENCE_API_ENDPOINT as string | undefined,
 )
 
-/** Base URL for FastAPI Notifications, Wallet & GPU Telemetry (port 8000 via Vite proxy) */
+/** Base URL for FastAPI Notifications, Wallet & GPU Telemetry (port 8002 via Vite proxy) */
 export const NOTIFICATIONS_API_BASE = cleanBaseUrl(
   import.meta.env.VITE_NOTIFICATIONS_API_ENDPOINT as string | undefined,
 )
 
-/** Endpoint for the FastAPI RAG Chatbot pipeline (port 8000 via Vite proxy `/api/chat`) */
+/** Endpoint for the FastAPI RAG Chatbot pipeline (port 8002 via Vite proxy `/api/chat`) */
 export const RAG_CHAT_ENDPOINT =
   cleanBaseUrl(import.meta.env.VITE_RAG_API_ENDPOINT as string | undefined) || '/api/chat'
 

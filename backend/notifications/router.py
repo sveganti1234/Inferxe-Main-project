@@ -45,6 +45,13 @@ class WalletTransactionRequest(BaseModel):
     type: Optional[str] = None
     description: Optional[str] = "Wallet Transaction"
     idempotency_key: Optional[str] = None
+    # Administrators only: the customer whose wallet is credited (defaults to the caller).
+    target_user_id: Optional[str] = Field(default=None, min_length=1, max_length=128)
+    # Required for administrator credits; recorded in the transaction and the audit history.
+    reason: Optional[str] = Field(default=None, max_length=500)
+
+# Single administrator credit ceiling (INR) to catch typing mistakes; larger credits need several entries.
+MAX_ADMIN_CREDIT = 1_000_000
 
 class DeploymentStatusRequest(BaseModel):
     deployment_id: str = Field(..., min_length=1)
@@ -236,15 +243,36 @@ def process_wallet_transaction(
 ):
     """
     Integrated wallet endpoint:
-    - Amount > 0: Recharges wallet and generates WALLET_RECHARGE notification.
-    - Amount < 0: Debits wallet and generates WALLET_DEBIT and threshold notifications.
+    - Amount > 0: Recharges a wallet (administrators only — there is no verified payment flow yet,
+      so customers cannot credit themselves) and generates WALLET_RECHARGE notification.
+    - Amount < 0: Debits the caller's own wallet and generates WALLET_DEBIT and threshold notifications.
     """
+    if req.amount >= 0 and not user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Wallet top-ups are not self-service yet. Please contact Inferxe support to add funds.",
+        )
+    if req.target_user_id and not user.is_admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only administrators can act on another wallet.")
+    if req.target_user_id and req.amount < 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="target_user_id is only supported for credits.")
+    admin_credit = None
+    if req.amount >= 0:
+        reason = (req.reason or "").strip()
+        if not req.target_user_id:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Choose the customer whose wallet should be credited (target_user_id).")
+        if len(reason) < 3:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Please give a reason (at least 3 characters) for the audit history.")
+        if not (0 < req.amount <= MAX_ADMIN_CREDIT):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Credit must be greater than 0 and at most {MAX_ADMIN_CREDIT:,}.")
+        admin_credit = {"administrator_email": user.email or user.user_id, "reason": reason}
     try:
         if req.amount >= 0:
             result = NotificationService.process_wallet_recharge(
-                user_id=user.user_id,
+                user_id=req.target_user_id or user.user_id,
                 amount=req.amount,
                 idempotency_key=req.idempotency_key,
+                admin_credit=admin_credit,
             )
         else:
             result = NotificationService.process_wallet_debit(
