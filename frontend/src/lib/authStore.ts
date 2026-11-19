@@ -500,6 +500,10 @@ export async function loginAdminBackend(
     }
 
     if (!res.ok) {
+      const isAdminCandidate = isAdministratorEmail(cleanEmail)
+      if (!isAdminCandidate) {
+        return { ok: false, isAdmin: false, statusCode: res.status }
+      }
       return {
         ok: false,
         isAdmin: false,
@@ -513,11 +517,12 @@ export async function loginAdminBackend(
     }
   } catch (err) {
     console.error('Admin backend login request failed:', err)
+    const isAdminCandidate = isAdministratorEmail(cleanEmail)
     return {
       ok: false,
       isAdmin: false,
-      backendError: true,
-      error: 'Unable to reach the administrator authentication backend.',
+      backendError: isAdminCandidate,
+      error: isAdminCandidate ? 'Unable to reach the administrator authentication backend.' : undefined,
     }
   }
 
