@@ -850,8 +850,7 @@ export function AdminShell() {
                             className="dash-nav-item dash-nav-item--danger"
                             onClick={async () => {
                               setAdminMenuOpen(false)
-                              clearSession()
-                              window.location.replace('/')
+                              await performSignOut('/')
                             }}
                           >
                             <LogOut size={15} /> Sign Out
