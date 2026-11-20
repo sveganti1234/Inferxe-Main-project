@@ -139,12 +139,13 @@ function validateEnvironment() {
   }
 }
 
-function buildPythonCandidates() {
+function buildPythonCandidates(customEnv = {}) {
   const isWin = process.platform === 'win32'
   const candidates = []
 
-  if (process.env.INFERXE_PYTHON) {
-    candidates.push({ label: 'INFERXE_PYTHON', command: process.env.INFERXE_PYTHON, prefixArgs: [] })
+  const inferxePython = customEnv.INFERXE_PYTHON || process.env.INFERXE_PYTHON
+  if (inferxePython) {
+    candidates.push({ label: 'INFERXE_PYTHON', command: inferxePython, prefixArgs: [] })
   }
 
   const venvNames = ['.venv311', '.venv', 'venv311', 'venv']
@@ -164,6 +165,12 @@ function buildPythonCandidates() {
   }
 
   if (isWin) {
+    if (process.env.LOCALAPPDATA) {
+      const localPyBin = path.join(process.env.LOCALAPPDATA, 'Python', 'bin', 'python.exe')
+      if (fs.existsSync(localPyBin)) {
+        candidates.push({ label: 'localappdata-python', command: localPyBin, prefixArgs: [] })
+      }
+    }
     candidates.push({ label: 'py -3.11', command: 'py', prefixArgs: ['-3.11'] })
     candidates.push({ label: 'py -3.12', command: 'py', prefixArgs: ['-3.12'] })
     candidates.push({ label: 'py -3', command: 'py', prefixArgs: ['-3'] })
@@ -206,11 +213,11 @@ function probePythonCandidate(candidate) {
   }
 }
 
-function discoverPythonInterpreter() {
+function discoverPythonInterpreter(customEnv = {}) {
   const seenExecutables = new Set()
   const probed = []
 
-  for (const candidate of buildPythonCandidates()) {
+  for (const candidate of buildPythonCandidates(customEnv)) {
     const info = probePythonCandidate(candidate)
     if (!info) continue
     const normExe = path.resolve(info.executable).toLowerCase()
@@ -335,7 +342,7 @@ async function main() {
     process.exit(1)
   }
 
-  const { selected, probed } = discoverPythonInterpreter()
+  const { selected, probed } = discoverPythonInterpreter(envCheck.effective)
   if (!selected) {
     console.error('[error] Could not find a Python interpreter with required Inferxe backend packages.')
     if (probed.length > 0) {
