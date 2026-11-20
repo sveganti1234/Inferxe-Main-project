@@ -1132,6 +1132,10 @@ export function createAdminAuthMiddleware(config = {}) {
         if (!auth.email) {
           return sendJson(req, res, 400, { ok: false, error: 'The customer token does not include an email address.' })
         }
+        // The profile email is written from the token below, so only a Cognito-verified email may be used.
+        if (auth.claims.email_verified !== true && auth.claims.email_verified !== 'true') {
+          return sendJson(req, res, 403, { ok: false, error: 'A verified customer email is required.' })
+        }
         const body = await parseJsonBody(req)
         const { claims, cognito_sub, email } = auth
         // Profile details are the customer's own; role and account_status are never taken from the client.
@@ -1380,46 +1384,6 @@ export function createAdminAuthMiddleware(config = {}) {
           return sendJson(req, res, 400, {
             ok: false,
             error: 'Please enter your email and password.',
-          })
-        }
-
-        const customerConfigEmail = (process.env.CUSTOMER_EMAIL || 'sahith490522mnp@gmail.com').toLowerCase().trim()
-        const customerConfigPassword = process.env.CUSTOMER_PASSWORD || 'Qwaszx12$'
-
-        if (email === customerConfigEmail && password === customerConfigPassword) {
-          const customerUser = {
-            id: 'c1030d2a-c011-70d7-5ca6-9aa45e612d5a',
-            email: customerConfigEmail,
-            username: 'sahith',
-            fullName: 'Veganti Sahith',
-            full_name: 'Veganti Sahith',
-            role: 'customer',
-            is_active: true,
-            status: 'active',
-            organization: 'Sahith Workspace',
-          }
-          const nowSec = Math.floor(Date.now() / 1000)
-          const expSec = nowSec + 30 * 24 * 3600
-          const payload = {
-            sub: customerUser.id,
-            sid: 'sess_' + crypto.randomUUID(),
-            email: customerUser.email,
-            role: 'customer',
-            name: customerUser.fullName,
-            fullName: customerUser.fullName,
-            organization: customerUser.organization,
-            iat: nowSec,
-            exp: expSec,
-          }
-          const token = createAdminToken(payload, getSessionSecret())
-          return sendJson(req, res, 200, {
-            ok: true,
-            isAdmin: false,
-            isCustomer: true,
-            role: 'customer',
-            token,
-            user: customerUser,
-            expiresAt: expSec * 1000,
           })
         }
 

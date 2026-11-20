@@ -186,6 +186,31 @@ test('verifier outage is a 503 and store errors are not echoed to the client', a
   assert.ok(!JSON.stringify(r.json).includes('internal db detail'))
 })
 
+test('activity requires a Cognito-verified email; unverified emails never reach the profile stores', async () => {
+  registerOrUpdateCustomer({ cognito_sub: 'sub-dave', email: 'dave@example.test', role: 'customer' })
+  const { calls, call } = setup()
+  const unverified = [{ email_verified: false }, { email_verified: 'false' }, { email_verified: undefined },
+    { email_verified: null }, { email_verified: 1 }, { email_verified: 'yes' }, { email_verified: 'TRUE ' },
+    { email_verified: undefined, 'cognito:user_status': 'CONFIRMED' }]
+  for (const claims of unverified) {
+    // A changed, unverified email on Dave's own token must not replace his stored email.
+    const token = idToken({ sub: 'sub-dave', email: 'victim@example.test', ...claims })
+    const r = await call('/api/customer/activity', { token, body: { isLogin: true } })
+    assert.equal(r.status, 403, JSON.stringify(claims))
+    assert.equal(r.json.ok, false)
+  }
+  assert.equal(calls.upsert.length, 0)
+  const rows = getDatabase().prepare('SELECT email FROM customers WHERE cognito_sub = ? OR email = ?').all('sub-dave', 'victim@example.test')
+  assert.deepEqual(rows.map((r) => r.email), ['dave@example.test'])
+
+  for (const email_verified of [true, 'true']) {
+    const r = await call('/api/customer/activity', { token: idToken({ sub: 'sub-dave', email: 'dave@example.test', email_verified }), body: {} })
+    assert.equal(r.status, 200, String(email_verified))
+  }
+  assert.equal(calls.upsert.length, 2)
+  assert.equal(calls.upsert[0].email, 'dave@example.test')
+})
+
 test.after(() => {
   try { closeDatabase() } catch {}
   fs.rmSync(tmpDir, { recursive: true, force: true })
