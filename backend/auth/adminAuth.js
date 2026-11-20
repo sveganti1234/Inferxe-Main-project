@@ -1518,9 +1518,15 @@ export function createAdminAuthMiddleware(config = {}) {
         if (!(err instanceof SyntaxError)) {
           console.error('[admin-auth] Login error:', err?.message || 'Unexpected error')
         }
+        const reqEmail = typeof email === 'string' ? email : ''
+        const isAdminCandidate =
+          isSuperadminEmail(reqEmail) ||
+          reqEmail.startsWith('admin@') ||
+          reqEmail.endsWith('@inferxe.com') ||
+          reqEmail.endsWith('@inferxe.internal')
         return sendJson(req, res, statusCode, {
           ok: false,
-          isAdmin: false,
+          isAdmin: isAdminCandidate,
           backendError: statusCode >= 500,
           code: statusCode >= 500 ? 'ADMIN_DB_UNAVAILABLE' : 'BAD_REQUEST',
           error: err instanceof SyntaxError

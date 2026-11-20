@@ -506,7 +506,7 @@ export async function loginAdminBackend(
       }
       return {
         ok: false,
-        isAdmin: false,
+        isAdmin: true,
         backendError: res.status >= 500 || Boolean(data.backendError),
         statusCode: res.status,
         code: typeof data.code === 'string' ? data.code : undefined,
@@ -520,7 +520,7 @@ export async function loginAdminBackend(
     const isAdminCandidate = isAdministratorEmail(cleanEmail)
     return {
       ok: false,
-      isAdmin: false,
+      isAdmin: isAdminCandidate,
       backendError: isAdminCandidate,
       error: isAdminCandidate ? 'Unable to reach the administrator authentication backend.' : undefined,
     }
