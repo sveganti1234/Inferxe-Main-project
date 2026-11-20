@@ -101,6 +101,16 @@ export function withTimeout<T>(promise: Promise<T>, ms = 30000): Promise<T> {
   return Promise.race([promise, timeout]).finally(() => clearTimeout(timer))
 }
 
+/** Cognito username to try first: the generated one from an unfinished sign-up of this email, else the email. */
+export function signInUsernameFor(email: string, pending: { email?: string; username?: string } | null): string {
+  return pending && pending.email === email && pending.username ? pending.username : email
+}
+
+/** Retry with the email only when the generated username no longer exists (never after other failures). */
+export function shouldRetrySignInWithEmail(candidate: string, email: string, err: unknown): boolean {
+  return candidate !== email && (err as { name?: unknown } | null)?.name === 'UserNotFoundException'
+}
+
 /** Translate an AWS Cognito / Amplify sign-in error into a message the customer can act on. */
 function describeCognitoSignInError(err: unknown): string {
   const cognitoError = (err && typeof err === 'object' ? err : {}) as { name?: unknown; message?: unknown }
@@ -129,6 +139,7 @@ function describeCognitoSignInError(err: unknown): string {
     case 'NetworkError':
       return 'Unable to reach AWS Cognito. Check your internet connection and try again.'
     case 'TimeoutError':
+    case 'ProfileSyncError':
       return message
     case 'InvalidParameterException':
     case 'ResourceNotFoundException':
@@ -347,23 +358,16 @@ export default function Login({ initialMode }: LoginProps) {
         console.warn('Could not clear previous Cognito session before sign-in:', err)
       }
 
-      const known = loadPendingVerification()
-      const candidateUsername =
-        known && known.email === cleanEmail && known.username
-          ? known.username
-          : cleanEmail === 'sahith490522mnp@gmail.com'
-            ? 'cust_sahith490522mnp'
-            : cleanEmail
-
-      let result: any
+      // An account from an unfinished sign-up in this browser may only be reachable by its generated
+      // Cognito username, so try that first. Fall back to the email only when Cognito reports that user
+      // does not exist; a wrong password, throttling or a timeout is never retried.
+      const candidateUsername = signInUsernameFor(cleanEmail, loadPendingVerification())
+      let result: Awaited<ReturnType<typeof signIn>>
       try {
         result = await withTimeout(signIn({ username: candidateUsername, password }))
-      } catch (firstErr: any) {
-        if (candidateUsername !== cleanEmail) {
-          result = await withTimeout(signIn({ username: cleanEmail, password }))
-        } else {
-          throw firstErr
-        }
+      } catch (firstErr) {
+        if (!shouldRetrySignInWithEmail(candidateUsername, cleanEmail, firstErr)) throw firstErr
+        result = await withTimeout(signIn({ username: cleanEmail, password }))
       }
 
       if (result.isSignedIn) {
@@ -573,16 +577,6 @@ export default function Login({ initialMode }: LoginProps) {
         // Validate credentials against the server-side admin authentication endpoint
         const adminResult = await loginAdminBackend(username, password)
         adminBackendErrorRef.current = (adminResult.isAdmin && adminResult.backendError) ? adminResult.error ?? null : null
-
-        if (adminResult.isCustomer) {
-          if (adminResult.ok) {
-            navigate(CUSTOMER_HOME_PATH, { replace: true })
-            return
-          } else {
-            setError(adminResult.error || 'Incorrect email or password.')
-            return
-          }
-        }
 
         if (adminResult.isAdmin) {
           if (adminResult.ok) {

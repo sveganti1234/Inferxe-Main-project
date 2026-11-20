@@ -320,40 +320,28 @@ export function resolveCustomerUsername({ existingProfile = null, claims = {}, e
   return 'customer'
 }
 
+/** Error carrying an HTTP status for the sign-in profile sync (e.g. 409 link refused, 503 lookup unavailable). */
+function profileLinkError(message, statusCode, code) {
+  return Object.assign(new Error(message), { statusCode, code })
+}
+
 /**
- * Check foreign-key dependencies across known Supabase tables before modifying an existing user_id.
- * Returns an object of { [tableName]: count } for any dependent records found.
+ * Audit a refused customer profile link: console (structured) and the audit_logs table when reachable.
+ * Identifiers only (Cognito subjects); never emails, names, tokens or secrets.
  */
-export async function checkForeignKeyDependencies(userId) {
-  if (!userId) return {}
-  const { url, key } = getSupabaseConfig()
-  const tables = [
-    'organization_members',
-    'chat_history',
-    'api_keys',
-    'ssh_public_keys',
-    'notebook_sessions',
-    'wallet_accounts',
-    'document_metadata',
-  ]
-  const references = {}
-  for (const table of tables) {
-    try {
-      const res = await fetch(
-        `${url}/rest/v1/${table}?user_id=eq.${encodeURIComponent(userId)}&select=user_id&limit=1`,
-        { headers: getAuthHeaders(key) },
-      )
-      if (res.ok) {
-        const rows = await res.json()
-        if (Array.isArray(rows) && rows.length > 0) {
-          references[table] = rows.length
-        }
-      }
-    } catch {
-      // Table might not exist or column might differ, ignore gracefully
-    }
+async function auditProfileLink({ outcome, reason, cognitoSub, existingUserId }) {
+  const details = { outcome, reason, cognito_sub: cognitoSub, existing_user_id: existingUserId }
+  console.warn('[customer-profile-link]', JSON.stringify(details))
+  try {
+    const { url, key } = getSupabaseConfig()
+    await fetch(`${url}/rest/v1/audit_logs`, {
+      method: 'POST',
+      headers: { ...getAuthHeaders(key), Prefer: 'return=minimal' },
+      body: JSON.stringify({ action: `customer.profile_link.${outcome}`, target_type: 'profile', target_id: existingUserId || null, details }),
+    })
+  } catch {
+    // Audit storage is best effort; the console record above always exists.
   }
-  return references
 }
 
 /**
@@ -381,68 +369,41 @@ export async function upsertCustomerProfile({
 
   // 1. First check if profile already exists by user_id
   let existingProfile = null
-  try {
-    const lookupRes = await fetch(`${url}/rest/v1/profiles?user_id=eq.${encodeURIComponent(cognito_sub)}&select=*`, {
-      headers: getAuthHeaders(key),
-    })
-    if (lookupRes.ok) {
-      const rows = await lookupRes.json()
-      if (Array.isArray(rows) && rows.length > 0) {
-        existingProfile = rows[0]
-      }
-    }
-  } catch (err) {
-    console.warn('[supabaseCustomerService] Lookup warning by user_id:', err.message)
-  }
-
-  // 2. If not found by user_id, check by email to resolve previously registered / seeded customers
-  if (!existingProfile) {
+  const lookupRows = async (filter) => {
+    let lookupRes
     try {
-      const emailLookupRes = await fetch(`${url}/rest/v1/profiles?email=eq.${encodeURIComponent(cleanEmail)}&select=*`, {
-        headers: getAuthHeaders(key),
-      })
-      if (emailLookupRes.ok) {
-        const rows = await emailLookupRes.json()
-        if (Array.isArray(rows) && rows.length > 0) {
-          const profileByEmail = rows[0]
-          const oldUserId = profileByEmail.user_id
-
-          if (oldUserId && oldUserId !== cognito_sub) {
-            // Check foreign-key dependencies before changing user_id
-            const foreignDeps = await checkForeignKeyDependencies(oldUserId)
-            if (Object.keys(foreignDeps).length > 0) {
-              console.log(`[supabaseCustomerService] Cascading foreign keys for user ${oldUserId}:`, foreignDeps)
-              for (const depTable of Object.keys(foreignDeps)) {
-                try {
-                  await fetch(`${url}/rest/v1/${depTable}?user_id=eq.${encodeURIComponent(oldUserId)}`, {
-                    method: 'PATCH',
-                    headers: getAuthHeaders(key),
-                    body: JSON.stringify({ user_id: cognito_sub }),
-                  })
-                } catch (cascadeErr) {
-                  console.warn(`[supabaseCustomerService] Cascade error on ${depTable}:`, cascadeErr.message)
-                }
-              }
-            }
-
-            // Safely update the profile user_id to match the new Cognito sub
-            try {
-              await fetch(`${url}/rest/v1/profiles?user_id=eq.${encodeURIComponent(oldUserId)}`, {
-                method: 'PATCH',
-                headers: getAuthHeaders(key),
-                body: JSON.stringify({ user_id: cognito_sub }),
-              })
-              profileByEmail.user_id = cognito_sub
-            } catch (updateIdErr) {
-              console.warn('[supabaseCustomerService] Profile user_id update error:', updateIdErr.message)
-            }
-          }
-          existingProfile = profileByEmail
-        }
-      }
+      lookupRes = await fetch(`${url}/rest/v1/profiles?${filter}&select=*`, { headers: getAuthHeaders(key) })
     } catch (err) {
-      console.warn('[supabaseCustomerService] Lookup warning by email:', err.message)
+      console.warn('[supabaseCustomerService] Profile lookup failed:', err.message)
     }
+    if (!lookupRes || !lookupRes.ok) {
+      throw profileLinkError('Customer profile service is temporarily unavailable.', 503, 'PROFILE_LOOKUP_UNAVAILABLE')
+    }
+    const rows = await lookupRes.json()
+    return Array.isArray(rows) ? rows : []
+  }
+  existingProfile = (await lookupRows(`user_id=eq.${encodeURIComponent(cognito_sub)}`))[0] || null
+
+  // 2. No profile for this Cognito subject: the email must not belong to another identity's profile.
+  //    A verified email alone is not proof of owning an existing profile (deleted/recreated accounts, reassigned
+  //    mailboxes), and its related data cannot be moved atomically here, so such profiles are never re-keyed or
+  //    inherited. Resolving a genuine identity change is an admin-mediated process.
+  if (!existingProfile) {
+    const byEmail = (await lookupRows(`email=eq.${encodeURIComponent(cleanEmail)}`))[0] || null
+    if (byEmail && byEmail.user_id !== cognito_sub) {
+      await auditProfileLink({
+        outcome: 'refused',
+        reason: byEmail.role && byEmail.role !== 'customer' ? 'email_belongs_to_non_customer_profile' : 'email_belongs_to_other_identity',
+        cognitoSub: cognito_sub,
+        existingUserId: byEmail.user_id,
+      })
+      throw profileLinkError(
+        'This email address is already linked to a different sign-in. Please contact Inferxe support.',
+        409,
+        'PROFILE_LINK_REFUSED',
+      )
+    }
+    existingProfile = byEmail
   }
 
   const currentCount =
@@ -470,6 +431,14 @@ export async function upsertCustomerProfile({
     fullName: cleanFullName,
   })
 
+  // Existing status is kept (inactive, suspended and pending are never silently changed), except that an
+  // admin-invited profile (pending, created with this Cognito subject) becomes active on its owner's sign-in.
+  const profileStatus = !existingProfile
+    ? 'active'
+    : existingProfile.status === 'pending' && isLogin && existingProfile.user_id === cognito_sub
+      ? 'active'
+      : existingProfile.status || 'active'
+
   // Full extended payload
   const extendedPayload = {
     user_id: cognito_sub,
@@ -477,7 +446,7 @@ export async function upsertCustomerProfile({
     email: cleanEmail,
     username,
     role: existingProfile?.role || 'customer',
-    status: existingProfile?.status === 'suspended' ? 'suspended' : 'active',
+    status: profileStatus,
     auth_provider: 'cognito',
     updated_at: nowIso,
     login_count: newLoginCount,
@@ -505,7 +474,7 @@ export async function upsertCustomerProfile({
     email: cleanEmail,
     username,
     role: existingProfile?.role || 'customer',
-    status: existingProfile?.status === 'suspended' ? 'suspended' : 'active',
+    status: profileStatus,
     auth_provider: 'cognito',
     last_active_at: isLogin ? nowIso : (existingProfile?.last_active_at || null),
     updated_at: nowIso,
@@ -570,8 +539,13 @@ export async function upsertCustomerProfile({
     throw new Error(`Failed to upsert Supabase profile: HTTP ${res.status} - ${text}`)
   }
 
-  const data = await res.json().catch(() => [extendedPayload])
-  const savedRow = Array.isArray(data) && data.length > 0 ? data[0] : extendedPayload
+  // Return only what the database confirms it stored (never the request payload): a PATCH matching no row
+  // or an unreadable response is a failed sync.
+  const data = await res.json().catch(() => null)
+  const savedRow = Array.isArray(data) ? data[0] : null
+  if (!savedRow?.user_id || savedRow.user_id !== cognito_sub) {
+    throw new Error('Supabase did not return the saved customer profile.')
+  }
   return formatCustomerRecord(savedRow)
 }
 
