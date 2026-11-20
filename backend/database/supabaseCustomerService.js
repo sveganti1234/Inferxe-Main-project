@@ -15,6 +15,7 @@ import {
   removeSession,
   hasOtherActiveSessionsDb,
   cleanExpiredSessionsDb,
+  listOnlineSessionKeysDb,
 } from './customerDatabase.js'
 
 loadBackendEnv()
@@ -668,77 +669,212 @@ export async function recordCustomerLogout({ cognito_sub, email, session_id }) {
   return Boolean(res && res.ok)
 }
 
-/**
- * Fetch dynamic summary metrics for Super Admin dashboard cards.
- */
-export async function getCustomerSummary({ accountType = 'all' } = {}) {
-  const { url, key } = getSupabaseConfig()
-  const res = await fetch(`${url}/rest/v1/profiles?select=*`, {
-    headers: getAuthHeaders(key),
-  })
+// ── Server-side customer list and summary ─────────────────────────────────────────────────────────
+// Filtering, search, sorting, pagination and counts run in Postgres (PostgREST), so an admin page view
+// downloads one page of rows plus count-only responses, never the whole profiles table. The rules mirror
+// formatCustomerRecord / computeActivityStatus / isTestCustomer. Filters are built as a small tree
+// ({and|or: [...]}, {not: node}, [column, op, value]) and rendered to PostgREST syntax; every comparison on
+// a nullable column is null-safe so negations (Active / Inactive) never drop rows through SQL NULL logic.
 
-  if (!res.ok) {
-    throw new Error(`Failed to fetch customer summary: HTTP ${res.status}`)
+export const CUSTOMER_PAGE_SIZE_MAX = 100
+
+/** Escape LIKE metacharacters so user input matches literally (PostgREST maps `*` to `%`). */
+const likeLiteral = (value) => String(value).replace(/[\\%_]/g, (c) => '\\' + c)
+const notNullAndGte = (col, iso) => ({ and: [[col, 'notnull'], [col, 'gte', iso]] })
+
+/** isTestCustomer() as a filter. */
+export const TEST_ACCOUNT_FILTER = {
+  or: [
+    ['user_id', 'like', 'cust\\_wallet\\_*'],
+    ['user_id', 'like', 'test-new-sub-*'],
+    ['user_id', 'like', 'sub-test-*'],
+    ['user_id', 'like', 'test\\_user\\_*'],
+    ['user_id', 'like', 'idem\\_*'],
+    ['user_id', 'like', 'iso\\_*'],
+    { and: [['email', 'ilike', '*@test.ai'], { or: [['user_id', 'like', 'cust\\_*'], ['user_id', 'like', 'idem\\_*'], ['user_id', 'like', 'iso\\_*']] }] },
+    { and: [['email', 'ilike', '*@example.com'], { or: [['user_id', 'like', 'test*'], ['email', 'ilike', 'test\\_user\\_*']] }] },
+  ],
+}
+
+const CUSTOMERS_ONLY = { and: [['role', 'neq', 'admin'], ['user_id', 'neq', 'usr_admin']] }
+
+/** Customer keys with a live session on this server (memory registry + SQLite), as matched by isCustomerOnlineSession. */
+export function listOnlineCustomerKeys(nowMs = Date.now()) {
+  const ids = new Set()
+  const emails = new Set()
+  const add = (key) => {
+    if (!key) return
+    const clean = String(key).trim().toLowerCase()
+    if (clean) (clean.includes('@') ? emails : ids).add(clean)
   }
-
-  const profiles = await res.json()
-  // Exclude internal Superadmin from all customer calculations
-  const customerRows = profiles.filter((p) => p.role !== 'admin' && p.user_id !== 'usr_admin')
-
-  const total = customerRows.length
-  const total_real = customerRows.filter((r) => !isTestCustomer(r)).length
-  const total_test = customerRows.filter((r) => isTestCustomer(r)).length
-
-  let filteredRows = customerRows
-  if (accountType === 'real') {
-    filteredRows = customerRows.filter((r) => !isTestCustomer(r))
-  } else if (accountType === 'test') {
-    filteredRows = customerRows.filter((r) => isTestCustomer(r))
-  }
-
-  let online = 0
-  let active = 0
-  let inactive = 0
-  let suspended = 0
-
-  for (const row of filteredRows) {
-    const isOnlineInMem = isCustomerOnlineSession(row.user_id) || isCustomerOnlineSession(row.email)
-    const lastSeen = isOnlineInMem
-      ? new Date().toISOString()
-      : (row.last_seen_at && (row.last_active_at || row.last_login_at) ? row.last_seen_at : null)
-    const lastActive = row.last_active_at || null
-    const lastLogin = row.last_login_at || null
-    const status = computeActivityStatus({
-      ...row,
-      last_active_at: lastActive,
-      last_login_at: lastLogin,
-      last_seen_at: lastSeen,
-    })
-    if (status === 'Suspended' || row.status === 'suspended') {
-      suspended++
-    } else if (status === 'Online') {
-      online++
-    } else if (status === 'Active') {
-      active++
-    } else {
-      inactive++
+  for (const [key, sessions] of activeCustomerSessions.entries()) {
+    for (const lastSeen of sessions.values()) {
+      if (nowMs - lastSeen <= ACTIVITY_ONLINE_THRESHOLD_MS) {
+        add(key)
+        break
+      }
     }
   }
+  for (const row of listOnlineSessionKeysDb(ACTIVITY_ONLINE_THRESHOLD_MS)) {
+    add(row.cognito_sub)
+    add(row.email)
+  }
+  return { ids: [...ids], emails: [...emails] }
+}
 
+function onlineFilter(nowMs, presence) {
+  const cutoff = new Date(nowMs - ACTIVITY_ONLINE_THRESHOLD_MS).toISOString()
+  const live = [
+    ...(presence.ids.length ? [['user_id', 'in', presence.ids]] : []),
+    ...presence.emails.map((email) => ['email', 'ilike', likeLiteral(email)]), // case-insensitive equality
+  ]
+  return {
+    or: [
+      // Heartbeat presence counts only for customers with genuine activity (formatCustomerRecord).
+      { and: [notNullAndGte('last_seen_at', cutoff), { or: [['last_active_at', 'notnull'], ['last_login_at', 'notnull']] }] },
+      { and: [['last_seen_at', 'null'], notNullAndGte('last_active_at', cutoff)] },
+      ...live,
+    ],
+  }
+}
+
+/** Activity status filter: 'online' | 'active' | 'inactive' | 'suspended' (anything else: no filter). */
+export function activityStatusFilter(status, nowMs, presence) {
+  const target = String(status || '').toLowerCase()
+  if (target === 'suspended') return ['status', 'eq', 'suspended']
+  const notSuspended = ['status', 'neq', 'suspended']
+  const online = onlineFilter(nowMs, presence)
+  if (target === 'online') return { and: [notSuspended, online] }
+  const activeCutoff = new Date(nowMs - ACTIVITY_ACTIVE_THRESHOLD_MS).toISOString()
+  const recent = { or: [notNullAndGte('last_active_at', activeCutoff), notNullAndGte('last_login_at', activeCutoff)] }
+  if (target === 'active') return { and: [notSuspended, { not: online }, recent] }
+  if (target === 'inactive') return { and: [notSuspended, { not: online }, { not: recent }] }
+  return null
+}
+
+function accountTypeFilter(accountType) {
+  if (accountType === 'real') return { not: TEST_ACCOUNT_FILTER }
+  if (accountType === 'test') return TEST_ACCOUNT_FILTER
+  return null
+}
+
+/** Same matches as the former in-memory search: name, email, Cognito sub, organization, customer id (`cst_` + 16 chars of sub). */
+export function customerSearchFilter(search) {
+  const q = String(search || '').trim().toLowerCase().replace(/\*/g, '')
+  if (!q) return null
+  if ('cst_'.includes(q)) return null // every customer id contains it
+  const contains = `*${likeLiteral(q)}*`
+  const anyOf = [['full_name', 'ilike', contains], ['email', 'ilike', contains], ['user_id', 'ilike', contains], ['organization', 'ilike', contains]]
+  for (const prefix of ['cst_', 'st_', 't_', '_']) {
+    const rest = q.slice(prefix.length)
+    if (q.startsWith(prefix) && rest.length <= 16) anyOf.push(['user_id', 'ilike', `${likeLiteral(rest)}*`])
+  }
+  return { or: anyOf }
+}
+
+export function buildCustomerFilter({ search = '', status = 'all', accountType = 'all', nowMs = Date.now(), presence = { ids: [], emails: [] } } = {}) {
+  return {
+    and: [CUSTOMERS_ONLY, accountTypeFilter(accountType), customerSearchFilter(search), activityStatusFilter(status, nowMs, presence)].filter(Boolean),
+  }
+}
+
+/** Render a filter tree in PostgREST logic-tree syntax. String values are always double-quoted. */
+export function renderPostgrestFilter(node) {
+  const quote = (v) => `"${String(v).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
+  if (Array.isArray(node)) {
+    const [col, op, value] = node
+    if (op === 'null') return `${col}.is.null`
+    if (op === 'notnull') return `${col}.not.is.null`
+    if (op === 'in') return `${col}.in.(${value.map(quote).join(',')})`
+    return `${col}.${op}.${quote(value)}`
+  }
+  if (node.not) return `not.${renderPostgrestFilter(node.not)}`
+  const kind = node.and ? 'and' : 'or'
+  return `${kind}(${node[kind].map(renderPostgrestFilter).join(',')})`
+}
+
+const SORT_COLUMNS = { registration_date: 'created_at', last_active: 'last_active_at', last_seen: 'last_active_at', last_login: 'last_login_at', full_name: 'full_name' }
+
+export function customerOrder(sortBy, sortOrder) {
+  const col = SORT_COLUMNS[sortBy] || 'created_at'
+  const asc = String(sortOrder || '').toLowerCase() === 'asc'
+  // Missing timestamps sort as the oldest (former behaviour); user_id keeps paging stable on ties.
+  const nulls = col === 'full_name' ? '' : asc ? '.nullsfirst' : '.nullslast'
+  return `${col}.${asc ? 'asc' : 'desc'}${nulls},user_id.asc`
+}
+
+/** Query string for /rest/v1/profiles with the filter as the top-level `and=(...)` parameter. */
+export function profilesQuery(filter, extra = {}) {
+  const params = new URLSearchParams(extra)
+  params.set('and', renderPostgrestFilter(filter).slice('and'.length))
+  return params
+}
+
+function totalFromContentRange(header) {
+  const match = /\/(\d+)$/.exec(String(header || ''))
+  return match ? Number(match[1]) : 0
+}
+
+async function countProfiles(filter) {
+  const { url, key } = getSupabaseConfig()
+  const params = profilesQuery(filter, { select: 'user_id' })
+  const res = await fetch(`${url}/rest/v1/profiles?${params}`, {
+    method: 'HEAD',
+    headers: { ...getAuthHeaders(key), Prefer: 'count=exact' },
+  })
+  if (!res.ok) throw new Error(`Failed to count customers: HTTP ${res.status}`)
+  return totalFromContentRange(res.headers.get('content-range'))
+}
+
+/** One page of profiles matching `filter`, with the exact total from Content-Range (HTTP 416: offset past the end). */
+async function fetchProfilesPage(filter, order, pageSize, pageNumber) {
+  const { url, key } = getSupabaseConfig()
+  const params = profilesQuery(filter, {
+    select: '*',
+    order,
+    limit: String(pageSize),
+    offset: String((pageNumber - 1) * pageSize),
+  })
+  const res = await fetch(`${url}/rest/v1/profiles?${params}`, {
+    headers: { ...getAuthHeaders(key), Prefer: 'count=exact' },
+  })
+  const total = totalFromContentRange(res.headers.get('content-range'))
+  if (res.status === 416) return { rows: [], total }
+  if (!res.ok) throw new Error(`Failed to list customers: HTTP ${res.status}`)
+  return { rows: await res.json(), total }
+}
+
+/**
+ * Fetch dynamic summary metrics for Super Admin dashboard cards: count-only queries, no profile rows.
+ */
+export async function getCustomerSummary({ accountType = 'all' } = {}) {
+  const nowMs = Date.now()
+  const presence = listOnlineCustomerKeys(nowMs)
+  const scope = (status) => buildCustomerFilter({ accountType, status, nowMs, presence })
+  const [total, total_real, online, active, suspended] = await Promise.all([
+    countProfiles(buildCustomerFilter()),
+    countProfiles(buildCustomerFilter({ accountType: 'real' })),
+    countProfiles(scope('online')),
+    countProfiles(scope('active')),
+    countProfiles(scope('suspended')),
+  ])
+  const total_test = total - total_real
+  const active_count = accountType === 'real' ? total_real : accountType === 'test' ? total_test : total
   return {
     total,
     total_real,
     total_test,
-    active_count: filteredRows.length,
+    active_count,
     online,
     active,
-    inactive,
+    inactive: Math.max(0, active_count - online - active - suspended), // the four statuses partition the scope
     suspended,
+    onlineTrackingAvailable: true, // heartbeats write profiles.last_seen_at
   }
 }
 
 /**
- * Fetch paginated, filtered, and sorted customer records for the Admin table.
+ * Fetch one page of filtered, sorted customer records for the Admin table (one query: rows + exact total).
  */
 export async function listCustomers({
   search = '',
@@ -749,91 +885,30 @@ export async function listCustomers({
   limit = 20,
   accountType = 'all',
 } = {}) {
-  const { url, key } = getSupabaseConfig()
-  const res = await fetch(`${url}/rest/v1/profiles?select=*`, {
-    headers: getAuthHeaders(key),
-  })
+  const pageSize = Math.min(CUSTOMER_PAGE_SIZE_MAX, Math.max(1, Number.parseInt(limit, 10) || 20))
+  const requestedPage = Math.max(1, Number.parseInt(page, 10) || 1)
+  const nowMs = Date.now()
+  const filter = buildCustomerFilter({ search, status, accountType, nowMs, presence: listOnlineCustomerKeys(nowMs) })
+  const order = customerOrder(sortBy, sortOrder)
+  const fetchPage = (pageNumber) => fetchProfilesPage(filter, order, pageSize, pageNumber)
 
-  if (!res.ok) {
-    throw new Error(`Failed to list customers: HTTP ${res.status}`)
+  let currentPage = requestedPage
+  let { rows, total } = await fetchPage(currentPage)
+  const totalPages = Math.max(1, Math.ceil(total / pageSize))
+  if (currentPage > totalPages) {
+    // Out-of-range page (e.g. the list shrank): serve the last page, as before.
+    currentPage = totalPages
+    if (total > 0) ({ rows, total } = await fetchPage(currentPage))
   }
-
-  const profiles = await res.json()
-  // Exclude Superadmin from customer list
-  let records = profiles
-    .filter((p) => p.role !== 'admin' && p.user_id !== 'usr_admin')
-    .map(formatCustomerRecord)
-
-  // 1. Account type filter (real / test / all)
-  if (accountType === 'real') {
-    records = records.filter((c) => !c.is_test_account)
-  } else if (accountType === 'test') {
-    records = records.filter((c) => c.is_test_account)
-  }
-
-  // 2. Search filter
-  if (search && search.trim()) {
-    const q = search.trim().toLowerCase()
-    records = records.filter(
-      (c) =>
-        c.full_name.toLowerCase().includes(q) ||
-        c.email.toLowerCase().includes(q) ||
-        c.cognito_sub.toLowerCase().includes(q) ||
-        c.customer_id.toLowerCase().includes(q) ||
-        (c.organization && c.organization.toLowerCase().includes(q))
-    )
-  }
-
-  // 3. Activity / Account Status filter
-  if (status && status !== 'all') {
-    const target = status.toLowerCase()
-    records = records.filter((c) => {
-      if (target === 'online') return c.activity_status === 'Online'
-      if (target === 'active') return c.activity_status === 'Active'
-      if (target === 'inactive') return c.activity_status === 'Inactive'
-      if (target === 'suspended') return c.account_status === 'suspended'
-      return true
-    })
-  }
-
-  // 4. Sorting
-  const isAsc = sortOrder.toLowerCase() === 'asc'
-  records.sort((a, b) => {
-    let valA = a.registration_date
-    let valB = b.registration_date
-
-    if (sortBy === 'last_active' || sortBy === 'last_seen') {
-      valA = a.last_active_at || ''
-      valB = b.last_active_at || ''
-    } else if (sortBy === 'last_login') {
-      valA = a.last_login_at || ''
-      valB = b.last_login_at || ''
-    } else if (sortBy === 'full_name') {
-      valA = a.full_name.toLowerCase()
-      valB = b.full_name.toLowerCase()
-      return isAsc ? valA.localeCompare(valB) : valB.localeCompare(valA)
-    }
-
-    const timeA = new Date(valA).getTime() || 0
-    const timeB = new Date(valB).getTime() || 0
-    return isAsc ? timeA - timeB : timeB - timeA
-  })
-
-  // 5. Pagination
-  const total = records.length
-  const totalPages = Math.max(1, Math.ceil(total / limit))
-  const currentPage = Math.max(1, Math.min(page, totalPages))
-  const offset = (currentPage - 1) * limit
-  const paginated = records.slice(offset, offset + limit)
 
   return {
     ok: true,
-    customers: paginated,
+    customers: rows.map(formatCustomerRecord),
     pagination: {
       total,
       page: currentPage,
-      limit,
-      totalPages,
+      limit: pageSize,
+      totalPages: Math.max(1, Math.ceil(total / pageSize)),
     },
   }
 }
@@ -890,8 +965,21 @@ export async function getCustomerDetails(idOrSub) {
 /**
  * Export all customer records as an RFC 4180 CSV string directly from Supabase.
  */
+/** Every customer matching the account type, fetched in pages of `chunk` rows (filters still run in the database). */
+export async function listAllCustomers({ accountType = 'all', chunk = 1000 } = {}) {
+  const filter = buildCustomerFilter({ accountType, presence: listOnlineCustomerKeys() })
+  const order = customerOrder('registration_date', 'desc')
+  const rows = []
+  for (let pageNumber = 1; ; pageNumber++) {
+    const { rows: batch, total } = await fetchProfilesPage(filter, order, chunk, pageNumber)
+    rows.push(...batch)
+    if (batch.length < chunk || rows.length >= total) break
+  }
+  return rows.map(formatCustomerRecord)
+}
+
 export async function exportCustomersToCsv({ accountType = 'all' } = {}) {
-  const { customers } = await listCustomers({ limit: 10000, page: 1, accountType })
+  const customers = await listAllCustomers({ accountType })
   const headers = [
     'Customer ID',
     'Cognito Sub',

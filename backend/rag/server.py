@@ -863,7 +863,7 @@ async def chat_endpoint(payload: ChatRequest, retrieval_organization_id: Optiona
     return build_chat_response(answer, True, "success", [])
 
 @app.post("/api/knowledge/reindex", response_model=ReindexResponse)
-async def reindex_knowledge(
+def reindex_knowledge(  # sync: FastAPI runs it in a worker thread (indexing blocks for minutes)
     x_admin_key: Optional[str] = Header(None, alias="X-Admin-Key"),
     force: bool = False
 ):

@@ -2,7 +2,7 @@ export function LogoMark({ size = 34, theme }: { size?: number; theme?: 'light' 
   if (theme === 'light') {
     return (
       <img
-        src="/Green Data Cloud Logo.png"
+        src="/images/logo-light-256.png"
         alt="Inferxe"
         width={size}
         height={size}
@@ -53,7 +53,7 @@ export function LogoMark({ size = 34, theme }: { size?: number; theme?: 'light' 
         }}
       />
       <img
-        src="/Green Data Cloud Logo.png"
+        src="/images/logo-light-256.png"
         alt="Inferxe"
         width={size}
         height={size}

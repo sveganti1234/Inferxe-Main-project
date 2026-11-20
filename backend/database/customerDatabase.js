@@ -372,6 +372,22 @@ export function cleanExpiredSessionsDb(olderThanMs = 24 * 60 * 60 * 1000) {
 }
 
 /**
+ * Customer keys (Cognito subs and emails) with a session heartbeat inside the online window, from SQLite.
+ * Used to apply live presence to server-side customer filters and counts.
+ */
+export function listOnlineSessionKeysDb(windowMs = 120000) {
+  try {
+    const db = getDatabase()
+    const thresholdIso = new Date(Date.now() - windowMs).toISOString()
+    return db
+      .prepare('SELECT DISTINCT cognito_sub, email FROM customer_sessions WHERE last_seen_at >= ?')
+      .all(thresholdIso)
+  } catch {
+    return []
+  }
+}
+
+/**
  * Check if the customer has any other active session within the online threshold in SQLite.
  */
 export function hasOtherActiveSessionsDb({ cognito_sub, email, excluded_session_id, windowMs = 120000 }) {

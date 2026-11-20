@@ -5,7 +5,10 @@ import { Footer } from './components/layout/Footer'
 import { Navbar } from './components/layout/Navbar'
 import { Ambient, ScrollProgress } from './components/layout/Ambient'
 import { CommandPalette } from './components/layout/CommandPalette'
-import { GlobalBotCompanion } from './components/bot/GlobalBotCompanion'
+// Loaded after first paint: the assistant (and its avatar library) is not needed to render a page.
+const GlobalBotCompanion = lazy(() =>
+  import('./components/bot/GlobalBotCompanion').then((m) => ({ default: m.GlobalBotCompanion })),
+)
 
 const Home = lazy(() => import('./pages/Home'))
 const Platform = lazy(() => import('./pages/Platform'))
@@ -45,7 +48,8 @@ import AdminActivity from './pages/dashboard/AdminActivity'
 import AdminAudit from './pages/dashboard/AdminAudit'
 import SuperAdminFutureModule from './pages/dashboard/SuperAdminFutureModule'
 import { CustomerHeartbeat } from './components/dashboard/CustomerHeartbeat'
-import { AdminShell } from './components/dashboard/AdminShell'
+// Admin-only chrome: kept out of the public entry bundle (rendered inside the route Suspense boundary).
+const AdminShell = lazy(() => import('./components/dashboard/AdminShell').then((m) => ({ default: m.AdminShell })))
 const Login = lazy(() => import('./pages/Login'))
 import { AdminGuard } from './components/auth/AdminGuard'
 import { SuperadminGuard } from './components/auth/SuperadminGuard'
@@ -230,7 +234,9 @@ export default function App() {
           </Routes>
         </Suspense>
         <CustomerHeartbeat />
-        <GlobalBotCompanion />
+        <Suspense fallback={null}>
+          <GlobalBotCompanion />
+        </Suspense>
       </MotionConfig>
     )
   }
@@ -247,7 +253,9 @@ export default function App() {
           </Routes>
         </Suspense>
         <CustomerHeartbeat />
-        <GlobalBotCompanion />
+        <Suspense fallback={null}>
+          <GlobalBotCompanion />
+        </Suspense>
       </MotionConfig>
     )
   }
@@ -298,7 +306,9 @@ export default function App() {
       </AnimatePresence>
       <Footer />
       <CustomerHeartbeat />
-        <GlobalBotCompanion />
+        <Suspense fallback={null}>
+          <GlobalBotCompanion />
+        </Suspense>
     </MotionConfig>
   )
 }
