@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   Key,
   ShieldAlert,
@@ -8,10 +8,14 @@ import {
   AlertCircle,
   CheckCircle2,
   ArrowLeft,
+  Eye,
+  LogIn,
+  ShieldCheck,
 } from 'lucide-react'
 import { DashboardLayout } from '../../../components/dashboard/DashboardLayout'
 import { usePageMeta } from '../../../lib/hooks'
 import {
+  clearSession,
   fetchSuperadminKeys,
   revokeSuperadminKey,
   type SuperadminKeyRecord,
@@ -23,9 +27,12 @@ export default function KeyManagement() {
     'Global audit and emergency revocation of platform API credentials, developer tokens, and cluster SSH keys.',
   )
 
+  const navigate = useNavigate()
   const [keys, setKeys] = useState<SuperadminKeyRecord[]>([])
+  const [loaded, setLoaded] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [authError, setAuthError] = useState(false)
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [filterType, setFilterType] = useState<'all' | 'api' | 'ssh' | 'revoked'>('all')
@@ -38,18 +45,30 @@ export default function KeyManagement() {
   const loadKeys = async () => {
     setLoading(true)
     setError(null)
+    setAuthError(false)
     try {
       const res = await fetchSuperadminKeys()
       if (res.ok && res.keys) {
         setKeys(res.keys)
+        setLoaded(true)
       } else {
+        setKeys([])
+        setLoaded(false)
+        setAuthError(Boolean(res.unauthorized || res.forbidden || res.status === 401 || res.status === 403))
         setError(res.error || 'Failed to retrieve system credentials.')
       }
     } catch (err) {
+      setKeys([])
+      setLoaded(false)
       setError(err instanceof Error ? err.message : 'Error retrieving keys.')
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleSignInAgain = () => {
+    clearSession()
+    navigate('/login', { replace: true })
   }
 
   useEffect(() => {
@@ -58,20 +77,38 @@ export default function KeyManagement() {
 
   const handleConfirmRevocation = async () => {
     if (!targetKey) return
+    const trimmedReason = revokeReason.trim()
+    if (trimmedReason.length < 3) {
+      setError('Please provide an audit reason of at least 3 characters.')
+      return
+    }
     setRevoking(true)
     setError(null)
     setSuccessMsg(null)
 
     try {
-      const keyType = targetKey.type === 'SSH Key' ? 'ssh' : 'api'
-      const res = await revokeSuperadminKey(targetKey.id, keyType, revokeReason)
+      const keyType = targetKey.key_type ?? (targetKey.type === 'SSH Key' ? 'ssh' : 'api')
+      const res = await revokeSuperadminKey(targetKey.id, keyType, trimmedReason)
       if (res.ok) {
-        setSuccessMsg(`Credential "${targetKey.name}" (${targetKey.id}) has been revoked.`)
+        const detachNote =
+          keyType === 'ssh' && typeof res.detached_sessions === 'number' && res.detached_sessions > 0
+            ? ` Detached ${res.detached_sessions} linked GPU notebook session${res.detached_sessions === 1 ? '' : 's'}.`
+            : ''
+        setSuccessMsg(
+          (res.message ||
+            (keyType === 'ssh'
+              ? `SSH key "${targetKey.name}" (${targetKey.id}) has been permanently deleted.`
+              : `API key "${targetKey.name}" (${targetKey.id}) has been revoked.`)) + detachNote,
+        )
         setTargetKey(null)
         setRevokeReason('')
         await loadKeys()
       } else {
         setError(res.error || 'Failed to revoke key.')
+        if (res.status === 404 || res.status === 409) {
+          setTargetKey(null)
+          await loadKeys()
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred during key revocation.')
@@ -80,16 +117,32 @@ export default function KeyManagement() {
     }
   }
 
+  const formatTimestamp = (value?: string | null) => {
+    if (!value) return 'Never'
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return value
+    return date.toLocaleString('en-IN', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  }
+
   const filteredKeys = keys.filter((k) => {
+    const q = searchQuery.toLowerCase()
     const matchesSearch =
-      k.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      k.owner_email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      k.id.toLowerCase().includes(searchQuery.toLowerCase())
+      k.name.toLowerCase().includes(q) ||
+      k.owner_email.toLowerCase().includes(q) ||
+      k.owner_name.toLowerCase().includes(q) ||
+      k.id.toLowerCase().includes(q) ||
+      (k.fingerprint || '').toLowerCase().includes(q)
 
     if (filterType === 'all') return matchesSearch
     if (filterType === 'api') return matchesSearch && k.type === 'API Key'
     if (filterType === 'ssh') return matchesSearch && k.type === 'SSH Key'
-    if (filterType === 'revoked') return matchesSearch && k.status === 'revoked'
+    if (filterType === 'revoked') return matchesSearch && k.status !== 'active'
     return matchesSearch
   })
 
@@ -145,7 +198,26 @@ export default function KeyManagement() {
             </p>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <Link
+              to="/dashboard/keys"
+              style={{
+                background: '#121C16',
+                border: '1px solid rgba(16, 185, 129, 0.35)',
+                color: '#6EE7B7',
+                padding: '8px 14px',
+                borderRadius: '8px',
+                fontSize: '0.8rem',
+                fontWeight: 600,
+                textDecoration: 'none',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '7px',
+              }}
+            >
+              <Eye size={14} />
+              <span>Admin Key Monitoring</span>
+            </Link>
             <button
               type="button"
               className="dash-btn-ghost"
@@ -170,9 +242,127 @@ export default function KeyManagement() {
           </div>
         </div>
 
+        {/* ── Privileged Governance Scope Banner ── */}
+        <div
+          style={{
+            background: 'rgba(251, 191, 36, 0.06)',
+            border: '1px solid rgba(251, 191, 36, 0.28)',
+            borderRadius: '10px',
+            padding: '13px 16px',
+            marginBottom: '18px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '12px',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+            <span
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                padding: '3px 10px',
+                borderRadius: '999px',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.68rem',
+                fontWeight: 700,
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                background: 'rgba(251, 191, 36, 0.16)',
+                color: '#FBBF24',
+                border: '1px solid rgba(251, 191, 36, 0.35)',
+              }}
+            >
+              <ShieldCheck size={12} /> Super Admin Privileged Tier
+            </span>
+            <span style={{ fontSize: '0.8rem', color: '#D1D5DB' }}>
+              Emergency API key revocation &amp; permanent SSH public-key deletion with mandatory audited reasons. Use{' '}
+              <Link to="/dashboard/keys" style={{ color: '#6EE7B7', textDecoration: 'underline' }}>
+                Admin Key Monitoring
+              </Link>{' '}
+              for read-only usage analytics, security alerts, and audit history.
+            </span>
+          </div>
+        </div>
+
         {/* ── Feedback Banners ── */}
-        {error && (
+        {error && !loaded && (
           <div
+            role="alert"
+            style={{
+              background: authError ? 'rgba(245, 158, 11, 0.08)' : '#2B1214',
+              border: `1px solid ${authError ? 'rgba(245, 158, 11, 0.4)' : '#7F1D1D'}`,
+              borderRadius: '10px',
+              padding: '20px 22px',
+              color: authError ? '#FDE68A' : '#FCA5A5',
+              fontSize: '0.85rem',
+              marginBottom: '16px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '12px',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+              <AlertCircle size={18} style={{ flexShrink: 0, marginTop: 2 }} />
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '0.94rem', color: '#FFFFFF' }}>
+                  {authError ? 'Super Admin Authentication Required' : 'Key Governance Backend Unavailable'}
+                </div>
+                <div style={{ marginTop: 4 }}>{error}</div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
+              {authError && (
+                <button
+                  type="button"
+                  onClick={handleSignInAgain}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    background: '#FBBF24',
+                    color: '#040D08',
+                    border: 'none',
+                    borderRadius: '7px',
+                    padding: '7px 14px',
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                  }}
+                >
+                  <LogIn size={14} />
+                  <span>Sign In Again</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => void loadKeys()}
+                disabled={loading}
+                style={{
+                  background: '#121C16',
+                  border: '1px solid #23382C',
+                  color: '#E5E7EB',
+                  borderRadius: '7px',
+                  padding: '7px 14px',
+                  fontSize: '0.8rem',
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                }}
+              >
+                <RefreshCw size={13} className={loading ? 'spin-icon' : ''} />
+                <span>Retry</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {error && loaded && (
+          <div
+            role="alert"
             style={{
               background: '#2B1214',
               border: '1px solid #7F1D1D',
@@ -211,7 +401,9 @@ export default function KeyManagement() {
           </div>
         )}
 
-        {/* ── Search & Filter Toolbar ── */}
+        {/* ── Search & Filter Toolbar (Shown when loading or data loaded) ── */}
+        {(!error || loaded) && (
+        <>
         <div
           style={{
             background: '#0F1612',
@@ -262,7 +454,7 @@ export default function KeyManagement() {
               { key: 'all', label: `All Keys (${keys.length})` },
               { key: 'api', label: `API Keys (${keys.filter((k) => k.type === 'API Key').length})` },
               { key: 'ssh', label: `SSH Keys (${keys.filter((k) => k.type === 'SSH Key').length})` },
-              { key: 'revoked', label: `Revoked (${keys.filter((k) => k.status === 'revoked').length})` },
+              { key: 'revoked', label: `Revoked / Inactive (${keys.filter((k) => k.status !== 'active').length})` },
             ].map((tab) => (
               <button
                 key={tab.key}
@@ -381,7 +573,12 @@ export default function KeyManagement() {
                       </td>
 
                       <td style={{ padding: '14px 18px', color: '#6EE7B7', fontFamily: 'var(--font-mono)', fontSize: '0.76rem' }}>
-                        {key.prefix}
+                        <div>{key.fingerprint || key.prefix}</div>
+                        <div style={{ color: '#9CA3AF', fontSize: '0.7rem', marginTop: '2px' }}>
+                          {key.type === 'API Key'
+                            ? `${(key.environment || 'live').toUpperCase()} · ${key.usage_count ?? 0} reqs · Last used: ${formatTimestamp(key.last_used)}`
+                            : `${key.ssh_algorithm || 'ssh'} · Added: ${formatTimestamp(key.created_at)}`}
+                        </div>
                       </td>
 
                       <td style={{ padding: '14px 18px' }}>
@@ -404,6 +601,7 @@ export default function KeyManagement() {
                             }`,
                             fontSize: '0.76rem',
                             fontWeight: 600,
+                            textTransform: 'capitalize',
                           }}
                         >
                           <span
@@ -414,8 +612,13 @@ export default function KeyManagement() {
                               background: key.status === 'active' ? '#10B981' : '#EF4444',
                             }}
                           />
-                          {key.status === 'active' ? 'Active' : 'Revoked'}
+                          {key.status}
                         </span>
+                        {key.revoked_at && (
+                          <div style={{ color: '#9CA3AF', fontSize: '0.68rem', marginTop: '3px' }}>
+                            {formatTimestamp(key.revoked_at)}
+                          </div>
+                        )}
                       </td>
 
                       <td style={{ padding: '14px 18px', textAlign: 'right' }}>
@@ -437,10 +640,12 @@ export default function KeyManagement() {
                               cursor: 'pointer',
                             }}
                           >
-                            Revoke
+                            {key.type === 'SSH Key' ? 'Delete SSH Key' : 'Revoke'}
                           </button>
                         ) : (
-                          <span style={{ fontSize: '0.75rem', color: '#6B7280' }}>Revoked</span>
+                          <span style={{ fontSize: '0.75rem', color: '#6B7280', textTransform: 'capitalize' }}>
+                            {key.status}
+                          </span>
                         )}
                       </td>
                     </tr>
@@ -450,6 +655,8 @@ export default function KeyManagement() {
             </table>
           </div>
         </div>
+        </>
+        )}
 
         {/* ── Key Revocation Modal ── */}
         {targetKey && (
@@ -494,7 +701,9 @@ export default function KeyManagement() {
                 </div>
                 <div>
                   <h3 style={{ margin: 0, color: '#FFFFFF', fontSize: '1.1rem', fontWeight: 700 }}>
-                    Emergency Revoke Key
+                    {targetKey.type === 'SSH Key'
+                      ? 'Emergency Delete SSH Public Key'
+                      : 'Emergency Revoke API Key'}
                   </h3>
                   <div style={{ color: '#9CA3AF', fontSize: '0.78rem' }}>
                     {targetKey.name} ({targetKey.id})
@@ -503,18 +712,20 @@ export default function KeyManagement() {
               </div>
 
               <p style={{ color: '#D1D5DB', fontSize: '0.84rem', margin: '0 0 16px', lineHeight: 1.5 }}>
-                Revoking this credential will immediately cut off external API queries and SSH access sessions authenticated under it. This action cannot be undone.
+                {targetKey.type === 'SSH Key'
+                  ? 'Permanently deletes this SSH public key from the platform, detaches any linked GPU notebook sessions, and removes SSH authorization immediately. This action cannot be undone and is recorded in the audit log.'
+                  : 'Immediately marks this API key as revoked in the database so all inference and API requests authenticated under it are rejected. This action cannot be undone and is recorded in the audit log.'}
               </p>
 
               <div style={{ marginBottom: '16px' }}>
                 <label style={{ display: 'block', fontSize: '0.76rem', color: '#9CA3AF', marginBottom: '6px' }}>
-                  Mandatory Audit Reason:
+                  Mandatory Audit Reason (min. 3 characters):
                 </label>
                 <input
                   type="text"
                   value={revokeReason}
                   onChange={(e) => setRevokeReason(e.target.value)}
-                  placeholder="e.g. Suspected key leak / Routine security rotation"
+                  placeholder="e.g. Suspected key leak / Emergency security revocation"
                   style={{
                     width: '100%',
                     background: '#121C16',
@@ -548,7 +759,7 @@ export default function KeyManagement() {
                 <button
                   type="button"
                   onClick={handleConfirmRevocation}
-                  disabled={revoking || !revokeReason.trim()}
+                  disabled={revoking || revokeReason.trim().length < 3}
                   style={{
                     background: '#EF4444',
                     border: 'none',
@@ -557,11 +768,17 @@ export default function KeyManagement() {
                     padding: '8px 16px',
                     fontSize: '0.82rem',
                     fontWeight: 600,
-                    cursor: revoking || !revokeReason.trim() ? 'not-allowed' : 'pointer',
-                    opacity: !revokeReason.trim() ? 0.6 : 1,
+                    cursor: revoking || revokeReason.trim().length < 3 ? 'not-allowed' : 'pointer',
+                    opacity: revokeReason.trim().length < 3 ? 0.6 : 1,
                   }}
                 >
-                  {revoking ? 'Revoking Key...' : 'Confirm Revocation'}
+                  {revoking
+                    ? targetKey.type === 'SSH Key'
+                      ? 'Deleting SSH Key...'
+                      : 'Revoking Key...'
+                    : targetKey.type === 'SSH Key'
+                      ? 'Confirm Permanent Delete'
+                      : 'Confirm Revocation'}
                 </button>
               </div>
             </div>

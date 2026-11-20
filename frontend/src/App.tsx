@@ -27,6 +27,7 @@ import UsersList from './pages/dashboard/UsersList'
 import DashboardOverview from './pages/dashboard/DashboardOverview'
 import MarketplaceWorkspace from './pages/dashboard/MarketplaceWorkspace'
 import CustomerManagement from './pages/dashboard/CustomerManagement'
+import AdminKeyMonitoring from './pages/dashboard/AdminKeyMonitoring'
 const CustomerVerdeloWorkspace = lazy(() => import('./components/dashboard/CustomerVerdeloWorkspace'))
 const CustomerApp = lazy(() => import('./features/customer/CustomerApp'))
 const CustomerEntryRedirect = lazy(() => import('./features/customer/CustomerEntryRedirect'))
@@ -156,6 +157,7 @@ export default function App() {
               <Route path="/dashboard/users" element={<UsersList />} />
               <Route path="/dashboard/users/add" element={<AddUser />} />
               <Route path="/dashboard/users/map" element={<MarketplaceWorkspace />} />
+              <Route path="/dashboard/keys" element={<AdminKeyMonitoring />} />
               <Route path="/dashboard/provider" element={<MarketplaceWorkspace />} />
               <Route path="/dashboard/provider/listings" element={<MarketplaceWorkspace />} />
               <Route path="/dashboard/provider/capacity" element={<MarketplaceWorkspace />} />

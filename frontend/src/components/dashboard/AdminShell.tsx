@@ -7,11 +7,9 @@ import {
   Bell,
   Moon,
   Plus,
-  Search,
   Sun,
   ChevronDown,
   Cpu,
-  ExternalLink,
   Globe,
   HelpCircle,
   LayoutDashboard,
@@ -40,6 +38,8 @@ import { animateNavPill } from './navPillAnimation'
 import { AdminViewTransition, getAdminRouteOrder } from './AdminViewTransition'
 import { AdminErrorBoundary } from './AdminErrorBoundary'
 import { DashboardLayoutContext } from './DashboardLayoutContext'
+import { AdminHeaderSearch, type AdminSearchSectionItem } from './AdminHeaderSearch'
+import { useAdminSidebarKeyboardNav } from './useAdminSidebarKeyboardNav'
 
 export function preloadRoute(_path: string) {}
 
@@ -68,6 +68,7 @@ export function AdminShell() {
   const notifRef = useRef<HTMLDivElement>(null)
   const profileMenuRef = useRef<HTMLDivElement>(null)
   const topbarProfileRef = useRef<HTMLDivElement>(null)
+  const sidebarRef = useRef<HTMLElement>(null)
   const sidebarScrollRef = useRef<HTMLDivElement>(null)
   const mainPaneRef = useRef<HTMLElement>(null)
 
@@ -452,6 +453,8 @@ export function AdminShell() {
     { label: 'Permission Management', to: '/dashboard/super-admin/permissions', icon: Sliders, badge: '25', badgeType: 'count' },
     { label: 'Activity Monitoring', to: '/dashboard/super-admin/activity', icon: ActivityIcon },
     { label: 'Audit Logs', to: '/dashboard/super-admin/audit', icon: FileText },
+    { label: 'Infrastructure Telemetry', to: '/dashboard/superadmin/telemetry', icon: Cpu },
+    { label: 'Key Governance', to: '/dashboard/superadmin/keys', icon: KeyRound },
   ]
 
   // 1. Administration Console Items
@@ -460,6 +463,7 @@ export function AdminShell() {
     { label: 'Customer Management', to: '/dashboard/customers', icon: Users },
     { label: 'Users Directory', to: '/dashboard/users', icon: Users },
     { label: 'Sovereign Nodes Map', to: '/dashboard/users/map', icon: Globe },
+    { label: 'Key Monitoring', to: '/dashboard/keys', icon: KeyRound },
   ]
 
   // 2. Provider Management Items
@@ -504,6 +508,14 @@ export function AdminShell() {
     },
   ]
 
+  const searchableSections: AdminSearchSectionItem[] = [
+    ...adminAdministrationItems.map((item) => ({ label: item.label, to: item.to, group: 'Administration' })),
+    ...adminProviderManagementItems.map((item) => ({ label: item.label, to: item.to, group: 'Provider Management' })),
+    ...(isSuperAdmin
+      ? adminSuperAdminItems.map((item) => ({ label: item.label, to: item.to, group: 'Super Admin' }))
+      : []),
+  ]
+
   const isItemActive = (item: NavItem) => {
     const path = location.pathname.replace(/\/+$/, '') || '/dashboard'
     if (item.to === '/dashboard/users') {
@@ -523,6 +535,15 @@ export function AdminShell() {
     }
     if (item.to === '/dashboard/super-admin/audit') {
       return path === '/dashboard/super-admin/audit' || path === '/dashboard/superadmin/audit-logs'
+    }
+    if (item.to === '/dashboard/superadmin/telemetry') {
+      return path === '/dashboard/superadmin/telemetry'
+    }
+    if (item.to === '/dashboard/superadmin/keys') {
+      return path === '/dashboard/superadmin/keys'
+    }
+    if (item.to === '/dashboard/keys') {
+      return path === '/dashboard/keys'
     }
     return path === item.to || path.startsWith(`${item.to}/`)
   }
@@ -551,6 +572,35 @@ export function AdminShell() {
       [title]: !prev[title],
     }))
   }
+
+  // Keyboard navigation hook for the sidebar
+  const { sidebarPointerHandlers } = useAdminSidebarKeyboardNav({
+    enabled: true,
+    sidebarRef,
+    sidebarNavWrapRef,
+    isMobile,
+    mobileMenuOpen,
+    isRailMode: isSidebarCollapsed,
+    hasOpenPopover: notifOpen || adminMenuOpen,
+    hasOpenFlyout: Boolean(hoveredFlyout),
+    currentPathname: location.pathname,
+    visibleSections: {
+      admin: Boolean(expandedAdminGroups['ADMINISTRATION']),
+      provider: Boolean(expandedAdminGroups['PROVIDER MANAGEMENT']),
+      'super-admin': Boolean(expandedAdminGroups['SUPER ADMIN']),
+    },
+    onNavigate: (to) => navigate(to),
+    onOpenSection: (sec) => {
+      const title = sec === 'super-admin' ? 'SUPER ADMIN' : sec === 'provider' ? 'PROVIDER MANAGEMENT' : 'ADMINISTRATION'
+      setExpandedAdminGroups((prev) => ({ ...prev, [title]: true }))
+    },
+    onCloseSection: (sec) => {
+      const title = sec === 'super-admin' ? 'SUPER ADMIN' : sec === 'provider' ? 'PROVIDER MANAGEMENT' : 'ADMINISTRATION'
+      setExpandedAdminGroups((prev) => ({ ...prev, [title]: false }))
+    },
+    onCloseFlyout: () => setHoveredFlyout(null),
+    onCloseMobileMenu: () => setMobileMenuOpen(false),
+  })
 
   // 🌟 Active Nav Pill Liquid Animation Driver — Single unified pill across all sidebar items
   useLayoutEffect(() => {
@@ -716,12 +766,14 @@ export function AdminShell() {
 
           {/* ── Left Sidebar (Full height from top to bottom) ────────────────── */}
           <aside
+            ref={sidebarRef}
             className={`dash-sidebar dash-sidebar--verdelo dash-sidebar--admin ${
               isMobile
                 ? (mobileMenuOpen ? 'is-open' : '')
                 : (isSidebarCollapsed ? 'is-collapsed' : '')
             }`}
             aria-label="Admin Dashboard Sidebar"
+            {...sidebarPointerHandlers}
           >
             {/* Top brand header inside the sidebar (Customer Verdelo style) */}
             <div className="verdelo-sidebar-brand-row">
@@ -861,19 +913,6 @@ export function AdminShell() {
                   </div>
                 </div>
               )}
-
-              <Link
-                to="/"
-                className="dash-sidebar__public-link"
-                title="Back to Public Website"
-                onClick={() => {
-                  setHoveredFlyout(null)
-                  setMobileMenuOpen(false)
-                }}
-              >
-                <ExternalLink size={13} />
-                {!isSidebarCollapsed && <span>Back to Public Website</span>}
-              </Link>
             </div>
           </aside>
 
@@ -891,21 +930,8 @@ export function AdminShell() {
                 </button>
               )}
 
-              {/* Search Capsule */}
-              <div
-                className="verdelo-search-pill"
-                onClick={() => {
-                  const searchInput = document.querySelector('input[type="text"], input[type="search"]') as HTMLInputElement | null
-                  if (searchInput) searchInput.focus()
-                }}
-                role="button"
-                tabIndex={0}
-                aria-label="Search customers, GPUs, telemetry"
-              >
-                <Search size={15} className="verdelo-search-icon" />
-                <span className="verdelo-search-text">Search customers, GPUs, telemetry...</span>
-                <kbd className="verdelo-search-kbd">⌘K</kbd>
-              </div>
+              {/* Search Capsule with integrated live search */}
+              <AdminHeaderSearch sections={searchableSections} isSuperAdmin={isSuperAdmin} />
 
               {/* Action cluster on right */}
               <div className="dash-customer-topbar__actions">

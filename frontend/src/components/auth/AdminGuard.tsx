@@ -5,6 +5,7 @@ import {
   getPortalRole,
   clearSession,
   verifyAdminSessionWithDetails,
+  isDevelopmentBypassToken,
 } from '../../lib/authStore'
 
 interface AdminGuardProps {
@@ -20,7 +21,7 @@ export function AdminGuard({ children }: AdminGuardProps) {
   const location = useLocation()
   const [authState, setAuthState] = useState<'checking' | 'authorized' | 'unauthorized'>(() => {
     const session = getSession()
-    if (!session || !session.token) return 'unauthorized'
+    if (!session || !session.token || isDevelopmentBypassToken(session.token)) return 'unauthorized'
     const portalRole = getPortalRole(session.user?.role)
     if (portalRole !== 'admin' && portalRole !== 'superadmin') return 'unauthorized'
     return 'checking'
@@ -33,7 +34,7 @@ export function AdminGuard({ children }: AdminGuardProps) {
       const session = getSession()
 
       // 1. Must have an active session
-      if (!session || !session.token) {
+      if (!session || !session.token || isDevelopmentBypassToken(session.token)) {
         if (isMounted) setAuthState('unauthorized')
         return
       }

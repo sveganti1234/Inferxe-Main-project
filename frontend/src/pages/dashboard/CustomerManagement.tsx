@@ -87,9 +87,12 @@ export default function CustomerManagement() {
   const [loading, setLoading] = useState<boolean>(true)
   const [error, setError] = useState<string | null>(null)
 
+  const [searchParams] = useSearchParams()
+  const initialSearchParam = searchParams.get('search') || ''
+
   // Filters & Pagination
   const [accountTypeTab, setAccountTypeTab] = useState<'real' | 'all' | 'test'>('real')
-  const [searchQuery, setSearchQuery] = useState('')
+  const [searchQuery, setSearchQuery] = useState(initialSearchParam)
   const [statusFilter, setStatusFilter] = useState<'all' | 'online' | 'active' | 'inactive'>('all')
   const [sortBy, setSortBy] = useState<'registration_date' | 'last_active' | 'full_name'>('registration_date')
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc')
@@ -103,11 +106,18 @@ export default function CustomerManagement() {
   const [detailsRecord, setDetailsRecord] = useState<CustomerDetailsRecord | null>(null)
   const [detailsLoading, setDetailsLoading] = useState<boolean>(false)
 
-  // Deep link from Users & Access Control: /dashboard/customers?customer=<id> opens that customer.
-  const [searchParams] = useSearchParams()
+  // Deep link from Users & Access Control or global search:
+  // - /dashboard/customers?customer=<id> opens that customer.
+  // - /dashboard/customers?search=<query> pre-populates search query.
   useEffect(() => {
     const linked = searchParams.get('customer')
     if (linked) setSelectedCustomerId(linked)
+
+    const param = searchParams.get('search')
+    if (param !== null) {
+      setSearchQuery(param)
+      setPage(1)
+    }
   }, [searchParams])
 
   // Backup & UI state
@@ -183,7 +193,7 @@ export default function CustomerManagement() {
   }, [selectedCustomerId])
 
   const handleCopy = (text: string, id: string) => {
-    navigator.clipboard.writeText(text).catch(() => {})
+    navigator.clipboard.writeText(text).catch(() => { })
     setCopiedId(id)
     setTimeout(() => setCopiedId(null), 2000)
   }

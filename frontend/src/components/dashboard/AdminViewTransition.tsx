@@ -20,6 +20,7 @@ export const ADMIN_ROUTE_ORDER: Record<string, number> = {
   '/dashboard/users': 8,
   '/dashboard/users/add': 9,
   '/dashboard/users/map': 10,
+  '/dashboard/keys': 10.5,
   '/dashboard/provider': 11,
   '/dashboard/provider/listings': 12,
   '/dashboard/provider/capacity': 13,
