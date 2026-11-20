@@ -49,14 +49,10 @@ describe('display name', () => {
     expect(selectProfileSummary(ws).displayName).toBe('divya')
   })
 
-  it('profile sync fallback uses the Cognito name claim, never cognito:username', async () => {
+  it('a failed profile sync never falls back to a profile built from token claims', async () => {
     vi.mocked(globalThis.fetch).mockRejectedValueOnce(new TypeError('fetch failed'))
     const token = ['x', b64url({ sub: 's1', email: 'divya@example.test', name: 'Divya Teja', 'cognito:username': 'cust_abc' }), 'sig'].join('.')
-    expect((await syncCustomerProfile(token)).fullName).toBe('Divya Teja')
-
-    vi.mocked(globalThis.fetch).mockRejectedValueOnce(new TypeError('fetch failed'))
-    const noName = ['x', b64url({ sub: 's1', email: 'divya@example.test', 'cognito:username': 'cust_abc' }), 'sig'].join('.')
-    expect((await syncCustomerProfile(noName)).fullName).toBe('divya')
+    await expect(syncCustomerProfile(token)).rejects.toMatchObject({ name: 'ProfileSyncError' })
   })
 })
 

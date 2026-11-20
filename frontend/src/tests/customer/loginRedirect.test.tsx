@@ -150,4 +150,13 @@ describe('login destination', () => {
     expect(auth.saveSession).not.toHaveBeenCalled()
     expect(where()).toBe('/login')
   })
+
+  it('signs nobody in and goes nowhere when the profile sync fails after Cognito accepts the password', async () => {
+    auth.syncCustomerProfile.mockRejectedValue(Object.assign(new Error('Your customer profile could not be synchronized. Please try again.'), { name: 'ProfileSyncError' }))
+    await renderLogin()
+    await submitCredentials('customer@example.test', 'correct-horse-battery')
+    expect(auth.saveSession).not.toHaveBeenCalled()
+    expect(where()).toBe('/login')
+    expect(document.body.textContent).toContain('could not be synchronized')
+  })
 })

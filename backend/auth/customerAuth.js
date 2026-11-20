@@ -1,5 +1,3 @@
-
-import crypto from 'node:crypto'
 import { CognitoJwtVerifier } from 'aws-jwt-verify'
 import { getSupabaseAdminClient } from '../lib/supabase.js'
 import { registerOrUpdateCustomer } from '../database/customerDatabase.js'
@@ -104,6 +102,12 @@ export async function verifyCognitoIdToken(token) {
   }
 
   return payload
+}
+
+const PROFILE_SYNC_FAILED = {
+  ok: false,
+  code: 'PROFILE_SYNC_FAILED',
+  error: 'Your customer profile could not be synchronized. Please try again or contact Inferxe support.',
 }
 
 async function syncProfile(
@@ -212,7 +216,19 @@ async function syncProfile(
         claims,
       })
     } catch (err) {
-      console.warn('[customer-auth] upsertCustomerProfile error:', err?.message)
+      // A refused profile link (409) or an unavailable profile store (503) ends the sign-in: the customer
+      // must not proceed with an identity that is not, or cannot be, bound to their own profile.
+      if (err?.statusCode === 409 || err?.statusCode === 503) {
+        return sendJson(res, err.statusCode, { ok: false, code: err.code, error: err.message })
+      }
+      console.error('[customer-auth] upsertCustomerProfile error:', err?.message)
+      return sendJson(res, 500, PROFILE_SYNC_FAILED)
+    }
+
+    // Only a saved profile bound to this Cognito subject completes sign-in; token claims never stand in for it.
+    if (!customerRecord?.cognito_sub || customerRecord.cognito_sub !== claims.sub) {
+      console.error('[customer-auth] Profile synchronization returned no profile for this subject.')
+      return sendJson(res, 500, PROFILE_SYNC_FAILED)
     }
 
     // Keep SQLite customer database in sync for Customer Management dashboard
@@ -222,9 +238,9 @@ async function syncProfile(
         full_name: fullName,
         email,
         phone_number: claims.phone_number || null,
-        organization: customerRecord?.organization || explicitOrg || null,
-        role: customerRecord?.role || 'customer',
-        account_status: customerRecord?.account_status || 'active',
+        organization: customerRecord.organization || explicitOrg || null,
+        role: customerRecord.role,
+        account_status: customerRecord.account_status,
         isLogin: true,
       })
     } catch (sqliteErr) {
@@ -234,14 +250,14 @@ async function syncProfile(
     return sendJson(res, 200, {
       ok: true,
       profile: {
-        id: customerRecord?.cognito_sub || customerRecord?.user_id || claims.sub,
-        fullName: customerRecord?.full_name || fullName,
-        email: customerRecord?.email || email,
+        id: customerRecord.cognito_sub,
+        fullName: customerRecord.full_name,
+        email: customerRecord.email,
         username: username || email.split('@')[0],
-        role: customerRecord?.role || 'customer',
-        status: customerRecord?.account_status || customerRecord?.status || 'active',
-        organization: customerRecord?.organization || explicitOrg || null,
-        organizationId: customerRecord?.organization_id || null,
+        role: customerRecord.role,
+        status: customerRecord.account_status,
+        organization: customerRecord.organization || null,
+        organizationId: customerRecord.organization_id || null,
       },
     })
   } catch (error) {
@@ -290,41 +306,9 @@ export async function authenticateCognitoRequest(req) {
     throw new Error('A Cognito ID token is required.')
   }
 
-  try {
-    return await verifyCognitoIdToken(token)
-  } catch (cognitoErr) {
-    const secret = String(process.env.ADMIN_SESSION_SECRET || '').trim()
-    if (secret && secret.length >= 32) {
-      try {
-        const parts = token.split('.')
-        if (parts.length === 3) {
-          const header = JSON.parse(Buffer.from(parts[0], 'base64').toString('utf8'))
-          if (header.alg === 'HS256') {
-            const expectedSig = crypto
-              .createHmac('sha256', secret)
-              .update(`${parts[0]}.${parts[1]}`)
-              .digest('base64url')
-            if (parts[2] === expectedSig) {
-              const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'))
-              const nowSec = Math.floor(Date.now() / 1000)
-              if (!payload.exp || payload.exp > nowSec) {
-                return {
-                  sub: payload.sub,
-                  email: payload.email,
-                  name: payload.fullName || payload.name,
-                  preferred_username: (payload.email || '').split('@')[0],
-                  email_verified: true,
-                  role: payload.role || 'customer',
-                  'cognito:username': (payload.email || '').split('@')[0],
-                }
-              }
-            }
-          }
-        }
-      } catch {}
-    }
-    throw cognitoErr
-  }
+  // Customers are identified only by a verified Cognito ID token. No other token type (e.g. HS256 tokens
+  // signed with the admin session secret) is ever accepted as a customer identity.
+  return verifyCognitoIdToken(token)
 }
 
 export async function checkSupabaseConnection() {
