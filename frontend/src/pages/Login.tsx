@@ -467,26 +467,14 @@ export default function Login({ initialMode }: LoginProps) {
         })
         return
       } catch (err) {
-        console.warn(`${provider} Cognito sign-in failed, falling back to direct OAuth redirect:`, err)
+        console.warn(`${provider} Cognito sign-in failed:`, err)
       }
     }
 
-    // Direct redirect to provider login page when Cognito domain is not active
-    if (provider === 'GitHub') {
-      const githubClientId = import.meta.env.VITE_GITHUB_CLIENT_ID as string | undefined
-      if (githubClientId) {
-        window.location.href = `https://github.com/login/oauth/authorize?client_id=${githubClientId}&scope=read:user,user:email`
-      } else {
-        window.location.href = 'https://github.com/login'
-      }
-    } else {
-      const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined
-      if (googleClientId) {
-        window.location.href = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${googleClientId}&response_type=code&scope=openid%20email%20profile&redirect_uri=${encodeURIComponent(window.location.origin + '/login/callback')}`
-      } else {
-        window.location.href = 'https://accounts.google.com'
-      }
-    }
+    // Social sign-in only works through the Cognito hosted domain (federated identity). A direct provider redirect
+    // has no callback that creates an Inferxe session, so it would strand the user on the provider's site.
+    setError(`${provider} sign-in is not available right now. Please sign in with your email and password.`)
+    setIsSubmitting(false)
   }
 
   const handleResendResetCode = async () => {

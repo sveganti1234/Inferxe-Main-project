@@ -68,25 +68,37 @@ export function ContactForm() {
       <AnimatePresence mode="wait">
         {state === 'done' ? (
           <motion.div key="done" className="cform__done" initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.4 }}>
-            <svg viewBox="0 0 80 80" className="cform__check" aria-hidden>
-              <circle cx="40" cy="40" r="34" fill="rgba(118,185,0,.12)" stroke="#76b900" strokeWidth="2" />
-              <motion.path d="M25 41 l10 10 l21 -23" fill="none" stroke="#b6f23a" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.7, delay: 0.2 }} />
-            </svg>
-            <h3 className="h2">Thanks, {v.name.split(' ')[0] || 'there'}.</h3>
-            <p className="lead">
-              {delivered
-                ? `We have your enquiry about “${v.interest}” and will reply to ${v.email}.`
-                : `Your enquiry about “${v.interest}” is complete on this page.`}
-            </p>
-            {!delivered && (
-              <p className="cform__warn">
-                <TriangleAlert aria-hidden /> Preview build: the form is not connected to a mailbox yet, so nothing was sent.
-                {SITE.contactEmail ? ` Please email ${SITE.contactEmail} directly.` : ' Set VITE_FORM_ENDPOINT to enable delivery.'}
+            {delivered && (
+              <svg viewBox="0 0 80 80" className="cform__check" aria-hidden>
+                <circle cx="40" cy="40" r="34" fill="rgba(118,185,0,.12)" stroke="#76b900" strokeWidth="2" />
+                <motion.path d="M25 41 l10 10 l21 -23" fill="none" stroke="#b6f23a" strokeWidth="4.5" strokeLinecap="round" strokeLinejoin="round" initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.7, delay: 0.2 }} />
+              </svg>
+            )}
+            <h3 className="h2">{delivered ? `Thanks, ${v.name.split(' ')[0] || 'there'}.` : 'Not sent'}</h3>
+            {delivered ? (
+              <p className="lead">{`We have your enquiry about “${v.interest}” and will reply to ${v.email}.`}</p>
+            ) : (
+              <p className="cform__warn" role="alert">
+                <TriangleAlert aria-hidden /> This form is not connected to a mailbox yet, so your enquiry was not sent.
+                {SITE.contactEmail ? (
+                  <>
+                    {' '}Please email <a href={`mailto:${SITE.contactEmail}`}>{SITE.contactEmail}</a> directly.
+                  </>
+                ) : (
+                  ' Please try again later.'
+                )}
               </p>
             )}
-            <Button variant="ghost" onClick={reset}>
-              Send another
-            </Button>
+            {delivered ? (
+              <Button variant="ghost" onClick={reset}>
+                Send another
+              </Button>
+            ) : (
+              // Keep what they typed so nothing is lost.
+              <Button variant="ghost" onClick={() => setState('idle')}>
+                Back to form
+              </Button>
+            )}
           </motion.div>
         ) : (
           <motion.form key="form" onSubmit={submit} noValidate initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>

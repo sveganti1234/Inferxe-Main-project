@@ -28,3 +28,13 @@ def pytest_terminal_summary(terminalreporter):
         terminalreporter.section("test-safety: blocked outbound network")
         for test_id, kind, category in isolation_guard.blocked:
             terminalreporter.write_line(f"{kind} ({category})  <- {test_id}")
+
+
+@pytest.fixture(autouse=True)
+def _isolated_rag_cache_db(monkeypatch, tmp_path):
+    """The Supabase fallback cache (database/inferxe_rag_cache.db) is real local dev data: point it at a temp file."""
+    for name in ("backend.database.supabase_client", "database.supabase_client"):
+        mod = sys.modules.get(name)
+        if mod is not None and hasattr(mod, "CACHE_DB_PATH"):
+            monkeypatch.setattr(mod, "CACHE_DB_PATH", tmp_path / "rag_cache.db")
+            monkeypatch.setattr(mod, "_local_cache_ready", False)

@@ -107,3 +107,12 @@ def test_chat_history_returns_latest_turns_chronologically(monkeypatch):
     monkeypatch.setattr(sc, "get_supabase_client", lambda: types.SimpleNamespace(table=lambda name: q))
     assert sc.get_chat_history(session_id="s1", limit=2) == [{"id": 2}, {"id": 3}]
     assert ("order", "created_at", True) in q.calls
+
+
+def test_fallback_cache_db_is_isolated_from_real_dev_data(tmp_path):
+    # backend/conftest.py redirects the local fallback cache; tests must never write database/inferxe_rag_cache.db.
+    real = sc.ROOT_DIR / "database" / "inferxe_rag_cache.db"
+    assert sc.CACHE_DB_PATH != real
+    assert tmp_path in sc.CACHE_DB_PATH.parents
+    sc._init_local_cache_db()
+    assert sc.CACHE_DB_PATH.exists()

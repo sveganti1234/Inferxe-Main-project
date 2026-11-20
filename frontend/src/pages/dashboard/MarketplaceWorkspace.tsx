@@ -194,7 +194,7 @@ const FAQS = [
     id: 'faq-6',
     category: 'api',
     q: 'Is the API compatible with the standard OpenAI Python SDK?',
-    a: 'Inferxe exposes drop-in OpenAI-compatible endpoints (/v1/chat/completions, /v1/completions, /v1/embeddings). You can set base_url="https://api.inferxe.com/v1" and use your standard api_key.',
+    a: 'Not yet. The inference API is POST /api/v1/inference with an Inferxe API key as a bearer token and a JSON body containing a prompt (optionally max_tokens and temperature). OpenAI-compatible endpoints, streaming and embeddings are planned.',
   },
 ]
 

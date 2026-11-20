@@ -144,7 +144,7 @@ export default function Platform() {
           <div className="split split--wide-left">
             <div>
               <SectionHead
-                eyebrow="Managed inference"
+                eyebrow="Managed inference · planned"
                 title={
                   <>
                     Docker + vLLM, <span className="grad-text">provisioned for you</span>.
@@ -228,7 +228,7 @@ docker run --runtime nvidia --gpus all \\
               <img className="adapter-img" src="/images/patch-panel.webp" alt="Network patch panel representing many provider connections" loading="lazy" />
               <div className="mt-3 row row--wrap" style={{ gap: 10 }}>
                 <span className="chip chip--lime">
-                  Live in MVP: JarvisLabs
+                  MVP target: JarvisLabs
                 </span>
                 <span className="chip">Mock adapter</span>
                 <span className="chip">Contract tests</span>

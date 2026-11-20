@@ -4,6 +4,7 @@ that implements just the statements recharge/debit/outbox issue.
 Run from the repo root:  python -m pytest backend/notifications/tests/test_wallet_correctness.py -q
 """
 
+import json
 from decimal import Decimal
 
 import psycopg2
@@ -24,6 +25,7 @@ class FakeWalletDB:
         self.transactions = []
         self.statements = []
         self.fail_outbox_insert_with_duplicate = False
+        self.audit_logs = []
 
 
 class FakeCursor:
@@ -58,6 +60,11 @@ class FakeCursor:
             self.db.balance, self.db.alert = params[0], params[1]
         elif s.startswith("INSERT INTO wallet_transactions"):
             self.db.transactions.append(params)
+        elif s.startswith("SELECT role FROM profiles"):
+            self._row = {"role": "customer"}
+        elif s.startswith("INSERT INTO audit_logs"):
+            json.loads(params[1])  # psycopg2 sends the details string as-is; it must already be valid JSON
+            self.db.audit_logs.append(params)
 
     def fetchone(self):
         return self._row
@@ -130,6 +137,16 @@ def test_recharge_creates_wallet_and_returns_floats(wallet):
     assert res["status"] == "success"
     assert res["amount"] == 100.1 and res["new_balance"] == 100.1
     assert isinstance(res["new_balance"], float)
+
+
+def test_admin_credit_audit_log_serialises_decimal_balances(wallet):
+    # Regression: Decimal balances in the audit details made json.dumps raise, so every admin credit failed.
+    wallet.balance = Decimal("10.25")
+    res = NotificationService.process_wallet_recharge(
+        "u1", 5, idempotency_key="adm1", admin_credit={"administrator_email": "a@example.test", "reason": "goodwill"})
+    assert res["status"] == "success" and wallet.balance == Decimal("15.25")
+    details = json.loads(wallet.audit_logs[0][1])
+    assert details["balance_before"] == 10.25 and details["balance_after"] == 15.25 and details["reason"] == "goodwill"
 
 
 def test_debit_insufficient_balance_uses_exact_comparison(wallet):

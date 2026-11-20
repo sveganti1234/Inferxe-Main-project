@@ -754,8 +754,8 @@ class NotificationService:
                         "amount": float(amount),
                         "currency": "INR",
                         "transaction_id": tx_id,
-                        "balance_before": curr_balance,
-                        "balance_after": new_balance,
+                        "balance_before": float(curr_balance),  # Decimal is not JSON-serialisable
+                        "balance_after": float(new_balance),
                         "idempotency_key": idem_key,
                     }))
                 )

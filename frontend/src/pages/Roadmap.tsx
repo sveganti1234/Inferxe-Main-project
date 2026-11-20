@@ -7,7 +7,7 @@ import { usePageMeta } from '../lib/hooks'
 const MILESTONES = [
   {
     phase: 'Q4 2026',
-    status: 'Live / MVP',
+    status: 'MVP · in progress',
     badgeClass: 'chip--lime',
     title: 'Sovereign Indian Mesh & vLLM Control Plane',
     items: [
