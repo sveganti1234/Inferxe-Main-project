@@ -1325,9 +1325,10 @@ export function createAdminAuthMiddleware(config = {}) {
 
     // 11. POST /api/admin/login or /login
     if ((parsedPath === '/api/admin/login' || parsedPath === '/login') && req.method === 'POST') {
+      let email = ''
       try {
         const body = await parseJsonBody(req)
-        const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
+        email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
         const password = typeof body.password === 'string' ? body.password : ''
 
         if (!email || !password) {
