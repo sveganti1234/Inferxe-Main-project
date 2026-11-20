@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { assertExternalTargetAllowed } from './testSafety.js'
 
 let adminClient
 let cachedSignature = ''
@@ -20,6 +21,7 @@ export function getSupabaseAdminClient() {
   if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
     throw new Error('SUPABASE_URL must use HTTP or HTTPS.')
   }
+  assertExternalTargetAllowed(url, 'Supabase admin client')
 
   if (serviceRoleKey.startsWith('sbp_') || serviceRoleKey.startsWith('sb_publishable_')) {
     throw new Error('SUPABASE_SERVICE_ROLE_KEY must be a server-side Supabase Secret or Service Role key.')

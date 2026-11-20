@@ -148,7 +148,7 @@ class TestNotificationsSupabaseSchemaCompat(unittest.TestCase):
         now_dt = datetime(2026, 11, 11, 12, 0, tzinfo=timezone.utc)
         cur = _SchemaAwareFakeCursor(
             {},
-            fetchone_results=[{"total": 1}, {"unread": 1}],
+            fetchone_results=[{"total": 1, "unread": 1}],  # one combined COUNT query
             fetchall_results=[
                 [
                     {

@@ -183,7 +183,7 @@ function probePythonCandidate(candidate) {
   const probeScript = [
     'import importlib.util, json, sys',
     'core = ["fastapi", "uvicorn", "jwt", "cryptography", "dotenv", "psycopg2", "sqlalchemy", "httpx2", "openai"]',
-    'opt = ["chromadb", "httpx", "ddgs"]',
+    'opt = ["chromadb", "httpx", "ddgs", "supabase"]',
     'print(json.dumps({"version": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}", "executable": sys.executable, "missing_core": [m for m in core if importlib.util.find_spec(m) is None], "missing_opt": [m for m in opt if importlib.util.find_spec(m) is None]}))',
   ].join('; ')
 
@@ -358,6 +358,11 @@ async function main() {
   if (selected.missing_opt.includes('chromadb')) {
     console.warn(
       '[warn] chromadb is not installed in this Python environment; RAG vector search (/api/chat) will degrade until `pip install -r backend/requirements.txt` is completed.',
+    )
+  }
+  if (selected.missing_opt.includes('supabase')) {
+    console.warn(
+      '[warn] the supabase Python package is not installed; chat history cannot be saved, so /api/chat returns 500 for signed-in users until `pip install -r backend/requirements.txt` is completed.',
     )
   }
 

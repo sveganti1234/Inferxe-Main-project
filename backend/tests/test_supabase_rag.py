@@ -38,6 +38,16 @@ from backend.database.supabase_client import (
 from backend.rag.server import app, chat_endpoint, ChatRequest, DocumentUploadRequest
 
 
+# These tests insert document metadata and chat history into whatever Supabase project the .env files
+# point at, which is the production project. Same rule as notifications/tests/live_db_guard.py: they
+# only run on explicit opt-in, against a project where test rows are acceptable.
+LIVE_SUPABASE_OPT_IN = os.environ.get("INFERXE_LIVE_SUPABASE_TESTS") == "1"
+
+
+@unittest.skipUnless(
+    LIVE_SUPABASE_OPT_IN,
+    "writes to the configured Supabase project; set INFERXE_LIVE_SUPABASE_TESTS=1 to run against a non-production project",
+)
 class TestSupabaseRAGIntegration(unittest.TestCase):
 
     def setUp(self):

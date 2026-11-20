@@ -3,17 +3,16 @@ Notification Business Logic & Event Outbox Service for Inferxe.
 Enforces multi-user isolation, idempotency, wallet thresholds, and deployment lifecycle tracking.
 """
 
-import os
 import json
 import uuid
 import logging
 import threading
 from typing import Dict, Any, List, Optional, Tuple
 from datetime import datetime, timezone
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 import psycopg2
-from psycopg2.extras import RealDictCursor
-from .db import DBConnection
+from psycopg2.extras import RealDictCursor, execute_values
+from .db import DBConnection, protect_service_tables
 
 logger = logging.getLogger("inferxe.notifications.service")
 
@@ -107,6 +106,94 @@ def _serialize_notification_row(row: Dict[str, Any]) -> Dict[str, Any]:
 def now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
+
+_CENT = Decimal("0.01")
+
+
+def _to_money(amount) -> Decimal:
+    """Positive, finite amount as Decimal(…, 2 dp), matching the NUMERIC(14,2) wallet columns."""
+    try:
+        value = Decimal(str(amount))
+    except Exception:
+        raise ValueError("Amount must be a number")
+    if not value.is_finite():
+        raise ValueError("Amount must be a finite number")
+    value = value.quantize(_CENT, rounding=ROUND_HALF_UP)  # Postgres NUMERIC rounds half away from zero
+    if value <= 0:
+        raise ValueError("Amount must be greater than zero")
+    return value
+
+
+def _notification_row(cols, user_id, title, message, notification_type, metadata, related_entity_id):
+    """(insert_cols, values) for one notification, adapted to the live notifications schema
+    (`detail` in Supabase vs `message` in legacy, uuid vs text ids, optional columns).
+    `is_read` is in insert_cols but has no value: callers render it as the literal FALSE."""
+    notif_id = str(uuid.uuid4()) if cols.get("id") == "uuid" else f"notif_{uuid.uuid4().hex[:12]}"
+    text_cols: List[str] = []
+    if "message" in cols or not cols:
+        text_cols.append("message")
+    if "detail" in cols:
+        text_cols.append("detail")
+    insert_cols = ["id", "user_id", "title", *text_cols, "notification_type", "is_read"]
+    values: List[Any] = [notif_id, user_id, title, *([message] * len(text_cols)), notification_type]
+    for col_name, col_val in (
+        ("metadata", json.dumps(metadata or {})),
+        ("related_entity_id", related_entity_id),
+        ("created_at", now_iso()),
+    ):
+        if not cols or col_name in cols:
+            insert_cols.append(col_name)
+            values.append(col_val)
+    return insert_cols, tuple(values)
+
+
+DEPLOYMENT_STATUSES = frozenset({"Provisioning", "Running", "Stopped", "Failed", "Terminated"})
+# Customers may create (Provisioning), stop or terminate their own deployments; Running/Failed are
+# reported by the system/admins. shortcut: there is no real provisioner yet; revisit when one exists.
+CUSTOMER_SETTABLE_DEPLOYMENT_STATUSES = frozenset({"Provisioning", "Stopped", "Terminated"})
+
+
+
+def _find_deployment(cur, deployment_id: str):
+    """Deployment by id, case-insensitively (existing behaviour). The exact match uses the primary-key
+    index; UPPER(id) = UPPER(%s) cannot and scans the whole table, so it only runs on a miss."""
+    cur.execute("SELECT * FROM gpu_deployments WHERE id = %s;", (deployment_id,))
+    row = cur.fetchone()
+    if row is None:
+        cur.execute("SELECT * FROM gpu_deployments WHERE UPPER(id) = UPPER(%s);", (deployment_id,))
+        row = cur.fetchone()
+    return row
+
+_WORKSPACE_SETTINGS_DDL = """
+    CREATE TABLE IF NOT EXISTS workspace_settings (
+        user_id VARCHAR(128) PRIMARY KEY,
+        monthly_budget NUMERIC(14,2) NOT NULL DEFAULT 10000.0,
+        spending_alerts_enabled BOOLEAN NOT NULL DEFAULT TRUE,
+        weekly_report_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+        cors_origins TEXT NOT NULL DEFAULT 'https://app.novatech.ai, http://localhost:3000',
+        updated_at TEXT NOT NULL
+    );
+"""
+_workspace_table_ready = False
+_workspace_table_lock = threading.Lock()
+
+
+def _ensure_workspace_settings_table(cur) -> None:
+    """Run the workspace_settings DDL once per process instead of on every request."""
+    global _workspace_table_ready
+    if _workspace_table_ready:
+        return
+    with _workspace_table_lock:
+        if not _workspace_table_ready:
+            cur.execute(_WORKSPACE_SETTINGS_DDL)
+            # `budget_configured` is TRUE only once the customer saved a budget; reading never stores a default.
+            # Backfill: a budget other than the old 10000 default can only have come from a save.
+            cur.execute("ALTER TABLE workspace_settings ADD COLUMN IF NOT EXISTS budget_configured BOOLEAN NOT NULL DEFAULT FALSE;")
+            cur.execute("UPDATE workspace_settings SET budget_configured = TRUE WHERE budget_configured = FALSE AND monthly_budget <> 10000.0;")
+            protect_service_tables(cur, ("workspace_settings",))  # service-only, like the init_db tables
+            _workspace_table_ready = True
+
+
 class NotificationService:
 
     @staticmethod
@@ -135,12 +222,14 @@ class NotificationService:
         with DBConnection(autocommit=True) as conn:
             cur = conn.cursor(cursor_factory=RealDictCursor)
 
-            # Total and unread counts for this user
-            cur.execute("SELECT COUNT(*) as total FROM notifications WHERE user_id = %s;", (user_id,))
-            total = cur.fetchone()["total"]
-
-            cur.execute("SELECT COUNT(*) as unread FROM notifications WHERE user_id = %s AND is_read = FALSE;", (user_id,))
-            unread_count = cur.fetchone()["unread"]
+            # Total and unread counts for this user, in one round trip
+            cur.execute(
+                "SELECT COUNT(*) AS total, COUNT(*) FILTER (WHERE is_read = FALSE) AS unread "
+                "FROM notifications WHERE user_id = %s;",
+                (user_id,),
+            )
+            counts = cur.fetchone()
+            total, unread_count = counts["total"], counts["unread"]
 
             query = "SELECT * FROM notifications WHERE user_id = %s "
             params: List[Any] = [user_id]
@@ -174,22 +263,21 @@ class NotificationService:
             cols = _get_table_columns(cur, "notifications")
             normalized_id = _coerce_uuid_or_not_found(notification_id, cols.get("id"))
 
-            # Check existence and ownership
-            cur.execute("SELECT user_id, is_read FROM notifications WHERE id = %s;", (normalized_id,))
-            row = cur.fetchone()
-            if not row:
-                raise KeyError("Notification not found")
-
-            if row["user_id"] != user_id:
-                logger.warning(f"Cross-user mark-read blocked: User {user_id} tried to read notification {normalized_id} of user {row['user_id']}")
-                raise PermissionError("Access forbidden: Cannot modify notifications of another user")
-
+            # One round trip on success: ownership is part of the UPDATE. Only a miss needs the lookup
+            # that tells "not found" (404) from "someone else's" (403).
             read_time = now_iso()
             cur.execute(
-                "UPDATE notifications SET is_read = TRUE, read_at = %s WHERE id = %s RETURNING id, is_read, read_at;",
-                (read_time, normalized_id)
+                "UPDATE notifications SET is_read = TRUE, read_at = %s WHERE id = %s AND user_id = %s RETURNING id, is_read, read_at;",
+                (read_time, normalized_id, user_id)
             )
             updated = cur.fetchone()
+            if not updated:
+                cur.execute("SELECT user_id FROM notifications WHERE id = %s;", (normalized_id,))
+                row = cur.fetchone()
+                if not row:
+                    raise KeyError("Notification not found")
+                logger.warning(f"Cross-user mark-read blocked: User {user_id} tried to read notification {normalized_id} of user {row['user_id']}")
+                raise PermissionError("Access forbidden: Cannot modify notifications of another user")
             result = dict(updated)
             if isinstance(result.get("id"), uuid.UUID):
                 result["id"] = str(result["id"])
@@ -217,17 +305,16 @@ class NotificationService:
             cols = _get_table_columns(cur, "notifications")
             normalized_id = _coerce_uuid_or_not_found(notification_id, cols.get("id"))
 
+            # One round trip on success; the lookup runs only to tell 404 from 403 on a miss.
+            cur.execute("DELETE FROM notifications WHERE id = %s AND user_id = %s RETURNING id;", (normalized_id, user_id))
+            if cur.fetchone():
+                return True
             cur.execute("SELECT user_id FROM notifications WHERE id = %s;", (normalized_id,))
             row = cur.fetchone()
             if not row:
                 raise KeyError("Notification not found")
-
-            if row["user_id"] != user_id:
-                logger.warning(f"Cross-user delete blocked: User {user_id} tried to delete notification {normalized_id} of user {row['user_id']}")
-                raise PermissionError("Access forbidden: Cannot delete notifications of another user")
-
-            cur.execute("DELETE FROM notifications WHERE id = %s;", (normalized_id,))
-            return True
+            logger.warning(f"Cross-user delete blocked: User {user_id} tried to delete notification {normalized_id} of user {row['user_id']}")
+            raise PermissionError("Access forbidden: Cannot delete notifications of another user")
 
     # ── Notification Outbox & Event Generation ──
 
@@ -243,44 +330,88 @@ class NotificationService:
     ) -> str:
         """Inserts a notification record using an active cursor across Supabase or legacy schemas."""
         cols = _get_table_columns(cur, "notifications")
-        id_is_uuid = cols.get("id") == "uuid"
-        notif_id = str(uuid.uuid4()) if id_is_uuid else f"notif_{uuid.uuid4().hex[:12]}"
-        meta_json = json.dumps(metadata or {})
-        created_time = now_iso()
-
-        # Adapt text column (`detail` in Supabase vs `message` in legacy schema)
-        text_cols: List[str] = []
-        if "message" in cols or not cols:
-            text_cols.append("message")
-        if "detail" in cols:
-            text_cols.append("detail")
-
-        insert_cols = ["id", "user_id", "title", *text_cols, "notification_type", "is_read"]
-        insert_vals: List[Any] = [notif_id, user_id, title, *([message] * len(text_cols)), notification_type]
-
-        optional_vals = [
-            ("metadata", meta_json),
-            ("related_entity_id", related_entity_id),
-            ("created_at", created_time),
-        ]
-        for col_name, col_val in optional_vals:
-            if not cols or col_name in cols:
-                insert_cols.append(col_name)
-                insert_vals.append(col_val)
-
-        placeholders = []
-        for c in insert_cols:
-            if c == "is_read":
-                placeholders.append("FALSE")
-            else:
-                placeholders.append("%s")
-
+        insert_cols, row = _notification_row(cols, user_id, title, message, notification_type, metadata, related_entity_id)
+        placeholders = ["FALSE" if c == "is_read" else "%s" for c in insert_cols]
         sql = (
             f"INSERT INTO notifications ({', '.join(insert_cols)}) "
             f"VALUES ({', '.join(placeholders)}) RETURNING id;"
         )
-        cur.execute(sql, tuple(insert_vals))
-        return notif_id
+        cur.execute(sql, row)
+        return row[0]
+
+    @classmethod
+    def _broadcast_notifications(
+        cls,
+        cur,
+        user_ids: List[str],
+        title: str,
+        message: str,
+        notification_type: str,
+        metadata: Optional[Dict[str, Any]] = None,
+        related_entity_id: Optional[str] = None,
+    ) -> int:
+        """Insert one notification per user; returns how many were created.
+
+        Fast path: a single multi-row INSERT (1 round trip instead of 3 per user). If any user has no
+        matching profile row (FK violation 23503), the batch is rolled back to its savepoint and the
+        per-user path runs, which skips exactly those users, as before. Other errors propagate.
+        """
+        if not user_ids:
+            return 0
+        cols = _get_table_columns(cur, "notifications")
+        rows = [_notification_row(cols, uid, title, message, notification_type, metadata, related_entity_id)
+                for uid in user_ids]
+        insert_cols = rows[0][0]
+        template = "(" + ", ".join("FALSE" if c == "is_read" else "%s" for c in insert_cols) + ")"
+        in_tx = not getattr(cur.connection, "autocommit", True)
+        if in_tx:
+            cur.execute("SAVEPOINT sp_broadcast_batch;")
+        try:
+            execute_values(
+                cur,
+                f"INSERT INTO notifications ({', '.join(insert_cols)}) VALUES %s",
+                [values for _, values in rows],
+                template=template,
+                page_size=500,
+            )
+        except psycopg2.IntegrityError as exc:
+            if in_tx:
+                cur.execute("ROLLBACK TO SAVEPOINT sp_broadcast_batch;")
+            if getattr(exc, "pgcode", None) != "23503":
+                raise
+            created = 0
+            for uid in user_ids:
+                if cls._create_notification_in_broadcast(
+                    cur,
+                    user_id=uid,
+                    title=title,
+                    message=message,
+                    notification_type=notification_type,
+                    metadata=metadata,
+                    related_entity_id=related_entity_id,
+                ):
+                    created += 1
+            return created
+        except Exception:
+            if in_tx:
+                cur.execute("ROLLBACK TO SAVEPOINT sp_broadcast_batch;")
+            raise
+        if in_tx:
+            cur.execute("RELEASE SAVEPOINT sp_broadcast_batch;")
+        return len(user_ids)
+
+    @classmethod
+    def _notify_owner(cls, cur, **kwargs) -> Optional[str]:
+        """Notification side effect of a wallet/deployment transaction.
+
+        If notifications.user_id has an FK to profiles (as the Supabase schema may) and the user has no
+        profile row, only the notification is skipped (FK error 23503, logged) instead of aborting and
+        rolling back the money/deployment change. Any other error still propagates.
+        """
+        nid = cls._create_notification_in_broadcast(cur, **kwargs)
+        if nid is None:
+            logger.warning("Notification skipped for user '%s': no matching profile row (FK 23503).", kwargs.get("user_id"))
+        return nid
 
     @classmethod
     def _create_notification_in_broadcast(
@@ -352,6 +483,12 @@ class NotificationService:
                     logger.info(f"Duplicate outbox event skipped for idempotency key '{idempotency_key}'")
                     return existing["id"], True
 
+            # Inside a caller's transaction, a failed INSERT aborts the whole transaction, so the
+            # duplicate lookup below would fail too (500 instead of "skipped"). A savepoint lets us
+            # undo just the INSERT. In autocommit mode there is no transaction to protect.
+            in_tx = not c.connection.autocommit
+            if in_tx:
+                c.execute("SAVEPOINT outbox_insert;")
             try:
                 c.execute(
                     """
@@ -362,6 +499,8 @@ class NotificationService:
                     (evt_id, event_type, user_id, payload_str, idempotency_key, created_time)
                 )
             except psycopg2.IntegrityError:
+                if in_tx:
+                    c.execute("ROLLBACK TO SAVEPOINT outbox_insert;")
                 # Concurrent duplicate: another transaction inserted same idempotency_key
                 c.execute(
                     "SELECT id, status FROM notification_outbox WHERE idempotency_key = %s;",
@@ -371,6 +510,8 @@ class NotificationService:
                 if existing:
                     return existing["id"], True
                 raise
+            if in_tx:
+                c.execute("RELEASE SAVEPOINT outbox_insert;")
 
             return evt_id, False
 
@@ -461,18 +602,15 @@ class NotificationService:
                 # Fallback to demo customer if users table empty
                 customers = ["usr_demo_customer"]
 
-            cust_created = 0
-            for cid in customers:
-                if cls._create_notification_in_broadcast(
-                    cur,
-                    user_id=cid,
-                    title=title,
-                    message=message,
-                    notification_type=event_type,
-                    metadata=meta,
-                    related_entity_id=gpu_id
-                ):
-                    cust_created += 1
+            cust_created = cls._broadcast_notifications(
+                cur,
+                customers,
+                title=title,
+                message=message,
+                notification_type=event_type,
+                metadata=meta,
+                related_entity_id=gpu_id,
+            )
 
             # Find active admins for audit trail
             cur.execute("SELECT id FROM users WHERE role = 'admin' AND status = 'active';")
@@ -486,18 +624,15 @@ class NotificationService:
                 f"Admin {admin_user_id} updated {gpu_name} price from ₹{old_price:,.0f} to ₹{new_price:,.0f}/hr. "
                 f"Broadcast delivered to {cust_created} registered customer(s)."
             )
-            admin_created = 0
-            for aid in admins:
-                if cls._create_notification_in_broadcast(
-                    cur,
-                    user_id=aid,
-                    title="GPU Price Audit Alert",
-                    message=admin_audit_msg,
-                    notification_type="GPU_PRICE_AUDIT",
-                    metadata=meta,
-                    related_entity_id=gpu_id
-                ):
-                    admin_created += 1
+            admin_created = cls._broadcast_notifications(
+                cur,
+                admins,
+                title="GPU Price Audit Alert",
+                message=admin_audit_msg,
+                notification_type="GPU_PRICE_AUDIT",
+                metadata=meta,
+                related_entity_id=gpu_id,
+            )
 
             conn.commit()
 
@@ -530,10 +665,13 @@ class NotificationService:
         All operations run in a single database transaction; if any step
         fails, the entire transaction (including the outbox event) rolls back.
         """
-        if amount <= 0:
-            raise ValueError("Recharge amount must be greater than zero")
+        try:
+            amount = _to_money(amount)  # rejects NaN/inf/<=0; Decimal arithmetic below
+        except ValueError:
+            raise ValueError("Recharge amount must be greater than zero") from None
 
-        idem_key = idempotency_key or f"wallet_recharge_{user_id}_{int(amount)}_{int(datetime.now().timestamp())}"
+        # Fallback key uses the exact amount: int(amount) made different amounts collide.
+        idem_key = idempotency_key or f"wallet_recharge_{user_id}_{amount}_{int(datetime.now().timestamp())}"
 
         with DBConnection(autocommit=False) as conn:
             cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -541,7 +679,7 @@ class NotificationService:
             # Outbox idempotency check + insert in SAME transaction as wallet update
             evt_id, is_duplicate = cls.record_outbox_event(
                 event_type="WALLET_RECHARGE",
-                payload={"user_id": user_id, "amount": amount},
+                payload={"user_id": user_id, "amount": float(amount)},
                 idempotency_key=idem_key,
                 user_id=user_id,
                 cur=cur,
@@ -561,8 +699,8 @@ class NotificationService:
             wallet = cur.fetchone()
 
             if not wallet:
-                curr_balance = 0.0
-                new_balance = float(amount)
+                curr_balance = Decimal("0")
+                new_balance = amount
                 cur.execute(
                     """
                     INSERT INTO wallets (user_id, balance, currency, low_balance_alert_level, updated_at)
@@ -571,8 +709,8 @@ class NotificationService:
                     (user_id, new_balance, now_iso())
                 )
             else:
-                curr_balance = float(wallet["balance"])
-                new_balance = curr_balance + float(amount)
+                curr_balance = Decimal(str(wallet["balance"]))
+                new_balance = curr_balance + amount
                 new_alert_level = "NORMAL" if new_balance > 100 else wallet["low_balance_alert_level"]
                 cur.execute(
                     """
@@ -593,7 +731,7 @@ class NotificationService:
                     INSERT INTO wallet_transactions (id, user_id, transaction_type, direction, amount, balance_after, currency, status, idempotency_key, description, created_at, updated_at, source)
                     VALUES (%s, %s, 'top_up', 'credit', %s, %s, 'INR', 'completed', %s, %s, %s, %s, 'customer');
                     """,
-                    (tx_id, user_id, float(amount), new_balance, idem_key, tx_description, tx_now, tx_now)
+                    (tx_id, user_id, amount, new_balance, idem_key, tx_description, tx_now, tx_now)
                 )
             else:
                 cur.execute(
@@ -624,13 +762,13 @@ class NotificationService:
 
             title = "Wallet Recharge Successful"
             message = f"₹{amount:,.0f} has been successfully added to your wallet. Updated balance: ₹{new_balance:,.0f}."
-            cls._create_notification_internal(
+            cls._notify_owner(
                 cur,
                 user_id=user_id,
                 title=title,
                 message=message,
                 notification_type="WALLET_RECHARGE_SUCCESS",
-                metadata={"amount": amount, "balance": new_balance, "transaction_id": tx_id},
+                metadata={"amount": float(amount), "balance": float(new_balance), "transaction_id": tx_id},
                 related_entity_id=tx_id
             )
 
@@ -639,8 +777,8 @@ class NotificationService:
             return {
                 "status": "success",
                 "transaction_id": tx_id,
-                "amount": amount,
-                "new_balance": new_balance,
+                "amount": float(amount),
+                "new_balance": float(new_balance),
             }
 
     @classmethod
@@ -661,10 +799,13 @@ class NotificationService:
         All operations run in a single database transaction; if any step
         fails, the entire transaction (including the outbox event) rolls back.
         """
-        if amount <= 0:
-            raise ValueError("Debit amount must be greater than zero")
+        try:
+            amount = _to_money(amount)  # rejects NaN/inf/<=0; Decimal arithmetic below
+        except ValueError:
+            raise ValueError("Debit amount must be greater than zero") from None
 
-        idem_key = idempotency_key or f"wallet_debit_{user_id}_{int(amount)}_{int(datetime.now().timestamp())}"
+        # Fallback key uses the exact amount: int(amount) made different amounts collide.
+        idem_key = idempotency_key or f"wallet_debit_{user_id}_{amount}_{int(datetime.now().timestamp())}"
 
         with DBConnection(autocommit=False) as conn:
             cur = conn.cursor(cursor_factory=RealDictCursor)
@@ -672,7 +813,7 @@ class NotificationService:
             # Outbox idempotency check + insert in SAME transaction as wallet update
             evt_id, is_duplicate = cls.record_outbox_event(
                 event_type="WALLET_DEBIT",
-                payload={"user_id": user_id, "amount": amount, "description": description},
+                payload={"user_id": user_id, "amount": float(amount), "description": description},
                 idempotency_key=idem_key,
                 user_id=user_id,
                 cur=cur,
@@ -683,12 +824,12 @@ class NotificationService:
 
             cur.execute("SELECT balance, low_balance_alert_level FROM wallets WHERE user_id = %s FOR UPDATE;", (user_id,))
             wallet = cur.fetchone()
-            if not wallet or float(wallet["balance"]) < amount:
+            if not wallet or Decimal(str(wallet["balance"])) < amount:
                 conn.rollback()
                 raise ValueError("Insufficient wallet balance for this transaction")
 
-            curr_balance = float(wallet["balance"])
-            new_balance = curr_balance - float(amount)
+            curr_balance = Decimal(str(wallet["balance"]))
+            new_balance = curr_balance - amount
             curr_alert_level = wallet.get("low_balance_alert_level") or "NORMAL"
 
             # Determine new alert tier
@@ -730,7 +871,7 @@ class NotificationService:
                     INSERT INTO wallet_transactions (id, user_id, transaction_type, direction, amount, balance_after, currency, status, idempotency_key, description, created_at, updated_at, source)
                     VALUES (%s, %s, 'usage_charge', 'debit', %s, %s, 'INR', 'completed', %s, %s, %s, %s, 'customer');
                     """,
-                    (tx_id, user_id, abs(float(amount)), new_balance, idem_key, description, tx_now, tx_now)
+                    (tx_id, user_id, amount, new_balance, idem_key, description, tx_now, tx_now)
                 )
             else:
                 cur.execute(
@@ -738,29 +879,29 @@ class NotificationService:
                     INSERT INTO wallet_transactions (id, user_id, amount, balance_after, currency, status, idempotency_key, description, created_at, updated_at, source)
                     VALUES (%s, %s, %s, %s, 'INR', 'completed', %s, %s, %s, %s, 'customer');
                     """,
-                    (tx_id, user_id, -abs(float(amount)), new_balance, idem_key, description, tx_now, tx_now)
+                    (tx_id, user_id, -amount, new_balance, idem_key, description, tx_now, tx_now)
                 )
 
             # Standard Debit notification
-            cls._create_notification_internal(
+            cls._notify_owner(
                 cur,
                 user_id=user_id,
                 title="Wallet Transaction Successful",
                 message=f"₹{amount:,.0f} has been deducted from your wallet. Remaining balance: ₹{new_balance:,.0f}.",
                 notification_type="WALLET_DEBIT",
-                metadata={"amount": amount, "remaining_balance": new_balance, "transaction_id": tx_id},
+                metadata={"amount": float(amount), "remaining_balance": float(new_balance), "transaction_id": tx_id},
                 related_entity_id=tx_id
             )
 
             # Threshold transition alert if entered new tier
             if threshold_alert_needed:
-                cls._create_notification_internal(
+                cls._notify_owner(
                     cur,
                     user_id=user_id,
                     title=threshold_title,
                     message=threshold_msg,
                     notification_type="LOW_WALLET_BALANCE",
-                    metadata={"balance": new_balance, "tier": new_alert_level},
+                    metadata={"balance": float(new_balance), "tier": new_alert_level},
                     related_entity_id=tx_id
                 )
 
@@ -769,8 +910,8 @@ class NotificationService:
             return {
                 "status": "success",
                 "transaction_id": tx_id,
-                "amount": amount,
-                "remaining_balance": new_balance,
+                "amount": float(amount),
+                "remaining_balance": float(new_balance),
                 "low_balance_alert": threshold_alert_needed,
             }
 
@@ -830,6 +971,14 @@ class NotificationService:
             wallet_currency = str(wallet["currency"])
 
             # Lock original transaction row SECOND (same order as recharge/debit: wallets first, then tx)
+            # A malformed id would raise a psycopg2 DataError (500) against a UUID column; it is a 400.
+            if _get_table_columns(cur, "wallet_transactions").get("id") == "uuid":
+                try:
+                    uuid.UUID(str(original_transaction_id))
+                except ValueError:
+                    conn.rollback()
+                    raise ValueError("Original transaction not found or does not belong to this user") from None
+
             cur.execute(
                 """
                 SELECT id, user_id, amount, currency, transaction_type, direction, refunded_amount
@@ -931,7 +1080,7 @@ class NotificationService:
                 )
 
             # Create WALLET_REFUND notification
-            cls._create_notification_internal(
+            cls._notify_owner(
                 cur,
                 user_id=user_id,
                 title="Wallet Refund Successful",
@@ -1046,7 +1195,8 @@ class NotificationService:
         deployment_name: Optional[str] = None,
         region: str = "Mumbai, IN",
         error_message: Optional[str] = None,
-        idempotency_key: Optional[str] = None
+        idempotency_key: Optional[str] = None,
+        is_admin: bool = False,
     ) -> Dict[str, Any]:
         """
         Scenario E: GPU deployment lifecycle events.
@@ -1054,31 +1204,46 @@ class NotificationService:
         - Ensures owner isolation.
         - Prevents duplicate alerts if status has not changed.
         """
-        valid_statuses = {"Provisioning", "Running", "Stopped", "Failed", "Terminated"}
-        canonical_status = next((s for s in valid_statuses if s.lower() == new_status.lower()), new_status)
+        canonical_status = next((s for s in DEPLOYMENT_STATUSES if s.lower() == new_status.strip().lower()), None)
+        if canonical_status is None:
+            raise ValueError(f"Unsupported deployment status. Allowed: {', '.join(sorted(DEPLOYMENT_STATUSES))}.")
+        # Running/Failed describe what the infrastructure did, so customers cannot claim them.
+        if not is_admin and canonical_status not in CUSTOMER_SETTABLE_DEPLOYMENT_STATUSES:
+            raise PermissionError(f"Customers cannot set deployment status '{canonical_status}'.")
 
         idem_key = idempotency_key or f"dep_{deployment_id}_{canonical_status}_{int(datetime.now().timestamp())}"
-        evt_id, is_duplicate = cls.record_outbox_event(
-            event_type=f"DEPLOYMENT_{canonical_status.upper()}",
-            payload={"user_id": user_id, "deployment_id": deployment_id, "status": canonical_status},
-            idempotency_key=idem_key,
-            user_id=user_id
-        )
-        if is_duplicate:
-            return {"status": "skipped", "message": "Duplicate deployment event ignored."}
 
         with DBConnection(autocommit=False) as conn:
             cur = conn.cursor(cursor_factory=RealDictCursor)
 
-            cur.execute("SELECT id, user_id, status, name, gpu, region FROM gpu_deployments WHERE id = %s;", (deployment_id,))
+            cur.execute("SELECT id, user_id, status, name, gpu, region FROM gpu_deployments WHERE id = %s FOR UPDATE;", (deployment_id,))
             dep = cur.fetchone()
 
             if dep:
-                if dep["user_id"] != user_id:
+                if dep["user_id"] != user_id and not is_admin:
                     raise PermissionError("Access forbidden: Deployment belongs to another customer")
                 if dep["status"] == canonical_status:
                     conn.commit()
                     return {"status": "noop", "message": "Deployment status is unchanged. No notification sent."}
+                if dep["status"] == "Terminated":
+                    raise ValueError("Deployment is terminated; its status can no longer change.")
+            elif not is_admin and canonical_status != "Provisioning":
+                raise ValueError("A new deployment must start in 'Provisioning'.")
+
+            # Record the outbox event only after the checks pass and inside this transaction, so a
+            # rejected request does not consume the idempotency key.
+            evt_id, is_duplicate = cls.record_outbox_event(
+                event_type=f"DEPLOYMENT_{canonical_status.upper()}",
+                payload={"user_id": user_id, "deployment_id": deployment_id, "status": canonical_status},
+                idempotency_key=idem_key,
+                user_id=user_id,
+                cur=cur,
+            )
+            if is_duplicate:
+                conn.rollback()
+                return {"status": "skipped", "message": "Duplicate deployment event ignored."}
+
+            if dep:
                 cur.execute(
                     "UPDATE gpu_deployments SET status = %s, error_message = %s, updated_at = %s WHERE id = %s;",
                     (canonical_status, error_message, now_iso(), deployment_id)
@@ -1118,9 +1283,9 @@ class NotificationService:
                 title = f"GPU Deployment {canonical_status}"
                 message = f"Deployment {d_name} transitioned to status {canonical_status}."
 
-            cls._create_notification_internal(
+            cls._notify_owner(
                 cur,
-                user_id=user_id,
+                user_id=dep["user_id"] if dep else user_id,  # the owner, also when an admin made the change
                 title=title,
                 message=message,
                 notification_type="GPU_DEPLOYMENT",
@@ -1184,18 +1349,15 @@ class NotificationService:
             cur.execute("SELECT id FROM users WHERE role = 'customer' AND status = 'active';")
             customers = [r["id"] for r in cur.fetchall()] or ["usr_demo_customer"]
 
-            notified_count = 0
-            for cid in customers:
-                if cls._create_notification_in_broadcast(
-                    cur,
-                    user_id=cid,
-                    title=title,
-                    message=message,
-                    notification_type="MAINTENANCE",
-                    metadata={"gpu_model": gpu_model, "region": region, "start": start_time, "end": end_time, "reason": reason},
-                    related_entity_id=maint_id
-                ):
-                    notified_count += 1
+            notified_count = cls._broadcast_notifications(
+                cur,
+                customers,
+                title=title,
+                message=message,
+                notification_type="MAINTENANCE",
+                metadata={"gpu_model": gpu_model, "region": region, "start": start_time, "end": end_time, "reason": reason},
+                related_entity_id=maint_id,
+            )
 
             conn.commit()
 
@@ -1233,17 +1395,14 @@ class NotificationService:
             cur.execute("SELECT id FROM users WHERE status = 'active';")
             recipients = [r["id"] for r in cur.fetchall()] or ["usr_demo_customer", "usr_demo_admin"]
 
-            recipients_count = 0
-            for uid in recipients:
-                if cls._create_notification_in_broadcast(
-                    cur,
-                    user_id=uid,
-                    title=title,
-                    message=message,
-                    notification_type="SYSTEM_ANNOUNCEMENT",
-                    metadata={"admin_user_id": admin_user_id, "target_group": target_group}
-                ):
-                    recipients_count += 1
+            recipients_count = cls._broadcast_notifications(
+                cur,
+                recipients,
+                title=title,
+                message=message,
+                notification_type="SYSTEM_ANNOUNCEMENT",
+                metadata={"admin_user_id": admin_user_id, "target_group": target_group},
+            )
 
             conn.commit()
 
@@ -1254,22 +1413,19 @@ class NotificationService:
             }
 
     @classmethod
-    def get_gpu_metrics(cls, user_id: str, deployment_id: str) -> Dict[str, Any]:
+    def get_gpu_metrics(cls, user_id: str, deployment_id: str, is_admin: bool = False) -> Dict[str, Any]:
         """
         Retrieves real-time GPU runtime metrics and telemetry for an instance.
         Enforces customer isolation: checks that deployment belongs to user_id (or admin).
         """
         with DBConnection(autocommit=True) as conn:
             cur = conn.cursor(cursor_factory=RealDictCursor)
-            cur.execute(
-                "SELECT * FROM gpu_deployments WHERE UPPER(id) = UPPER(%s);",
-                (deployment_id,)
-            )
-            row = cur.fetchone()
+            row = _find_deployment(cur, deployment_id)
             if not row:
                 raise KeyError(f"Deployment {deployment_id} not found.")
 
-            if row["user_id"] != user_id:
+            # Role-based (was a hardcoded "usr_demo_admin" identity exemption).
+            if row["user_id"] != user_id and not is_admin:
                 raise PermissionError(f"Customer {user_id} cannot access metrics for deployment {deployment_id}.")
 
             vram_raw = str(row.get("vram", "24 GB"))
@@ -1357,8 +1513,11 @@ class NotificationService:
                 "uptime_formatted": uptime_formatted,
                 "timestamp": now_iso(),
                 "metrics_available": True,
-                "telemetry_state": "Active",
-                "telemetry_source": "NVIDIA Driver Telemetry Probe (v550.54 · CUDA 12.4)",
+                # No GPU telemetry agent exists yet: these values are fixed placeholders, labelled as such
+                # (was presented as a live "NVIDIA Driver Telemetry Probe").
+                "simulated": True,
+                "telemetry_state": "Simulated",
+                "telemetry_source": "Simulated placeholder (no GPU telemetry agent connected)",
                 "utilization": {
                     "gpu_utilization_pct": util_pct,
                     "status": "Optimal Load" if util_pct < 75 else "High Compute",
@@ -1379,7 +1538,7 @@ class NotificationService:
             }
 
     @classmethod
-    def get_gpu_recommendations(cls, user_id: str, deployment_id: str, bot_permission: bool) -> Dict[str, Any]:
+    def get_gpu_recommendations(cls, user_id: str, deployment_id: str, bot_permission: bool, is_admin: bool = False) -> Dict[str, Any]:
         """
         Generates intelligent AI recommendations based on GPU instance telemetry,
         pricing, and memory requirements. Strictly respects AI Assistant permissions.
@@ -1395,15 +1554,12 @@ class NotificationService:
 
         with DBConnection(autocommit=True) as conn:
             cur = conn.cursor(cursor_factory=RealDictCursor)
-            cur.execute(
-                "SELECT * FROM gpu_deployments WHERE UPPER(id) = UPPER(%s);",
-                (deployment_id,)
-            )
-            row = cur.fetchone()
+            row = _find_deployment(cur, deployment_id)
             if not row:
                 raise KeyError(f"Deployment {deployment_id} not found.")
 
-            if row["user_id"] != user_id:
+            # Role-based (was a hardcoded "usr_demo_admin" identity exemption).
+            if row["user_id"] != user_id and not is_admin:
                 raise PermissionError(f"Customer {user_id} cannot access recommendations for deployment {deployment_id}.")
 
             gpu_model = row.get("gpu", "NVIDIA L4")
@@ -1416,7 +1572,7 @@ class NotificationService:
                 "status": "Optimal Match",
                 "color": "green",
                 "title": f"Current {gpu_model} is well-suited for your active model",
-                "detail": "Model inference is running smoothly within VRAM headroom. Average compute is balanced with zero out-of-memory bottlenecks detected."
+                "detail": "Based on the GPU tier only: no telemetry agent is connected, so VRAM headroom and out-of-memory events are not measured yet."
             },
             {
                 "id": "rec_cost",
@@ -1446,6 +1602,7 @@ class NotificationService:
         return {
             "allowed": True,
             "status": "Active Analysis",
+            "simulated": True,  # rule-based templates, not derived from measured telemetry
             "instance_id": row["id"],
             "gpu_model": gpu_model,
             "hourly_rate": rate,
@@ -1511,23 +1668,9 @@ class NotificationService:
 
     @staticmethod
     def _ensure_workspace_settings_table(cur) -> None:
-        """
-        Create/upgrade workspace_settings. `budget_configured` is TRUE only once the customer saved a
-        budget; reading never stores a default. Backfill: a budget other than the old 10000 default can
-        only have come from a save, so it is marked configured (rows at exactly 10000 stay unknown/unset).
-        """
-        cur.execute("""
-            CREATE TABLE IF NOT EXISTS workspace_settings (
-                user_id VARCHAR(128) PRIMARY KEY,
-                monthly_budget NUMERIC(14,2) NOT NULL DEFAULT 10000.0,
-                spending_alerts_enabled BOOLEAN NOT NULL DEFAULT TRUE,
-                weekly_report_enabled BOOLEAN NOT NULL DEFAULT FALSE,
-                cors_origins TEXT NOT NULL DEFAULT 'https://app.novatech.ai, http://localhost:3000',
-                updated_at TEXT NOT NULL
-            );
-        """)
-        cur.execute("ALTER TABLE workspace_settings ADD COLUMN IF NOT EXISTS budget_configured BOOLEAN NOT NULL DEFAULT FALSE;")
-        cur.execute("UPDATE workspace_settings SET budget_configured = TRUE WHERE budget_configured = FALSE AND monthly_budget <> 10000.0;")
+        """Create/upgrade workspace_settings (adds `budget_configured`). Delegates to the module-level
+        implementation, which runs once per process and applies RLS protection."""
+        _ensure_workspace_settings_table(cur)
 
     @staticmethod
     def _current_month_spend(cur, user_id: str, now_iso_str: str) -> float:
@@ -1552,7 +1695,7 @@ class NotificationService:
         """
         with DBConnection(autocommit=True) as conn:
             cur = conn.cursor(cursor_factory=RealDictCursor)
-            NotificationService._ensure_workspace_settings_table(cur)
+            _ensure_workspace_settings_table(cur)  # once per process; includes RLS protection (P0 #1)
             now = datetime.now(timezone.utc).isoformat()
             current_month_spend = NotificationService._current_month_spend(cur, user_id, now)
             cur.execute("SELECT * FROM workspace_settings WHERE user_id = %s;", (user_id,))
@@ -1597,7 +1740,7 @@ class NotificationService:
 
         with DBConnection(autocommit=True) as conn:
             cur = conn.cursor(cursor_factory=RealDictCursor)
-            NotificationService._ensure_workspace_settings_table(cur)
+            _ensure_workspace_settings_table(cur)  # once per process; includes RLS protection (P0 #1)
             cur.execute("""
                 INSERT INTO workspace_settings (user_id, monthly_budget, budget_configured, spending_alerts_enabled, weekly_report_enabled, cors_origins, updated_at)
                 VALUES (%s, %s, TRUE, %s, %s, %s, %s)

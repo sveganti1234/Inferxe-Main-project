@@ -4,7 +4,7 @@ Mocks NVIDIA provider to prevent API quota consumption during testing.
 Uses an isolated in-memory test database with full schema verification.
 
 Run via:
-  python -m unittest backend/inference/tests/test_inference_api.py
+  python -m pytest backend/inference/tests/test_inference_api.py   (from the repository root)
 """
 
 import os
@@ -34,9 +34,9 @@ from inference.database import Base, get_db
 from inference.models import InferenceRequest as InferenceRequestRecord
 from inference.auth import generate_api_key, hash_api_key
 from inference.main import app
-from inference.routes import inference_service
+from inference.routes import inference_service, _close_health_http_client
 from inference.supabase_api_keys import SupabaseAPIKeyRepository, get_api_key_repository
-from inference.supabase_config import SupabaseSettings
+from inference.supabase_config import SupabaseConfigurationError, SupabaseSettings
 from inference.supabase_telemetry import SupabaseTelemetryRepository, get_telemetry_repository
 from inference.tests.test_supabase_api_keys import MockSupabaseAPIKeysTransport
 from inference.tests.test_supabase_telemetry import MockSupabaseTelemetryTransport
@@ -59,7 +59,7 @@ class TestInferenceAPI(unittest.TestCase):
         Base.metadata.create_all(bind=cls.test_engine)
 
         # Create TestClient once
-        cls.client = TestClient(app, raise_server_exceptions=False)
+        cls.client = cls.enterClassContext(TestClient(app, raise_server_exceptions=False))  # runs the lifespan (inference limiter)
 
     def setUp(self):
         # Create a fresh database session and mocked Supabase API keys & telemetry transports per test
@@ -134,12 +134,237 @@ class TestInferenceAPI(unittest.TestCase):
         app.dependency_overrides.clear()
 
     # 1. Health check
-    def test_health_endpoint(self):
+    @patch("inference.routes.get_supabase_settings")
+    @patch("inference.routes.is_cognito_configured", return_value=True)
+    def test_health_endpoint(self, mock_cognito, mock_settings):
+        mock_settings.return_value = SupabaseSettings(
+            url="https://mock.supabase.co",
+            service_role_key="sb_secret_mock_test_key",
+        )
         resp = self.client.get("/api/v1/health")
         self.assertEqual(resp.status_code, 200)
         data = resp.json()
         self.assertIn("status", data)
         self.assertEqual(data["service"], "inferxe-inference-api")
+
+    # 1b. Health: Supabase HTTP 2xx → connected
+    @patch("inference.routes._get_health_http_client")
+    @patch("inference.routes.test_mode_enabled", return_value=False)
+    @patch("inference.routes.get_supabase_settings")
+    @patch("inference.routes.is_cognito_configured", return_value=True)
+    def test_health_supabase_2xx_connected(self, mock_cognito, mock_settings, mock_test_mode, mock_get_client):
+        mock_settings.return_value = SupabaseSettings(
+            url="https://mock.supabase.co",
+            service_role_key="sb_secret_mock_test_key",
+        )
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_get_client.return_value.get.return_value = mock_resp
+        resp = self.client.get("/api/v1/health")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["supabase_rest"], "connected")
+
+    # 1c. Health: Supabase HTTP 401 → auth_error
+    @patch("inference.routes._get_health_http_client")
+    @patch("inference.routes.test_mode_enabled", return_value=False)
+    @patch("inference.routes.get_supabase_settings")
+    @patch("inference.routes.is_cognito_configured", return_value=True)
+    def test_health_supabase_401_auth_error(self, mock_cognito, mock_settings, mock_test_mode, mock_get_client):
+        mock_settings.return_value = SupabaseSettings(
+            url="https://mock.supabase.co",
+            service_role_key="sb_secret_mock_test_key",
+        )
+        mock_resp = MagicMock()
+        mock_resp.status_code = 401
+        mock_get_client.return_value.get.return_value = mock_resp
+        resp = self.client.get("/api/v1/health")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["supabase_rest"], "auth_error")
+
+    # 1d. Health: Supabase HTTP 403 → auth_error
+    @patch("inference.routes._get_health_http_client")
+    @patch("inference.routes.test_mode_enabled", return_value=False)
+    @patch("inference.routes.get_supabase_settings")
+    @patch("inference.routes.is_cognito_configured", return_value=True)
+    def test_health_supabase_403_auth_error(self, mock_cognito, mock_settings, mock_test_mode, mock_get_client):
+        mock_settings.return_value = SupabaseSettings(
+            url="https://mock.supabase.co",
+            service_role_key="sb_secret_mock_test_key",
+        )
+        mock_resp = MagicMock()
+        mock_resp.status_code = 403
+        mock_get_client.return_value.get.return_value = mock_resp
+        resp = self.client.get("/api/v1/health")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["supabase_rest"], "auth_error")
+
+    # 1e. Health: Supabase HTTP 5xx → upstream_error
+    @patch("inference.routes._get_health_http_client")
+    @patch("inference.routes.test_mode_enabled", return_value=False)
+    @patch("inference.routes.get_supabase_settings")
+    @patch("inference.routes.is_cognito_configured", return_value=True)
+    def test_health_supabase_5xx_upstream_error(self, mock_cognito, mock_settings, mock_test_mode, mock_get_client):
+        mock_settings.return_value = SupabaseSettings(
+            url="https://mock.supabase.co",
+            service_role_key="sb_secret_mock_test_key",
+        )
+        mock_resp = MagicMock()
+        mock_resp.status_code = 503
+        mock_get_client.return_value.get.return_value = mock_resp
+        resp = self.client.get("/api/v1/health")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["supabase_rest"], "upstream_error")
+
+    # 1f. Health: HTTP 3xx redirect → upstream_error (not followed by httpx2 mock)
+    @patch("inference.routes._get_health_http_client")
+    @patch("inference.routes.test_mode_enabled", return_value=False)
+    @patch("inference.routes.get_supabase_settings")
+    @patch("inference.routes.is_cognito_configured", return_value=True)
+    def test_health_supabase_3xx_upstream_error(self, mock_cognito, mock_settings, mock_test_mode, mock_get_client):
+        mock_settings.return_value = SupabaseSettings(
+            url="https://mock.supabase.co",
+            service_role_key="sb_secret_mock_test_key",
+        )
+        mock_resp = MagicMock()
+        mock_resp.status_code = 301
+        mock_get_client.return_value.get.return_value = mock_resp
+        resp = self.client.get("/api/v1/health")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["supabase_rest"], "upstream_error")
+
+    # 1g. Health: HTTP 404 → upstream_error
+    @patch("inference.routes._get_health_http_client")
+    @patch("inference.routes.test_mode_enabled", return_value=False)
+    @patch("inference.routes.get_supabase_settings")
+    @patch("inference.routes.is_cognito_configured", return_value=True)
+    def test_health_supabase_404_upstream_error(self, mock_cognito, mock_settings, mock_test_mode, mock_get_client):
+        mock_settings.return_value = SupabaseSettings(
+            url="https://mock.supabase.co",
+            service_role_key="sb_secret_mock_test_key",
+        )
+        mock_resp = MagicMock()
+        mock_resp.status_code = 404
+        mock_get_client.return_value.get.return_value = mock_resp
+        resp = self.client.get("/api/v1/health")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["supabase_rest"], "upstream_error")
+
+    # 1h. Health: network failure → unreachable
+    @patch("inference.routes._get_health_http_client")
+    @patch("inference.routes.test_mode_enabled", return_value=False)
+    @patch("inference.routes.get_supabase_settings")
+    @patch("inference.routes.is_cognito_configured", return_value=True)
+    def test_health_supabase_network_failure_unreachable(self, mock_cognito, mock_settings, mock_test_mode, mock_get_client):
+        mock_settings.return_value = SupabaseSettings(
+            url="https://mock.supabase.co",
+            service_role_key="sb_secret_mock_test_key",
+        )
+        mock_get_client.return_value.get.side_effect = ConnectionError("connection refused")
+        resp = self.client.get("/api/v1/health")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["supabase_rest"], "unreachable")
+
+    # 1i. Health: Supabase configuration missing → unconfigured
+    @patch("inference.routes.get_supabase_settings")
+    @patch("inference.routes.test_mode_enabled", return_value=False)
+    def test_health_supabase_unconfigured(self, mock_test_mode, mock_get_settings):
+        mock_get_settings.side_effect = SupabaseConfigurationError("missing config")
+        resp = self.client.get("/api/v1/health")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["supabase_rest"], "unconfigured")
+
+    # 1j. Health: overall ok when dependencies healthy
+    @patch("inference.routes._get_health_http_client")
+    @patch("inference.routes.test_mode_enabled", return_value=False)
+    @patch("inference.routes.get_supabase_settings")
+    @patch("inference.routes.is_cognito_configured", return_value=True)
+    def test_health_overall_ok(self, mock_cognito, mock_settings, mock_test_mode, mock_get_client):
+        mock_settings.return_value = SupabaseSettings(
+            url="https://mock.supabase.co",
+            service_role_key="sb_secret_mock_test_key",
+        )
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_get_client.return_value.get.return_value = mock_resp
+        resp = self.client.get("/api/v1/health")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["status"], "ok")
+        self.assertEqual(data["supabase_rest"], "connected")
+        self.assertEqual(data["nvidia_provider"], "configured")
+        self.assertEqual(data["cognito_configured"], True)
+
+    # 1k. Health: overall degraded when storage unavailable
+    @patch("inference.routes._get_health_http_client")
+    @patch("inference.routes.test_mode_enabled", return_value=False)
+    @patch("inference.routes.check_database_connection", return_value=False)
+    @patch("inference.routes.get_supabase_settings")
+    @patch("inference.routes.is_cognito_configured", return_value=True)
+    def test_health_overall_degraded_when_storage_unavailable(self, mock_cognito, mock_settings, mock_db_check, mock_test_mode, mock_get_client):
+        mock_settings.return_value = SupabaseSettings(
+            url="https://mock.supabase.co",
+            service_role_key="sb_secret_mock_test_key",
+        )
+        mock_resp = MagicMock()
+        mock_resp.status_code = 503
+        mock_get_client.return_value.get.return_value = mock_resp
+        resp = self.client.get("/api/v1/health")
+        self.assertEqual(resp.status_code, 200)
+        data = resp.json()
+        self.assertEqual(data["status"], "degraded")
+        self.assertEqual(data["supabase_rest"], "upstream_error")
+
+    # 1l. Health: shared HTTP client reuse
+    @patch("inference.routes.httpx2.Client")
+    @patch("inference.routes.test_mode_enabled", return_value=False)
+    @patch("inference.routes.get_supabase_settings")
+    @patch("inference.routes.is_cognito_configured", return_value=True)
+    def test_health_shared_http_client_reuse(self, mock_cognito, mock_settings, mock_test_mode, mock_httpx_client):
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_client_instance = MagicMock()
+        mock_client_instance.is_closed = False
+        mock_client_instance.get.return_value = mock_resp
+        mock_httpx_client.return_value = mock_client_instance
+        resp1 = self.client.get("/api/v1/health")
+        resp2 = self.client.get("/api/v1/health")
+        self.assertEqual(resp1.status_code, 200)
+        self.assertEqual(resp2.status_code, 200)
+        # Same client instance returned across both calls (httpx2.Client called once)
+        mock_httpx_client.assert_called_once_with(timeout=3.0)
+
+    # 1m. Health: client shutdown and recreation
+    @patch("inference.routes._get_health_http_client")
+    @patch("inference.routes.test_mode_enabled", return_value=False)
+    @patch("inference.routes.get_supabase_settings")
+    @patch("inference.routes.is_cognito_configured", return_value=True)
+    def test_health_client_shutdown_and_recreation(self, mock_cognito, mock_settings, mock_test_mode, mock_get_client):
+        # First call creates client
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_get_client.return_value.get.return_value = mock_resp
+        resp1 = self.client.get("/api/v1/health")
+        self.assertEqual(resp1.status_code, 200)
+
+        # Close the client
+        _close_health_http_client()
+        # Verify it is closed
+        self.assertTrue(mock_get_client.return_value.is_closed)
+
+        # New call creates fresh client
+        mock_resp2 = MagicMock()
+        mock_resp2.status_code = 200
+        mock_get_client.return_value.get.return_value = mock_resp2
+        resp2 = self.client.get("/api/v1/health")
+        self.assertEqual(resp2.status_code, 200)
 
     # 2. Authentication: Missing API key
     def test_missing_api_key(self):

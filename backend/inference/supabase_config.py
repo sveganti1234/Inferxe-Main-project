@@ -16,7 +16,11 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Optional
 from urllib.parse import urlparse
-from dotenv import load_dotenv
+import sys as _sys
+_GUARD_DIR = str(__import__('pathlib').Path(__file__).resolve().parents[1])  # backend/
+if _GUARD_DIR not in _sys.path:
+    _sys.path.append(_GUARD_DIR)
+from isolation_guard import load_dotenv  # noqa: E402  (tests never load the project .env: isolation_guard.py)
 
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 BACKEND_ENV_FILE = BACKEND_DIR / ".env"
@@ -31,14 +35,24 @@ class SupabaseConfigurationError(RuntimeError):
     """Raised when backend Supabase environment configuration is missing or invalid."""
 
 
+_loaded_env_files: set = set()
+
+
 def load_backend_env(env_file: Optional[Path] = None, override: bool = False) -> Path:
     """
     Load backend environment variables from `backend/.env` without overriding
     existing process or test environment variables unless `override=True`.
     """
     target = Path(env_file) if env_file is not None else BACKEND_ENV_FILE
+    # Every Supabase repository call resolves settings through here; re-parsing the file each time
+    # cost ~0.5 ms per call. With override=False a repeat load cannot change anything (existing
+    # variables win), so each file is loaded once per process. override=True always reloads.
+    if not override and target in _loaded_env_files:
+        return target
     if target.is_file():
         load_dotenv(target, override=override)
+        if not override:
+            _loaded_env_files.add(target)
     return target
 
 
@@ -133,10 +147,62 @@ def get_supabase_settings(
     auto_load: bool = True,
     env_file: Optional[Path] = None,
 ) -> SupabaseSettings:
-    """Read and validate `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` from backend env."""
+    """Read and validate `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` from backend env.
+
+    Reads environment variables on every call so that tests using `patch.dict` or
+    direct `os.environ` modifications are always respected. No module-level caching
+    is used to avoid stale configuration across test boundaries or live updates.
+    """
     if auto_load:
         load_backend_env(env_file=env_file, override=False)
 
     url = _validate_supabase_url(os.getenv("SUPABASE_URL", ""))
     service_role_key = _validate_service_role_key(os.getenv("SUPABASE_SERVICE_ROLE_KEY", ""))
     return SupabaseSettings(url=url, service_role_key=service_role_key)
+
+
+def get_inference_max_concurrency() -> int:
+    """
+    Read INFERENCE_MAX_CONCURRENCY from environment.
+
+    Default: 8
+    Allowed range: 1-32
+
+    Raises SupabaseConfigurationError for invalid values.
+    """
+    raw = os.getenv("INFERENCE_MAX_CONCURRENCY", "8").strip()
+    try:
+        value = int(raw)
+    except (ValueError, TypeError):
+        raise SupabaseConfigurationError(
+            f"INFERENCE_MAX_CONCURRENCY must be an integer between 1 and 32, got '{raw}'."
+        )
+    if value < 1 or value > 32:
+        raise SupabaseConfigurationError(
+            f"INFERENCE_MAX_CONCURRENCY must be between 1 and 32, got {value}."
+        )
+    return value
+
+
+def get_inference_queue_seconds() -> int:
+    """
+    Read INFERENCE_QUEUE_SECONDS from environment.
+
+    Default: 2
+    Allowed range: 0-10
+
+    Raises SupabaseConfigurationError for invalid values.
+    """
+    raw = os.getenv("INFERENCE_QUEUE_SECONDS", "2").strip()
+    try:
+        value = int(raw)
+    except (ValueError, TypeError):
+        raise SupabaseConfigurationError(
+            f"INFERENCE_QUEUE_SECONDS must be an integer between 0 and 10, got '{raw}'."
+        )
+    if value < 0 or value > 10:
+        raise SupabaseConfigurationError(
+            f"INFERENCE_QUEUE_SECONDS must be between 0 and 10, got {value}."
+        )
+    return value
+

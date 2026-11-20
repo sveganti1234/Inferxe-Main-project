@@ -19,7 +19,12 @@ from fastapi import HTTPException, Security, Request, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 import jwt
 from jwt import PyJWKClient, ExpiredSignatureError, InvalidTokenError
-from dotenv import load_dotenv, dotenv_values
+from dotenv import dotenv_values  # public VITE_COGNITO_* keys from frontend/.env only
+import sys as _sys
+_GUARD_DIR = str(__import__('pathlib').Path(__file__).resolve().parents[1])  # backend/
+if _GUARD_DIR not in _sys.path:
+    _sys.path.append(_GUARD_DIR)
+from isolation_guard import load_dotenv, project_env_values  # noqa: E402  (tests never load the project .env: isolation_guard.py)
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 BACKEND_DIR = ROOT_DIR / "backend"
@@ -30,8 +35,11 @@ if (ROOT_DIR / ".env").is_file():
     load_dotenv(ROOT_DIR / ".env", override=False)
 if (BACKEND_DIR / ".env").is_file():
     try:
-        for _k, _v in dotenv_values(BACKEND_DIR / ".env").items():
-            if _k and _v and not os.environ.get(_k):
+        for _k, _v in (project_env_values(BACKEND_DIR / ".env") or {}).items():
+            # "not in os.environ" (as for frontend/.env below and load_dotenv(override=False)): a variable
+            # that is already set, even to "", is never replaced. Treating "" as unset re-imported the
+            # production credentials that the test guard (backend/conftest.py) had cleared.
+            if _k and _v and _k not in os.environ:
                 os.environ[_k] = _v
     except Exception:
         load_dotenv(BACKEND_DIR / ".env", override=False)
@@ -89,16 +97,6 @@ _jwks_client: Optional[PyJWKClient] = None
 # Test mode public keys fixture for isolated multi-user automated testing
 _test_public_keys: Dict[str, Any] = {}
 
-def reset_jwks_client() -> None:
-    """Invalidate the cached JWKS client so the next request fetches fresh keys.
-
-    Used when Cognito rotates signing keys and the cached JWKS no longer
-    contains the token's kid.
-    """
-    global _jwks_client
-    _jwks_client = None
-
-
 def _sanitize_error(message: Optional[str]) -> str:
     """Sanitize error messages to avoid leaking secrets in logs."""
     if not message:
@@ -111,10 +109,10 @@ def _sanitize_error(message: Optional[str]) -> str:
     return message
 
 
-def get_jwks_client(force_refresh: bool = False) -> PyJWKClient:
+def get_jwks_client() -> PyJWKClient:
     global _jwks_client
-    if force_refresh or _jwks_client is None:
-        _jwks_client = PyJWKClient(JWKS_URL, cache_keys=True, max_cached_keys=10)
+    if _jwks_client is None:
+        _jwks_client = PyJWKClient(JWKS_URL, cache_keys=True, max_cached_keys=10, timeout=5)
     return _jwks_client
 
 def register_test_key(kid: str, public_key_pem: str):
@@ -397,8 +395,8 @@ def verify_cognito_jwt(token: str) -> AuthenticatedUser:
     - Signature verified against the user pool's JWKS (or a key registered by the test suite).
     - Required claims: exp, iss, aud, sub, token_use; issuer and audience must match this pool/client.
     - token_use must be 'id' (access tokens are rejected).
-    - Administrator rights only from Cognito groups (managed by AWS administrators); user-editable
-      attributes such as custom:role are never trusted for authorization.
+    - Never grants administrator rights: neither Cognito groups nor user-editable attributes (such as the
+      custom role attribute) are trusted for authorization; admins use the HS256 admin-session path.
     """
     if not token or not token.strip():
         raise HTTPException(
@@ -516,10 +514,11 @@ def verify_cognito_jwt(token: str) -> AuthenticatedUser:
             signing_key = client.get_signing_key_from_jwt(token).key
         except Exception as e:
             last_key_error = e
-            # Cognito may have rotated signing keys; invalidate cache and retry once
-            reset_jwks_client()
+            # Retry once (covers transient fetch errors). Reuse the client: PyJWKClient already
+            # refetches on an unknown kid with a cooldown, so rebuilding it would let every
+            # forged token force fresh JWKS fetches.
             try:
-                client = get_jwks_client(force_refresh=True)
+                client = get_jwks_client()
                 signing_key = client.get_signing_key_from_jwt(token).key
                 last_key_error = None
             except Exception as e2:
@@ -579,15 +578,16 @@ def verify_cognito_jwt(token: str) -> AuthenticatedUser:
         raise _unauthorized("Token is missing required user identifier ('sub').")
 
     email = payload.get("email") or payload.get("cognito:username") or ""
-    groups = payload.get("cognito:groups") or []
-    if isinstance(groups, str):
-        groups = [groups]
-    roles = [str(g) for g in groups if isinstance(g, str)]
 
+    # Cognito users are always ordinary customers (P0 #2). No token claim confers admin rights: `custom:role`
+    # / `role` can be customer-writable Cognito attributes, and Cognito groups would bypass the database admin
+    # system (no session revocation, audit, or admin/superadmin separation). Admin and superadmin access is
+    # granted only by the HS256 admin-session path, verified against admin_sessions / admin_users. The claims
+    # stay available in `claims` for non-authorisation use.
     return AuthenticatedUser(
         user_id=str(user_id),
         email=str(email),
-        roles=roles,
+        roles=[],
         claims=payload,
     )
 
@@ -634,7 +634,7 @@ def assert_profile_active(user: AuthenticatedUser) -> None:
             )
     _ACTIVE_PROFILE_CACHE[user.user_id] = now + _ACTIVE_PROFILE_TTL_SECONDS
 
-async def get_current_user(
+def get_current_user(
     credentials: Optional[HTTPAuthorizationCredentials] = Security(security_bearer),
 ) -> AuthenticatedUser:
     """FastAPI dependency for verifying authenticated customer or admin."""
@@ -648,7 +648,7 @@ async def get_current_user(
     assert_profile_active(user)
     return user
 
-async def require_admin_user(
+def require_admin_user(
     user: AuthenticatedUser = Security(get_current_user),
 ) -> AuthenticatedUser:
     """FastAPI dependency enforcing strict Admin role authorization."""
@@ -660,7 +660,7 @@ async def require_admin_user(
         )
     return user
 
-async def get_optional_user(
+def get_optional_user(
     request: Request,
     credentials: Optional[HTTPAuthorizationCredentials] = Security(security_bearer),
 ) -> Optional[AuthenticatedUser]:

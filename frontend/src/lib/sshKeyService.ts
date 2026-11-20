@@ -9,6 +9,7 @@ import { ensureFreshSession } from './authStore'
 import {
   INFERENCE_API_BASE,
   formatApiConnectionError,
+  apiErrorDetail,
   getAuthHeaders,
 } from './apiConfig'
 
@@ -59,7 +60,7 @@ export async function fetchBackendSshKeys(): Promise<{
 
     const data = await res.json().catch(() => ({}))
     if (!res.ok) {
-      return { ok: false, error: data.detail || 'Failed to fetch SSH keys from backend.' }
+      return { ok: false, error: apiErrorDetail(data, 'Failed to fetch SSH keys from backend.') }
     }
 
     return { ok: true, keys: data.keys || [] }
@@ -124,12 +125,12 @@ export async function createBackendSshKey(
       return {
         ok: false,
         conflict: true,
-        error: data.detail || 'This SSH key is already registered in your account.',
+        error: apiErrorDetail(data, 'This SSH key is already registered in your account.'),
       }
     }
 
     if (!res.ok) {
-      return { ok: false, error: data.detail || 'Failed to register SSH key.' }
+      return { ok: false, error: apiErrorDetail(data, 'Failed to register SSH key.') }
     }
 
     return { ok: true, data }
@@ -169,11 +170,11 @@ export async function deleteBackendSshKey(keyId: string): Promise<{
     const data = await res.json().catch(() => ({}))
 
     if (res.status === 404) {
-      return { ok: false, notFound: true, error: data.detail || 'SSH key not found.' }
+      return { ok: false, notFound: true, error: apiErrorDetail(data, 'SSH key not found.') }
     }
 
     if (!res.ok) {
-      return { ok: false, error: data.detail || 'Failed to delete SSH key.' }
+      return { ok: false, error: apiErrorDetail(data, 'Failed to delete SSH key.') }
     }
 
     return { ok: true }

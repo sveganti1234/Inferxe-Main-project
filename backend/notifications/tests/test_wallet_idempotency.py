@@ -39,6 +39,12 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
 from fastapi.testclient import TestClient
 
+from backend.notifications.tests.live_db_guard import require_isolated_test_database  # noqa: E402
+require_isolated_test_database()  # refuses to run without an isolated test DB (never production)
+# These suites test wallet mechanics (idempotency, concurrency, isolation) through customer top-ups.
+# Self-service top-ups are disabled by default (they need a payment gateway), so opt in for this
+# test process only; the authorization rule itself is covered by test_security_hardening.py.
+os.environ.setdefault("WALLET_SELF_RECHARGE_ENABLED", "true")
 from backend.notifications.main import app
 from backend.notifications.auth import register_test_key, COGNITO_ISSUER, COGNITO_CLIENT_ID
 from backend.notifications.db import DBConnection, init_db, get_pool

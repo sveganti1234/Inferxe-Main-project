@@ -1,3 +1,4 @@
+import '../../tests/support/networkGuard.mjs'  // test isolation guard: must stay the first import (tests/testSafety.test.mjs checks)
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createAdminToken, verifyAdminToken } from '../adminAuth.js'

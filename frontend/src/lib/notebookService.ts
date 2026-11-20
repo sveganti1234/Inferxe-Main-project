@@ -14,6 +14,7 @@ import { ensureFreshSession } from './authStore'
 import {
   INFERENCE_API_BASE,
   formatApiConnectionError,
+  apiErrorDetail,
   getAuthHeaders,
 } from './apiConfig'
 
@@ -80,7 +81,7 @@ export async function fetchBackendNotebooks(): Promise<{
 
     const data = await res.json().catch(() => ({}))
     if (!res.ok) {
-      return { ok: false, error: data.detail || 'Failed to fetch notebooks from backend.' }
+      return { ok: false, error: apiErrorDetail(data, 'Failed to fetch notebooks from backend.') }
     }
 
     return { ok: true, notebooks: data.notebooks || [] }
@@ -118,7 +119,7 @@ export async function getBackendNotebook(id: string): Promise<{
 
     const data = await res.json().catch(() => ({}))
     if (!res.ok) {
-      return { ok: false, error: data.detail || 'Notebook not found.' }
+      return { ok: false, error: apiErrorDetail(data, 'Notebook not found.') }
     }
 
     // Create and get return the notebook itself; start/stop wrap it as { notebook }.
@@ -168,7 +169,7 @@ export async function createBackendNotebook(payload: NotebookCreatePayload): Pro
 
     const data = await res.json().catch(() => ({}))
     if (!res.ok) {
-      return { ok: false, error: data.detail || 'Failed to create notebook instance.' }
+      return { ok: false, error: apiErrorDetail(data, 'Failed to create notebook instance.') }
     }
 
     // Create and get return the notebook itself; start/stop wrap it as { notebook }.
@@ -208,7 +209,7 @@ export async function startBackendNotebook(id: string): Promise<{
 
     const data = await res.json().catch(() => ({}))
     if (!res.ok) {
-      return { ok: false, error: data.detail || 'Failed to start notebook.' }
+      return { ok: false, error: apiErrorDetail(data, 'Failed to start notebook.') }
     }
 
     return { ok: true, notebook: data.notebook, message: data.message }
@@ -247,7 +248,7 @@ export async function stopBackendNotebook(id: string): Promise<{
 
     const data = await res.json().catch(() => ({}))
     if (!res.ok) {
-      return { ok: false, error: data.detail || 'Failed to stop notebook.' }
+      return { ok: false, error: apiErrorDetail(data, 'Failed to stop notebook.') }
     }
 
     return { ok: true, notebook: data.notebook, message: data.message }
@@ -286,7 +287,7 @@ export async function deleteBackendNotebook(id: string): Promise<{
 
     const data = await res.json().catch(() => ({}))
     if (!res.ok) {
-      return { ok: false, error: data.detail || 'Failed to terminate notebook.' }
+      return { ok: false, error: apiErrorDetail(data, 'Failed to terminate notebook.') }
     }
 
     return { ok: true, notebook: data.notebook, message: data.message }

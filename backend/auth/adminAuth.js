@@ -507,8 +507,23 @@ function parseActiveStatusInput(body) {
  */
 export function createAdminAuthMiddleware(config = {}) {
   const supabaseClient = config.supabaseClient || null
-  const verifyProfileToken = config.verifyCognitoIdToken || verifyCognitoIdToken
+  // Cognito settings given to the middleware are passed to the verifier (they were ignored before);
+  // unset ones fall back to the environment as usual.
+  const cognitoOptions = Object.fromEntries(
+    Object.entries({
+      userPoolId: config.userPoolId,
+      clientId: config.clientId,
+      region: config.region,
+      fetchImpl: config.fetchImpl,
+    }).filter(([, value]) => value !== undefined),
+  )
+  const verifyProfileToken =
+    config.verifyCognitoIdToken || ((authorizationHeader) => verifyCognitoIdToken(authorizationHeader, cognitoOptions))
   const saveCognitoProfile = config.upsertCognitoProfile || upsertCognitoProfile
+  const upsertActivityCustomer =
+    typeof config.upsertCustomerProfile === 'function' ? config.upsertCustomerProfile : upsertSupabaseCustomer
+  const presenceHeartbeat = config.updateCustomerHeartbeat || updateSupabaseHeartbeat
+  const presenceLogout = config.recordCustomerLogout || recordSupabaseLogout
   const sessionTtlSeconds = Number(config.sessionTtlSeconds) > 0
     ? Number(config.sessionTtlSeconds)
     : DEFAULT_ADMIN_SESSION_TTL_SECONDS
@@ -1030,84 +1045,98 @@ export function createAdminAuthMiddleware(config = {}) {
       }
     }
 
+    // Customer activity / presence endpoints. The customer is whoever the verified Cognito ID token says
+    // (verifyProfileToken: RS256 signature, issuer, audience, expiry, token_use=id). Identity fields in
+    // the body (email, cognito_sub) are ignored: they used to be trusted when no token was sent, so anyone
+    // could record activity, heartbeats or logouts for any customer. Admin session tokens are HS256 and
+    // never verify here, and Cognito accounts flagged as admin are refused.
+    async function authenticateCustomerRequest(notApplicableMessage) {
+      let claims = null
+      try {
+        claims = await verifyProfileToken(req.headers['authorization'])
+      } catch (err) {
+        console.error('[customer-auth] Cognito token verification unavailable:', err?.message)
+        return { status: 503, error: 'Customer authentication is temporarily unavailable.' }
+      }
+      if (!claims || typeof claims.sub !== 'string' || !claims.sub) {
+        return { status: 401, error: 'A valid customer Cognito token is required.' }
+      }
+      const email = typeof claims.email === 'string' ? claims.email.trim().toLowerCase() : ''
+      if (claims.role === 'admin' || isSuperadminEmail(email)) {
+        return { status: 403, error: notApplicableMessage }
+      }
+      return { claims, cognito_sub: claims.sub, email }
+    }
+
+    // Client tab id used for multi-tab presence; it only ever addresses the authenticated customer's sessions.
+    function clientSessionId(body) {
+      return typeof body?.session_id === 'string' && body.session_id.length <= 128 ? body.session_id : undefined
+    }
+
+    function optionalText(value, maxLength = 200) {
+      return typeof value === 'string' && value.trim() ? value.trim().slice(0, maxLength) : undefined
+    }
+
     // 1. POST /api/customer/activity (Registration / Login activity update)
     if (parsedPath === '/api/customer/activity' && req.method === 'POST') {
       try {
-        const body = await parseJsonBody(req)
-        const email = (body.email || '').trim().toLowerCase()
-        const cognito_sub = body.cognito_sub || null
-
-        if (!email) {
-          return sendJson(req, res, 400, { ok: false, error: 'Customer email is required.' })
+        const auth = await authenticateCustomerRequest('Activity tracking is not applicable to administrator accounts.')
+        if (auth.error) {
+          return sendJson(req, res, auth.status, { ok: false, error: auth.error })
         }
+        if (!auth.email) {
+          return sendJson(req, res, 400, { ok: false, error: 'The customer token does not include an email address.' })
+        }
+        const body = await parseJsonBody(req)
+        const { claims, cognito_sub, email } = auth
+        // Profile details are the customer's own; role and account_status are never taken from the client.
+        const fullName = optionalText(claims.name) || optionalText(body.full_name)
+        const phoneNumber = optionalText(claims.phone_number, 32) || optionalText(body.phone_number, 32)
+        const organization = optionalText(body.organization)
+        const isLogin = body.isLogin === true
 
         // Primary: Supabase
-        const customer = await upsertSupabaseCustomer({
-          cognito_sub: cognito_sub || email,
-          full_name: body.full_name,
+        const customer = await upsertActivityCustomer({
+          cognito_sub,
+          full_name: fullName,
           email,
-          phone_number: body.phone_number,
-          organization: body.organization,
-          isLogin: Boolean(body.isLogin),
+          phone_number: phoneNumber,
+          organization,
+          isLogin,
         })
 
-        // Secondary: SQLite
+        // Secondary: SQLite (role/account_status omitted: the stored values are kept)
         try {
           registerOrUpdateCustomer({
             cognito_sub,
-            full_name: body.full_name,
+            full_name: fullName,
             email,
-            phone_number: body.phone_number,
-            organization: body.organization,
-            role: body.role || 'customer',
-            account_status: body.account_status || 'active',
-            isLogin: Boolean(body.isLogin),
-            metadata: body.metadata || {},
+            phone_number: phoneNumber,
+            organization,
+            isLogin,
+            metadata: body.metadata && typeof body.metadata === 'object' && !Array.isArray(body.metadata) ? body.metadata : {},
           })
         } catch {}
 
         return sendJson(req, res, 200, { ok: true, customer })
       } catch (err) {
-        console.error('[customer-activity] Activity recording failed:', err.message)
-        return sendJson(req, res, 500, { ok: false, error: err.message || 'Failed to record customer activity.' })
+        console.error('[customer-activity] Activity recording failed:', err?.message)
+        return sendJson(req, res, 500, { ok: false, error: 'Failed to record customer activity.' })
       }
     }
 
     // 2. POST /api/customer/heartbeat (Periodic heartbeat)
     if (parsedPath === '/api/customer/heartbeat' && req.method === 'POST') {
       try {
+        const auth = await authenticateCustomerRequest('Heartbeats are not applicable to Superadmin accounts.')
+        if (auth.error) {
+          return sendJson(req, res, auth.status, { ok: false, error: auth.error })
+        }
         const body = await parseJsonBody(req)
-        let email = (body.email || '').trim().toLowerCase()
-        let cognito_sub = (body.cognito_sub || '').trim()
-
-        // Authenticate Cognito Bearer token if provided
-        const authHeader = req.headers['authorization'] || ''
-        if (authHeader.startsWith('Bearer ')) {
-          try {
-            const claims = await verifyProfileToken(authHeader)
-            if (!claims) {
-              return sendJson(req, res, 401, { ok: false, error: 'A valid customer Cognito token is required.' })
-            }
-            if (claims.sub) cognito_sub = claims.sub
-            if (claims.email) email = claims.email.trim().toLowerCase()
-            if (claims.role === 'admin' || isSuperadminEmail(email)) {
-              return sendJson(req, res, 403, { ok: false, error: 'Heartbeats are not applicable to Superadmin accounts.' })
-            }
-          } catch {
-            return sendJson(req, res, 401, { ok: false, error: 'Customer token verification failed.' })
-          }
-        }
-
-        if (isSuperadminEmail(email)) {
-          return sendJson(req, res, 403, { ok: false, error: 'Heartbeats are not applicable to Superadmin accounts.' })
-        }
-
-        if (!email && !cognito_sub) {
-          return sendJson(req, res, 400, { ok: false, error: 'Customer identifier (sub or email) is required.' })
-        }
+        const { cognito_sub, email } = auth
 
         // Primary: Supabase (multi-session presence tracking)
-        const success = await updateSupabaseHeartbeat({ cognito_sub, email, session_id: body.session_id })
+        const success = await presenceHeartbeat({ cognito_sub, email, session_id: clientSessionId(body) })
 
         // Secondary: SQLite
         try {
@@ -1116,46 +1145,23 @@ export function createAdminAuthMiddleware(config = {}) {
 
         return sendJson(req, res, 200, { ok: true, heartbeat: success })
       } catch (err) {
-        console.error('[customer-heartbeat] Failed to record heartbeat:', err.message)
-        return sendJson(req, res, 500, { ok: false, error: 'Failed to record customer heartbeat: ' + err.message })
+        console.error('[customer-heartbeat] Failed to record heartbeat:', err?.message)
+        return sendJson(req, res, 500, { ok: false, error: 'Failed to record customer heartbeat.' })
       }
     }
 
     // 3. POST /api/customer/logout (Customer sign-out event)
     if (parsedPath === '/api/customer/logout' && req.method === 'POST') {
       try {
+        const auth = await authenticateCustomerRequest('Customer logout not applicable to Superadmin accounts.')
+        if (auth.error) {
+          return sendJson(req, res, auth.status, { ok: false, error: auth.error })
+        }
         const body = await parseJsonBody(req)
-        let email = (body.email || '').trim().toLowerCase()
-        let cognito_sub = (body.cognito_sub || '').trim()
+        const { cognito_sub, email } = auth
 
-        // Authenticate Cognito Bearer token if provided
-        const authHeader = req.headers['authorization'] || ''
-        if (authHeader.startsWith('Bearer ')) {
-          try {
-            const claims = await verifyProfileToken(authHeader)
-            if (!claims) {
-              return sendJson(req, res, 401, { ok: false, error: 'A valid customer Cognito token is required.' })
-            }
-            if (claims.sub) cognito_sub = claims.sub
-            if (claims.email) email = claims.email.trim().toLowerCase()
-            if (claims.role === 'admin' || isSuperadminEmail(email)) {
-              return sendJson(req, res, 403, { ok: false, error: 'Customer logout not applicable to Superadmin accounts.' })
-            }
-          } catch {
-            return sendJson(req, res, 401, { ok: false, error: 'Customer token verification failed.' })
-          }
-        }
-
-        if (isSuperadminEmail(email)) {
-          return sendJson(req, res, 403, { ok: false, error: 'Customer logout not applicable to Superadmin accounts.' })
-        }
-
-        if (!email && !cognito_sub) {
-          return sendJson(req, res, 400, { ok: false, error: 'Customer identifier (sub or email) is required.' })
-        }
-
-        // Primary: Supabase (multi-session presence tracking)
-        await recordSupabaseLogout({ cognito_sub, email, session_id: body.session_id })
+        // Primary: Supabase (multi-session presence tracking). Only this customer's session is closed.
+        await presenceLogout({ cognito_sub, email, session_id: clientSessionId(body) })
 
         // Secondary: SQLite
         try {
@@ -1164,8 +1170,8 @@ export function createAdminAuthMiddleware(config = {}) {
 
         return sendJson(req, res, 200, { ok: true, message: 'Customer logout recorded.' })
       } catch (err) {
-        console.error('[customer-logout] Failed to record logout:', err.message)
-        return sendJson(req, res, 500, { ok: false, error: 'Failed to record customer logout: ' + err.message })
+        console.error('[customer-logout] Failed to record logout:', err?.message)
+        return sendJson(req, res, 500, { ok: false, error: 'Failed to record customer logout.' })
       }
     }
 
@@ -1625,6 +1631,12 @@ export function createAdminAuthMiddleware(config = {}) {
         })
       }
       return sendJson(req, res, 200, { ok: true })
+    }
+
+    // Customer routes not handled above (workspace, profile, API/SSH keys, saved listings, notifications)
+    // live in supabaseApi.js, which runs after this middleware; answering 404 here made them unreachable.
+    if (isCustomerRoute) {
+      return next()
     }
 
     return sendJson(req, res, 404, { ok: false, error: 'Endpoint not found.' })

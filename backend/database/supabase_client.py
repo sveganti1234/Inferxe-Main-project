@@ -15,14 +15,21 @@ Features:
 """
 
 import os
+import re
 import json
 import uuid
 import sqlite3
 import logging
+import threading
+import time
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone
-from dotenv import load_dotenv
+import sys as _sys
+_GUARD_DIR = str(__import__('pathlib').Path(__file__).resolve().parents[1])  # backend/
+if _GUARD_DIR not in _sys.path:
+    _sys.path.append(_GUARD_DIR)
+from isolation_guard import load_dotenv  # noqa: E402  (tests never load the project .env: isolation_guard.py)
 
 logger = logging.getLogger("inferxe.supabase")
 
@@ -34,11 +41,31 @@ load_dotenv(DOTENV_PATH, override=False)
 # Local fallback cache DB path
 CACHE_DB_PATH = ROOT_DIR / "database" / "inferxe_rag_cache.db"
 
-# Cached client instance
+# Cached client instance (one per process, created under a lock: chat handlers run in worker threads)
 _supabase_client = None
+_client_lock = threading.Lock()
+# After a failed/unconfigured initialisation, wait before retrying so each request does not
+# re-attempt (and re-log) the same failure.
+_CLIENT_RETRY_SECONDS = 60.0
+_client_retry_after = 0.0
+# supabase-py's default PostgREST timeout is long (minutes); chat requests hold a limited slot.
+SUPABASE_CLIENT_TIMEOUT_SECONDS = float(os.environ.get("SUPABASE_CLIENT_TIMEOUT_SECONDS", "10") or 10)
+_local_cache_ready = False
+
+
+def reset_supabase_client() -> None:
+    """Forget the cached client and any remembered failure (e.g. after credentials change; tests)."""
+    global _supabase_client, _client_retry_after
+    with _client_lock:
+        _supabase_client = None
+        _client_retry_after = 0.0
+
 
 def _init_local_cache_db():
-    """Ensure local resilient storage tables exist."""
+    """Ensure local resilient storage tables exist (once per process)."""
+    global _local_cache_ready
+    if _local_cache_ready:
+        return
     try:
         CACHE_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(str(CACHE_DB_PATH))
@@ -76,7 +103,14 @@ def _init_local_cache_db():
                     created_at TEXT NOT NULL
                 )
             """)
+            existing_cols = {r[1] for r in conn.execute("PRAGMA table_info(document_metadata)")}
+            for col_name, col_def in (("organization_id", "TEXT"),
+                                      ("visibility", "TEXT NOT NULL DEFAULT 'quarantined'"),
+                                      ("uploaded_by_admin_id", "TEXT")):
+                if col_name not in existing_cols:
+                    conn.execute(f"ALTER TABLE document_metadata ADD COLUMN {col_name} {col_def}")
         conn.close()
+        _local_cache_ready = True
     except Exception as e:
         logger.warning(f"Could not initialize local RAG cache DB: {e}")
 
@@ -91,30 +125,59 @@ def is_supabase_configured() -> bool:
     url, key = get_supabase_credentials()
     return bool(url and key)
 
+def _create_client(url: str, key: str):
+    """create_client with an explicit request timeout, falling back to library defaults if this
+    supabase-py version names the option differently."""
+    from supabase import create_client
+    try:
+        try:
+            from supabase import ClientOptions  # supabase-py >= 2.x
+        except ImportError:
+            from supabase.lib.client_options import ClientOptions  # older 2.x layout
+        options = ClientOptions(
+            postgrest_client_timeout=SUPABASE_CLIENT_TIMEOUT_SECONDS,
+            storage_client_timeout=SUPABASE_CLIENT_TIMEOUT_SECONDS,
+        )
+        return create_client(url, key, options=options)
+    except (ImportError, TypeError) as opt_err:
+        logger.warning("Supabase client options unavailable (%s); using library default timeouts.", type(opt_err).__name__)
+        return create_client(url, key)
+
+
 def get_supabase_client():
     """
     Get or initialize the cached Supabase client instance.
-    Returns None if credentials are missing or the client fails to initialize.
+    Returns None if credentials are missing or the client fails to initialize; that outcome is
+    remembered for a short period instead of being retried (and logged) on every request.
     """
-    global _supabase_client
+    global _supabase_client, _client_retry_after
     if _supabase_client is not None:
         return _supabase_client
-
-    url, key = get_supabase_credentials()
-    if not url or not key:
-        logger.warning(
-            "Supabase is not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in root .env."
-        )
+    if time.monotonic() < _client_retry_after:
         return None
 
-    try:
-        from supabase import create_client, Client
-        _supabase_client = create_client(url, key)
-        logger.info(f"Supabase client initialized successfully for {url}")
-        return _supabase_client
-    except Exception as e:
-        logger.error(f"Failed to initialize Supabase client: {e}")
-        return None
+    with _client_lock:
+        if _supabase_client is not None:
+            return _supabase_client
+        if time.monotonic() < _client_retry_after:
+            return None
+
+        url, key = get_supabase_credentials()
+        if not url or not key:
+            logger.warning(
+                "Supabase is not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in root .env."
+            )
+            _client_retry_after = time.monotonic() + _CLIENT_RETRY_SECONDS
+            return None
+
+        try:
+            _supabase_client = _create_client(url, key)
+            logger.info("Supabase client initialized successfully.")
+            return _supabase_client
+        except Exception as e:
+            logger.error(f"Failed to initialize Supabase client: {type(e).__name__}: {e}")
+            _client_retry_after = time.monotonic() + _CLIENT_RETRY_SECONDS
+            return None
 
 def check_table_exists(table_name: str) -> bool:
     """
@@ -175,63 +238,64 @@ def test_connection() -> Dict[str, Any]:
 # Document Metadata Operations
 # ==============================================================================
 
+_UUID_RE = re.compile(r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
+DOCUMENT_VISIBILITIES = ("public", "organization", "quarantined")
+
+
 def upsert_document_metadata(
     document_id: str,
     filename: str,
     file_type: str,
-    uploaded_by: Optional[str] = "system",
+    uploaded_by: Optional[str] = None,
     organization_id: Optional[str] = None,
     file_size_bytes: Optional[int] = None,
     file_hash: Optional[str] = None,
     status: str = "processed",
     chunk_count: int = 0,
     metadata: Optional[Dict[str, Any]] = None,
+    visibility: str = "quarantined",
+    uploaded_by_admin_id: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
-    Store or update document metadata in Supabase `document_metadata` table.
-    Uses `document_id` as the unique conflict target to prevent duplicate records.
+    Store document metadata in Supabase `document_metadata` (or the local fallback cache).
+
+    `document_id` is unique per upload (rag/server.py), so this never overwrites another document; the conflict
+    target only lets the same upload update its own row. `uploaded_by` references profiles (customers) and is
+    left NULL for admin uploads, whose id goes to `uploaded_by_admin_id`. `visibility` is 'public',
+    'organization' or 'quarantined' (legacy rows; never shown to customers).
     """
+    if visibility not in DOCUMENT_VISIBILITIES:
+        raise ValueError("invalid document visibility")
     client = get_supabase_client()
     now_iso = datetime.now(timezone.utc).isoformat()
     record = {
         "document_id": document_id,
         "filename": filename,
         "file_type": file_type.lower().lstrip("."),
-        "uploaded_by": uploaded_by or "system",
+        "uploaded_by": uploaded_by,
+        "uploaded_by_admin_id": uploaded_by_admin_id,
+        "organization_id": organization_id,
+        "visibility": visibility,
         "status": status,
         "chunk_count": chunk_count,
         "metadata": metadata or {},
         "updated_at": now_iso,
     }
-
-    if organization_id:
-        record["organization_id"] = organization_id
     if file_size_bytes is not None:
         record["file_size_bytes"] = file_size_bytes
     if file_hash:
         record["file_hash"] = file_hash
 
-    # Try remote Supabase
     if client:
         try:
-            res = client.table("document_metadata").upsert(
-                record,
-                on_conflict="document_id"
-            ).execute()
+            res = client.table("document_metadata").upsert(record, on_conflict="document_id").execute()
             data = res.data if hasattr(res, "data") else []
-            return {
-                "ok": True,
-                "document_id": document_id,
-                "data": data,
-                "action": "upserted",
-                "backend": "supabase"
-            }
+            return {"ok": True, "document_id": document_id, "data": data, "action": "upserted", "backend": "supabase"}
         except Exception as e:
             err_msg = str(e)
             if "PGRST205" not in err_msg and "schema cache" not in err_msg:
-                logger.warning(f"Could not upsert document metadata to Supabase: {e}")
+                logger.warning("Could not upsert document metadata to Supabase (%s).", type(e).__name__)
 
-    # Resilient local fallback store
     try:
         _init_local_cache_db()
         conn = sqlite3.connect(str(CACHE_DB_PATH))
@@ -239,14 +303,10 @@ def upsert_document_metadata(
             conn.execute("""
                 INSERT INTO document_metadata (
                     id, document_id, filename, file_type, file_size_bytes, file_hash,
-                    uploaded_by, upload_date, status, chunk_count, metadata, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    uploaded_by, upload_date, status, chunk_count, metadata, created_at, updated_at,
+                    organization_id, visibility, uploaded_by_admin_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(document_id) DO UPDATE SET
-                    filename=excluded.filename,
-                    file_type=excluded.file_type,
-                    file_size_bytes=excluded.file_size_bytes,
-                    file_hash=excluded.file_hash,
-                    uploaded_by=excluded.uploaded_by,
                     status=excluded.status,
                     chunk_count=excluded.chunk_count,
                     metadata=excluded.metadata,
@@ -255,60 +315,71 @@ def upsert_document_metadata(
                 str(uuid.uuid4()), record["document_id"], record["filename"], record["file_type"],
                 record.get("file_size_bytes"), record.get("file_hash"), record["uploaded_by"],
                 now_iso, record["status"], record["chunk_count"], json.dumps(record.get("metadata", {})),
-                now_iso, now_iso
+                now_iso, now_iso, record["organization_id"], record["visibility"], record["uploaded_by_admin_id"],
             ))
         conn.close()
-        return {
-            "ok": True,
-            "document_id": document_id,
-            "data": [record],
-            "action": "upserted",
-            "backend": "local_fallback",
-            "missing_remote_table": True
-        }
+        return {"ok": True, "document_id": document_id, "data": [record], "action": "upserted",
+                "backend": "local_fallback", "missing_remote_table": True}
     except Exception as fallback_err:
-        logger.error(f"Local document metadata fallback error: {fallback_err}")
-        return {
-            "ok": False,
-            "error": str(fallback_err),
-            "document_id": document_id
-        }
+        logger.error("Local document metadata fallback error (%s).", type(fallback_err).__name__)
+        return {"ok": False, "error": type(fallback_err).__name__, "document_id": document_id}
+
 
 def list_document_metadata(
     limit: int = 50,
     uploaded_by: Optional[str] = None,
     organization_id: Optional[str] = None,
+    restrict_to_organization: Optional[str] = None,
+    restricted: bool = False,
 ) -> List[Dict[str, Any]]:
     """
-    Retrieve document metadata records from Supabase (or local fallback).
+    Document metadata from Supabase (or the local fallback).
+
+    restricted=True (non-admin callers): only `visibility = 'organization'` rows of `restrict_to_organization`
+    (a server-verified organization id) are returned; `uploaded_by` / `organization_id` filters cannot widen it,
+    and no organization means no rows. Admin callers (restricted=False) may filter freely.
     """
+    limit = max(1, min(int(limit), 100))
+    if restricted:
+        if not restrict_to_organization or not _UUID_RE.match(str(restrict_to_organization)):
+            return []
+        organization_id = str(restrict_to_organization)
+
     client = get_supabase_client()
     if client:
         try:
             query = client.table("document_metadata").select("*")
-            if uploaded_by:
-                query = query.eq("uploaded_by", uploaded_by)
-            if organization_id:
-                query = query.eq("organization_id", organization_id)
+            if restricted:
+                query = query.eq("visibility", "organization").eq("organization_id", organization_id)
+            else:
+                if uploaded_by:
+                    query = query.eq("uploaded_by", uploaded_by)
+                if organization_id:
+                    query = query.eq("organization_id", organization_id)
             res = query.order("created_at", desc=True).limit(limit).execute()
-            if hasattr(res, "data") and res.data:
-                return res.data
+            return list(res.data or []) if hasattr(res, "data") else []
         except Exception:
             pass
 
-    # Fallback to local cache
     try:
         _init_local_cache_db()
         conn = sqlite3.connect(str(CACHE_DB_PATH))
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
-        if uploaded_by:
+        if restricted:
             cursor.execute(
-                "SELECT * FROM document_metadata WHERE uploaded_by = ? ORDER BY upload_date DESC LIMIT ?",
-                (uploaded_by, limit)
-            )
+                "SELECT * FROM document_metadata WHERE visibility = 'organization' AND organization_id = ? "
+                "ORDER BY upload_date DESC LIMIT ?", (organization_id, limit))
         else:
-            cursor.execute("SELECT * FROM document_metadata ORDER BY upload_date DESC LIMIT ?", (limit,))
+            clauses, params = [], []
+            if uploaded_by:
+                clauses.append("uploaded_by = ?")
+                params.append(uploaded_by)
+            if organization_id:
+                clauses.append("organization_id = ?")
+                params.append(organization_id)
+            where = f"WHERE {' AND '.join(clauses)} " if clauses else ""
+            cursor.execute(f"SELECT * FROM document_metadata {where}ORDER BY upload_date DESC LIMIT ?", (*params, limit))
         rows = [dict(r) for r in cursor.fetchall()]
         conn.close()
         for r in rows:
@@ -319,8 +390,30 @@ def list_document_metadata(
                     pass
         return rows
     except Exception as e:
-        logger.warning(f"Failed to list document metadata from cache: {e}")
+        logger.warning("Failed to list document metadata from cache (%s).", type(e).__name__)
         return []
+
+
+def delete_document_metadata(document_id: str) -> Dict[str, Any]:
+    """Delete a document's metadata row (Supabase and the local fallback). Returns {"deleted": bool}."""
+    deleted = False
+    client = get_supabase_client()
+    if client:
+        try:
+            res = client.table("document_metadata").delete().eq("document_id", document_id).execute()
+            deleted = bool(getattr(res, "data", None))
+        except Exception as e:
+            logger.warning("Could not delete document metadata in Supabase (%s).", type(e).__name__)
+    try:
+        _init_local_cache_db()
+        conn = sqlite3.connect(str(CACHE_DB_PATH))
+        with conn:
+            cur = conn.execute("DELETE FROM document_metadata WHERE document_id = ?", (document_id,))
+            deleted = deleted or cur.rowcount > 0
+        conn.close()
+    except Exception as e:
+        logger.warning("Could not delete document metadata in the local cache (%s).", type(e).__name__)
+    return {"deleted": deleted, "document_id": document_id}
 
 # ==============================================================================
 # Chat History Operations (Supabase PostgreSQL Persistence)
@@ -435,7 +528,8 @@ def get_chat_history(
 ) -> List[Dict[str, Any]]:
     """
     Retrieve conversation history directly from remote Supabase `public.chat_history` table.
-    Filters by session_id, user_id, or organization_id and orders chronologically (created_at ASC).
+    Filters by session_id, user_id, or organization_id and returns the most recent `limit` turns in
+    chronological order (previously ascending + limit returned the oldest turns).
     """
     client = get_supabase_client()
     if not client:
@@ -451,8 +545,8 @@ def get_chat_history(
         if organization_id:
             query = query.eq("organization_id", organization_id)
 
-        res = query.order("created_at", desc=False).limit(limit).execute()
-        rows = res.data if hasattr(res, "data") else []
+        res = query.order("created_at", desc=True).limit(limit).execute()
+        rows = list(reversed(res.data)) if hasattr(res, "data") and res.data else []
         logger.info(f"Retrieved {len(rows)} chat history records from Supabase (session={session_id}, user={user_id}).")
         return rows
     except Exception as e:

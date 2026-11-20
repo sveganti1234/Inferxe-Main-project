@@ -269,20 +269,31 @@ def create_notebook(
     )
     driver_res = active_driver.provision(str(instance_id), gpu_profile=clean_profile)
 
-    # 4. Persist metadata + token_hash (never raw_token) to Supabase
-    notebook = active_repo.create_notebook_session(
-        instance_id=instance_id,
-        user_id=clean_user_id,
-        name=clean_name,
-        gpu_profile=clean_profile,
-        status=driver_res.get("status", "running"),
-        runtime_type="simulated",
-        runtime_reference=driver_res.get("runtime_reference"),
-        selected_ssh_key_id=validated_ssh_key.id if validated_ssh_key is not None else None,
-        validated_ssh_key=validated_ssh_key,
-        token_hash=token_hash,
-        now=now,
-    )
+    # 4. Persist metadata + token_hash (never raw_token) to Supabase. If that fails, release the runtime
+    #    we just provisioned; otherwise a real provider would keep an untracked (billed) GPU running.
+    try:
+        notebook = active_repo.create_notebook_session(
+            instance_id=instance_id,
+            user_id=clean_user_id,
+            name=clean_name,
+            gpu_profile=clean_profile,
+            status=driver_res.get("status", "running"),
+            runtime_type="simulated",
+            runtime_reference=driver_res.get("runtime_reference"),
+            selected_ssh_key_id=validated_ssh_key.id if validated_ssh_key is not None else None,
+            validated_ssh_key=validated_ssh_key,
+            token_hash=token_hash,
+            now=now,
+        )
+    except Exception:
+        runtime_reference = driver_res.get("runtime_reference") or str(instance_id)
+        try:
+            active_driver.terminate(runtime_reference)
+            logger.warning("Notebook save failed; released provisioned runtime %s.", runtime_reference)
+        except Exception as cleanup_err:  # never mask the original failure
+            logger.error("Notebook save failed and runtime %s could not be released (%s).",
+                         runtime_reference, type(cleanup_err).__name__)
+        raise
     return notebook, raw_token
 
 

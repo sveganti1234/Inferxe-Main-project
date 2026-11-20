@@ -90,7 +90,9 @@ export default defineConfig(({ command, mode }) => {
     server: {
       host: '127.0.0.1',
       port: 5173,
-      strictPort: false,
+      // Fail loudly when 5173 is taken: the backends' CORS allowlists only accept 5173, and the next free
+      // port would be 5175 (5174 is the auth server), where every API call is silently CORS-blocked.
+      strictPort: true,
       proxy: apiProxy,
     },
     preview: {

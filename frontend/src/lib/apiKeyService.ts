@@ -9,6 +9,7 @@ import { decodeJwt, ensureFreshSession } from './authStore'
 import {
   INFERENCE_API_BASE,
   formatApiConnectionError,
+  apiErrorDetail,
   getAuthHeaders,
 } from './apiConfig'
 
@@ -86,7 +87,7 @@ export async function fetchBackendApiKeys(): Promise<{
 
     const data = await res.json().catch(() => ({}))
     if (!res.ok) {
-      return { ok: false, error: data.detail || 'Failed to fetch API keys from backend.' }
+      return { ok: false, error: apiErrorDetail(data, 'Failed to fetch API keys from backend.') }
     }
 
     return { ok: true, keys: data.keys || [] }
@@ -136,7 +137,7 @@ export async function createBackendApiKey(
 
     const data = await res.json().catch(() => ({}))
     if (!res.ok) {
-      return { ok: false, error: data.detail || 'Failed to generate API key.' }
+      return { ok: false, error: apiErrorDetail(data, 'Failed to generate API key.') }
     }
 
     return { ok: true, data }
@@ -177,7 +178,7 @@ export async function revokeBackendApiKey(keyId: string): Promise<{
 
     const data = await res.json().catch(() => ({}))
     if (!res.ok) {
-      return { ok: false, error: data.detail || 'Failed to revoke API key.' }
+      return { ok: false, error: apiErrorDetail(data, 'Failed to revoke API key.') }
     }
 
     return { ok: true }

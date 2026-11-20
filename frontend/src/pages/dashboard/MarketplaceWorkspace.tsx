@@ -19,6 +19,7 @@ import {
   revokeBackendApiKey,
 } from '../../lib/apiKeyService'
 import { fetchWalletBalance, fetchWalletTransactionHistory, topUpWallet } from '../../lib/walletService'
+import { runInference } from '../../lib/inferenceService'
 import {
   fetchBackendSshKeys,
   createBackendSshKey,
@@ -241,7 +242,7 @@ const pageInfo: Record<string, { title: string; description: string; group: 'cus
   gpus: { title: 'GPU Marketplace', description: 'Browse sample GPU capacity, filter by region and compare configurations.', group: 'customer' },
   compare: { title: 'GPU Comparison Matrix', description: 'Side-by-side hardware comparison across VRAM, throughput, and pricing.', group: 'customer' },
   'price-history': { title: 'GPU Spot Price History', description: 'Historical price trends across sovereign Indian datacenter regions.', group: 'customer' },
-  playground: { title: 'Inference Playground', description: 'Interactive prompt sandbox with simulated live streaming and metrics.', group: 'customer' },
+  playground: { title: 'Inference Playground', description: 'Run prompts against the live inference API using one of your API keys.', group: 'customer' },
   'api-keys': { title: 'API Keys & JWT Tokens', description: 'Create and manage demo API keys and inspect simulated JWT bearer tokens.', group: 'customer' },
   'ssh-keys': { title: 'SSH Public Keys', description: 'Configure demo SSH credentials for compute cluster access.', group: 'customer' },
   analytics: { title: 'Usage & Analytics', description: 'Review illustrative request, token, latency and spend metrics.', group: 'customer' },
@@ -294,18 +295,17 @@ export default function MarketplaceWorkspace() {
   // Global Workspace State
   const [listings, setListings] = useState<Listing[]>(() => readStore(STORE.listings, initialListings))
   const [deployments, setDeployments] = useState<Deployment[]>(() => readStore(STORE.deployments, initialDeployments))
-  const [keys, setKeys] = useState<ApiKey[]>(() => readStore(STORE.keys, [
-    { id: 'key-1', name: 'Production Backend API', key: 'inf_demo_live_pk_93a74b12c8e0', created: '01 Oct 2026', revoked: false },
-    { id: 'key-2', name: 'Staging Evaluation Key', key: 'inf_demo_test_sk_44f12d88e7a1', created: '06 Oct 2026', revoked: false },
-  ]))
+  // Only keys returned by the inference backend are listed (no demo keys, no shared localStorage copy).
+  const [keys, setKeys] = useState<ApiKey[]>([])
   const [sshKeys, setSshKeys] = useState<SshKey[]>([])
   const [orders, setOrders] = useState<OrderItem[]>(() => readStore(STORE.orders, initialOrders))
   const [wishlist, setWishlist] = useState<string[]>(() => readStore(STORE.wishlist, ['gpu-101', 'gpu-104']))
-  const [walletBalance, setWalletBalance] = useState<number>(() => {
+  // null = not yet loaded from the wallet backend. The cache only ever holds backend values, and 0 is a real balance.
+  const [walletBalance, setWalletBalance] = useState<number | null>(() => {
     const stored = readStore(walletStorageKey, null)
-    if (typeof stored === 'number' && stored > 0) return stored
-    return 29053.31
+    return typeof stored === 'number' && stored >= 0 ? stored : null
   })
+  const [walletBalanceError, setWalletBalanceError] = useState<string | null>(null)
   const [transactions, setTransactions] = useState<TransactionItem[]>(() => readStore(transactionsStorageKey, []))
   const [txHistoryLoading, setTxHistoryLoading] = useState<boolean>(true)
   const [txHistoryError, setTxHistoryError] = useState<string | null>(null)
@@ -356,6 +356,9 @@ export default function MarketplaceWorkspace() {
       if (balRes.ok && balRes.balance) {
         setWalletBalance(balRes.balance.balance)
         saveStore(walletStorageKey, balRes.balance.balance)
+        setWalletBalanceError(null)
+      } else {
+        setWalletBalanceError(balRes.error || 'Wallet balance could not be loaded.')
       }
 
       // Sync transaction history
@@ -446,6 +449,7 @@ type ToastNotice = {
   const loadApiKeys = async () => {
     const session = await ensureFreshSession()
     if (!session?.token) {
+      setKeys([])
       return
     }
     setKeysLoading(true)
@@ -462,8 +466,9 @@ type ToastNotice = {
         lastUsed: k.last_used_at ? new Date(k.last_used_at).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'Never used',
       }))
       setKeys(mapped)
-    } else if (res.error) {
-      setKeysError(res.error)
+    } else {
+      setKeys([])
+      setKeysError(res.error || 'API keys could not be loaded.')
     }
     setKeysLoading(false)
   }
@@ -570,43 +575,51 @@ type ToastNotice = {
   }
 
   // Playground State
-  const [playgroundModel, setPlaygroundModel] = useState('Qwen2.5 7B Instruct')
+  // '' = the server's default model (the backend only accepts operator-enabled models; see NVIDIA_ALLOWED_MODELS).
+  const [playgroundModel, setPlaygroundModel] = useState('')
+  // In memory only: the raw API key is never written to storage.
+  const [playgroundApiKey, setPlaygroundApiKey] = useState('')
+  const [playgroundError, setPlaygroundError] = useState<string | null>(null)
+  const [playgroundServedModel, setPlaygroundServedModel] = useState<string | null>(null)
   const [playgroundPrompt, setPlaygroundPrompt] = useState('Explain tensor parallelism and how PagedAttention accelerates KV-cache decoding.')
   const [playgroundTemp, setPlaygroundTemp] = useState(0.7)
   const [playgroundMaxTokens, setPlaygroundMaxTokens] = useState(512)
   const [playgroundOutput, setPlaygroundOutput] = useState('')
   const [playgroundStreaming, setPlaygroundStreaming] = useState(false)
-  const [playgroundMetrics, setPlaygroundMetrics] = useState({ ttft: 0.14, speed: 118, tokens: 0 })
-  const [playgroundHistory, setPlaygroundHistory] = useState([
-    { prompt: 'Explain tensor parallelism in vLLM', timestamp: '10:14 AM' },
-    { prompt: 'Write Python OpenAI client for streaming chat completions', timestamp: '09:48 AM' },
-  ])
+  // Measured per request: round-trip latency (the API does not stream, so there is no TTFT), tokens from `usage`.
+  const [playgroundMetrics, setPlaygroundMetrics] = useState<{ latencyMs: number; speed: number; tokens: number } | null>(null)
+  const [playgroundHistory, setPlaygroundHistory] = useState<{ prompt: string; timestamp: string }[]>([])
 
-  const handleRunPlayground = () => {
-    if (!playgroundPrompt.trim()) return
+  const handleRunPlayground = async () => {
+    if (!playgroundPrompt.trim() || playgroundStreaming) return
     setPlaygroundStreaming(true)
     setPlaygroundOutput('')
-    const targetText = `Tensor Parallelism (TP) splits individual weight matrices across multiple GPUs (e.g., across 8x H100s via NVLink). For matrix multiplication in multi-head attention:
-
-1. Column Parallelism: The query, key, and value projection matrices are split along columns. Each GPU computes its slice of attention heads independently without inter-GPU communication during projection.
-2. Row Parallelism: The final output projection matrix is split along rows. An All-Reduce operation then sums the activation slices across all TP ranks.
-
-PagedAttention complements this by partitioning KV-cache tensors into non-contiguous physical memory blocks (similar to virtual memory paging in OS kernels). This eliminates memory fragmentation and increases GPU batch concurrency by up to 4x.`
-
-    let idx = 0
-    const interval = setInterval(() => {
-      idx += 12
-      if (idx >= targetText.length) {
-        setPlaygroundOutput(targetText)
-        setPlaygroundStreaming(false)
-        setPlaygroundMetrics({ ttft: 0.14, speed: 118, tokens: Math.floor(targetText.length / 4) })
-        clearInterval(interval)
-      } else {
-        setPlaygroundOutput(targetText.slice(0, idx))
-      }
-    }, 40)
-
-    setPlaygroundHistory((prev) => [{ prompt: playgroundPrompt.slice(0, 50) + '...', timestamp: 'Just now' }, ...prev.slice(0, 4)])
+    setPlaygroundError(null)
+    const res = await runInference({
+      apiKey: playgroundApiKey,
+      prompt: playgroundPrompt,
+      maxTokens: playgroundMaxTokens,
+      temperature: playgroundTemp,
+      model: playgroundModel || undefined,
+    })
+    setPlaygroundStreaming(false)
+    if (!res.ok || !res.data) {
+      setPlaygroundError(res.error || 'Inference failed.')
+      return
+    }
+    const { usage } = res.data
+    const latencyMs = res.latencyMs ?? 0
+    setPlaygroundOutput(res.data.response)
+    setPlaygroundServedModel(res.data.model)
+    setPlaygroundMetrics({
+      latencyMs,
+      speed: latencyMs > 0 ? Math.round((usage.completion_tokens / latencyMs) * 1000) : 0,
+      tokens: usage.total_tokens,
+    })
+    setPlaygroundHistory((prev) => [
+      { prompt: playgroundPrompt.length > 50 ? `${playgroundPrompt.slice(0, 50)}...` : playgroundPrompt, timestamp: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }) },
+      ...prev.slice(0, 4),
+    ])
   }
 
   // FAQ State
@@ -677,8 +690,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
       session.user.fullName = profileName
       session.user.email = profileEmail
         ; (session.user as any).organization = profileOrg
-      saveSession(session)
-      localStorage.setItem('inferxe:session:v1', JSON.stringify(session))
+      saveSession(session)  // single session copy; a second unread copy duplicated the token
     }
     flash('User profile and organization preferences updated.')
   }
@@ -686,10 +698,8 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
   // Sync to localStorage
   useEffect(() => { saveStore(STORE.listings, listings) }, [listings])
   useEffect(() => { saveStore(STORE.deployments, deployments) }, [deployments])
-  useEffect(() => { saveStore(STORE.keys, keys) }, [keys])
   useEffect(() => { saveStore(STORE.orders, orders) }, [orders])
   useEffect(() => { saveStore(STORE.wishlist, wishlist) }, [wishlist])
-  useEffect(() => { saveStore(walletStorageKey, walletBalance) }, [walletStorageKey, walletBalance])
   useEffect(() => { saveStore(transactionsStorageKey, transactions) }, [transactionsStorageKey, transactions])
   useEffect(() => { saveStore(STORE.payouts, payoutHistory) }, [payoutHistory])
   useEffect(() => { saveStore(STORE.pendingPayout, pendingPayout) }, [pendingPayout])
@@ -988,38 +998,25 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
       return
     }
 
-    const currentBal = typeof walletBalance === 'number' && !isNaN(walletBalance) ? walletBalance : 0
-    let newBalance = currentBal + amountNum
-    let txId = `tx_${Date.now().toString(36).toUpperCase()}_${Math.random().toString(36).substring(2, 6).toUpperCase()}`
-
-    // Attempt backend top-up; backend balance is the source of truth
-    let backendSynced = false
-    try {
-      const idemKey = `wallet_topup_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`
-      const result = await topUpWallet(amountNum, idemKey, 'Wallet top-up')
-      if (result.ok && result.result) {
-        newBalance = result.result.new_balance
-        txId = result.result.transaction_id
-        backendSynced = true
-      }
-    } catch {
-      /* Proceed with compute ledger */
+    // The backend is the only source of truth: nothing local changes unless it confirms the top-up.
+    const idemKey = `wallet_topup_${Date.now()}_${Math.random().toString(36).substring(2, 10)}`
+    const result = await topUpWallet(amountNum, idemKey, 'Wallet top-up')
+    if (!result.ok || !result.result) {
+      // 403 (self-service top-ups disabled), 400 (rejected amount), 5xx and network failures:
+      // keep the modal open and the balance unchanged.
+      flash(`${result.error || 'Top-up failed.'} Your balance was not changed.`)
+      return
+    }
+    if (result.result.status === 'skipped') {
+      flash('This top-up was already processed. Your balance was not charged twice.')
     }
 
-    // Always refresh balance from backend after top-up to ensure single source of truth
-    if (!backendSynced) {
-      try {
-        const res = await fetchWalletBalance()
-        if (res.ok && res.balance) {
-          newBalance = res.balance.balance
-          backendSynced = true
-        }
-      } catch {
-        /* keep locally computed balance as fallback */
-      }
+    // Re-read balance and history from the backend instead of computing them locally.
+    let newBalance = typeof result.result.new_balance === 'number' ? result.result.new_balance : walletBalance
+    const balRes = await fetchWalletBalance()
+    if (balRes.ok && balRes.balance) {
+      newBalance = balRes.balance.balance
     }
-
-    // Refresh transaction history from backend after top-up
     try {
       const histRes = await fetchWalletTransactionHistory(50, 0)
       if (histRes.ok && histRes.history) {
@@ -1035,32 +1032,21 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
         saveStore(transactionsStorageKey, mapped)
       }
     } catch {
-      /* keep existing localStorage transactions as fallback */
+      /* keep the existing history; the balance above is still authoritative */
     }
 
-    // Update local state and cache
     setWalletBalance(newBalance)
-    saveStore(walletStorageKey, newBalance)
-    try {
-      localStorage.setItem('inferxe_demo_wallet_balance_v1', JSON.stringify(newBalance))
-      const sub = session?.user?.id
-      if (sub) {
-        localStorage.setItem(`inferxe_demo_wallet_balance_v1_${sub}`, JSON.stringify(newBalance))
-      }
-    } catch {}
-
-    const newTx: TransactionItem = {
-      id: txId,
-      desc: 'Wallet top-up (Demo)',
-      date: new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }),
-      amount: amountNum,
-      isCredit: true,
-      status: 'Completed',
+    if (newBalance !== null) {
+      setWalletBalanceError(null)
+      saveStore(walletStorageKey, newBalance)  // same Cognito-scoped key the dashboard and bot read
     }
-    const updatedTxs = [newTx, ...transactions]
-    setTransactions(updatedTxs)
-    saveStore(transactionsStorageKey, updatedTxs)
 
+    if (result.result.status === 'skipped') {
+      setShowTopUpModal(false)
+      return
+    }
+
+    const txId = result.result.transaction_id
     setShowTopUpModal(false)
     addNotification({
       title: `Wallet Credited: +₹${amountNum.toLocaleString('en-IN')}`,
@@ -1155,7 +1141,11 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
     const tax = Math.round(taxable * 0.18)
     const total = taxable + tax
 
-    if (checkoutPaymentMethod === 'wallet' && walletBalance < total) {
+    if (checkoutPaymentMethod === 'wallet' && walletBalance === null) {
+      flash('Your wallet balance could not be loaded, so wallet payment is unavailable right now. Please retry or choose another payment method.')
+      return
+    }
+    if (checkoutPaymentMethod === 'wallet' && walletBalance !== null && walletBalance < total) {
       flash(`Insufficient wallet balance (${money(walletBalance)}). Order total is ${money(total)}. Please top up your wallet or choose another payment method.`)
       return
     }
@@ -1176,7 +1166,8 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
       setOrders((prev) => [newOrder, ...prev])
 
       if (checkoutPaymentMethod === 'wallet') {
-        setWalletBalance((prev) => Math.max(0, prev - total))
+        // shortcut: simulated order, the backend wallet is not charged; reloads show the backend balance again.
+        setWalletBalance((prev) => (prev === null ? prev : Math.max(0, prev - total)))
         setTransactions((prev) => [
           {
             id: `TX-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -2197,7 +2188,9 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
               <div className="mw-metric">
                 <div className="mw-metric-top"><span>Available Balance</span><span className="mw-icon-box"><Wallet /></span></div>
                 <strong>{money(walletBalance)}</strong>
-                <small style={{ color: 'var(--brand-hi)' }}>Prepaid balance</small>
+                {walletBalanceError
+                  ? <small role="alert" style={{ color: 'var(--danger, #f87171)' }}>{walletBalanceError}</small>
+                  : <small style={{ color: 'var(--brand-hi)' }}>Prepaid balance</small>}
               </div>
               <div className="mw-metric">
                 <div className="mw-metric-top"><span>Current Month Usage</span><span className="mw-icon-box"><CircleDollarSign /></span></div>
@@ -3210,10 +3203,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                         onChange={(e) => setPlaygroundModel(e.target.value)}
                         className="mw-select"
                       >
-                        <option>Qwen2.5 7B Instruct</option>
-                        <option>Llama 3.1 8B Instruct</option>
-                        <option>DeepSeek V3 (Reasoning)</option>
-                        <option>Mistral 7B Instruct v0.3</option>
+                        <option value="">Server default model</option>
                       </select>
                     </label>
 
@@ -3239,6 +3229,18 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                       </div>
                     </div>
                   </div>
+
+                  <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: '0.76rem', color: 'var(--ink-3)' }}>
+                    Inferxe API Key
+                    <input
+                      type="password"
+                      autoComplete="off"
+                      value={playgroundApiKey}
+                      onChange={(e) => setPlaygroundApiKey(e.target.value)}
+                      placeholder="Paste a key from API Keys (shown once when created); not stored"
+                      style={{ padding: '8px 10px', background: 'var(--bg-2)', border: '1px solid var(--line-2)', borderRadius: 7, color: 'var(--ink)' }}
+                    />
+                  </label>
 
                   {/* Row 2: Prompt Input Area */}
                   <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: '0.76rem', color: 'var(--ink-3)' }}>
@@ -3365,10 +3367,11 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                     flexWrap: 'wrap'
                   }}
                 >
-                  <span>TTFT: <strong style={{ color: 'var(--brand-hi)', fontFamily: 'var(--font-mono)' }}>{playgroundMetrics.ttft}s</strong></span>
-                  <span>Throughput: <strong style={{ color: 'var(--brand-hi)', fontFamily: 'var(--font-mono)' }}>{playgroundMetrics.speed} tok/s</strong></span>
-                  <span>Tokens: <strong style={{ color: 'var(--ink)', fontFamily: 'var(--font-mono)' }}>{playgroundMetrics.tokens}</strong></span>
-                  <span>Model: <strong style={{ color: 'var(--ink)' }}>{playgroundModel}</strong></span>
+                  <span>Latency: <strong style={{ color: 'var(--brand-hi)', fontFamily: 'var(--font-mono)' }}>{playgroundMetrics ? `${(playgroundMetrics.latencyMs / 1000).toFixed(2)}s` : '—'}</strong></span>
+                  <span>Throughput: <strong style={{ color: 'var(--brand-hi)', fontFamily: 'var(--font-mono)' }}>{playgroundMetrics ? `${playgroundMetrics.speed} tok/s` : '—'}</strong></span>
+                  <span>Tokens: <strong style={{ color: 'var(--ink)', fontFamily: 'var(--font-mono)' }}>{playgroundMetrics ? playgroundMetrics.tokens : '—'}</strong></span>
+                  <span>Model: <strong style={{ color: 'var(--ink)' }}>{playgroundServedModel || 'Server default'}</strong></span>
+                  {playgroundError && <span role="alert" style={{ color: 'var(--danger, #f87171)' }}>{playgroundError}</span>}
                 </div>
 
                 <div className="mw-console-box" style={{ minHeight: 220, maxHeight: 480, overflowY: 'auto', padding: 18, background: 'var(--bg-0)' }}>
@@ -4518,6 +4521,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                   <input
                     required
                     value={newKeyName}
+                    maxLength={100}
                     onChange={(e) => setNewKeyName(e.target.value)}
                     placeholder="e.g. Production Nemotron Client"
                     style={{ padding: '8px 10px', background: 'var(--bg-2)', border: '1px solid var(--line-2)', borderRadius: 7, color: 'var(--ink)' }}
@@ -4863,7 +4867,7 @@ PagedAttention complements this by partitioning KV-cache tensors into non-contig
                       Current Balance: <strong>{money(walletBalance)}</strong>
                     </span>
                     <span style={{ color: 'var(--brand-hi, #38bdf8)', fontWeight: 600 }}>
-                      New Balance: <strong>{money(walletBalance + numericTopUp)}</strong>
+                      New Balance: <strong>{money(walletBalance === null ? null : walletBalance + numericTopUp)}</strong>
                     </span>
                   </div>
                 )}

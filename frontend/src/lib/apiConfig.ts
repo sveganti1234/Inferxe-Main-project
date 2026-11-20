@@ -56,3 +56,19 @@ export function formatApiConnectionError(serviceLabel: string, baseUrl: string):
   }
   return `${serviceLabel} is unreachable. Please ensure the backend is running (\`npm run dev:backend\`).`
 }
+
+/**
+ * Readable message from a FastAPI error body. `detail` is a string for HTTPException but an array of
+ * {msg, loc} objects for 422 validation errors; passing that array through rendered as a blank toast.
+ */
+export function apiErrorDetail(data: unknown, fallback: string): string {
+  const detail = (data as { detail?: unknown } | null | undefined)?.detail
+  if (typeof detail === 'string' && detail.trim()) return detail
+  if (Array.isArray(detail)) {
+    const messages = detail
+      .map((item) => (item && typeof (item as { msg?: unknown }).msg === 'string' ? (item as { msg: string }).msg : ''))
+      .filter(Boolean)
+    if (messages.length) return messages.join('; ')
+  }
+  return fallback
+}

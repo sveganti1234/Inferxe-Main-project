@@ -10,6 +10,7 @@
  *   npm run server:admin
  */
 
+import crypto from 'node:crypto'
 import http from 'node:http'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -24,6 +25,13 @@ dotenv.config({ path: resolve(dirname(fileURLToPath(import.meta.url)), '../../.e
 
 // Load server-only Supabase credentials from backend/.env (not exposed to frontend)
 loadBackendEnv()
+
+// Administrator passwords are Argon2id hashes verified with crypto.argon2Sync (Node >= 24.7, see .nvmrc).
+if (typeof crypto.argon2Sync !== 'function') {
+  console.error(
+    `[admin-auth] Node ${process.version} lacks crypto.argon2Sync: administrator sign-in will fail (503). Use Node >= 24.7 (see .nvmrc).`,
+  )
+}
 
 const PORT = parseInt(process.env.ADMIN_AUTH_PORT || '5174', 10)
 const adminMiddleware = createAdminAuthMiddleware()
