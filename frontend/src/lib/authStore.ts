@@ -431,6 +431,7 @@ export function isAdministratorEmail(email: string): boolean {
 export interface AdminLoginResult {
   ok: boolean
   isAdmin: boolean
+  isCustomer?: boolean
   backendError?: boolean
   statusCode?: number
   code?: string
@@ -468,6 +469,28 @@ export async function loginAdminBackend(
     })
 
     const data = await res.json().catch(() => ({}))
+
+    if (data.isCustomer === true) {
+      if (res.ok && data.ok && data.token && data.user) {
+        const session: AuthSession = {
+          token: data.token,
+          user: data.user,
+          expiresAt: data.expiresAt || Date.now() + 30 * 24 * 60 * 60 * 1000,
+        }
+        saveSession(session)
+        return { ok: true, isAdmin: false, isCustomer: true, statusCode: res.status, session }
+      }
+      if (!res.ok) {
+        return {
+          ok: false,
+          isAdmin: false,
+          isCustomer: true,
+          backendError: res.status >= 500,
+          statusCode: res.status,
+          error: data.error || 'Incorrect email or password. Please verify your credentials and try again.',
+        }
+      }
+    }
 
     if (data.isAdmin === true) {
       if (res.ok && data.ok && data.token && data.user) {

@@ -574,6 +574,16 @@ export default function Login({ initialMode }: LoginProps) {
         const adminResult = await loginAdminBackend(username, password)
         adminBackendErrorRef.current = (adminResult.isAdmin && adminResult.backendError) ? adminResult.error ?? null : null
 
+        if (adminResult.isCustomer) {
+          if (adminResult.ok) {
+            navigate(CUSTOMER_HOME_PATH, { replace: true })
+            return
+          } else {
+            setError(adminResult.error || 'Incorrect email or password.')
+            return
+          }
+        }
+
         if (adminResult.isAdmin) {
           if (adminResult.ok) {
             // Valid admin credentials: authenticate and open Admin Portal
