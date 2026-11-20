@@ -8,17 +8,25 @@ import {
   verifyPasswordWithReason,
 } from './adminPassword.js'
 import {
+  CANONICAL_PERMISSIONS,
   DEFAULT_ADMIN_SESSION_TTL_SECONDS,
+  checkAdminPermission,
   createAdminSessionRecord,
   createDeveloperAdminAccount,
+  deleteAdminAccountSafe,
   findAdminByEmailForAuth,
+  getPermissionsForRole,
+  getSuperadminDashboardOverview,
+  hasPermission,
   listAdminAuditLogs,
   listAdminSessionHistory,
   listAdminUsers,
   recordAdminAuditLog,
+  revokeAdminSessionById,
   revokeAdminSessionRecord,
   sanitizeAdminUser,
   setAdminAccountActiveStatus,
+  updateAdminAccountDetails,
   verifyAdminSessionRecord,
 } from './adminSessionStore.js'
 import {
@@ -239,16 +247,65 @@ export async function verifyAdminSession(token, secret, options = {}) {
     return {
       valid: false,
       statusCode: dbCheck.statusCode || 401,
+      code: dbCheck.code || 'UNAUTHORIZED',
       error: dbCheck.error || 'Administrator session is invalid or has been revoked.',
     }
   }
 
   const allowedRoles = options.allowedRoles || ['admin', 'superadmin']
   if (!allowedRoles.includes(dbCheck.admin.role)) {
+    try {
+      await recordAdminAuditLog(
+        {
+          action: 'security.permission_violation.blocked',
+          targetType: 'superadmin_route',
+          targetId: options.path || 'unknown',
+          details: {
+            actor_admin_id: dbCheck.admin?.id || null,
+            actor_email: dbCheck.admin?.email || null,
+            role: dbCheck.admin?.role || 'unauthorized',
+            required_role: 'superadmin',
+            path: options.path || null,
+            method: options.method || null,
+            ip_address: options.ipAddress || 'unknown',
+            user_agent: options.userAgent || null,
+            reason: `Access denied: Role "${dbCheck.admin?.role}" attempted to access superadmin-only route "${options.path || ''}".`,
+          },
+        },
+        options.supabaseClient,
+      )
+    } catch (auditErr) {
+      console.error('[AdminAuth] Failed to write role violation audit log:', auditErr)
+    }
+
     return {
       valid: false,
       statusCode: 403,
+      code: 'PERMISSION_DENIED',
       error: 'Forbidden: Super Admin privileges are required to access this resource.',
+    }
+  }
+
+  if (options.requiredPermission) {
+    const permCheck = await checkAdminPermission(
+      {
+        role: dbCheck.admin.role,
+        permissionId: options.requiredPermission,
+        actorAdmin: dbCheck.admin,
+        ipAddress: options.ipAddress,
+        userAgent: options.userAgent,
+        path: options.path,
+        method: options.method,
+      },
+      options.supabaseClient,
+    )
+    if (!permCheck.ok) {
+      return {
+        valid: false,
+        statusCode: permCheck.status || 403,
+        code: permCheck.code || 'PERMISSION_DENIED',
+        error: permCheck.error,
+      }
     }
   }
 
@@ -261,8 +318,20 @@ export async function verifyAdminSession(token, secret, options = {}) {
       ...payload,
       role: dbCheck.admin.role,
       email: dbCheck.admin.email,
+      permissions: dbCheck.admin.permissions,
     },
   }
+}
+
+/**
+ * Reusable permission verification function for admin tokens.
+ */
+export async function verifyAdminPermission(token, requiredPermission, options = {}) {
+  const secret = options.sessionSecret || getSessionSecret()
+  return verifyAdminSession(token, secret, {
+    ...options,
+    requiredPermission,
+  })
 }
 
 /**
@@ -339,73 +408,14 @@ function buildClearSessionCookie(req) {
 
 /**
  * Superadmin GPU Infrastructure & Telemetry Data
+ * Clean placeholder: real GPU orchestrator telemetry planned for Phase 2.
  */
 export function getSuperadminTelemetryData() {
   return {
-    clusters: [
-      {
-        id: 'cl-jarvis-in-01',
-        name: 'JarvisLabs Bangalore (IN-South)',
-        provider: 'JarvisLabs',
-        region: 'India (Bangalore)',
-        status: 'healthy',
-        uptime: '99.98%',
-        totalNodes: 16,
-        activeNodes: 16,
-        gpus: [
-          { type: 'NVIDIA H100 80GB SXM5', total: 32, allocated: 28, vramUsedGb: 2120, vramTotalGb: 2560, avgTempC: 56, powerW: 480 },
-          { type: 'NVIDIA A100 80GB PCIe', total: 64, allocated: 58, vramUsedGb: 4480, vramTotalGb: 5120, avgTempC: 62, powerW: 340 },
-        ],
-        spotRateHour: 185,
-        onDemandRateHour: 240,
-        marginPct: 22.9,
-      },
-      {
-        id: 'cl-e2e-in-02',
-        name: 'E2E Cloud Mumbai (IN-West)',
-        provider: 'E2E Cloud',
-        region: 'India (Mumbai)',
-        status: 'healthy',
-        uptime: '99.95%',
-        totalNodes: 24,
-        activeNodes: 23,
-        gpus: [
-          { type: 'NVIDIA L40S 48GB', total: 48, allocated: 41, vramUsedGb: 1880, vramTotalGb: 2304, avgTempC: 58, powerW: 310 },
-          { type: 'NVIDIA L4 24GB', total: 32, allocated: 26, vramUsedGb: 610, vramTotalGb: 768, avgTempC: 51, powerW: 72 },
-        ],
-        spotRateHour: 80,
-        onDemandRateHour: 105,
-        marginPct: 23.8,
-      },
-      {
-        id: 'cl-yotta-in-03',
-        name: 'Yotta NM1 Datacenter (IN-Central)',
-        provider: 'Yotta',
-        region: 'India (Navi Mumbai)',
-        status: 'healthy',
-        uptime: '99.99%',
-        totalNodes: 12,
-        activeNodes: 12,
-        gpus: [
-          { type: 'NVIDIA H100 80GB SXM5', total: 16, allocated: 15, vramUsedGb: 1180, vramTotalGb: 1280, avgTempC: 59, powerW: 495 },
-          { type: 'NVIDIA RTX 4090 24GB', total: 24, allocated: 19, vramUsedGb: 432, vramTotalGb: 576, avgTempC: 64, powerW: 380 },
-        ],
-        spotRateHour: 190,
-        onDemandRateHour: 250,
-        marginPct: 24.0,
-      },
-    ],
-    summary: {
-      totalGpuCount: 216,
-      allocatedGpuCount: 187,
-      utilizationPct: 86.6,
-      totalVramGb: 12608,
-      usedVramGb: 10702,
-      activeClusters: 3,
-      criticalAlerts: 0,
-      averageLatencyMs: 14.2,
-      globalHealthScore: 99.98,
-    },
+    isConfigured: false,
+    message: 'GPU compute telemetry integration is planned for Phase 2 orchestrator deployment.',
+    clusters: [],
+    summary: null,
   }
 }
 
@@ -515,12 +525,13 @@ export function createAdminAuthMiddleware(config = {}) {
   const resolveClient = () => {
     if (typeof config.getSupabaseClient === 'function') {
       try {
-        return config.getSupabaseClient()
+        const client = config.getSupabaseClient()
+        if (client) return client
       } catch {
-        return null
+        return undefined
       }
     }
-    return config.supabaseClient || null
+    return config.supabaseClient || undefined
   }
   // Cognito settings given to the middleware are passed to the verifier (they were ignored before);
   // unset ones fall back to the environment as usual.
@@ -632,6 +643,10 @@ export function createAdminAuthMiddleware(config = {}) {
         verification = await verifyAdminSession(token, getSessionSecret(), {
           allowedRoles: ['superadmin'],
           supabaseClient,
+          ipAddress: clientIp,
+          userAgent: req.headers['user-agent'] || '',
+          path: parsedPath,
+          method: req.method,
         })
       } catch (err) {
         console.error('[admin-auth] Superadmin session verification failed:', err?.message || 'Unexpected error')
@@ -647,6 +662,7 @@ export function createAdminAuthMiddleware(config = {}) {
         }
         return sendJson(req, res, verification.statusCode || 401, {
           ok: false,
+          code: verification.code || undefined,
           error: verification.error || 'Invalid or expired Super Admin session.',
         })
       }
@@ -676,9 +692,25 @@ export function createAdminAuthMiddleware(config = {}) {
 
           // Strictly reject attempts to create another superadmin or arbitrary role
           if (requestedRole && requestedRole !== 'admin') {
+            await recordAdminAuditLog(
+              {
+                action: 'security.role_violation.blocked',
+                targetType: 'admin_user',
+                targetId: rawEmail || 'unknown',
+                details: {
+                  actor_admin_id: superadmin.id,
+                  actor_email: superadmin.email,
+                  attempted_role: requestedRole,
+                  reason: 'Unauthorized attempt to assign non-admin role during administrator creation.',
+                  ip_address: clientIp,
+                },
+              },
+              supabaseClient,
+            )
             return sendJson(req, res, 403, {
               ok: false,
-              error: 'Only standard developer admin accounts (role "admin") can be created. Creating additional Super Admin accounts is prohibited.',
+              code: 'ROLE_MODIFICATION_PROHIBITED',
+              error: 'The platform supports only "superadmin" and "admin" roles. Creating accounts with other roles or promoting to Super Admin is prohibited.',
             })
           }
 
@@ -702,8 +734,10 @@ export function createAdminAuthMiddleware(config = {}) {
             {
               email: rawEmail,
               passwordHash,
+              role: requestedRole,
               actorAdmin: superadmin,
               ipAddress: clientIp,
+              userAgent: req.headers['user-agent'] || '',
             },
             supabaseClient,
           )
@@ -803,6 +837,7 @@ export function createAdminAuthMiddleware(config = {}) {
               reason,
               actorAdmin: superadmin,
               ipAddress: clientIp,
+              userAgent: req.headers['user-agent'] || '',
             },
             supabaseClient,
           )
@@ -822,17 +857,204 @@ export function createAdminAuthMiddleware(config = {}) {
         }
       }
 
-      // 4. GET /api/superadmin/audit-logs - View Supabase audit_logs
+      // 3b. PATCH or PUT /api/superadmin/admins/:id - Update administrator account details
+      const patchAdminMatch = /^\/api\/superadmin\/admins\/([^/]+)$/.exec(parsedPath)
+      const targetAdminId = patchAdminMatch ? decodeURIComponent(patchAdminMatch[1]) : null
+      const isReservedSubpath = targetAdminId === 'status' || targetAdminId === 'delete'
+
+      if (patchAdminMatch && !isReservedSubpath && (req.method === 'PATCH' || req.method === 'PUT')) {
+        try {
+          const adminId = targetAdminId
+          const body = await parseJsonBody(req)
+
+          let passwordHash
+          if (typeof body.password === 'string' && body.password.length > 0) {
+            const strengthCheck = validatePasswordStrength(body.password)
+            if (!strengthCheck.valid) {
+              return sendJson(req, res, 400, {
+                ok: false,
+                error: strengthCheck.error,
+              })
+            }
+            passwordHash = hashPassword(body.password)
+          }
+
+          const parsedActive = parseActiveStatusInput(body)
+
+          const updatedAdmin = await updateAdminAccountDetails(
+            {
+              adminId,
+              email: typeof body.email === 'string' ? body.email : undefined,
+              passwordHash,
+              role: body.role,
+              isActive: parsedActive !== null ? parsedActive : undefined,
+              reason: typeof body.reason === 'string' ? body.reason : '',
+              actorAdmin: superadmin,
+              ipAddress: clientIp,
+              userAgent: req.headers['user-agent'] || '',
+            },
+            supabaseClient,
+          )
+
+          return sendJson(req, res, 200, {
+            ok: true,
+            admin: updatedAdmin,
+          })
+        } catch (err) {
+          if (err instanceof SyntaxError) {
+            return sendJson(req, res, 400, {
+              ok: false,
+              code: 'INVALID_JSON',
+              error: 'Invalid JSON request body.',
+            })
+          }
+
+          const statusCode = err.statusCode || 500
+          return sendJson(req, res, statusCode, {
+            ok: false,
+            code: err.code || undefined,
+            error: err.message || 'Failed to update administrator account.',
+          })
+        }
+      }
+
+      // 3c. DELETE /api/superadmin/admins/:id or POST /api/superadmin/admins/:id/delete or POST /api/superadmin/admins/delete
+      const postDeleteAdminMatch = /^\/api\/superadmin\/admins\/([^/]+)\/delete$/.exec(parsedPath)
+      const isDeletePost = parsedPath === '/api/superadmin/admins/delete' && req.method === 'POST'
+      if (
+        (patchAdminMatch && !isReservedSubpath && req.method === 'DELETE') ||
+        (postDeleteAdminMatch && req.method === 'POST') ||
+        isDeletePost
+      ) {
+        try {
+          let body = {}
+          try {
+            body = await parseJsonBody(req)
+          } catch {
+            body = {}
+          }
+
+          const adminId = patchAdminMatch && req.method === 'DELETE'
+            ? targetAdminId
+            : postDeleteAdminMatch
+              ? decodeURIComponent(postDeleteAdminMatch[1])
+              : (body.admin_id || body.adminId)
+
+          if (!adminId) {
+            return sendJson(req, res, 400, {
+              ok: false,
+              error: 'admin_id is required.',
+            })
+          }
+
+          const result = await deleteAdminAccountSafe(
+            {
+              adminId: String(adminId),
+              reason: typeof body.reason === 'string' ? body.reason : '',
+              actorAdmin: superadmin,
+              ipAddress: clientIp,
+              userAgent: req.headers['user-agent'] || '',
+            },
+            supabaseClient,
+          )
+
+          return sendJson(req, res, 200, {
+            ok: true,
+            message: 'Administrator account deleted successfully.',
+            deleted_admin: result.deletedAdmin,
+          })
+        } catch (err) {
+          const statusCode = err.statusCode || 500
+          return sendJson(req, res, statusCode, {
+            ok: false,
+            code: err.code || undefined,
+            error: err.message || 'Failed to delete administrator account.',
+          })
+        }
+      }
+
+      // 4. GET /api/superadmin/dashboard/overview OR GET /api/superadmin/overview - Real Supabase Statistics
+      if (
+        (parsedPath === '/api/superadmin/dashboard/overview' || parsedPath === '/api/superadmin/overview') &&
+        req.method === 'GET'
+      ) {
+        try {
+          const overview = await getSuperadminDashboardOverview(supabaseClient)
+          return sendJson(req, res, 200, {
+            ok: true,
+            overview,
+          })
+        } catch (err) {
+          console.error('[superadmin-overview] Failed to generate dashboard overview:', err?.message || err)
+          return sendJson(req, res, err.statusCode || 503, {
+            ok: false,
+            error: err.message || 'Unable to load Super Admin dashboard overview.',
+          })
+        }
+      }
+
+      // 4a. GET /api/superadmin/activity - Super Admin Activity monitoring stream with stats and filtering
+      if (parsedPath === '/api/superadmin/activity' && req.method === 'GET') {
+        try {
+          const urlObj = new URL(rawUrl, 'http://127.0.0.1')
+          const category = urlObj.searchParams.get('category') || ''
+          const search = urlObj.searchParams.get('search') || ''
+          const admin = urlObj.searchParams.get('admin') || ''
+          const action = urlObj.searchParams.get('action') || ''
+          const severity = urlObj.searchParams.get('severity') || ''
+          const dateRange = urlObj.searchParams.get('dateRange') || ''
+          const startDate = urlObj.searchParams.get('startDate') || ''
+          const endDate = urlObj.searchParams.get('endDate') || ''
+          const sortBy = urlObj.searchParams.get('sortBy') || urlObj.searchParams.get('sort') || 'newest'
+          const limit = parseInt(urlObj.searchParams.get('limit') || '50', 10)
+          const offset = parseInt(urlObj.searchParams.get('offset') || '0', 10)
+
+          const result = await listAdminAuditLogs(
+            { limit, offset, category, search, admin, action, severity, dateRange, startDate, endDate, sortBy },
+            supabaseClient,
+          )
+          return sendJson(req, res, 200, {
+            ok: true,
+            activities: result.activities,
+            logs: result.logs,
+            total: result.total,
+            stats: result.stats,
+          })
+        } catch (err) {
+          return sendJson(req, res, err.statusCode || 503, {
+            ok: false,
+            error: err.message || 'Unable to load activity logs.',
+          })
+        }
+      }
+
+      // 4b. GET /api/superadmin/audit-logs - View Supabase audit_logs (maintained for backward compatibility)
       if (parsedPath === '/api/superadmin/audit-logs' && req.method === 'GET') {
         try {
           const urlObj = new URL(rawUrl, 'http://127.0.0.1')
           const category = urlObj.searchParams.get('category') || ''
           const search = urlObj.searchParams.get('search') || ''
+          const admin = urlObj.searchParams.get('admin') || ''
+          const action = urlObj.searchParams.get('action') || ''
+          const severity = urlObj.searchParams.get('severity') || ''
+          const dateRange = urlObj.searchParams.get('dateRange') || ''
+          const startDate = urlObj.searchParams.get('startDate') || ''
+          const endDate = urlObj.searchParams.get('endDate') || ''
+          const sortBy = urlObj.searchParams.get('sortBy') || urlObj.searchParams.get('sort') || 'newest'
           const limit = parseInt(urlObj.searchParams.get('limit') || '50', 10)
           const offset = parseInt(urlObj.searchParams.get('offset') || '0', 10)
 
-          const result = await listAdminAuditLogs({ limit, offset, category, search }, supabaseClient)
-          return sendJson(req, res, 200, { ok: true, ...result })
+          const result = await listAdminAuditLogs(
+            { limit, offset, category, search, admin, action, severity, dateRange, startDate, endDate, sortBy },
+            supabaseClient,
+          )
+          return sendJson(req, res, 200, {
+            ok: true,
+            logs: result.logs,
+            activities: result.activities,
+            total: result.total,
+            stats: result.stats,
+          })
         } catch (err) {
           return sendJson(req, res, err.statusCode || 503, {
             ok: false,
@@ -841,20 +1063,107 @@ export function createAdminAuthMiddleware(config = {}) {
         }
       }
 
-      // 5. GET /api/superadmin/login-history - View Supabase admin_sessions history
+      // 5a. GET /api/superadmin/sessions - Active sessions with live status and metrics
+      if (parsedPath === '/api/superadmin/sessions' && req.method === 'GET') {
+        try {
+          const urlObj = new URL(rawUrl, 'http://127.0.0.1')
+          const email = urlObj.searchParams.get('email') || ''
+          const status = urlObj.searchParams.get('status') || ''
+          const search = urlObj.searchParams.get('search') || ''
+          const limit = parseInt(urlObj.searchParams.get('limit') || '50', 10)
+          const offset = parseInt(urlObj.searchParams.get('offset') || '0', 10)
+
+          const result = await listAdminSessionHistory(
+            { limit, offset, email, status, search },
+            supabaseClient,
+          )
+          return sendJson(req, res, 200, {
+            ok: true,
+            sessions: result.sessions,
+            total: result.total,
+            totalCount: result.totalCount,
+            activeCount: result.activeCount,
+            expiredCount: result.expiredCount,
+            revokedCount: result.revokedCount,
+          })
+        } catch (err) {
+          return sendJson(req, res, err.statusCode || 503, {
+            ok: false,
+            error: err.message || 'Unable to load administrator sessions.',
+          })
+        }
+      }
+
+      // 5b. GET /api/superadmin/login-history - View Supabase admin_sessions history (maintained for backward compatibility)
       if (parsedPath === '/api/superadmin/login-history' && req.method === 'GET') {
         try {
           const urlObj = new URL(rawUrl, 'http://127.0.0.1')
           const email = urlObj.searchParams.get('email') || ''
+          const status = urlObj.searchParams.get('status') || ''
+          const search = urlObj.searchParams.get('search') || ''
           const limit = parseInt(urlObj.searchParams.get('limit') || '50', 10)
           const offset = parseInt(urlObj.searchParams.get('offset') || '0', 10)
 
-          const result = await listAdminSessionHistory({ limit, offset, email }, supabaseClient)
+          const result = await listAdminSessionHistory(
+            { limit, offset, email, status, search },
+            supabaseClient,
+          )
           return sendJson(req, res, 200, { ok: true, ...result })
         } catch (err) {
           return sendJson(req, res, err.statusCode || 503, {
             ok: false,
             error: err.message || 'Unable to load administrator session history.',
+          })
+        }
+      }
+
+      // 5c. POST /api/superadmin/sessions/:id/revoke OR POST /api/superadmin/sessions/revoke
+      const revokeSessionMatch = /^\/api\/superadmin\/sessions\/([^/]+)\/revoke$/.exec(parsedPath)
+      const isRevokeSessionPost = parsedPath === '/api/superadmin/sessions/revoke' && req.method === 'POST'
+      if ((revokeSessionMatch && req.method === 'POST') || isRevokeSessionPost) {
+        try {
+          let body = {}
+          try {
+            body = await parseJsonBody(req)
+          } catch {
+            body = {}
+          }
+
+          const sessionId = revokeSessionMatch
+            ? decodeURIComponent(revokeSessionMatch[1])
+            : (body.session_id || body.sessionId)
+
+          if (!sessionId) {
+            return sendJson(req, res, 400, {
+              ok: false,
+              error: 'session_id is required.',
+            })
+          }
+
+          const reason = typeof body.reason === 'string' ? body.reason : 'Revoked by Super Admin'
+
+          const result = await revokeAdminSessionById(
+            {
+              sessionId: String(sessionId),
+              actorAdmin: superadmin,
+              reason,
+              ipAddress: clientIp,
+              userAgent: req.headers['user-agent'] || '',
+            },
+            supabaseClient,
+          )
+
+          return sendJson(req, res, 200, {
+            ok: true,
+            message: 'Session revoked successfully.',
+            sessionId: result.sessionId,
+            targetEmail: result.targetEmail,
+          })
+        } catch (err) {
+          const statusCode = err.statusCode || 500
+          return sendJson(req, res, statusCode, {
+            ok: false,
+            error: err.message || 'Failed to revoke administrator session.',
           })
         }
       }
@@ -948,11 +1257,12 @@ export function createAdminAuthMiddleware(config = {}) {
       return adminEmails.includes(clean) || clean.startsWith('admin@') || clean.endsWith('@inferxe.internal')
     }
 
-    async function verifyAdminAccess() {
+    async function verifyAdminAccess(requiredPermission) {
       if (!isSecretConfigured()) {
         return {
           valid: false,
           statusCode: 503,
+          code: 'ADMIN_AUTH_NOT_CONFIGURED',
           error: 'Administrator authentication is not configured on the backend.',
         }
       }
@@ -961,6 +1271,7 @@ export function createAdminAuthMiddleware(config = {}) {
         return {
           valid: false,
           statusCode: 401,
+          code: 'UNAUTHORIZED',
           error: 'Administrator authentication token required.',
         }
       }
@@ -968,12 +1279,18 @@ export function createAdminAuthMiddleware(config = {}) {
         return await verifyAdminSession(token, getSessionSecret(), {
           allowedRoles: ['admin', 'superadmin'],
           supabaseClient,
+          requiredPermission,
+          ipAddress: clientIp,
+          userAgent: req.headers['user-agent'] || '',
+          path: parsedPath,
+          method: req.method,
         })
       } catch (err) {
         console.error('[admin-auth] Admin access verification failed:', err?.message || 'Unexpected error')
         return {
           valid: false,
           statusCode: 503,
+          code: 'ADMIN_SESSION_ERROR',
           error: 'Administrator session verification service is temporarily unavailable.',
         }
       }
@@ -1226,9 +1543,13 @@ export function createAdminAuthMiddleware(config = {}) {
 
     // 4. GET /api/admin/customers/summary (Total, Online, Active, Inactive metrics)
     if (parsedPath === '/api/admin/customers/summary' && req.method === 'GET') {
-      const auth = await verifyAdminAccess()
+      const auth = await verifyAdminAccess('users:view')
       if (!auth.valid) {
-        return sendJson(req, res, auth.statusCode || 401, { ok: false, error: auth.error || 'Administrator access required.' })
+        return sendJson(req, res, auth.statusCode || 401, {
+          ok: false,
+          code: auth.code || undefined,
+          error: auth.error || 'Administrator access required.',
+        })
       }
 
       try {
@@ -1243,9 +1564,13 @@ export function createAdminAuthMiddleware(config = {}) {
 
     // 5. POST /api/admin/customers/backup (Database backup on demand)
     if (parsedPath === '/api/admin/customers/backup' && req.method === 'POST') {
-      const auth = await verifyAdminAccess()
+      const auth = await verifyAdminAccess('users:manage')
       if (!auth.valid) {
-        return sendJson(req, res, auth.statusCode || 401, { ok: false, error: auth.error || 'Administrator access required.' })
+        return sendJson(req, res, auth.statusCode || 401, {
+          ok: false,
+          code: auth.code || undefined,
+          error: auth.error || 'Administrator access required.',
+        })
       }
 
       try {
@@ -1258,9 +1583,13 @@ export function createAdminAuthMiddleware(config = {}) {
 
     // 6. GET /api/admin/customers (List all customers with filters & pagination)
     if (parsedPath === '/api/admin/customers' && req.method === 'GET') {
-      const auth = await verifyAdminAccess()
+      const auth = await verifyAdminAccess('users:view')
       if (!auth.valid) {
-        return sendJson(req, res, auth.statusCode || 401, { ok: false, error: auth.error || 'Administrator access required.' })
+        return sendJson(req, res, auth.statusCode || 401, {
+          ok: false,
+          code: auth.code || undefined,
+          error: auth.error || 'Administrator access required.',
+        })
       }
 
       const search = queryParams.get('search') || ''
@@ -1282,9 +1611,13 @@ export function createAdminAuthMiddleware(config = {}) {
 
     // 7. POST /api/admin/customers/restore (Database restore from backup)
     if (parsedPath === '/api/admin/customers/restore' && req.method === 'POST') {
-      const auth = await verifyAdminAccess()
+      const auth = await verifyAdminAccess('users:manage')
       if (!auth.valid) {
-        return sendJson(req, res, auth.statusCode || 401, { ok: false, error: auth.error || 'Administrator access required.' })
+        return sendJson(req, res, auth.statusCode || 401, {
+          ok: false,
+          code: auth.code || undefined,
+          error: auth.error || 'Administrator access required.',
+        })
       }
 
       try {
@@ -1301,9 +1634,13 @@ export function createAdminAuthMiddleware(config = {}) {
 
     // 8. GET /api/admin/customers/export (Export all customer records as CSV)
     if (parsedPath === '/api/admin/customers/export' && req.method === 'GET') {
-      const auth = await verifyAdminAccess()
+      const auth = await verifyAdminAccess('users:view')
       if (!auth.valid) {
-        return sendJson(req, res, auth.statusCode || 401, { ok: false, error: auth.error || 'Administrator access required.' })
+        return sendJson(req, res, auth.statusCode || 401, {
+          ok: false,
+          code: auth.code || undefined,
+          error: auth.error || 'Administrator access required.',
+        })
       }
 
       try {
@@ -1324,9 +1661,13 @@ export function createAdminAuthMiddleware(config = {}) {
 
     // 9. POST /api/admin/customers/sync (Batch synchronize Cognito customers)
     if (parsedPath === '/api/admin/customers/sync' && req.method === 'POST') {
-      const auth = await verifyAdminAccess()
+      const auth = await verifyAdminAccess('users:manage')
       if (!auth.valid) {
-        return sendJson(req, res, auth.statusCode || 401, { ok: false, error: auth.error || 'Administrator access required.' })
+        return sendJson(req, res, auth.statusCode || 401, {
+          ok: false,
+          code: auth.code || undefined,
+          error: auth.error || 'Administrator access required.',
+        })
       }
 
       try {
@@ -1341,9 +1682,13 @@ export function createAdminAuthMiddleware(config = {}) {
 
     // 10. GET /api/admin/customers/:id (Detailed customer profile + activity logs)
     if (parsedPath.startsWith('/api/admin/customers/') && req.method === 'GET') {
-      const auth = await verifyAdminAccess()
+      const auth = await verifyAdminAccess('users:view')
       if (!auth.valid) {
-        return sendJson(req, res, auth.statusCode || 401, { ok: false, error: auth.error || 'Administrator access required.' })
+        return sendJson(req, res, auth.statusCode || 401, {
+          ok: false,
+          code: auth.code || undefined,
+          error: auth.error || 'Administrator access required.',
+        })
       }
 
       const customerId = decodeURIComponent(parsedPath.slice('/api/admin/customers/'.length).trim())
@@ -1362,6 +1707,27 @@ export function createAdminAuthMiddleware(config = {}) {
         console.error('[admin-customers] Failed to get customer details from Supabase:', err.message)
         return sendJson(req, res, 500, { ok: false, error: 'Failed to load customer details: ' + err.message })
       }
+    }
+
+    // 10b. GET /api/admin/permissions (Inspect assigned permissions and canonical platform registry)
+    if (parsedPath === '/api/admin/permissions' && req.method === 'GET') {
+      const auth = await verifyAdminAccess()
+      if (!auth.valid) {
+        return sendJson(req, res, auth.statusCode || 401, {
+          ok: false,
+          code: auth.code || undefined,
+          error: auth.error || 'Administrator access required.',
+        })
+      }
+
+      const permissions = auth.admin.permissions || []
+      return sendJson(req, res, 200, {
+        ok: true,
+        role: auth.admin.role,
+        email: auth.admin.email,
+        permissions,
+        canonicalPermissions: CANONICAL_PERMISSIONS,
+      })
     }
 
     // ───────────────────────────────────────────────────────────
@@ -1486,6 +1852,7 @@ export function createAdminAuthMiddleware(config = {}) {
               details: {
                 email: dbAdmin.email,
                 ip_address: clientIp,
+                user_agent: req.headers['user-agent'] || 'unknown',
               },
             },
             supabaseClient,
@@ -1493,6 +1860,7 @@ export function createAdminAuthMiddleware(config = {}) {
           return sendJson(req, res, 403, {
             ok: false,
             isAdmin: true,
+            code: 'ADMIN_INACTIVE',
             error: 'Your administrator account has been deactivated. Please contact the Super Admin.',
           })
         }
@@ -1501,6 +1869,7 @@ export function createAdminAuthMiddleware(config = {}) {
           return sendJson(req, res, 403, {
             ok: false,
             isAdmin: true,
+            code: 'INVALID_ROLE',
             error: 'Administrator account role is not authorized.',
           })
         }
@@ -1535,6 +1904,7 @@ export function createAdminAuthMiddleware(config = {}) {
               details: {
                 email: dbAdmin.email,
                 ip_address: clientIp,
+                user_agent: req.headers['user-agent'] || 'unknown',
               },
             },
             supabaseClient,
@@ -1586,10 +1956,15 @@ export function createAdminAuthMiddleware(config = {}) {
               actor_email: safeUser.email,
               role: safeUser.role,
               ip_address: clientIp,
+              user_agent: req.headers['user-agent'] || 'unknown',
             },
           },
           supabaseClient,
         )
+
+        const permissionsSet = await getPermissionsForRole(safeUser.role, supabaseClient)
+        const permissions = Array.from(permissionsSet)
+        safeUser.permissions = permissions
 
         return sendJson(req, res, 200, {
           ok: true,
@@ -1597,6 +1972,7 @@ export function createAdminAuthMiddleware(config = {}) {
           role: safeUser.role,
           token,
           user: safeUser,
+          permissions,
           expiresAt: sessionRecord.expiresAtMs,
         })
       } catch (err) {
@@ -1661,6 +2037,7 @@ export function createAdminAuthMiddleware(config = {}) {
           return sendJson(req, res, verification.statusCode || 401, {
             ok: false,
             valid: false,
+            code: verification.code || undefined,
             error: verification.error || 'Invalid or expired administrator session.',
           })
         }
@@ -1669,6 +2046,7 @@ export function createAdminAuthMiddleware(config = {}) {
           ok: true,
           valid: true,
           user: verification.admin,
+          permissions: verification.admin.permissions || [],
         })
       } catch {
         return sendJson(req, res, 503, {
@@ -1709,6 +2087,7 @@ export function createAdminAuthMiddleware(config = {}) {
                   actor_admin_id: verification.payload.sub,
                   actor_email: verification.payload.email || '',
                   ip_address: clientIp,
+                  user_agent: req.headers['user-agent'] || 'unknown',
                 },
               },
               supabaseClient,

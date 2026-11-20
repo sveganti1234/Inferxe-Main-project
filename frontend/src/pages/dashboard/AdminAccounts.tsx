@@ -15,18 +15,23 @@ import {
   CheckCircle2,
   Users,
   ShieldCheck,
+  Pencil,
+  Trash2,
 } from 'lucide-react'
 import { DashboardLayout } from '../../components/dashboard/DashboardLayout'
 import { usePageMeta } from '../../lib/hooks'
 import {
   mapBackendAdminToAccount,
   syncAdminAccountsFromBackend,
+  getAdminAccounts,
   getAdminRoleMeta,
   type AdminAccount,
 } from '../../lib/adminAccountStore'
 import {
   createDeveloperAdminAccount,
+  deleteSuperadminAdmin,
   updateAdminAccountStatus,
+  updateSuperadminAdmin,
 } from '../../lib/authStore'
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
@@ -62,8 +67,20 @@ export default function AdminAccounts() {
     'Provision, audit, and govern real database-backed platform administrator accounts.',
   )
 
-  const [accounts, setAccounts] = useState<AdminAccount[]>([])
-  const [loading, setLoading] = useState(true)
+  const [accounts, setAccounts] = useState<AdminAccount[]>(() => {
+    try {
+      return getAdminAccounts()
+    } catch {
+      return []
+    }
+  })
+  const [loading, setLoading] = useState<boolean>(() => {
+    try {
+      return getAdminAccounts().length === 0
+    } catch {
+      return true
+    }
+  })
   const [loadError, setLoadError] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [roleFilter, setRoleFilter] = useState<string>('all')
@@ -91,10 +108,32 @@ export default function AdminAccounts() {
     submit?: string
   }>({})
 
-  const loadAccountsFromBackend = useCallback(async () => {
-    setLoading(true)
+  // Edit Administrator form state (backed by PATCH /api/superadmin/admins/:id)
+  const [editingAdmin, setEditingAdmin] = useState<AdminAccount | null>(null)
+  const [editEmail, setEditEmail] = useState('')
+  const [editPassword, setEditPassword] = useState('')
+  const [editConfirmPassword, setEditConfirmPassword] = useState('')
+  const [editReason, setEditReason] = useState('')
+  const [showEditPassword, setShowEditPassword] = useState(false)
+  const [updatingAdmin, setUpdatingAdmin] = useState(false)
+  const [editErrors, setEditErrors] = useState<{
+    email?: string
+    password?: string
+    confirmPassword?: string
+    submit?: string
+  }>({})
+
+  // Delete Administrator state (backed by DELETE /api/superadmin/admins/:id)
+  const [deletingAdmin, setDeletingAdmin] = useState<AdminAccount | null>(null)
+  const [deleteReason, setDeleteReason] = useState('')
+  const [deletingAdminLoading, setDeletingAdminLoading] = useState(false)
+
+  const loadAccountsFromBackend = useCallback(async (force = false) => {
+    if (getAdminAccounts().length === 0) {
+      setLoading(true)
+    }
     setLoadError(null)
-    const result = await syncAdminAccountsFromBackend()
+    const result = await syncAdminAccountsFromBackend(force)
     if (result.ok) {
       setAccounts(result.accounts)
     } else {
@@ -115,7 +154,12 @@ export default function AdminAccounts() {
   }, [notification])
 
   const isAnyModalOpen = Boolean(
-    isAddModalOpen || viewingAdmin || deactivatingAdmin || reactivatingAdmin,
+    isAddModalOpen ||
+      viewingAdmin ||
+      deactivatingAdmin ||
+      reactivatingAdmin ||
+      editingAdmin ||
+      deletingAdmin,
   )
 
   useEffect(() => {
@@ -255,10 +299,10 @@ export default function AdminAccounts() {
         message: `Administrator "${result.admin.email}" created in Supabase with role "admin".`,
         type: 'success',
       })
-      await loadAccountsFromBackend()
+      await loadAccountsFromBackend(true)
     } else if (result.isDuplicate) {
       // Backend confirmed 409 Conflict: refresh live directory immediately so the existing account is visible.
-      await loadAccountsFromBackend()
+      await loadAccountsFromBackend(true)
       setSearchQuery('')
       setRoleFilter('all')
       setStatusFilter('all')
@@ -314,7 +358,7 @@ export default function AdminAccounts() {
         message: `Administrator ${target.email} deactivated. All active sessions have been revoked.`,
         type: 'success',
       })
-      await loadAccountsFromBackend()
+      await loadAccountsFromBackend(true)
     } else {
       setNotification({
         message: res.error || 'Failed to deactivate administrator account.',
@@ -344,10 +388,143 @@ export default function AdminAccounts() {
         message: `Administrator ${target.email} reactivated. They can now sign in with a fresh session.`,
         type: 'success',
       })
-      await loadAccountsFromBackend()
+      await loadAccountsFromBackend(true)
     } else {
       setNotification({
         message: res.error || 'Failed to reactivate administrator account.',
+        type: 'error',
+      })
+    }
+  }
+
+  const closeEditModal = useCallback(() => {
+    if (updatingAdmin) return
+    setEditingAdmin(null)
+    setEditEmail('')
+    setEditPassword('')
+    setEditConfirmPassword('')
+    setEditReason('')
+    setShowEditPassword(false)
+    setEditErrors({})
+  }, [updatingAdmin])
+
+  const handleStartEdit = (acc: AdminAccount) => {
+    if (isProtectedSuperAdmin(acc)) {
+      setNotification({
+        message: 'The primary Super Admin account cannot be modified.',
+        type: 'error',
+      })
+      return
+    }
+    setEditingAdmin(acc)
+    setEditEmail(acc.email)
+    setEditPassword('')
+    setEditConfirmPassword('')
+    setEditReason('')
+    setShowEditPassword(false)
+    setEditErrors({})
+  }
+
+  const handleEditAdminSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingAdmin) return
+
+    const errors: typeof editErrors = {}
+    const cleanEmail = editEmail.trim().toLowerCase()
+
+    if (!cleanEmail) {
+      errors.email = 'Email address is required.'
+    } else if (!EMAIL_REGEX.test(cleanEmail)) {
+      errors.email = 'Please enter a valid email address.'
+    }
+
+    if (editPassword.trim()) {
+      const pwdErr = validateNewAdminPassword(editPassword)
+      if (pwdErr) {
+        errors.password = pwdErr
+      } else if (editPassword !== editConfirmPassword) {
+        errors.confirmPassword = 'Passwords do not match.'
+      }
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setEditErrors(errors)
+      return
+    }
+
+    setUpdatingAdmin(true)
+    const emailChanged = cleanEmail !== editingAdmin.email.toLowerCase()
+    const passwordChanged = Boolean(editPassword.trim())
+
+    const res = await updateSuperadminAdmin(editingAdmin.id, {
+      email: emailChanged ? cleanEmail : undefined,
+      password: passwordChanged ? editPassword.trim() : undefined,
+      reason: editReason.trim() || 'Updated by Super Admin',
+    })
+    setUpdatingAdmin(false)
+
+    if (res.ok) {
+      setEditingAdmin(null)
+      setNotification({
+        message: `Administrator ${cleanEmail} updated successfully.${
+          emailChanged || passwordChanged ? ' Active sessions revoked.' : ''
+        }`,
+        type: 'success',
+      })
+      await loadAccountsFromBackend(true)
+    } else if (res.isDuplicate) {
+      await loadAccountsFromBackend(true)
+      setEditErrors({
+        email: `An administrator account for "${cleanEmail}" already exists in Supabase.`,
+      })
+      setNotification({
+        message: `"${cleanEmail}" already exists in Supabase.`,
+        type: 'error',
+      })
+    } else {
+      setEditErrors({
+        submit: res.error || 'Failed to update administrator account.',
+      })
+    }
+  }
+
+  const handleStartDelete = (acc: AdminAccount) => {
+    if (isProtectedSuperAdmin(acc)) {
+      setNotification({
+        message: 'The primary Super Admin account cannot be deleted.',
+        type: 'error',
+      })
+      return
+    }
+    setDeletingAdmin(acc)
+    setDeleteReason('')
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!deletingAdmin) return
+    setDeletingAdminLoading(true)
+    const target = deletingAdmin
+    const res = await deleteSuperadminAdmin(
+      target.id,
+      deleteReason.trim() || 'Deleted by Super Admin',
+    )
+    setDeletingAdminLoading(false)
+
+    if (res.ok) {
+      const targetEmail = target.email
+      setDeletingAdmin(null)
+      setDeleteReason('')
+      if (viewingAdmin?.id === target.id) {
+        setViewingAdmin(null)
+      }
+      setNotification({
+        message: `Administrator ${targetEmail} deleted successfully. All active sessions have been revoked.`,
+        type: 'success',
+      })
+      await loadAccountsFromBackend(true)
+    } else {
+      setNotification({
+        message: res.error || 'Failed to delete administrator account.',
         type: 'error',
       })
     }
@@ -418,7 +595,7 @@ export default function AdminAccounts() {
           <button
             type="button"
             className="dash-filter-btn"
-            onClick={() => void loadAccountsFromBackend()}
+            onClick={() => void loadAccountsFromBackend(true)}
             disabled={loading}
             title="Refresh administrator accounts from Supabase"
             style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
@@ -537,11 +714,22 @@ export default function AdminAccounts() {
           </thead>
           <tbody>
             {loading && accounts.length === 0 ? (
-              <tr>
-                <td colSpan={7} style={{ textAlign: 'center', padding: '48px 16px', color: 'var(--ink-3)' }}>
-                  Loading live administrator accounts from Supabase...
-                </td>
-              </tr>
+              [1, 2, 3, 4].map((i) => (
+                <tr key={i}>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div className="sa-skeleton" style={{ width: 32, height: 32, borderRadius: '50%' }} />
+                      <div className="sa-skeleton sa-skeleton--text" style={{ width: 110, height: 14 }} />
+                    </div>
+                  </td>
+                  <td><div className="sa-skeleton sa-skeleton--text" style={{ width: 140, height: 14 }} /></td>
+                  <td><div className="sa-skeleton sa-skeleton--chip" style={{ width: 90 }} /></td>
+                  <td><div className="sa-skeleton sa-skeleton--chip" style={{ width: 65 }} /></td>
+                  <td><div className="sa-skeleton sa-skeleton--text" style={{ width: 80, height: 12 }} /></td>
+                  <td><div className="sa-skeleton sa-skeleton--text" style={{ width: 75, height: 12 }} /></td>
+                  <td style={{ textAlign: 'right' }}><div className="sa-skeleton" style={{ width: 64, height: 26, borderRadius: 6, display: 'inline-block' }} /></td>
+                </tr>
+              ))
             ) : filteredAccounts.length === 0 ? (
               <tr>
                 <td colSpan={7} style={{ textAlign: 'center', padding: '48px 16px', color: 'var(--ink-3)' }}>
@@ -633,6 +821,21 @@ export default function AdminAccounts() {
                           <Eye size={14} />
                         </button>
 
+                        <button
+                          type="button"
+                          className="sa-action-btn"
+                          title={
+                            isProtected
+                              ? 'Primary Super Admin account details cannot be modified'
+                              : 'Edit administrator details'
+                          }
+                          disabled={isProtected}
+                          onClick={() => handleStartEdit(acc)}
+                          aria-label={`Edit ${acc.email}`}
+                        >
+                          <Pencil size={14} />
+                        </button>
+
                         {acc.status === 'active' ? (
                           <button
                             type="button"
@@ -660,6 +863,21 @@ export default function AdminAccounts() {
                             <UserCheck size={14} />
                           </button>
                         )}
+
+                        <button
+                          type="button"
+                          className="sa-action-btn sa-action-btn--danger"
+                          title={
+                            isProtected
+                              ? 'Primary Super Admin cannot be deleted'
+                              : 'Delete administrator account permanently'
+                          }
+                          disabled={isProtected}
+                          onClick={() => handleStartDelete(acc)}
+                          aria-label={`Delete ${acc.email}`}
+                        >
+                          <Trash2 size={14} />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -1152,6 +1370,313 @@ export default function AdminAccounts() {
                 >
                   <UserCheck size={14} />
                   <span>{submittingStatus ? 'Reactivating...' : 'Reactivate Account'}</span>
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── 8. Edit Administrator Modal (PATCH /api/superadmin/admins/:id) ── */}
+      <AnimatePresence>
+        {editingAdmin && (
+          <div className="sa-modal-overlay" onClick={closeEditModal}>
+            <motion.div
+              className="sa-modal-container"
+              onClick={(e) => e.stopPropagation()}
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
+            >
+              <div className="sa-modal-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div className="sa-shield-icon-wrap" style={{ width: 34, height: 34 }}>
+                    <Pencil size={18} />
+                  </div>
+                  <div>
+                    <h3 className="sa-modal-title">Edit Platform Administrator</h3>
+                    <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
+                      Update email, rotate password, or document changes with audit logging.
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="sa-modal-close-btn"
+                  onClick={closeEditModal}
+                  disabled={updatingAdmin}
+                  aria-label="Close modal"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <form onSubmit={handleEditAdminSubmit} className="sa-modal-form">
+                <div className="sa-modal-body">
+                  {editErrors.submit && (
+                    <div className="sa-confirm-box sa-confirm-box--danger">
+                      <strong>Update Failed</strong>
+                      <div>{editErrors.submit}</div>
+                    </div>
+                  )}
+
+                  {/* Email */}
+                  <div className="sa-form-group">
+                    <label className="sa-form-label" htmlFor="sa-edit-admin-email">
+                      <span>Administrator Email</span>
+                      <span style={{ color: '#50e396' }}>*</span>
+                    </label>
+                    <input
+                      id="sa-edit-admin-email"
+                      type="email"
+                      required
+                      className="sa-form-input"
+                      value={editEmail}
+                      onChange={(e) => {
+                        setEditEmail(e.target.value)
+                        if (editErrors.email) setEditErrors({ ...editErrors, email: undefined })
+                      }}
+                    />
+                    {editErrors.email && <span className="sa-form-error">{editErrors.email}</span>}
+                  </div>
+
+                  {/* Optional Password Reset */}
+                  <div className="sa-form-group">
+                    <label className="sa-form-label" htmlFor="sa-edit-admin-password">
+                      <span>Reset Password (Optional)</span>
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        id="sa-edit-admin-password"
+                        type={showEditPassword ? 'text' : 'password'}
+                        autoComplete="new-password"
+                        className="sa-form-input"
+                        style={{ paddingRight: 40 }}
+                        placeholder="Leave blank to keep existing password"
+                        value={editPassword}
+                        onChange={(e) => {
+                          setEditPassword(e.target.value)
+                          if (editErrors.password) setEditErrors({ ...editErrors, password: undefined })
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowEditPassword((prev) => !prev)}
+                        aria-label={showEditPassword ? 'Hide password' : 'Show password'}
+                        style={{
+                          position: 'absolute',
+                          right: 10,
+                          top: '50%',
+                          transform: 'translateY(-50%)',
+                          background: 'none',
+                          border: 'none',
+                          color: '#94a3b8',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          padding: 4,
+                        }}
+                      >
+                        {showEditPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                      </button>
+                    </div>
+                    {editErrors.password && (
+                      <span className="sa-form-error">{editErrors.password}</span>
+                    )}
+                  </div>
+
+                  {/* Confirm Password (only shown if reset password entered) */}
+                  {editPassword.trim().length > 0 && (
+                    <div className="sa-form-group">
+                      <label className="sa-form-label" htmlFor="sa-edit-confirm-password">
+                        <span>Confirm Reset Password</span>
+                        <span style={{ color: '#50e396' }}>*</span>
+                      </label>
+                      <input
+                        id="sa-edit-confirm-password"
+                        type={showEditPassword ? 'text' : 'password'}
+                        autoComplete="new-password"
+                        className="sa-form-input"
+                        placeholder="Re-enter new password"
+                        value={editConfirmPassword}
+                        onChange={(e) => {
+                          setEditConfirmPassword(e.target.value)
+                          if (editErrors.confirmPassword) {
+                            setEditErrors({ ...editErrors, confirmPassword: undefined })
+                          }
+                        }}
+                      />
+                      {editErrors.confirmPassword && (
+                        <span className="sa-form-error">{editErrors.confirmPassword}</span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Audit Reason */}
+                  <div className="sa-form-group">
+                    <label className="sa-form-label" htmlFor="sa-edit-reason">
+                      <span>Reason for Audit Log (Optional)</span>
+                    </label>
+                    <input
+                      id="sa-edit-reason"
+                      type="text"
+                      className="sa-form-input"
+                      placeholder="e.g. Email correction, periodic credential rotation"
+                      value={editReason}
+                      onChange={(e) => setEditReason(e.target.value)}
+                    />
+                  </div>
+
+                  {/* Assigned Role (Strictly locked to standard Admin) */}
+                  <div className="sa-form-group">
+                    <label className="sa-form-label">Assigned Role</label>
+                    <div
+                      className="sa-form-input"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        opacity: 0.9,
+                        cursor: 'not-allowed',
+                      }}
+                    >
+                      <span>Admin (Standard Platform Administrator)</span>
+                      <span className="sa-role-pill sa-role-pill--admin" style={{ fontSize: '0.7rem' }}>
+                        role = admin
+                      </span>
+                    </div>
+                    <span className="sa-form-hint">
+                      Role promotion to Super Admin is strictly prohibited. Administrator accounts maintain separated operational privileges.
+                    </span>
+                  </div>
+
+                  {/* Security Notice */}
+                  <div className="sa-security-notice">
+                    <Lock size={18} style={{ color: '#50e396', flexShrink: 0, marginTop: 2 }} />
+                    <div>
+                      <strong>Automatic Session Revocation:</strong>
+                      <div>
+                        Updating credentials immediately increments the administrator's session version and revokes all active sessions.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="sa-modal-footer">
+                  <button
+                    type="button"
+                    className="dash-filter-btn"
+                    onClick={closeEditModal}
+                    disabled={updatingAdmin}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="dash-primary-btn"
+                    disabled={updatingAdmin}
+                  >
+                    {updatingAdmin ? 'Saving Changes...' : 'Save Changes'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ── 9. Delete Administrator Modal (DELETE /api/superadmin/admins/:id) ── */}
+      <AnimatePresence>
+        {deletingAdmin && (
+          <div
+            className="sa-modal-overlay"
+            onClick={() => {
+              if (!deletingAdminLoading) {
+                setDeletingAdmin(null)
+                setDeleteReason('')
+              }
+            }}
+          >
+            <motion.div
+              className="sa-modal-container"
+              style={{ maxWidth: 490 }}
+              onClick={(e) => e.stopPropagation()}
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              transition={{ duration: 0.2, ease: [0.25, 1, 0.5, 1] }}
+            >
+              <div className="sa-modal-header">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div className="sa-modal-icon-wrap--danger">
+                    <Trash2 size={18} />
+                  </div>
+                  <div>
+                    <h3 className="sa-modal-title">Delete Administrator</h3>
+                    <div style={{ fontSize: '0.74rem', color: '#f87171' }}>
+                      Permanent account removal and session revocation
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="sa-modal-close-btn"
+                  disabled={deletingAdminLoading}
+                  onClick={() => {
+                    setDeletingAdmin(null)
+                    setDeleteReason('')
+                  }}
+                  aria-label="Close modal"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="sa-modal-body">
+                <div className="sa-confirm-box sa-confirm-box--danger">
+                  <strong>Permanent Removal Warning</strong>
+                  <div>
+                    Are you sure you want to delete administrator <strong>{deletingAdmin.email}</strong>? All active sessions will be terminated immediately. Audit history is permanently preserved.
+                  </div>
+                </div>
+
+                <div className="sa-form-group" style={{ marginTop: 12 }}>
+                  <label className="sa-form-label" htmlFor="sa-delete-reason">
+                    Reason for Audit Log (Optional)
+                  </label>
+                  <input
+                    id="sa-delete-reason"
+                    type="text"
+                    className="sa-form-input"
+                    placeholder="e.g. Developer departure, role deprovisioning"
+                    value={deleteReason}
+                    onChange={(e) => setDeleteReason(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="sa-modal-footer">
+                <button
+                  type="button"
+                  className="dash-filter-btn"
+                  disabled={deletingAdminLoading}
+                  onClick={() => {
+                    setDeletingAdmin(null)
+                    setDeleteReason('')
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="dash-warning-btn"
+                  style={{ background: '#b91c1c', borderColor: '#ef4444' }}
+                  disabled={deletingAdminLoading}
+                  onClick={() => void handleConfirmDelete()}
+                >
+                  <Trash2 size={14} />
+                  <span>{deletingAdminLoading ? 'Deleting...' : 'Delete Administrator'}</span>
                 </button>
               </div>
             </motion.div>

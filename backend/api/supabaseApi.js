@@ -491,32 +491,41 @@ async function getWorkspace(context) {
   }
 }
 
-async function verifyAdminRequest(req) {
+async function verifyAdminRequest(req, requiredPermission) {
   const token = extractAdminTokenFromRequest(req)
   if (!token) {
     const error = new Error('Administrator token is required.')
     error.statusCode = 401
+    error.code = 'UNAUTHORIZED'
     throw error
   }
   const secret = String(process.env.ADMIN_SESSION_SECRET || '').trim()
   if (!secret || secret.length < 32) {
     const error = new Error('Administrator authentication is not configured.')
     error.statusCode = 503
+    error.code = 'ADMIN_AUTH_NOT_CONFIGURED'
     throw error
   }
   let verification
   try {
     verification = await verifyAdminSession(token, secret, {
       allowedRoles: ['admin', 'superadmin'],
+      requiredPermission,
+      ipAddress: req.socket?.remoteAddress || 'unknown',
+      userAgent: req.headers['user-agent'] || '',
+      path: req.url || '',
+      method: req.method || 'GET',
     })
   } catch {
     const error = new Error('Administrator session verification service is temporarily unavailable.')
     error.statusCode = 503
+    error.code = 'ADMIN_SESSION_ERROR'
     throw error
   }
   if (!verification.valid || !verification.admin) {
     const error = new Error(verification.error || 'Administrator authentication could not be verified.')
     error.statusCode = verification.statusCode || 401
+    error.code = verification.code || undefined
     throw error
   }
   return verification.admin
@@ -883,9 +892,15 @@ async function handleCustomerApi(req, res, path) {
 async function handleAdminApi(req, res, path) {
   let admin
   try {
-    admin = await verifyAdminRequest(req)
+    const isManageRoute = req.method === 'POST' || req.method === 'PATCH' || req.method === 'DELETE'
+    const requiredPermission = isManageRoute ? 'users:manage' : 'users:view'
+    admin = await verifyAdminRequest(req, requiredPermission)
   } catch (error) {
-    return sendJson(res, error.statusCode || 401, { ok: false, error: error.message })
+    return sendJson(res, error.statusCode || 401, {
+      ok: false,
+      code: error.code || undefined,
+      error: error.message,
+    })
   }
 
   try {

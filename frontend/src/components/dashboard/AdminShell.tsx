@@ -6,10 +6,12 @@ import {
   BarChart3,
   Bell,
   Moon,
-  Plus,
   Sun,
   ChevronDown,
+  ChevronRight,
   Cpu,
+  ExternalLink,
+  PanelLeftClose,
   Globe,
   HelpCircle,
   LayoutDashboard,
@@ -17,8 +19,6 @@ import {
   Menu,
   Server,
   Settings,
-  Sparkles,
-  Send,
   User,
   Users,
   Wallet,
@@ -31,6 +31,7 @@ import {
   FileText,
 } from 'lucide-react'
 import { Ambient } from '../layout/Ambient'
+import { LogoMark } from '../Logo'
 import { getSession, performSignOut, getPortalRole, type AuthSession, type PortalRole } from '../../lib/authStore'
 import { getAdminAccounts, syncAdminAccountsFromBackend } from '../../lib/adminAccountStore'
 import { getAllRoles } from '../../lib/adminRoleStore'
@@ -374,35 +375,6 @@ export function AdminShell() {
     }
   }
 
-  // Demo 1-Hour Trial state
-  const [trialTimeLeft, setTrialTimeLeft] = useState<number | null>(() => {
-    const active = localStorage.getItem('inferxe_demo_trial_active') === 'true'
-    const start = Number(localStorage.getItem('inferxe_demo_trial_start') || '0')
-    if (!active || !start) return null
-    return Math.max(0, 3600000 - (Date.now() - start))
-  })
-
-  useEffect(() => {
-    const checkTimer = () => {
-      const active = localStorage.getItem('inferxe_demo_trial_active') === 'true'
-      const start = Number(localStorage.getItem('inferxe_demo_trial_start') || '0')
-      if (active && start) {
-        setTrialTimeLeft(Math.max(0, 3600000 - (Date.now() - start)))
-      } else {
-        setTrialTimeLeft(null)
-      }
-    }
-    const interval = setInterval(checkTimer, 1000)
-    return () => clearInterval(interval)
-  }, [])
-
-  const startTrialNow = () => {
-    localStorage.setItem('inferxe_demo_trial_active', 'true')
-    localStorage.setItem('inferxe_demo_trial_start', Date.now().toString())
-    setTrialTimeLeft(3600000)
-    navigate('/dashboard')
-  }
-
   // Auth session
   const [currentSession, setCurrentSession] = useState<AuthSession | null>(() => getSession())
 
@@ -450,7 +422,7 @@ export function AdminShell() {
     { label: 'Super Admin Overview', to: '/dashboard/super-admin', icon: ShieldCheck },
     { label: 'Admin Accounts', to: '/dashboard/super-admin/accounts', icon: UserCheck, badge: String(adminAccountsCount), badgeType: 'count' },
     { label: 'Role Management', to: '/dashboard/super-admin/roles', icon: KeyRound, badge: String(adminRolesCount), badgeType: 'count' },
-    { label: 'Permission Management', to: '/dashboard/super-admin/permissions', icon: Sliders, badge: '25', badgeType: 'count' },
+    { label: 'Permission Management', to: '/dashboard/super-admin/permissions', icon: Sliders, badge: '21', badgeType: 'count' },
     { label: 'Activity Monitoring', to: '/dashboard/super-admin/activity', icon: ActivityIcon },
     { label: 'Audit Logs', to: '/dashboard/super-admin/audit', icon: FileText },
     { label: 'Infrastructure Telemetry', to: '/dashboard/superadmin/telemetry', icon: Cpu },
@@ -484,19 +456,16 @@ export function AdminShell() {
       ? [
           {
             title: 'SUPER ADMIN',
-            icon: ShieldCheck,
             items: adminSuperAdminItems,
           },
         ]
       : []),
     {
       title: 'ADMINISTRATION',
-      icon: LayoutDashboard,
       items: adminAdministrationItems,
     },
     {
       title: 'PROVIDER MANAGEMENT',
-      icon: Server,
       items: adminProviderManagementItems,
     },
     {
@@ -551,6 +520,13 @@ export function AdminShell() {
   // Active group auto-expansion
   const activeAdminGroupTitle =
     adminNavGroups.find((grp) => grp.items.some((item) => isItemActive(item)))?.title ?? 'ADMINISTRATION'
+
+  // Topbar breadcrumb (customer-console style): sidebar group › active page
+  const activeNavGroup = adminNavGroups.find((grp) => grp.items.some((item) => isItemActive(item)))
+  const crumbGroup = !activeNavGroup || activeNavGroup.title === 'SYSTEM_DIVIDER'
+    ? 'Console'
+    : activeNavGroup.title.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())
+  const crumbPage = activeNavGroup?.items.find((item) => isItemActive(item))?.label ?? 'Overview'
 
   const [expandedAdminGroups, setExpandedAdminGroups] = useState<Record<string, boolean>>(() => ({
     'SUPER ADMIN': true,
@@ -775,31 +751,27 @@ export function AdminShell() {
             aria-label="Admin Dashboard Sidebar"
             {...sidebarPointerHandlers}
           >
-            {/* Top brand header inside the sidebar (Customer Verdelo style) */}
+            {/* Brand row matching the customer sidebar: logo + Infer<xe> + collapse toggle */}
             <div className="verdelo-sidebar-brand-row">
-              <Link to="/dashboard" className="verdelo-sidebar-brand-link">
-                <div className="verdelo-brand-logo-leaf" title="Inferxe Admin Portal">
-                  <ShieldCheck size={18} strokeWidth={2.4} style={{ color: '#04160c' }} />
-                </div>
+              <Link to="/dashboard" className="verdelo-sidebar-brand-link" title="Inferxe Admin">
+                <LogoMark size={30} theme={dashTheme} />
                 {!isSidebarCollapsed && (
-                  <div className="verdelo-sidebar-brand-text">
-                    <span className="verdelo-brand-name">Inferxe</span>
-                    <span className="verdelo-brand-sub">Admin Control</span>
-                  </div>
+                  <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '1.22rem', letterSpacing: '-0.01em', color: 'var(--ink)' }}>
+                    Infer<span style={{ color: dashTheme === 'light' ? '#137a50' : '#50e396' }}>xe</span>
+                  </span>
                 )}
               </Link>
-              <button
-                type="button"
-                className="verdelo-sidebar-toggle"
-                onClick={toggleSidebarCollapse}
-                title={isSidebarCollapsed ? "Expand sidebar (Ctrl+B)" : "Collapse sidebar (Ctrl+B)"}
-                aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-              >
-                <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
-                  <rect x="2" y="2" width="12" height="12" rx="3" stroke="currentColor" strokeWidth="1.5" />
-                  <line x1="6.5" y1="2" x2="6.5" y2="14" stroke="currentColor" strokeWidth="1.5" />
-                </svg>
-              </button>
+              {!isSidebarCollapsed && (
+                <button
+                  type="button"
+                  className="verdelo-sidebar-toggle"
+                  onClick={toggleSidebarCollapse}
+                  title="Collapse sidebar (Ctrl+B)"
+                  aria-label="Collapse sidebar"
+                >
+                  <PanelLeftClose size={17} />
+                </button>
+              )}
             </div>
 
             {/* Scrollable Navigation Area */}
@@ -913,6 +885,19 @@ export function AdminShell() {
                   </div>
                 </div>
               )}
+
+              <Link
+                to="/"
+                className="dash-sidebar__public-link"
+                title="Back to Public Website"
+                onClick={() => {
+                  setHoveredFlyout(null)
+                  setMobileMenuOpen(false)
+                }}
+              >
+                <ExternalLink size={13} />
+                {!isSidebarCollapsed && <span>Back to Public Website</span>}
+              </Link>
             </div>
           </aside>
 
@@ -930,69 +915,17 @@ export function AdminShell() {
                 </button>
               )}
 
+              <nav className="admin-topbar-crumbs" aria-label="Breadcrumb">
+                <span>{crumbGroup}</span>
+                <ChevronRight size={14} aria-hidden="true" />
+                <strong aria-current="page">{crumbPage}</strong>
+              </nav>
+
               {/* Search Capsule with integrated live search */}
               <AdminHeaderSearch sections={searchableSections} isSuperAdmin={isSuperAdmin} />
 
               {/* Action cluster on right */}
               <div className="dash-customer-topbar__actions">
-                {/* Green + Action Circle: Add User / Provision */}
-                <button
-                  type="button"
-                  className="verdelo-btn-circle verdelo-btn-circle--mint"
-                  onClick={() => navigate('/dashboard/users/add')}
-                  title="Add User / Deploy"
-                  aria-label="Add User or Deploy"
-                >
-                  <Plus size={16} strokeWidth={2.8} />
-                </button>
-
-                {/* Dark Glass Send Circle: Fleet Nodes Map */}
-                <button
-                  type="button"
-                  className="verdelo-btn-circle verdelo-btn-circle--glass"
-                  onClick={() => navigate('/dashboard/users/map')}
-                  title="Sovereign Nodes Fleet Map"
-                  aria-label="Sovereign Nodes Fleet Map"
-                >
-                  <Send size={14} />
-                </button>
-
-                {/* Admin Telemetry / Trial chip */}
-                {trialTimeLeft !== null ? (
-                  trialTimeLeft > 0 ? (
-                    <div
-                      className={`mw-trial-chip ${trialTimeLeft < 600000 ? 'mw-trial-chip--warning' : ''}`}
-                      onClick={() => navigate('/dashboard')}
-                      title="1-Hour Free Trial active (Demo)"
-                    >
-                      <span className="dash-pulse-dot" style={{ background: trialTimeLeft < 600000 ? '#f59e0b' : '#50e396' }} />
-                      <span>
-                        Trial: {Math.floor(trialTimeLeft / 60000)}m {Math.floor((trialTimeLeft % 60000) / 1000).toString().padStart(2, '0')}s
-                      </span>
-                    </div>
-                  ) : (
-                    <div
-                      className="mw-trial-chip mw-trial-chip--expired"
-                      onClick={() => navigate('/dashboard')}
-                      title="1-Hour Free Trial Expired"
-                    >
-                      <span>⚠️ Trial Expired</span>
-                    </div>
-                  )
-                ) : (
-                  <button
-                    className="mw-trial-chip"
-                    onClick={startTrialNow}
-                    title="Start 1-Hour Free GPU Trial (Demo)"
-                  >
-                    <Sparkles size={12} />
-                    <span>Start 1-Hr Trial</span>
-                  </button>
-                )}
-
-                {/* Vertical Separator */}
-                <span className="verdelo-topbar-sep" aria-hidden="true" />
-
                 {/* Sun / Theme icon */}
                 <button
                   id="dash-header-theme-toggle"
@@ -1098,7 +1031,8 @@ export function AdminShell() {
                     tabIndex={0}
                     title={`${user.fullName} (${roleLabel})`}
                   >
-                    <span>{initials.charAt(0)}</span>
+                    <span className="admin-topbar-avatar">{initials}</span>
+                    <span className="admin-topbar-name">{user.fullName || 'Admin'}</span>
                   </div>
 
                   {adminMenuOpen && (

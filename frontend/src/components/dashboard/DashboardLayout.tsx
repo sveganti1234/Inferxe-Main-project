@@ -680,7 +680,7 @@ export function DashboardLayout({
     { label: 'Super Admin Overview', to: '/dashboard/super-admin', icon: ShieldCheck, matchExact: true },
     { label: 'Admin Accounts', to: '/dashboard/super-admin/accounts', icon: UserCheck, matchExact: true, badge: String(adminAccountsCount), badgeType: 'count' },
     { label: 'Role Management', to: '/dashboard/super-admin/roles', icon: KeyRound, matchExact: true, badge: String(adminRolesCount), badgeType: 'count' },
-    { label: 'Permission Management', to: '/dashboard/super-admin/permissions', icon: Sliders, matchExact: true, badge: '25', badgeType: 'count' },
+    { label: 'Permission Management', to: '/dashboard/super-admin/permissions', icon: Sliders, matchExact: true, badge: '21', badgeType: 'count' },
     { label: 'Activity Monitoring', to: '/dashboard/super-admin/activity', icon: ActivityIcon, matchExact: true },
     { label: 'Audit Logs', to: '/dashboard/super-admin/audit', icon: FileText, matchExact: true },
   ]

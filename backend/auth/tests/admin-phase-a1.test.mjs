@@ -110,7 +110,29 @@ function createMockSupabaseClient({ failMode = false } = {}) {
         return { data: inserted, error: null }
       }
 
+      if (state.op === 'delete') {
+        const initialCount = rows.length
+        const remaining = rows.filter((r) => !matches(r))
+        tables[tableName] = remaining
+        return { data: null, error: null, count: initialCount - remaining.length }
+      }
+
       if (state.op === 'update') {
+        if (tableName === 'admin_users' && state.payload?.email) {
+          const newEmail = String(state.payload.email).toLowerCase()
+          const dup = rows.find((r) => !matches(r) && r.email.toLowerCase() === newEmail)
+          if (dup) {
+            return {
+              data: null,
+              error: {
+                code: '23505',
+                constraint: 'admin_users_email_lower_unique',
+                message: 'duplicate key value violates unique constraint "admin_users_email_lower_unique"',
+                details: `Key (lower(email))=(${newEmail}) already exists.`,
+              },
+            }
+          }
+        }
         const updated = []
         for (const row of rows) {
           if (matches(row)) {
@@ -166,6 +188,10 @@ function createMockSupabaseClient({ failMode = false } = {}) {
       update(payload) {
         state.op = 'update'
         state.payload = payload
+        return builder
+      },
+      delete() {
+        state.op = 'delete'
         return builder
       },
       eq(field, value) {
@@ -1018,4 +1044,177 @@ test('Legacy admin_users_one_active_shared_account and non-email 23505 violation
   })
   assert.equal(superConstraintRes.status, 403)
   assert.equal(superConstraintRes.data.code, 'SUPERADMIN_ALREADY_EXISTS')
+})
+
+test('Super Admin can update and delete Admin accounts with strict protections, session revocation, and audit preservation', async () => {
+  const mockDb = createMockSupabaseClient()
+  const middleware = createAdminAuthMiddleware({
+    sessionSecret: TEST_SECRET,
+    supabaseClient: mockDb,
+    disableRateLimit: true,
+  })
+
+  // 1. Log in as Super Admin
+  const superLogin = await invokeMiddleware(middleware, '/api/admin/login', {
+    method: 'POST',
+    body: { email: SUPERADMIN_EMAIL, password: SUPERADMIN_PASSWORD },
+  })
+  assert.equal(superLogin.status, 200)
+  const superToken = superLogin.data.token
+
+  // 2. Create two developer admins: Dev A and Dev B
+  const createA = await invokeMiddleware(middleware, '/api/superadmin/admins', {
+    method: 'POST',
+    token: superToken,
+    body: { email: 'developer.a@inferxe.com', password: 'DevPassword#2026!A' },
+  })
+  assert.equal(createA.status, 201)
+  const adminA = createA.data.admin
+
+  const createB = await invokeMiddleware(middleware, '/api/superadmin/admins', {
+    method: 'POST',
+    token: superToken,
+    body: { email: 'developer.b@inferxe.com', password: 'DevPassword#2026!B' },
+  })
+  assert.equal(createB.status, 201)
+  const adminB = createB.data.admin
+
+  // 3. Dev A logs in and obtains a session token
+  const devALogin = await invokeMiddleware(middleware, '/api/admin/login', {
+    method: 'POST',
+    body: { email: 'developer.a@inferxe.com', password: 'DevPassword#2026!A' },
+  })
+  assert.equal(devALogin.status, 200)
+  const devAToken = devALogin.data.token
+
+  // Dev A verifies session successfully
+  const devAVerify = await invokeMiddleware(middleware, '/api/admin/verify', {
+    method: 'GET',
+    token: devAToken,
+  })
+  assert.equal(devAVerify.status, 200)
+  assert.equal(devAVerify.data.ok, true)
+
+  // 4. Role separation: Dev A attempts to PATCH /api/superadmin/admins/:id -> 403 Forbidden
+  const devAAttemptPatch = await invokeMiddleware(middleware, `/api/superadmin/admins/${adminB.id}`, {
+    method: 'PATCH',
+    token: devAToken,
+    body: { email: 'hacked@inferxe.com' },
+  })
+  assert.equal(devAAttemptPatch.status, 403)
+
+  // Dev A attempts to DELETE /api/superadmin/admins/:id -> 403 Forbidden
+  const devAAttemptDelete = await invokeMiddleware(middleware, `/api/superadmin/admins/${adminB.id}`, {
+    method: 'DELETE',
+    token: devAToken,
+  })
+  assert.equal(devAAttemptDelete.status, 403)
+
+  // 5. Super Admin protection: Cannot update or delete primary Super Admin
+  const patchSuperRes = await invokeMiddleware(middleware, `/api/superadmin/admins/${SUPERADMIN_ID}`, {
+    method: 'PATCH',
+    token: superToken,
+    body: { email: 'superhacked@inferxe.com' },
+  })
+  assert.equal(patchSuperRes.status, 403)
+  assert.equal(/Super Admin account cannot be modified/i.test(patchSuperRes.data.error), true)
+
+  const deleteSuperRes = await invokeMiddleware(middleware, `/api/superadmin/admins/${SUPERADMIN_ID}`, {
+    method: 'DELETE',
+    token: superToken,
+  })
+  assert.equal(deleteSuperRes.status, 403)
+  assert.equal(/Super Admin account cannot be deleted/i.test(deleteSuperRes.data.error), true)
+
+  // 6. Privilege escalation protection: Reject role escalation to superadmin
+  const escalateRes = await invokeMiddleware(middleware, `/api/superadmin/admins/${adminA.id}`, {
+    method: 'PATCH',
+    token: superToken,
+    body: { role: 'superadmin' },
+  })
+  assert.equal(escalateRes.status, 403)
+  assert.equal(/Privilege escalation/i.test(escalateRes.data.error), true)
+
+  // 7. Duplicate email rejection: Dev A cannot be updated to Dev B's email
+  const dupEmailRes = await invokeMiddleware(middleware, `/api/superadmin/admins/${adminA.id}`, {
+    method: 'PATCH',
+    token: superToken,
+    body: { email: 'developer.b@inferxe.com' },
+  })
+  assert.equal(dupEmailRes.status, 409)
+  assert.equal(dupEmailRes.data.code, 'DUPLICATE_ADMIN_EMAIL')
+
+  // 8. Successful update of Dev A: update email, password, and add audit reason
+  const patchSuccessRes = await invokeMiddleware(middleware, `/api/superadmin/admins/${adminA.id}`, {
+    method: 'PATCH',
+    token: superToken,
+    body: {
+      email: 'developer.a.updated@inferxe.com',
+      password: 'DevNewPassword#2026!Rotated',
+      reason: 'Scheduled quarterly credential rotation and email update',
+    },
+  })
+  assert.equal(patchSuccessRes.status, 200)
+  assert.equal(patchSuccessRes.data.ok, true)
+  assert.equal(patchSuccessRes.data.admin.email, 'developer.a.updated@inferxe.com')
+  assert.equal(patchSuccessRes.data.admin.password_hash, undefined)
+  assert.equal(patchSuccessRes.data.admin.session_version, 2)
+
+  // Dev A's previous token is now rejected because credentials changed (session revoked and session_version bumped)
+  const devAOldTokenVerify = await invokeMiddleware(middleware, '/api/admin/verify', {
+    method: 'GET',
+    token: devAToken,
+  })
+  assert.equal(devAOldTokenVerify.status, 401)
+
+  // Old password fails to log in
+  const devAOldLogin = await invokeMiddleware(middleware, '/api/admin/login', {
+    method: 'POST',
+    body: { email: 'developer.a.updated@inferxe.com', password: 'DevPassword#2026!A' },
+  })
+  assert.equal(devAOldLogin.status, 401)
+
+  // New password logs in cleanly
+  const devANewLogin = await invokeMiddleware(middleware, '/api/admin/login', {
+    method: 'POST',
+    body: { email: 'developer.a.updated@inferxe.com', password: 'DevNewPassword#2026!Rotated' },
+  })
+  assert.equal(devANewLogin.status, 200)
+  const devANewToken = devANewLogin.data.token
+
+  // 9. Successful deletion of Dev A
+  const deleteDevARes = await invokeMiddleware(middleware, `/api/superadmin/admins/${adminA.id}`, {
+    method: 'DELETE',
+    token: superToken,
+    body: { reason: 'Developer offboarding' },
+  })
+  assert.equal(deleteDevARes.status, 200)
+  assert.equal(deleteDevARes.data.ok, true)
+  assert.equal(deleteDevARes.data.deleted_admin.id, adminA.id)
+
+  // Dev A's active token is immediately rejected
+  const devADeletedTokenVerify = await invokeMiddleware(middleware, '/api/admin/verify', {
+    method: 'GET',
+    token: devANewToken,
+  })
+  assert.equal(devADeletedTokenVerify.status, 401)
+
+  // Dev A can no longer log in as admin (returns 200 { ok: false, isAdmin: false } for customer Cognito fallback)
+  const devALoginAfterDelete = await invokeMiddleware(middleware, '/api/admin/login', {
+    method: 'POST',
+    body: { email: 'developer.a.updated@inferxe.com', password: 'DevNewPassword#2026!Rotated' },
+  })
+  assert.equal(devALoginAfterDelete.status, 200)
+  assert.equal(devALoginAfterDelete.data.ok, false)
+  assert.equal(devALoginAfterDelete.data.isAdmin, false)
+
+  // Verify audit logs contain update and delete entries
+  const auditLogsRes = await invokeMiddleware(middleware, '/api/superadmin/audit-logs', {
+    method: 'GET',
+    token: superToken,
+  })
+  assert.equal(auditLogsRes.status, 200)
+  const actions = auditLogsRes.data.logs.map((l) => l.action)
+  assert.equal(actions.includes('superadmin.admin.updated'), true)
+  assert.equal(actions.includes('superadmin.admin.deleted'), true)
 })

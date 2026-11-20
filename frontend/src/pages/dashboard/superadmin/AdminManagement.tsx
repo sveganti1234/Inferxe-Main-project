@@ -11,11 +11,13 @@ import {
   UserPlus,
   ArrowLeft,
   Shield,
+  Trash2,
 } from 'lucide-react'
 import { DashboardLayout } from '../../../components/dashboard/DashboardLayout'
 import { usePageMeta } from '../../../lib/hooks'
 import {
   createDeveloperAdminAccount,
+  deleteSuperadminAdmin,
   fetchSuperadminAdmins,
   updateAdminAccountStatus,
   type SuperadminAdminRecord,
@@ -39,6 +41,11 @@ export default function AdminManagement() {
   const [actionType, setActionType] = useState<'active' | 'suspended' | 'inactive' | null>(null)
   const [actionReason, setActionReason] = useState('')
   const [submittingAction, setSubmittingAction] = useState(false)
+
+  // Delete Admin State
+  const [deletingAdmin, setDeletingAdmin] = useState<SuperadminAdminRecord | null>(null)
+  const [deleteReason, setDeleteReason] = useState('')
+  const [submittingDelete, setSubmittingDelete] = useState(false)
 
   // Create Developer Admin Modal State
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
@@ -95,6 +102,24 @@ export default function AdminManagement() {
     }
   }
 
+  const handleConfirmDelete = async () => {
+    if (!deletingAdmin) return
+    setSubmittingDelete(true)
+    setError(null)
+    const target = deletingAdmin
+    const res = await deleteSuperadminAdmin(target.id, deleteReason.trim() || 'Deleted by Super Admin')
+    setSubmittingDelete(false)
+
+    if (res.ok) {
+      setSuccessMsg(`Administrator ${target.email} was deleted successfully and all active sessions revoked.`)
+      setDeletingAdmin(null)
+      setDeleteReason('')
+      await loadAdmins()
+    } else {
+      setError(res.error || 'Failed to delete administrator.')
+    }
+  }
+
   const handleCreateDeveloperAdmin = async (e: React.FormEvent) => {
     e.preventDefault()
     setCreateError(null)
@@ -103,7 +128,7 @@ export default function AdminManagement() {
 
     const cleanEmail = newAdminEmail.trim().toLowerCase()
     if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(cleanEmail)) {
-      setCreateError('Please enter a valid developer email address.')
+      setCreateError('Please enter a valid administrator email address.')
       return
     }
     if (newAdminPassword.length < 12) {
@@ -123,7 +148,7 @@ export default function AdminManagement() {
       })
       if (res.ok && res.admin) {
         setSuccessMsg(
-          `Developer admin account "${res.admin.email}" has been created with role "admin".`,
+          `Administrator account "${res.admin.email}" has been created with role "admin".`,
         )
         setIsCreateModalOpen(false)
         setNewAdminEmail('')
@@ -136,10 +161,10 @@ export default function AdminManagement() {
           `An administrator account for "${cleanEmail}" already exists in Supabase. The administrator directory has been refreshed.`,
         )
       } else {
-        setCreateError(res.error || 'Unable to create developer admin account.')
+        setCreateError(res.error || 'Unable to create administrator account.')
       }
     } catch (err) {
-      setCreateError(err instanceof Error ? err.message : 'Unable to create developer admin account.')
+      setCreateError(err instanceof Error ? err.message : 'Unable to create administrator account.')
     } finally {
       setCreatingAdmin(false)
     }
@@ -227,7 +252,7 @@ export default function AdminManagement() {
               }}
             >
               <UserPlus size={14} />
-              <span>Create Developer Admin</span>
+              <span>Create Admin Account</span>
             </button>
             <button
               type="button"
@@ -612,6 +637,33 @@ export default function AdminManagement() {
                             </button>
                           )}
 
+                          {adm.role !== 'superadmin' && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setDeletingAdmin(adm)
+                                setDeleteReason('')
+                              }}
+                              title="Delete administrator account"
+                              style={{
+                                background: 'rgba(239, 68, 68, 0.1)',
+                                color: '#EF4444',
+                                border: '1px solid rgba(239, 68, 68, 0.25)',
+                                borderRadius: '6px',
+                                padding: '5px 8px',
+                                fontSize: '0.75rem',
+                                fontWeight: 600,
+                                cursor: 'pointer',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                              }}
+                            >
+                              <Trash2 size={12} />
+                              <span>Delete</span>
+                            </button>
+                          )}
+
                           {adm.role === 'superadmin' && (
                             <span style={{ fontSize: '0.72rem', color: '#6B7280', padding: '5px 0' }}>
                               Primary Superadmin
@@ -753,7 +805,141 @@ export default function AdminManagement() {
           </div>
         )}
 
-        {/* ── Create Developer Admin Modal (Role strictly 'admin') ── */}
+        {/* ── Delete Administrator Confirmation Modal ── */}
+        {deletingAdmin && (
+          <div
+            style={{
+              position: 'fixed',
+              inset: 0,
+              background: 'rgba(0, 0, 0, 0.82)',
+              backdropFilter: 'blur(8px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 9999,
+              padding: '20px',
+            }}
+          >
+            <div
+              style={{
+                background: '#0F1612',
+                border: '1px solid #7F1D1D',
+                borderRadius: '14px',
+                width: '100%',
+                maxWidth: '460px',
+                padding: '24px',
+                boxShadow: '0 24px 60px rgba(0, 0, 0, 0.9)',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+                <div
+                  style={{
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '8px',
+                    background: 'rgba(239, 68, 68, 0.15)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#EF4444',
+                  }}
+                >
+                  <Trash2 size={18} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, color: '#FFFFFF', fontSize: '1.1rem', fontWeight: 700 }}>
+                    Delete Admin Account
+                  </h3>
+                  <div style={{ color: '#FCA5A5', fontSize: '0.78rem' }}>
+                    {deletingAdmin.full_name} ({deletingAdmin.email})
+                  </div>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  background: 'rgba(239, 68, 68, 0.08)',
+                  border: '1px solid rgba(239, 68, 68, 0.25)',
+                  borderRadius: '8px',
+                  padding: '12px 14px',
+                  marginBottom: '16px',
+                  color: '#FECACA',
+                  fontSize: '0.82rem',
+                  lineHeight: 1.5,
+                }}
+              >
+                <strong>Permanent Deletion Warning:</strong> Deleting this administrator will revoke all active sessions immediately and permanently remove their user record from Supabase. Historical audit logs will remain preserved.
+              </div>
+
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '0.76rem', color: '#9CA3AF', marginBottom: '6px' }}>
+                  Reason for Audit Trail (Optional)
+                </label>
+                <input
+                  type="text"
+                  value={deleteReason}
+                  onChange={(e) => setDeleteReason(e.target.value)}
+                  placeholder="e.g. Account offboarding / Departure"
+                  style={{
+                    width: '100%',
+                    background: '#121C16',
+                    border: '1px solid #23382C',
+                    borderRadius: '6px',
+                    padding: '8px 12px',
+                    color: '#FFFFFF',
+                    fontSize: '0.82rem',
+                    outline: 'none',
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDeletingAdmin(null)
+                    setDeleteReason('')
+                  }}
+                  disabled={submittingDelete}
+                  style={{
+                    background: '#121C16',
+                    border: '1px solid #1B2E24',
+                    color: '#D1D5DB',
+                    borderRadius: '6px',
+                    padding: '8px 14px',
+                    fontSize: '0.82rem',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleConfirmDelete()}
+                  disabled={submittingDelete}
+                  style={{
+                    background: '#DC2626',
+                    border: 'none',
+                    color: '#FFFFFF',
+                    borderRadius: '6px',
+                    padding: '8px 16px',
+                    fontSize: '0.82rem',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                  }}
+                >
+                  <Trash2 size={14} />
+                  <span>{submittingDelete ? 'Deleting...' : 'Delete Administrator'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Create Admin Account Modal (Role strictly 'admin') ── */}
         {isCreateModalOpen && (
           <div
             style={{
@@ -797,7 +983,7 @@ export default function AdminManagement() {
                 </div>
                 <div>
                   <h3 style={{ margin: 0, color: '#FFFFFF', fontSize: '1.08rem', fontWeight: 700 }}>
-                    Create Developer Admin Account
+                    Create Platform Administrator
                   </h3>
                   <div style={{ color: '#9CA3AF', fontSize: '0.78rem' }}>
                     Provisioned in Supabase with Argon2id hashing and role <strong style={{ color: '#6EE7B7' }}>admin</strong>
@@ -823,14 +1009,14 @@ export default function AdminManagement() {
 
               <div style={{ marginBottom: '12px' }}>
                 <label style={{ display: 'block', fontSize: '0.76rem', color: '#9CA3AF', marginBottom: '6px' }}>
-                  Developer Email
+                  Administrator Email
                 </label>
                 <input
                   type="email"
                   required
                   value={newAdminEmail}
                   onChange={(e) => setNewAdminEmail(e.target.value)}
-                  placeholder="developer@inferxe.com"
+                  placeholder="admin.user@inferxe.com"
                   style={{
                     width: '100%',
                     background: '#121C16',
@@ -929,7 +1115,7 @@ export default function AdminManagement() {
                     cursor: 'pointer',
                   }}
                 >
-                  {creatingAdmin ? 'Creating...' : 'Create Developer Admin'}
+                  {creatingAdmin ? 'Creating...' : 'Create Administrator'}
                 </button>
               </div>
             </form>

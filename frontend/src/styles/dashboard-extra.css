@@ -9941,3 +9941,210 @@ html[data-theme='light'],
     animation: none !important;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ADMIN PORTAL → CUSTOMER CONSOLE LAYOUT PARITY (visual only)
+   Mirrors the metrics of features/customer/styles/customer.css (.cx-sidebar,
+   .cx-nav__*, .cx-topbar, .cx-search, .cx-iconbtn, .cx-title).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Sidebar shell */
+.dash-shell[data-role="admin"] .dash-sidebar.dash-sidebar--admin:not(.is-collapsed) {
+  width: 272px !important;
+  min-width: 272px !important;
+  max-width: 272px !important;
+}
+.dash-shell[data-role="admin"] .dash-sidebar.dash-sidebar--admin {
+  padding: 18px 14px 14px !important;
+  gap: 10px !important;
+}
+.dash-shell[data-role="admin"]:not([data-theme="light"]) .dash-sidebar.dash-sidebar--admin {
+  background: linear-gradient(180deg, rgba(8, 20, 15, 0.86), rgba(5, 13, 10, 0.9)) !important;
+  backdrop-filter: blur(18px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(140%) !important;
+}
+
+/* Brand row */
+.dash-shell[data-role="admin"] .dash-sidebar--admin .verdelo-sidebar-brand-row {
+  padding: 2px 8px 8px !important;
+  min-height: 40px !important;
+  margin-bottom: 0 !important;
+  border-bottom: none !important;
+}
+.dash-shell[data-role="admin"] .dash-sidebar--admin .verdelo-sidebar-toggle {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  color: var(--muted) !important;
+}
+.dash-shell[data-role="admin"] .dash-sidebar--admin .verdelo-sidebar-toggle:hover {
+  color: var(--ink) !important;
+  background: rgba(126, 232, 186, 0.08) !important;
+  border-color: var(--line) !important;
+}
+
+/* Group labels */
+.dash-shell[data-role="admin"] .dash-sidebar--admin .dash-nav-group {
+  margin-bottom: 0 !important;
+}
+.dash-shell[data-role="admin"] .dash-sidebar--admin .dash-nav-group + .dash-nav-group {
+  margin-top: 10px !important;
+}
+.dash-shell[data-role="admin"] .dash-sidebar--admin .dash-nav-group-btn {
+  padding: 0 10px 4px 12px !important;
+  font-size: 0.66rem !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.12em !important;
+  opacity: 0.85;
+}
+.dash-shell[data-role="admin"] .dash-sidebar--admin .dash-nav-group-chevron {
+  width: 12px !important;
+  height: 12px !important;
+}
+
+/* Nav items */
+.dash-shell[data-role="admin"] .dash-sidebar--admin .dash-nav-list {
+  gap: 1px !important;
+  margin-top: 0 !important;
+}
+.dash-shell[data-role="admin"] .dash-sidebar--admin:not(.is-collapsed) .dash-nav-item {
+  height: 37px !important;
+  min-height: 37px !important;
+  padding: 0 12px !important;
+  gap: 11px !important;
+  border-radius: 13px !important;
+  font-size: 0.88rem !important;
+  font-weight: 500 !important;
+}
+.dash-shell[data-role="admin"] .dash-sidebar--admin .dash-nav-item.is-active {
+  font-weight: 600 !important;
+}
+.dash-shell[data-role="admin"] .dash-sidebar--admin .dash-nav-item svg {
+  width: 18px !important;
+  height: 18px !important;
+  flex-shrink: 0 !important;
+}
+.dash-shell[data-role="admin"] .dash-sidebar--admin .dash-nav-pill {
+  border-radius: 13px !important;
+}
+
+/* Topbar: crumbs left, search + actions right */
+.dash-shell[data-role="admin"] .dash-customer-topbar {
+  height: 72px !important;
+  min-height: 72px !important;
+  max-height: 72px !important;
+  padding: 0 28px !important;
+  gap: 10px !important;
+  border-bottom: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+.admin-topbar-crumbs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-size: 0.84rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.admin-topbar-crumbs strong {
+  color: var(--ink);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.dash-shell[data-role="admin"] .dash-customer-topbar .admin-search-wrap {
+  margin-left: auto !important;
+}
+.dash-shell[data-role="admin"] .dash-customer-topbar .verdelo-search-pill {
+  width: min(420px, 38vw) !important;
+  height: 44px !important;
+  border-radius: 999px !important;
+  font-size: 0.84rem !important;
+}
+.dash-shell[data-role="admin"] .dash-customer-topbar .verdelo-topbar-icon-btn {
+  width: 42px !important;
+  height: 42px !important;
+  border-radius: 50% !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid var(--line-2, rgba(190, 255, 220, 0.14)) !important;
+}
+.dash-shell[data-role="admin"] .dash-customer-topbar .verdelo-topbar-sep {
+  height: 24px !important;
+}
+
+/* Account pill: avatar + name */
+.dash-shell[data-role="admin"] .dash-customer-topbar .verdelo-avatar-pill {
+  width: auto !important;
+  max-width: 240px !important;
+  height: 44px !important;
+  padding: 0 14px 0 4px !important;
+  gap: 10px !important;
+  border-radius: 999px !important;
+  justify-content: flex-start !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  border: 1px solid var(--line-2, rgba(190, 255, 220, 0.14)) !important;
+  box-shadow: none !important;
+}
+.admin-topbar-avatar {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #04180f;
+  background: linear-gradient(135deg, #8cf2bd, #72e6ac);
+}
+.admin-topbar-name {
+  min-width: 0;
+  font-size: 0.86rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Page content: breadcrumb now lives in the topbar; header sized like .cx-title */
+.dash-shell[data-role="admin"] .dash-customer-content-pane .dash-main {
+  padding: 8px 28px 56px !important;
+}
+.dash-shell[data-role="admin"] .dash-nested-view > .dash-breadcrumb {
+  display: none !important;
+}
+.dash-shell[data-role="admin"] .dash-nested-view > .dash-header-row {
+  margin-bottom: 26px !important;
+  align-items: flex-end !important;
+}
+.dash-shell[data-role="admin"] .dash-nested-view .dash-header-title {
+  font-size: clamp(1.55rem, 1.2rem + 1.2vw, 2.15rem) !important;
+  font-weight: 600 !important;
+  line-height: 1.15 !important;
+  letter-spacing: -0.02em !important;
+}
+.dash-shell[data-role="admin"] .dash-nested-view .dash-header-desc {
+  margin-top: 8px !important;
+  max-width: 64ch !important;
+  font-size: 0.95rem !important;
+}
+
+@media (max-width: 900px) {
+  .admin-topbar-crumbs,
+  .admin-topbar-name {
+    display: none;
+  }
+  .dash-shell[data-role="admin"] .dash-customer-topbar .verdelo-avatar-pill {
+    padding: 0 4px !important;
+  }
+  .dash-shell[data-role="admin"] .dash-customer-topbar {
+    padding: 0 16px !important;
+  }
+  .dash-shell[data-role="admin"] .dash-customer-content-pane .dash-main {
+    padding: 8px 16px 40px !important;
+  }
+}
