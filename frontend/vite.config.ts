@@ -13,6 +13,8 @@ import { createSupabaseApiMiddleware } from '../backend/api/supabaseApi.js'
 // @ts-ignore
 import { createSSOAuthMiddleware } from '../backend/auth/ssoAuth.js'
 // @ts-ignore
+import { createMockSupabaseMiddleware } from '../backend/dev/mockSupabaseRest.js'
+// @ts-ignore
 import { FRONTEND_DIR, ROOT_DIR, loadBackendEnv, assertNoFrontendSupabaseSecrets, collectFrontendEnvForSecurityCheck } from '../backend/auth/envLoader.js'
 declare const process: any
 declare const __dirname: any
@@ -71,6 +73,7 @@ export default defineConfig(({ command, mode }) => {
     name: 'inferxe-auth-middleware',
     configureServer(server: { middlewares: { use: (fn: any) => void } }) {
       server.middlewares.use(verdeloMiddleware)
+      server.middlewares.use(createMockSupabaseMiddleware())
       server.middlewares.use(createSSOAuthMiddleware())
       server.middlewares.use(createCustomerAuthMiddleware())
       server.middlewares.use(createAdminAuthMiddleware())
@@ -78,6 +81,7 @@ export default defineConfig(({ command, mode }) => {
     },
     configurePreviewServer(server: { middlewares: { use: (fn: any) => void } }) {
       server.middlewares.use(verdeloMiddleware)
+      server.middlewares.use(createMockSupabaseMiddleware())
       server.middlewares.use(createSSOAuthMiddleware())
       server.middlewares.use(createCustomerAuthMiddleware())
       server.middlewares.use(createAdminAuthMiddleware())

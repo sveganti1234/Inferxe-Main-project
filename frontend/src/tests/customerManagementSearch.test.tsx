@@ -75,8 +75,14 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
-  await act(async () => root.unmount())
-  host.remove()
+  if (root) {
+    await act(async () => root.unmount())
+    root = undefined as any
+  }
+  if (host) {
+    host.remove()
+    host = undefined as any
+  }
 })
 
 describe('admin customer list (server-side pagination)', () => {
