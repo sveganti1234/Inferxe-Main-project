@@ -10,6 +10,7 @@ Usage:
 import os
 import sys
 import logging
+import asyncio
 from pathlib import Path
 from contextlib import asynccontextmanager
 
@@ -23,7 +24,7 @@ BACKEND_DIR = Path(__file__).resolve().parents[1]
 if str(BACKEND_DIR) not in sys.path:
     sys.path.insert(0, str(BACKEND_DIR))
 
-from inference.supabase_config import load_backend_env, get_supabase_settings, SupabaseConfigurationError
+from inference.supabase_config import load_backend_env, get_supabase_settings, SupabaseConfigurationError, get_inference_max_concurrency, get_inference_queue_seconds
 load_backend_env()
 
 from inference.supabase_ssh_keys import close_shared_ssh_keys_http_client
@@ -34,8 +35,9 @@ from inference.database import (
     check_database_connection,
     get_masked_url,
     DATABASE_URL,
+    engine,
 )
-from inference.routes import router
+from inference.routes import router, _close_health_http_client
 
 # Configure logging
 logging.basicConfig(
@@ -86,11 +88,25 @@ async def lifespan(app: FastAPI):
             "Neither Supabase REST nor legacy PostgreSQL is configured in backend/.env."
         )
 
+    # Initialize inference concurrency semaphore
+    max_concurrency = get_inference_max_concurrency()
+    queue_seconds = get_inference_queue_seconds()
+    # Created here (inside the serving event loop): an asyncio.Semaphore binds to the loop it first waits on.
+    app.state.inference_slots = asyncio.Semaphore(max_concurrency)
+    app.state.inference_queue_seconds = queue_seconds
+    logger.info(
+        "Inference concurrency configured (max_concurrency=%d, queue_timeout=%ds).",
+        max_concurrency,
+        queue_seconds,
+    )
+
     try:
         yield
     finally:
+        app.state.inference_slots = None  # do not leave a semaphore bound to a finished loop
         close_shared_ssh_keys_http_client()
         close_shared_notebooks_http_client()
+        _close_health_http_client()
         logger.info("Shutting down Inferxe Inference Service.")
 
 

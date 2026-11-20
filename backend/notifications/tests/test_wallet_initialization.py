@@ -19,6 +19,8 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
 from fastapi.testclient import TestClient
 
+from backend.notifications.tests.live_db_guard import require_isolated_test_database  # noqa: E402
+require_isolated_test_database()  # refuses to run without an isolated test DB (never production)
 from backend.notifications.main import app
 from backend.notifications.auth import register_test_key, COGNITO_ISSUER, COGNITO_CLIENT_ID
 from backend.notifications.db import DBConnection, init_db

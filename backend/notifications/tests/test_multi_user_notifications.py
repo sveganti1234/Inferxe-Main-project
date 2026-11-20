@@ -19,8 +19,15 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
 from fastapi.testclient import TestClient
 
+from backend.notifications.tests.live_db_guard import require_isolated_test_database  # noqa: E402
+require_isolated_test_database()  # refuses to run without an isolated test DB (never production)
+# These suites test wallet mechanics (idempotency, concurrency, isolation) through customer top-ups.
+# Self-service top-ups are disabled by default (they need a payment gateway), so opt in for this
+# test process only; the authorization rule itself is covered by test_security_hardening.py.
+os.environ.setdefault("WALLET_SELF_RECHARGE_ENABLED", "true")
 from backend.notifications.main import app
 from backend.notifications.auth import register_test_key, COGNITO_ISSUER, COGNITO_CLIENT_ID
+from backend.notifications.tests.admin_session_fixture import db_backed_admins
 from backend.notifications.db import DBConnection, init_db
 
 client = TestClient(app)
@@ -78,6 +85,9 @@ def run_multi_user_verification():
 
     init_db()
 
+    # Admins are database-backed (HS256 admin session); Cognito group claims no longer grant admin rights.
+    admins_ctx = db_backed_admins()
+    admins = admins_ctx.__enter__()
     try:
         # Pre-seed test users in database
         cust_a_id = f"cust_a_{uuid.uuid4().hex[:6]}"
@@ -108,7 +118,7 @@ def run_multi_user_verification():
         # Generate verified tokens
         token_cust_a = create_cognito_test_jwt(cust_a_id, cust_a_email, ["customer"])
         token_cust_b = create_cognito_test_jwt(cust_b_id, cust_b_email, ["customer"])
-        token_admin = create_cognito_test_jwt(admin_id, admin_email, ["admin"])
+        token_admin = admins.issue(admins.add_admin(admin_id, admin_email))
 
         headers_a = {"Authorization": f"Bearer {token_cust_a}"}
         headers_b = {"Authorization": f"Bearer {token_cust_b}"}
@@ -307,7 +317,17 @@ def run_multi_user_verification():
         assert resp_dep.status_code == 200
         print(f"[PASS] Test 12A: Customer A deployed GPU -> 'Provisioning' notification generated")
 
-        # Transition to Running
+        # Customers cannot claim 'Running' (reported by the system/admins)
+        resp_dep = client.post(
+            "/api/deployments/status",
+            json={"deployment_id": dep_id, "new_status": "Running",
+                  "idempotency_key": f"dep_status_cust_run_{uuid.uuid4().hex[:6]}"},
+            headers=headers_a
+        )
+        assert resp_dep.status_code == 403, resp_dep.text
+        print(f"[PASS] Test 12B-1: Customer A cannot set its own deployment to 'Running' (HTTP 403)")
+
+        # Transition to Running, reported by an admin (stands in for the provisioning system)
         resp_dep = client.post(
             "/api/deployments/status",
             json={
@@ -315,10 +335,10 @@ def run_multi_user_verification():
                 "new_status": "Running",
                 "idempotency_key": f"dep_status_run_{uuid.uuid4().hex[:6]}"
             },
-            headers=headers_a
+            headers=headers_admin
         )
-        assert resp_dep.status_code == 200
-        print(f"[PASS] Test 12B: Customer A deployment transitioned to 'Running'")
+        assert resp_dep.status_code == 200, resp_dep.text
+        print(f"[PASS] Test 12B: Customer A deployment transitioned to 'Running' (reported by admin)")
 
         # Verify Customer B has ZERO notifications about Customer A's deployment
         resp_b = client.get("/api/notifications", headers=headers_b)
@@ -334,7 +354,7 @@ def run_multi_user_verification():
                 "new_status": "Running",
                 "idempotency_key": f"dep_status_same_{uuid.uuid4().hex[:6]}"
             },
-            headers=headers_a
+            headers=headers_admin
         )
         assert resp_dep_same.status_code == 200
         assert resp_dep_same.json()["status"] == "noop"
@@ -377,6 +397,7 @@ def run_multi_user_verification():
 
         print("[PASS] Test 20: Verified complete multi-user isolation across customers and admin without data leakage")
     finally:
+        admins_ctx.__exit__(None, None, None)
         # Ensure all test identities are removed even if tests fail
         try:
             with DBConnection(autocommit=True) as conn:
@@ -395,6 +416,10 @@ def run_multi_user_verification():
     print("\n======================================================================")
     print(" ALL 20 MULTI-USER NOTIFICATION VERIFICATION TESTS PASSED SUCCESSFULLY! ")
     print("======================================================================\n")
+
+def test_multi_user_notification_suite():
+    run_multi_user_verification()
+
 
 if __name__ == "__main__":
     run_multi_user_verification()

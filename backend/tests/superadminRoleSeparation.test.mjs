@@ -4,6 +4,7 @@
  * Argon2 credential verification, session revocation, and fail-closed security.
  */
 
+import './support/networkGuard.mjs'  // test isolation guard: must stay the first import (tests/testSafety.test.mjs checks)
 import assert from 'node:assert/strict'
 import crypto from 'node:crypto'
 import { Readable } from 'node:stream'

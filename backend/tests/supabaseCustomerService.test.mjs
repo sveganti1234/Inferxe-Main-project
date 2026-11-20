@@ -1,4 +1,5 @@
 // @ts-nocheck
+import './support/networkGuard.mjs'  // test isolation guard: must stay the first import (tests/testSafety.test.mjs checks)
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
@@ -13,6 +14,12 @@ import {
   upsertCustomerProfile,
   resolveCustomerUsername,
 } from '../database/supabaseCustomerService.js'
+
+// Tests 3-9 read real customer records from, and write test profiles to, the Supabase project in
+// backend/.env (supabaseCustomerService.js loads it on import). They only run on explicit opt-in.
+const LIVE_SKIP = process.env.INFERXE_LIVE_SUPABASE_TESTS === '1'
+  ? false
+  : 'reads/writes the configured Supabase project; set INFERXE_LIVE_SUPABASE_TESTS=1 to run'
 
 test('1. computeActivityStatus calculates Online, Active, Inactive, and Suspended', () => {
   const now = Date.now()
@@ -48,7 +55,7 @@ test('2. formatCustomerRecord produces standard CustomerRecord contract', () => 
   assert.ok(formatted.customer_id.startsWith('cst_'))
 })
 
-test('3. getCustomerSummary returns real statistics from Supabase', async () => {
+test('3. getCustomerSummary returns real statistics from Supabase', { skip: LIVE_SKIP }, async () => {
   const summary = await getCustomerSummary()
   assert.ok(typeof summary.total === 'number')
   assert.ok(summary.total > 0, 'Must have existing customer profiles in Supabase')
@@ -58,7 +65,7 @@ test('3. getCustomerSummary returns real statistics from Supabase', async () => 
   assert.ok(summary.active <= summary.total)
 })
 
-test('4. listCustomers returns paginated customers with search and filters', async () => {
+test('4. listCustomers returns paginated customers with search and filters', { skip: LIVE_SKIP }, async () => {
   const result = await listCustomers({ page: 1, limit: 5 })
   assert.equal(result.ok, true)
   assert.ok(Array.isArray(result.customers))
@@ -74,14 +81,14 @@ test('4. listCustomers returns paginated customers with search and filters', asy
   }
 })
 
-test('5. exportCustomersToCsv generates valid CSV with RFC 4180 headers', async () => {
+test('5. exportCustomersToCsv generates valid CSV with RFC 4180 headers', { skip: LIVE_SKIP }, async () => {
   const csv = await exportCustomersToCsv()
   assert.ok(csv.startsWith('Customer ID,Cognito Sub,Full Name,Email'))
   const lines = csv.split('\r\n')
   assert.ok(lines.length >= 2, 'CSV must contain header and data rows')
 })
 
-test('6. getCustomerDetails returns full profile and activity logs', async () => {
+test('6. getCustomerDetails returns full profile and activity logs', { skip: LIVE_SKIP }, async () => {
   const list = await listCustomers({ limit: 1 })
   assert.ok(list.customers.length > 0)
   const targetSub = list.customers[0].cognito_sub
@@ -93,7 +100,7 @@ test('6. getCustomerDetails returns full profile and activity logs', async () =>
   assert.ok(details.activity_logs.length >= 1)
 })
 
-test('7. updateCustomerHeartbeat and recordCustomerLogout update isolated test profile', async () => {
+test('7. updateCustomerHeartbeat and recordCustomerLogout update isolated test profile', { skip: LIVE_SKIP }, async () => {
   const testSub = 'sub-test-heartbeat-isolated-2026'
   const testEmail = 'heartbeat.isolated.test@inferxe.com'
   const url = process.env.SUPABASE_URL
@@ -136,7 +143,7 @@ test('7. updateCustomerHeartbeat and recordCustomerLogout update isolated test p
   }
 })
 
-test('8. upsertCustomerProfile correctly increments login_count from 0 to 1', async () => {
+test('8. upsertCustomerProfile correctly increments login_count from 0 to 1', { skip: LIVE_SKIP }, async () => {
   const testSub = 'sub-test-login-count-isolated-2026'
   const testEmail = 'login.count.isolated@inferxe.com'
   const url = process.env.SUPABASE_URL
@@ -187,7 +194,7 @@ test('8. upsertCustomerProfile correctly increments login_count from 0 to 1', as
   }
 })
 
-test('9. resolveCustomerUsername preserves friendly username against Cognito internal machine usernames', async () => {
+test('9. resolveCustomerUsername preserves friendly username against Cognito internal machine usernames', { skip: LIVE_SKIP }, async () => {
   const url = process.env.SUPABASE_URL
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY
 

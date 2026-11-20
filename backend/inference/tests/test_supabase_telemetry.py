@@ -749,7 +749,8 @@ class TestSupabaseTelemetryRepository(unittest.TestCase):
         self.assertAlmostEqual(records[1].cost, 0.001)
 
     def test_real_urllib_urlopen_transport_mocked(self) -> None:
-        repo = SupabaseTelemetryRepository(settings=self.settings, timeout=3.5)
+        from inference.supabase_telemetry import _default_urllib_transport
+        repo = SupabaseTelemetryRepository(settings=self.settings, timeout=3.5, transport=_default_urllib_transport)
         req_id = str(uuid.uuid4())
         row_payload = [{
             "id": req_id,
@@ -806,7 +807,7 @@ class TestSupabaseTelemetryFastAPIIntegration(unittest.TestCase):
         )
         cls.TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=cls.engine)
         Base.metadata.create_all(bind=cls.engine)
-        cls.client = TestClient(app, raise_server_exceptions=False)
+        cls.client = cls.enterClassContext(TestClient(app, raise_server_exceptions=False))  # runs the lifespan (inference limiter)
 
     def setUp(self) -> None:
         self.db = self.TestingSessionLocal()
@@ -850,8 +851,37 @@ class TestSupabaseTelemetryFastAPIIntegration(unittest.TestCase):
         self.db.close()
         app.dependency_overrides.clear()
 
-    def test_run_inference_route_is_synchronous_def_handler(self) -> None:
-        self.assertFalse(inspect.iscoroutinefunction(run_inference_route))
+    def test_run_inference_blocking_provider_call_runs_off_event_loop(self) -> None:
+        # The route is async (it waits for a concurrency slot on the event loop), so the guarantee this
+        # test protects is that the blocking provider call still runs in a worker thread, never on the loop.
+        import asyncio
+
+        self.assertTrue(inspect.iscoroutinefunction(run_inference_route))
+        seen = {}
+
+        def generate(**_kwargs):
+            try:
+                asyncio.get_running_loop()
+                seen["on_event_loop"] = True
+            except RuntimeError:
+                seen["on_event_loop"] = False
+            return {
+                "provider": "nvidia",
+                "model": "nvidia/nemotron-3.5-bolt-e4b",
+                "content": "ok",
+                "finish_reason": "stop",
+                "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+            }
+
+        with patch.object(inference_service.provider, "generate", side_effect=generate):
+            resp = self.client.post(
+                "/api/v1/inference",
+                json={"prompt": "Thread check"},
+                headers={"Authorization": f"Bearer {self.raw_key}"},
+            )
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertIs(seen.get("on_event_loop"), False)
 
     def test_successful_inference_writes_supabase_telemetry_ignores_spoofing_and_avoids_local_db(self) -> None:
         prompt_secret = "CONFIDENTIAL_CUSTOMER_PROMPT_TEXT_DO_NOT_LOG"
@@ -1270,7 +1300,7 @@ class TestSupabaseTelemetryFastAPIIntegration(unittest.TestCase):
                 generate=MagicMock(side_effect=exc),
             )
             service = InferenceService(provider=fake_provider, telemetry_repo=self.telemetry_repo)
-            req = InferenceRequest(prompt="Model attribution check", model="custom/requested-model")
+            req = InferenceRequest(prompt="Model attribution check")  # no override: provider model is what ran
             with self.assertRaises(HTTPException):
                 service.execute_inference(request=req, api_key=api_record)
             self.assertEqual(len(self.telemetry_transport.rows), 1)
@@ -1286,7 +1316,7 @@ class TestSupabaseTelemetryFastAPIIntegration(unittest.TestCase):
         service_bad = InferenceService(provider=fake_provider_bad, telemetry_repo=self.telemetry_repo)
         with self.assertRaises(HTTPException) as ctx:
             service_bad.execute_inference(
-                request=InferenceRequest(prompt="Model check on malformed payload", model="other/model"),
+                request=InferenceRequest(prompt="Model check on malformed payload"),
                 api_key=api_record,
             )
         self.assertEqual(ctx.exception.status_code, 502)
@@ -1294,6 +1324,10 @@ class TestSupabaseTelemetryFastAPIIntegration(unittest.TestCase):
         self.assertEqual(stored_bad["model_name"], actual_provider_model)
 
     def test_error_telemetry_falls_back_to_request_model_then_default(self) -> None:
+        # The requested model must be operator-enabled to be used (and attributed) at all.
+        env_patch = patch.dict(os.environ, {"NVIDIA_ALLOWED_MODELS": "nvidia/llama-3.3-70b-instruct"})
+        env_patch.start()
+        self.addCleanup(env_patch.stop)
         api_record = SupabaseAPIKeyRecord.from_row(self.key_row)
 
         providers_without_model = [
@@ -1415,7 +1449,10 @@ class TestSupabaseTelemetryFastAPIIntegration(unittest.TestCase):
                     request=InferenceRequest(prompt="Should fail before provider attempt"),
                     api_key=api_record,
                 )
-            self.assertEqual(ctx_cfg.exception.status_code, 422)
+            # Server misconfiguration is a 503 with a generic message (was a 422 echoing backend/.env).
+            self.assertEqual(ctx_cfg.exception.status_code, 503)
+            self.assertNotIn(".env", str(ctx_cfg.exception.detail))
+            self.assertNotIn("NVIDIA_API_KEY", str(ctx_cfg.exception.detail))
         self.assertEqual(len(self.telemetry_transport.rows), 0)
 
     def test_telemetry_failure_behavior_unchanged_for_malformed_and_value_errors(self) -> None:

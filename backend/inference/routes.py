@@ -8,12 +8,15 @@ Endpoints:
 
 import logging
 import os
+import threading
 import uuid
+import asyncio
 import httpx2
-from fastapi import APIRouter, Depends, Header, HTTPException, status
-from sqlalchemy.orm import Session
+from typing import Optional, Tuple
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from starlette.concurrency import run_in_threadpool
 
-from inference.database import get_db, check_database_connection
+from inference.database import check_database_connection, engine
 from inference.supabase_config import SupabaseConfigurationError, get_supabase_settings
 from inference.supabase_api_keys import (
     APIKeyForbiddenError,
@@ -79,9 +82,9 @@ from inference.notebook_service import (
     InvalidStateTransitionError,
 )
 from inference.auth import (
+    test_mode_enabled,
     verify_customer_api_key,
     generate_api_key,
-    extract_cognito_sub,
     require_cognito_user,
     is_cognito_configured,
     is_test_mode_enabled,
@@ -102,7 +105,8 @@ inference_service = InferenceService()
     summary="Execute Model Inference",
     description="Submits a prompt to NVIDIA Nemotron, returning generated text and exact token telemetry."
 )
-def run_inference(
+async def run_inference(
+    http_request: Request,
     request: InferenceRequest,
     api_key: SupabaseAPIKeyRecord = Depends(verify_customer_api_key),
     telemetry_repo: SupabaseTelemetryRepository = Depends(get_telemetry_repository),
@@ -110,12 +114,78 @@ def run_inference(
     """
     Execute prompt inference using NVIDIA Nemotron.
     Requires Bearer token authentication with a valid Inferxe customer API key.
+
+    Concurrency is limited by INFERENCE_MAX_CONCURRENCY (default 8).
+    Requests waiting beyond INFERENCE_QUEUE_SECONDS (default 2) receive HTTP 503.
+    Authentication (the dependencies above) runs before a slot is requested, so rejected keys never
+    occupy one; waiting happens on the event loop and holds no worker thread.
     """
-    return inference_service.execute_inference(
-        request=request,
-        api_key=api_key,
-        telemetry_repo=telemetry_repo,
-    )
+    semaphore = getattr(http_request.app.state, "inference_slots", None)
+    if semaphore is None:
+        # Fail closed: running unlimited would silently remove the thread-pool protection.
+        raise RuntimeError("Inference limiter is not initialised: the application lifespan did not run.")
+
+    queue_seconds = http_request.app.state.inference_queue_seconds
+    if not semaphore.locked():
+        # A slot is free: acquire() returns without suspending. Not via wait_for, which with
+        # timeout=0 cancels the acquire before it runs and would reject every request.
+        await semaphore.acquire()
+    else:
+        try:
+            await asyncio.wait_for(semaphore.acquire(), timeout=queue_seconds)
+        except TimeoutError:
+            # Rejected before execute_inference: no provider call, no telemetry row, nothing billed.
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Inference service at capacity. Please retry shortly.",
+                headers={"Retry-After": str(max(1, queue_seconds))},
+            )
+
+    try:
+        # Execute the synchronous inference service in a threadpool
+        # so the event loop is not blocked during provider calls.
+        return await run_in_threadpool(
+            inference_service.execute_inference,
+            request=request,
+            api_key=api_key,
+            telemetry_repo=telemetry_repo,
+        )
+    finally:
+        semaphore.release()
+
+
+# Shared HTTP client for health checks to avoid creating a new TCP/TLS
+# connection on every probe. Created lazily on first use and closed in
+# the FastAPI lifespan shutdown.
+_health_http_client: Optional[httpx2.Client] = None
+_health_client_lock = threading.Lock()
+
+
+def _get_health_http_client() -> httpx2.Client:
+    """Return a shared, keep-alive HTTP client for health-check probes.
+
+    Uses double-checked locking to ensure only one client is created even
+    under concurrent first-request access. Checks `is_closed()` before
+    reuse so a previously closed client is recreated.
+    """
+    global _health_http_client
+    with _health_client_lock:
+        if _health_http_client is None or _health_http_client.is_closed:
+            _health_http_client = httpx2.Client(timeout=3.0)
+        return _health_http_client
+
+
+def _close_health_http_client() -> None:
+    """Close the shared health-check HTTP client (called from lifespan shutdown)."""
+    global _health_http_client
+    with _health_client_lock:
+        client = _health_http_client
+        _health_http_client = None
+    if client is not None and not client.is_closed:
+        try:
+            client.close()
+        except Exception:
+            pass
 
 
 @router.get(
@@ -124,9 +194,9 @@ def run_inference(
     summary="Health & Dependency Check",
     description="Returns connectivity status of the service, Supabase REST, optional PostgreSQL database, and NVIDIA provider."
 )
-def health_check(db: Session = Depends(get_db)):
+def health_check():
     """Health status check covering Supabase REST, optional legacy PostgreSQL, NVIDIA, and Cognito."""
-    db_ok = check_database_connection(db.get_bind())
+    db_ok = check_database_connection(engine)
     nvidia_key = (os.getenv("NVIDIA_API_KEY") or "").strip()
     nvidia_configured = bool(nvidia_key) and "your-key-here" not in nvidia_key
     cognito_ok = is_cognito_configured()
@@ -135,18 +205,25 @@ def health_check(db: Session = Depends(get_db)):
     supabase_status = "unconfigured"
     try:
         sb_settings = get_supabase_settings(auto_load=False)
-        if is_test_mode_enabled():
+        if test_mode_enabled():  # combined safeguard (see inference.auth.test_mode_enabled)
             supabase_ok = True
             supabase_status = "configured"
         else:
-            with httpx2.Client(timeout=3.0) as client:
-                probe = client.get(
-                    sb_settings.rest_url("api_keys"),
-                    params={"select": "id", "limit": "1"},
-                    headers=sb_settings.auth_headers(),
-                )
-            supabase_ok = probe.status_code < 500
-            supabase_status = "connected" if supabase_ok else "unreachable"
+            probe = _get_health_http_client().get(
+                sb_settings.rest_url("api_keys"),
+                params={"select": "id", "limit": "1"},
+                headers=sb_settings.auth_headers(),
+            )
+            status_code = probe.status_code
+            if 200 <= status_code < 300:
+                supabase_ok = True
+                supabase_status = "connected"
+            elif status_code in (401, 403):
+                supabase_ok = False
+                supabase_status = "auth_error"
+            else:
+                supabase_ok = False
+                supabase_status = "upstream_error"
     except SupabaseConfigurationError:
         supabase_ok = False
         supabase_status = "unconfigured"

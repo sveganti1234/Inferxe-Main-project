@@ -1,12 +1,26 @@
 @echo off
-rem Starts all Inferxe backend services and frontend dev server locally, then opens the browser.
+rem Starts all Inferxe backend services and the frontend dev server locally, then opens the browser.
+rem "npm run dev" already starts the backend launcher (ports 8000 and 8001), which reuses services
+rem that are already running and healthy, so the backend is not started separately here.
 cd /d "%~dp0"
 
+where node >nul 2>&1
+if errorlevel 1 (
+  echo [Inferxe] Node.js was not found in PATH. Install Node.js, then run this script again.
+  exit /b 1
+)
+
+rem The root install covers the frontend workspace. backend\package.json (auth server: dotenv,
+rem Cognito SDK) is not a workspace, so it is installed separately.
 if not exist node_modules (
-  if not exist frontend\node_modules (
-    echo [Inferxe] Installing Node dependencies - first run only...
-    call npm install
-  )
+  echo [Inferxe] Installing Node dependencies - first run only...
+  call npm install
+  if errorlevel 1 exit /b 1
+)
+if not exist backend\node_modules (
+  echo [Inferxe] Installing backend Node dependencies - first run only...
+  call npm --prefix backend install
+  if errorlevel 1 exit /b 1
 )
 
 echo [Inferxe] Checking Backend Services on ports 8002 and 8001...

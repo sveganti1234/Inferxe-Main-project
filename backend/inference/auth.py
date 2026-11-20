@@ -5,14 +5,19 @@ and Cognito verified identity association.
 """
 
 import os
-import hmac
+import sys
 import hashlib
 import secrets
 import logging
-from pathlib import Path
-from datetime import datetime, timezone
+import threading
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Tuple, Dict, Any
-from dotenv import load_dotenv, dotenv_values
+from dotenv import dotenv_values  # public VITE_COGNITO_* keys from frontend/.env only
+import sys as _sys
+_GUARD_DIR = str(__import__('pathlib').Path(__file__).resolve().parents[1])  # backend/
+if _GUARD_DIR not in _sys.path:
+    _sys.path.append(_GUARD_DIR)
+from isolation_guard import load_dotenv  # noqa: E402  (tests never load the project .env: isolation_guard.py)
 import jwt
 from jwt import PyJWKClient, PyJWTError
 from fastapi import Header, HTTPException, Depends, status
@@ -189,6 +194,17 @@ def generate_api_key(environment: str = "live") -> Tuple[str, str, str]:
     return raw_key, key_prefix, key_hash
 
 
+LAST_USED_UPDATE_INTERVAL = timedelta(seconds=60)
+
+
+def _last_used_is_stale(last_used_at: Optional[datetime]) -> bool:
+    if last_used_at is None:
+        return True
+    if last_used_at.tzinfo is None:
+        last_used_at = last_used_at.replace(tzinfo=timezone.utc)
+    return datetime.now(timezone.utc) - last_used_at >= LAST_USED_UPDATE_INTERVAL
+
+
 def verify_customer_api_key(
     authorization: Optional[str] = Header(None, alias="Authorization"),
     repo: SupabaseAPIKeyRepository = Depends(get_api_key_repository),
@@ -277,13 +293,54 @@ def verify_customer_api_key(
     # Suspended or inactive customers cannot use their API keys
     assert_profile_active(str(key_record.user_id))
 
-    # Update last_used_at timestamp in Supabase
-    try:
-        repo.update_last_used(key_id=key_record.id, user_id=key_record.user_id)
-    except Exception as update_err:
-        logger.warning(f"Could not update last_used_at for key {key_record.key_prefix}: {type(update_err).__name__}")
+    # Update last_used_at, at most once per LAST_USED_UPDATE_INTERVAL per key: the value is already in
+    # the record we just loaded, so busy keys skip a blocking Supabase PATCH on most requests.
+    if _last_used_is_stale(key_record.last_used_at):
+        try:
+            repo.update_last_used(key_id=key_record.id, user_id=key_record.user_id)
+        except Exception as update_err:
+            logger.warning(f"Could not update last_used_at for key {key_record.key_prefix}: {type(update_err).__name__}")
 
     return key_record
+
+
+_NON_TEST_ENVIRONMENTS = {"production", "prod", "staging"}
+
+
+def test_mode_enabled() -> bool:
+    """INFERXE_TEST_MODE skips JWT signature checks, so it is honoured only when BOTH safeguards agree:
+    is_test_mode_enabled() (refused inside a running ASGI server or a production-marked environment) and
+    a loaded test runner with INFERXE_ENV not production/staging. Anything else fails closed."""
+    if not is_test_mode_enabled():
+        return False
+    env = (os.getenv("INFERXE_ENV") or "").strip().lower()
+    in_test_runner = "pytest" in sys.modules or "unittest" in sys.modules
+    if env in _NON_TEST_ENVIRONMENTS or not in_test_runner:
+        logger.critical(
+            "INFERXE_TEST_MODE=1 ignored (INFERXE_ENV=%r, test runner loaded=%s): JWT signatures are verified.",
+            env or "unset", in_test_runner,
+        )
+        return False
+    return True
+
+
+_jwks_clients: Dict[Tuple[str, Any], PyJWKClient] = {}
+_jwks_clients_lock = threading.Lock()
+
+
+def _get_jwks_client(jwks_url: str) -> PyJWKClient:
+    """One PyJWKClient per JWKS URL, so its key cache survives across requests.
+
+    Keyed by the factory too, so a test that patches PyJWKClient gets its mock rather than
+    a client cached by an earlier test.
+    """
+    key = (jwks_url, PyJWKClient)
+    with _jwks_clients_lock:
+        client = _jwks_clients.get(key)
+        if client is None:
+            client = PyJWKClient(jwks_url, cache_keys=True, lifespan=3600, timeout=5)
+            _jwks_clients[key] = client
+        return client
 
 
 def verify_cognito_jwt(token: str) -> Dict[str, Any]:
@@ -301,8 +358,9 @@ def verify_cognito_jwt(token: str) -> Dict[str, Any]:
     - Rejects expired tokens, invalid signatures, or wrong token_use with HTTP 401.
     """
     # Test mode bypass allows unit tests to test business logic with mock payloads.
-    # It is refused inside running servers and production environments (see is_test_mode_enabled).
-    if is_test_mode_enabled():
+    # It is refused inside running servers, production/staging environments and outside test runners
+    # (test_mode_enabled combines is_test_mode_enabled with the test-runner check).
+    if test_mode_enabled():
         import json
         import base64
         import time
@@ -358,7 +416,7 @@ def verify_cognito_jwt(token: str) -> Dict[str, Any]:
     issuer = f"https://cognito-idp.{region}.amazonaws.com/{user_pool_id}"
 
     try:
-        jwks_client = PyJWKClient(jwks_url, cache_keys=True, lifespan=3600)
+        jwks_client = _get_jwks_client(jwks_url)
         signing_key = jwks_client.get_signing_key_from_jwt(token)
         payload = jwt.decode(
             token,

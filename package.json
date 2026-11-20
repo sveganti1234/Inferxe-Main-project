@@ -4,6 +4,9 @@
   "version": "1.0.0",
   "description": "Inferxe — GPU Infrastructure Marketplace & Intelligent Routing. A product of Automatrix.",
   "type": "module",
+  "engines": {
+    "node": ">=24.7.0"
+  },
   "workspaces": [
     "frontend"
   ],
@@ -16,6 +19,7 @@
     "build": "npm --prefix frontend run build",
     "preview": "npm --prefix frontend run preview",
     "typecheck": "npm --prefix frontend run typecheck",
+    "test:backend": "npm --prefix backend test",
     "test": "npm --prefix frontend test",
     "server:admin": "node backend/auth/adminAuthServer.mjs",
     "dataset:validate": "py -3 database/scripts/validate_dataset.py",

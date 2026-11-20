@@ -1950,7 +1950,7 @@ export function UsageDetail({
   trialTimeLeft,
 }: {
   deployments: ExtraDeployment[]
-  walletBalance: number
+  walletBalance: number | null
   trialTimeLeft: number | null
 }) {
   const running = deployments.filter((d) => d.status === 'Running')
@@ -1967,7 +1967,7 @@ export function UsageDetail({
   }
 
   const burn = running.reduce((sum, d) => sum + (d.hourlyRate ?? 0), 0)
-  const walletHours = burn > 0 ? walletBalance / burn : null
+  const walletHours = burn > 0 && walletBalance !== null ? walletBalance / burn : null
 
   // 24 hourly points for the usage graph (sum of running deployments, deterministic)
   const points = Array.from({ length: 24 }, (_, i) =>
@@ -1985,7 +1985,7 @@ export function UsageDetail({
         </div>
         <div className="mw-metric">
           <div className="mw-metric-top"><span>Wallet time left</span><span className="mw-icon-box"><Timer /></span></div>
-          <strong>{walletHours === null ? '—' : fmtMs(walletHours * 3600000)}</strong><small>{inr(walletBalance)} at {inr(burn)}/hr burn</small>
+          <strong>{walletHours === null ? '—' : fmtMs(walletHours * 3600000)}</strong><small>{walletBalance === null ? 'Balance unavailable' : inr(walletBalance)} at {inr(burn)}/hr burn</small>
         </div>
         <div className="mw-metric">
           <div className="mw-metric-top"><span>Free trial left</span><span className="mw-icon-box"><Timer /></span></div>

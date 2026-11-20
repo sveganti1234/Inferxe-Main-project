@@ -6,14 +6,14 @@ role-based authorization, and real-time polling support.
 
 import os
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Optional
 from decimal import Decimal
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from .auth import AuthenticatedUser, get_current_user, require_admin_user
 from .service import NotificationService
-from .db import PG_DB, PG_HOST, DBConnection
+from .db import PG_DB, PG_HOST, DBConnection, PoolTimeoutError, HEALTH_CHECK_POOL_WAIT_SECONDS
 
 logger = logging.getLogger("inferxe.notifications.router")
 
@@ -86,7 +86,8 @@ class GpuAlertTriggerRequest(BaseModel):
 def get_db_status():
     """Returns database connection status and engine details."""
     try:
-        with DBConnection(autocommit=True) as conn:
+        # Short wait so the probe stays fast when the pool is saturated.
+        with DBConnection(autocommit=True, timeout=HEALTH_CHECK_POOL_WAIT_SECONDS) as conn:
             cur = conn.cursor()
             cur.execute("SELECT current_database(), version();")
             row = cur.fetchone()
@@ -97,6 +98,16 @@ def get_db_status():
                 "host": PG_HOST,
                 "connected": True,
             }
+    except PoolTimeoutError:
+        logger.warning("PostgreSQL health check: connection pool saturated.")
+        return {
+            "status": "degraded",
+            "database_engine": "PostgreSQL",
+            "database_name": PG_DB,
+            "connected": False,
+            "pool_saturated": True,
+            "error": "PostgreSQL connection pool is saturated.",
+        }
     except Exception as e:
         logger.error("PostgreSQL health check failed (%s).", type(e).__name__)
         return {
@@ -243,6 +254,11 @@ def schedule_maintenance(
 
 # ── Integrated Workflow Triggers (Wallet & Deployments) ──
 
+def _self_recharge_enabled() -> bool:
+    """Explicit opt-in for demo/dev environments without a payment gateway (off by default)."""
+    return os.environ.get("WALLET_SELF_RECHARGE_ENABLED", "").strip().lower() in ("1", "true", "yes")
+
+
 @router.post("/wallet/transactions")
 def process_wallet_transaction(
     req: WalletTransactionRequest,
@@ -275,6 +291,12 @@ def process_wallet_transaction(
         admin_credit = {"administrator_email": user.email or user.user_id, "reason": reason}
     try:
         if req.amount >= 0:
+            # No payment gateway verifies top-ups yet, so customers must not credit themselves.
+            if not (user.is_admin or _self_recharge_enabled()):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Wallet top-ups require a verified payment and are not available for self-service.",
+                )
             result = NotificationService.process_wallet_recharge(
                 user_id=req.target_user_id or user.user_id,
                 amount=req.amount,
@@ -362,6 +384,7 @@ def update_deployment_status(
             region=req.region or "Mumbai, IN",
             error_message=req.error_message,
             idempotency_key=req.idempotency_key,
+            is_admin=user.is_admin,
         )
         return result
     except PermissionError as pe:
@@ -383,7 +406,7 @@ def get_gpu_runtime_metrics(
     Enforces customer isolation: checks that deployment belongs to user.user_id.
     """
     try:
-        return NotificationService.get_gpu_metrics(user.user_id, instance_id)
+        return NotificationService.get_gpu_metrics(user.user_id, instance_id, is_admin=user.is_admin)
     except KeyError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Deployment instance '{instance_id}' not found.")
     except PermissionError as pe:
@@ -399,7 +422,7 @@ def get_gpu_recommendations(
     pricing, and memory requirements. Strictly respects AI Assistant permissions.
     """
     try:
-        return NotificationService.get_gpu_recommendations(user.user_id, req.instance_id, req.bot_permission)
+        return NotificationService.get_gpu_recommendations(user.user_id, req.instance_id, req.bot_permission, is_admin=user.is_admin)
     except KeyError:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Deployment instance '{req.instance_id}' not found.")
     except PermissionError as pe:

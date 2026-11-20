@@ -63,6 +63,38 @@ def sanitize_metadata(meta: Dict[str, Any]) -> Dict[str, Any]:
             clean[k] = str(v)
     return clean
 
+# Security tags for the curated dataset (admin-maintained, public). Retrieval only matches vectors with
+# security_version (backend/rag/server.py retrieval_filter); uploaded documents carry their own tags.
+CURATED_SECURITY_METADATA = {
+    "visibility": "public",
+    "organization_id": "",
+    "security_version": 1,
+    "source_kind": "curated",
+    "document_id": "curated_dataset",
+}
+
+
+def curated_metadata(item) -> dict:
+    return {**sanitize_metadata(item.get("metadata", {})), **CURATED_SECURITY_METADATA}
+
+
+def secure_existing_curated_vectors(collection, chunks) -> int:
+    """Tag the curated chunks already in the persistent collection as public, without re-embedding.
+
+    Only ids from the curated chunks file are touched. Legacy uploaded vectors (doc_*_chunk_*) stay untagged and
+    therefore excluded from retrieval until an admin re-uploads them. Returns the number of vectors tagged."""
+    by_id = {item["id"]: item for item in chunks}
+    ids = list(by_id)
+    tagged = 0
+    for i in range(0, len(ids), 100):
+        batch = ids[i:i + 100]
+        present = collection.get(ids=batch, include=[]).get("ids", [])
+        if present:
+            collection.update(ids=present, metadatas=[curated_metadata(by_id[x]) for x in present])
+            tagged += len(present)
+    return tagged
+
+
 def index_all_chunks(force: bool = False):
     print("=" * 80)
     print("INFERXE RAG VECTOR INDEXING PIPELINE")
@@ -109,16 +141,15 @@ def index_all_chunks(force: bool = False):
     import chromadb
     client = chromadb.PersistentClient(path=CHROMA_PERSIST_DIR)
 
-    # Safe reindexing: drop existing collection if force or updating
-    existing_collections = [c.name for c in client.list_collections()]
-    if COLLECTION_NAME in existing_collections:
-        print(f"Found existing collection '{COLLECTION_NAME}'. Resetting for clean indexing...")
-        client.delete_collection(COLLECTION_NAME)
-
-    collection = client.create_collection(
+    # Safe reindexing: replace only the curated chunks (by their ids). The collection is never deleted, so
+    # documents uploaded through the API (doc_* ids, tenant-tagged) survive a reindex.
+    collection = client.get_or_create_collection(
         name=COLLECTION_NAME,
         metadata={"hnsw:space": "cosine"}
     )
+    curated_ids = [item["id"] for item in chunks]
+    for i in range(0, len(curated_ids), 500):
+        collection.delete(ids=curated_ids[i:i + 500])
 
     print(f"\nGenerating embeddings and storing {total_chunks} chunks...")
     batch_size = 10
@@ -137,7 +168,7 @@ def index_all_chunks(force: bool = False):
             if emb:
                 batch_ids.append(item["id"])
                 batch_texts.append(item["content"])
-                batch_metas.append(sanitize_metadata(item.get("metadata", {})))
+                batch_metas.append(curated_metadata(item))
                 batch_embs.append(emb)
             else:
                 print(f"âš ï¸ Failed to embed chunk {item['id']}")
@@ -156,8 +187,8 @@ def index_all_chunks(force: bool = False):
         print(f"  [{progress:5.1f}%] Indexed {successful_count}/{total_chunks} chunks (Elapsed: {elapsed:.1f}s)")
 
     # Verification
-    final_count = collection.count()
-    print(f"\nVerification: Stored document count in ChromaDB = {final_count}")
+    final_count = successful_count  # curated chunks only; the collection may also hold uploaded documents
+    print(f"\nVerification: curated chunks indexed = {final_count} (collection total {collection.count()})")
     if final_count != total_chunks:
         print(f"âš ï¸ Warning: Indexed {final_count} items, expected {total_chunks}.")
     else:
@@ -196,5 +227,13 @@ def index_all_chunks(force: bool = False):
     return manifest_data
 
 if __name__ == "__main__":
-    force_flag = "--force" in sys.argv
-    index_all_chunks(force=force_flag)
+    if "--secure-existing" in sys.argv:
+        import chromadb
+        with open(CHUNKS_FILE, "r", encoding="utf-8") as f:
+            _chunks = json.load(f)
+        _collection = chromadb.PersistentClient(path=CHROMA_PERSIST_DIR).get_or_create_collection(
+            name=COLLECTION_NAME, metadata={"hnsw:space": "cosine"})
+        print(f"Tagged {secure_existing_curated_vectors(_collection, _chunks)} curated vectors as public.")
+    else:
+        force_flag = "--force" in sys.argv
+        index_all_chunks(force=force_flag)

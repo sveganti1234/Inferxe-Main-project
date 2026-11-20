@@ -30,6 +30,8 @@ import logging
 import math
 import re
 import socket
+
+import httpx2
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -225,6 +227,23 @@ def _default_urllib_transport(
         return http_err.code, err_headers, err_body
 
 
+
+def _default_pooled_transport(
+    method: str,
+    url: str,
+    headers: Dict[str, str],
+    body: Optional[bytes],
+    timeout: float,
+) -> Tuple[int, Dict[str, str], bytes]:
+    """Default transport: the shared keep-alive httpx pool (also used by the SSH-key repository).
+
+    The stdlib urllib transport above opened a new connection (TCP + TLS handshake) for every
+    Supabase call; it stays available for callers that pass it explicitly.
+    """
+    from inference.supabase_ssh_keys import _default_pooled_http_transport  # lazy: avoids import coupling
+
+    return _default_pooled_http_transport(method, url, headers, body, timeout)
+
 @dataclass
 class SupabaseInferenceTelemetryRecord:
     """Normalized domain representation of a Supabase `inference_requests` row."""
@@ -408,7 +427,7 @@ class SupabaseTelemetryRepository:
     ) -> None:
         self._settings = settings
         self.timeout = float(timeout)
-        self._transport = transport or _default_urllib_transport
+        self._transport = transport or _default_pooled_transport
 
     def _get_settings(self) -> SupabaseSettings:
         if self._settings is not None:
@@ -449,7 +468,7 @@ class SupabaseTelemetryRepository:
             status_code, _resp_headers, resp_body = self._transport(
                 method, url, headers, body_bytes, self.timeout
             )
-        except (TimeoutError, socket.timeout) as timeout_err:
+        except (TimeoutError, socket.timeout, httpx2.TimeoutException) as timeout_err:
             logger.error("Supabase REST %s %s timed out after %.1fs.", safe_method, safe_resource, self.timeout)
             raise SupabaseTelemetryServiceUnavailableError(
                 "Telemetry database request timed out."
@@ -464,7 +483,7 @@ class SupabaseTelemetryRepository:
             raise SupabaseTelemetryServiceUnavailableError(
                 "Telemetry database is temporarily unavailable."
             ) from conn_err
-        except http.client.HTTPException as http_err:
+        except (http.client.HTTPException, httpx2.HTTPError) as http_err:
             logger.error("Supabase REST %s %s protocol error (%s).", safe_method, safe_resource, type(http_err).__name__)
             raise SupabaseTelemetryServiceUnavailableError(
                 "Telemetry database communication failed."

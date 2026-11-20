@@ -10,7 +10,7 @@ import re
 import threading
 import time
 import uuid
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Optional, Tuple
 
 from fastapi import HTTPException, status
 from openai import (
@@ -28,7 +28,7 @@ from inference.supabase_telemetry import (
     get_telemetry_repository,
     sanitize_diagnostic_text,
 )
-from providers.nvidia.nvidia_provider import NVIDIAProvider
+from providers.nvidia.nvidia_provider import NVIDIAProvider, configured_models
 
 logger = logging.getLogger("inferxe.service")
 
@@ -284,9 +284,32 @@ class InferenceService:
         inference_attempted = False
         fallback_model = self._resolve_model_name(request, provider=self._provider)
 
+        # Model selection: honour a requested model only if the operator enabled it; unknown models
+        # are rejected before any provider call (the provider used to ignore request.model entirely).
+        requested_model = (getattr(request, "model", None) or "").strip()
+        default_model, allowed_models = configured_models()
+        if requested_model and requested_model not in allowed_models:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Unsupported model '{requested_model[:100]}'. Supported models: {', '.join(sorted(allowed_models))}.",
+            )
+        model_override = requested_model if requested_model and requested_model != default_model else None
+
+        # Provider construction fails only on server configuration (e.g. NVIDIA_API_KEY unset). That is
+        # a 503 with a generic message, not a 422 echoing server config, and no request was attempted,
+        # so no telemetry row is written.
         try:
             provider = self.provider
-            fallback_model = self._resolve_model_name(request, provider=provider)
+        except ValueError as e:
+            logger.error("Inference provider is not configured: %s", sanitize_diagnostic_text(e))
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Inference provider is not configured on this server.",
+            )
+
+        try:
+            # Telemetry attributes the model actually sent: the override when one was requested.
+            fallback_model = model_override or self._resolve_model_name(request, provider=provider)
             inference_attempted = True
 
             # Call existing NVIDIA provider directly
@@ -294,6 +317,7 @@ class InferenceService:
                 prompt=validated_prompt,
                 max_tokens=max_tokens,
                 temperature=temperature,
+                **({"model": model_override} if model_override else {}),
             )
 
             # Parse & validate provider payload inside exception/telemetry protection

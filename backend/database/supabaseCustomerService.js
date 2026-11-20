@@ -9,6 +9,7 @@
  */
 
 import { loadBackendEnv } from '../auth/envLoader.js'
+import { assertExternalTargetAllowed } from '../lib/testSafety.js'
 import {
   recordSessionHeartbeat,
   removeSession,
@@ -128,6 +129,7 @@ function getSupabaseConfig() {
   if (!url || !key) {
     throw new Error('Supabase configuration missing (SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY).')
   }
+  assertExternalTargetAllowed(url, 'Supabase customer service')
   return { url: url.replace(/\/$/, ''), key }
 }
 

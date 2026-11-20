@@ -1,3 +1,4 @@
+import './support/networkGuard.mjs'  // test isolation guard: must stay the first import (tests/testSafety.test.mjs checks)
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'

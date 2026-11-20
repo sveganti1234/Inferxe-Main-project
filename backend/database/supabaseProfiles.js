@@ -1,3 +1,5 @@
+import { assertExternalTargetAllowed } from '../lib/testSafety.js'
+
 function profileFromCognitoClaims(claims) {
   const email = typeof claims.email === 'string' ? claims.email.trim().toLowerCase() : ''
   const fullName = typeof claims.name === 'string' ? claims.name.trim() : ''
@@ -40,6 +42,8 @@ export async function upsertCognitoProfile(
   }
 
   const baseUrl = new URL(supabaseUrl)
+  // Injected fetch implementations (test doubles) never touch the network; the real fetch is guarded.
+  if (fetchImpl === globalThis.fetch) assertExternalTargetAllowed(baseUrl, 'Supabase profile sync')
   if (!['http:', 'https:'].includes(baseUrl.protocol)) {
     throw new Error('Supabase URL must use HTTP or HTTPS.')
   }

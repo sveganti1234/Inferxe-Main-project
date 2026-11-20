@@ -854,7 +854,8 @@ class TestSupabaseAPIKeyRepository(unittest.TestCase):
         self.assertNotIn("workspaces", str(ctx_other.exception).lower())
 
     def test_real_urllib_urlopen_transport_mocked(self) -> None:
-        repo = SupabaseAPIKeyRepository(settings=self.settings, timeout=4.2)
+        from inference.supabase_api_keys import _default_urllib_transport
+        repo = SupabaseAPIKeyRepository(settings=self.settings, timeout=4.2, transport=_default_urllib_transport)
         fake_response = MagicMock()
         fake_response.status = 200
         fake_response.headers = {"Content-Type": "application/json"}
@@ -931,7 +932,8 @@ class TestSupabaseAPIKeyRepository(unittest.TestCase):
             self.assertNotIn(self.secret_key, slow_logs)
 
         # 4. Urllib transport phase diagnostics distinguish urlopen_headers vs read_body timeouts safely
-        real_repo = SupabaseAPIKeyRepository(settings=self.settings, timeout=2.5)
+        from inference.supabase_api_keys import _default_urllib_transport
+        real_repo = SupabaseAPIKeyRepository(settings=self.settings, timeout=2.5, transport=_default_urllib_transport)
         with self.assertLogs("inferxe.supabase_api_keys", level=logging.WARNING) as phase_cm:
             with patch("urllib.request.urlopen", side_effect=TimeoutError("timed out at headers")):
                 with self.assertRaises(SupabaseAPIKeyServiceUnavailableError):
@@ -977,7 +979,7 @@ class TestSupabaseAPIKeysFastAPIIntegration(unittest.TestCase):
 
         cls.TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=cls.engine)
         Base.metadata.create_all(bind=cls.engine)
-        cls.client = TestClient(app, raise_server_exceptions=False)
+        cls.client = cls.enterClassContext(TestClient(app, raise_server_exceptions=False))  # runs the lifespan (inference limiter)
 
     def setUp(self) -> None:
         self.db = self.TestingSessionLocal()
