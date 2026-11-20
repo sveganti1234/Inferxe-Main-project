@@ -9,11 +9,14 @@ import logging
 from pathlib import Path
 from typing import Generator
 from urllib.parse import urlsplit, unquote, parse_qs
-from dotenv import load_dotenv
+import sys as _sys
+_GUARD_DIR = str(__import__('pathlib').Path(__file__).resolve().parents[1])  # backend/
+if _GUARD_DIR not in _sys.path:
+    _sys.path.append(_GUARD_DIR)
+from isolation_guard import load_dotenv  # noqa: E402  (tests never load the project .env: isolation_guard.py)
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
 from sqlalchemy.engine import make_url, URL
-from sqlalchemy.exc import ArgumentError
 
 # Configure logger
 logger = logging.getLogger("inferxe.database")
@@ -139,10 +142,15 @@ def create_app_engine(db_url: str = DATABASE_URL):
     if db_url_parsed.drivername.startswith("sqlite"):
         connect_args["check_same_thread"] = False
         engine_url = db_url_parsed
-    elif "psycopg" in db_url_parsed.drivername:
-        connect_args["connect_timeout"] = 5
-        engine_kwargs["pool_size"] = 10
-        engine_kwargs["max_overflow"] = 20
+    elif db_url_parsed.get_backend_name() == "postgresql":
+        # Covers postgresql://, postgresql+psycopg2:// and postgresql+psycopg:// (plain postgresql:// is psycopg2).
+        if db_url_parsed.get_driver_name() in ("psycopg2", "psycopg"):
+            connect_args["connect_timeout"] = 5  # libpq option; other drivers name it differently
+        # Legacy path only serves startup checks and /health, and shares the Supavisor
+        # session-mode pool with the notifications service: hold at most one connection.
+        engine_kwargs["pool_size"] = 1
+        engine_kwargs["max_overflow"] = 0
+        engine_kwargs["pool_timeout"] = 5
         engine_url = db_url_parsed
     else:
         engine_url = db_url_parsed
@@ -228,23 +236,25 @@ def create_database_if_not_exists(db_url: str = DATABASE_URL) -> bool:
             connect_args={"connect_timeout": 5}
         )
 
-        with maint_engine.connect() as conn:
-            result = conn.execute(
-                text("SELECT 1 FROM pg_database WHERE datname = :dbname"),
-                {"dbname": target_db}
-            )
-            exists = result.scalar() is not None
-            if not exists:
-                logger.info(f"Database '{target_db}' does not exist. Creating...")
-                # Note: database names in PostgreSQL CREATE DATABASE cannot be parameterized via bind params
-                # Sanitize target_db name to prevent SQL injection
-                if not re.match(r"^[a-zA-Z0-9_]+$", target_db):
-                    raise ValueError(f"Invalid database name: {target_db}")
-                conn.execute(text(f'CREATE DATABASE "{target_db}"'))
-                logger.info(f"Database '{target_db}' created successfully.")
-            else:
-                logger.info(f"Database '{target_db}' already exists.")
-        maint_engine.dispose()
+        try:
+            with maint_engine.connect() as conn:
+                result = conn.execute(
+                    text("SELECT 1 FROM pg_database WHERE datname = :dbname"),
+                    {"dbname": target_db}
+                )
+                exists = result.scalar() is not None
+                if not exists:
+                    logger.info(f"Database '{target_db}' does not exist. Creating...")
+                    # Note: database names in PostgreSQL CREATE DATABASE cannot be parameterized via bind params
+                    # Sanitize target_db name to prevent SQL injection
+                    if not re.match(r"^[a-zA-Z0-9_]+$", target_db):
+                        raise ValueError(f"Invalid database name: {target_db}")
+                    conn.execute(text(f'CREATE DATABASE "{target_db}"'))
+                    logger.info(f"Database '{target_db}' created successfully.")
+                else:
+                    logger.info(f"Database '{target_db}' already exists.")
+        finally:
+            maint_engine.dispose()  # also on errors (was skipped when the block raised)
         return True
     except Exception as e:
         logger.error(f"Could not verify/create database: {e}")
@@ -257,3 +267,48 @@ def init_db(target_engine=None):
     if (target_engine is None or target_engine is engine) and not LEGACY_SQL_CONFIGURED:
         return
     Base.metadata.create_all(bind=eng)
+    protect_service_tables(eng, list(Base.metadata.tables))
+
+
+PUBLIC_API_ROLES = ("anon", "authenticated")
+
+
+def protect_service_tables(eng, tables) -> list:
+    """Enable RLS and revoke anon/authenticated privileges on the legacy tables created above (PostgreSQL only).
+
+    On Supabase, new public tables are granted to the PostgREST roles by default; these legacy tables are
+    service-only, so they get RLS with no policies (the owning role is exempt; RLS is not FORCED) and no
+    public-role privileges. Idempotent: tables already protected are not altered. Failures are logged, not
+    raised. Same rules as database/migrations/006_enable_rls_service_only_tables.sql. Returns tables changed."""
+    if eng.dialect.name != "postgresql":
+        return []
+    quote = eng.dialect.identifier_preparer.quote
+    changed = []
+    with eng.connect() as conn:
+        rls_state = dict(conn.execute(text(
+            "SELECT c.relname, c.relrowsecurity FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace "
+            "WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p') AND c.relname = ANY(:tables)"
+        ), {"tables": list(tables)}).all())
+        roles = [r[0] for r in conn.execute(text("SELECT rolname FROM pg_roles WHERE rolname = ANY(:roles)"),
+                                            {"roles": list(PUBLIC_API_ROLES)})]
+        plan = []
+        for table, rls_enabled in sorted(rls_state.items()):
+            exposed = [role for role in roles if conn.execute(
+                text("SELECT has_table_privilege(:role, :table, 'SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER')"),
+                {"role": role, "table": f"public.{table}"}).scalar()]
+            if not rls_enabled or exposed:
+                plan.append((table, rls_enabled, exposed))
+    for table, rls_enabled, exposed in plan:
+        try:
+            with eng.begin() as conn:
+                if not rls_enabled:
+                    conn.execute(text(f"ALTER TABLE public.{quote(table)} ENABLE ROW LEVEL SECURITY"))
+                if exposed:
+                    conn.execute(text(f"REVOKE ALL ON TABLE public.{quote(table)} FROM {', '.join(quote(r) for r in exposed)}"))
+            changed.append(table)
+        except Exception as e:
+            logger.error("Could not enable RLS / revoke public access on %s (%s); apply migration 006.",
+                         table, type(e).__name__)
+    if changed:
+        logger.info("Row-level security enabled / public access revoked on: %s", ", ".join(changed))
+    return changed

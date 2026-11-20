@@ -59,14 +59,24 @@ function getBearerToken(req) {
     : ''
 }
 
-async function getCustomerContext(req) {
-  const claims = await authenticateCognitoRequest(req)
-  const supabase = getSupabaseAdminClient()
-  const result = await supabase
-    .from('profiles')
-    .select('user_id, full_name, email, username, avatar_path, role, status, organization_id')
-    .eq('user_id', claims.sub)
-    .maybeSingle()
+export async function getCustomerContext(req, deps = {}) {
+  // deps: test-only injection; production always uses the real verifier and admin client.
+  const claims = await (deps.authenticate || authenticateCognitoRequest)(req)
+  const supabase = deps.supabase || getSupabaseAdminClient()
+  // Both lookups depend only on the token's sub, so run them concurrently (one round-trip of
+  // latency instead of two). The profile checks below still run first, so error precedence is unchanged.
+  const [result, membershipResult] = await Promise.all([
+    supabase
+      .from('profiles')
+      .select('user_id, full_name, email, username, avatar_path, role, status, organization_id')
+      .eq('user_id', claims.sub)
+      .maybeSingle(),
+    supabase
+      .from('organization_members')
+      .select(WORKSPACE_SELECTS.organization_members)
+      .eq('user_id', claims.sub)
+      .eq('status', 'active'),
+  ])
 
   if (result.error) throw result.error
   if (!result.data) {
@@ -84,12 +94,6 @@ async function getCustomerContext(req) {
     error.statusCode = 403
     throw error
   }
-
-  const membershipResult = await supabase
-    .from('organization_members')
-    .select(WORKSPACE_SELECTS.organization_members)
-    .eq('user_id', claims.sub)
-    .eq('status', 'active')
   if (membershipResult.error) throw membershipResult.error
 
   const organizationIds = [...new Set([

@@ -108,7 +108,7 @@ class TestNotebookAPI(unittest.TestCase):
             autocommit=False, autoflush=False, bind=cls.test_engine
         )
         Base.metadata.create_all(bind=cls.test_engine)
-        cls.client = TestClient(app, raise_server_exceptions=False)
+        cls.client = cls.enterClassContext(TestClient(app, raise_server_exceptions=False))  # runs the lifespan (inference limiter)
 
         cls.ed25519_pub = (
             ed25519.Ed25519PrivateKey.generate()

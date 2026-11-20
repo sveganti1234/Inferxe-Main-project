@@ -436,8 +436,10 @@ export function registerOrUpdateCustomer({
   email,
   phone_number = null,
   organization = null,
-  role = 'customer',
-  account_status = 'active',
+  // role/account_status undefined = keep the stored values (a customer-originated update must not change
+  // its own role or reactivate a suspended account)
+  role,
+  account_status,
   isLogin = false,
   metadata = {},
 }) {
@@ -500,7 +502,7 @@ export function registerOrUpdateCustomer({
       lastLogin,
       lastActive,
       lastHeartbeat,
-      account_status,
+      account_status || existing.account_status || 'active',
       isLogin ? 1 : 0,
       nowIso,
       customerId,
@@ -556,12 +558,12 @@ export function registerOrUpdateCustomer({
       cleanEmail,
       phone_number,
       organization,
-      role,
+      role || 'customer',
       nowIso,
       isLogin ? nowIso : null,
       isLogin ? nowIso : '',
       isLogin ? nowIso : '',
-      account_status,
+      account_status || 'active',
       isLogin ? 1 : 0,
       nowIso,
       nowIso,
@@ -832,7 +834,7 @@ export function listCustomers({
   sortOrder = 'desc',
   page = 1,
   limit = 20,
-}) {
+} = {}) {
   const db = getDatabase()
   const cleanSearch = (search || '').trim().toLowerCase()
 

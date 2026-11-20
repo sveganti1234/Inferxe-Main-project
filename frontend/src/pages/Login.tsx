@@ -14,7 +14,7 @@ import {
 } from 'aws-amplify/auth'
 import { Hub } from 'aws-amplify/utils'
 
-import { saveSession, loginAdminBackend, syncCustomerProfile, ensureFreshSession, getPortalRole, type AuthSession } from '../lib/authStore'
+import { saveSession, loginAdminBackend, syncCustomerProfile, ensureFreshSession, getPortalRole } from '../lib/authStore'
 import { CUSTOMER_HOME_PATH } from '../features/customer/home'
 import {
   clearPendingVerification,
@@ -395,42 +395,8 @@ export default function Login({ initialMode }: LoginProps) {
       const errMsg = err?.message || ''
       console.error('Cognito sign-in failed:', errName, errMsg, err)
 
-      // Resilient fallback for customer sign-in:
-      // If running locally in development, or if Cognito is locked/offline, or for customer demo accounts,
-      // allow seamless authentication so no one ever gets locked out after pulling this code.
-      const isKnownCustomer =
-        cleanEmail === 'sahith490522mnp@gmail.com' ||
-        cleanEmail === 'sahith1689vss@gmail.com' ||
-        cleanEmail === 'customer@inferxe.com' ||
-        cleanEmail.includes('sahith')
-      const isLockoutOrOffline =
-        errMsg.includes('attempts exceeded') ||
-        errName === 'ResourceNotFoundException' ||
-        errName === 'NetworkError'
-
-      if ((isKnownCustomer || isLockoutOrOffline) && password.length >= 6) {
-        console.info('[auth] Falling back to verified customer session for:', cleanEmail)
-        const fullName =
-          cleanEmail === 'sahith490522mnp@gmail.com'
-            ? 'veganti sahith'
-            : cleanEmail.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
-        const session: AuthSession = {
-          token: 'ix-cst-' + Math.random().toString(36).substring(2, 12),
-          user: {
-            id: cleanEmail === 'sahith490522mnp@gmail.com' ? 'cst_834e854070944e6e' : 'cst_' + cleanEmail.split('@')[0],
-            fullName,
-            email: cleanEmail,
-            username: cleanEmail.split('@')[0],
-            role: 'customer',
-            organization: cleanEmail === 'sahith490522mnp@gmail.com' ? 'synycs' : 'Customer Workspace',
-          },
-          expiresAt: Date.now() + 7 * 24 * 60 * 60 * 1000,
-        }
-        saveSession(session)
-        navigate(CUSTOMER_HOME_PATH, { replace: true })
-        return
-      }
-
+      // No client-side login fallback: a locally invented session for known emails or on Cognito errors would
+      // bypass authentication (removed in the security hardening; backends reject such tokens anyway).
       const pending = loadPendingVerification()
       if (pending && pending.email === cleanEmail && (errName === 'NotAuthorizedException' || errName === 'UserNotFoundException' || errName === 'UserNotConfirmedException')) {
         // An unverified email alias cannot be used to sign in yet.

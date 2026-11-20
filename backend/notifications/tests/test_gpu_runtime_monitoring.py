@@ -18,6 +18,8 @@ import time
 import uuid
 from fastapi.testclient import TestClient
 
+from backend.notifications.tests.live_db_guard import require_isolated_test_database  # noqa: E402
+require_isolated_test_database()  # refuses to run without an isolated test DB (never production)
 from backend.notifications.main import app
 from backend.notifications.auth import register_test_key
 from backend.notifications.tests.test_multi_user_notifications import create_cognito_test_jwt
@@ -38,6 +40,19 @@ def run_tests():
     token_b = create_cognito_test_jwt(user_id=uid_b, email=f"{uid_b}@test.ai", roles=["customer"])
     headers_b = {"Authorization": f"Bearer {token_b}"}
 
+    # Seed the deployment this suite inspects. It used to assume DEP-1042 already existed in the
+    # shared database (i.e. production demo data); an isolated test database starts empty.
+    from backend.notifications.db import DBConnection
+    with DBConnection(autocommit=True) as conn:
+        conn.cursor().execute(
+            """
+            INSERT INTO gpu_deployments (id, user_id, name, model, gpu, vram, region, hourly_rate, status, created_at, updated_at)
+            VALUES ('DEP-1042', %s, 'llama-serving', 'Llama 3.1 8B', 'NVIDIA L4', '24 GB', 'Mumbai, IN', 60.0, 'Running', now()::text, now()::text)
+            ON CONFLICT (id) DO UPDATE SET user_id = EXCLUDED.user_id, status = 'Running';
+            """,
+            (uid_a,),
+        )
+
     # 1. Test GET /api/gpu/metrics for Customer A's active deployment DEP-1042
     print("\n[TEST 1] Retrieving GPU runtime metrics for DEP-1042...")
     res = client.get("/api/gpu/metrics?instance_id=DEP-1042", headers=headers_a)
@@ -46,6 +61,8 @@ def run_tests():
     assert data["instance_id"] == "DEP-1042"
     assert data["status"] == "Running"
     assert data["metrics_available"] is True
+    assert data["simulated"] is True  # placeholder values must never be labelled as live telemetry
+    assert "Simulated" in data["telemetry_source"]
     assert "utilization" in data
     assert "memory" in data
     print(f"  [PASS] Metrics retrieved: GPU={data['gpu_model']}, Util={data['utilization']['gpu_utilization_pct']}%, Status={data['utilization']['status']}")

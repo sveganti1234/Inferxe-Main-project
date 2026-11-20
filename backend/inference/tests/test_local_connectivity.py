@@ -77,7 +77,7 @@ class TestLocalConnectivityHelpers(unittest.TestCase):
             self.assertEqual(client_id, "")
 
     def test_health_reports_ok_with_supabase_rest_without_local_postgres(self):
-        client = TestClient(app, raise_server_exceptions=False)
+        client = self.enterContext(TestClient(app, raise_server_exceptions=False))
         with (
             patch("inference.routes.check_database_connection", return_value=False),
             patch.dict(

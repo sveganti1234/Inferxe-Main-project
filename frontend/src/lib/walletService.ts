@@ -8,6 +8,7 @@
  */
 
 import { getSession, ensureFreshSession } from './authStore'
+import { apiErrorDetail } from './apiConfig'
 
 const NOTIFICATIONS_API_BASE =
   (import.meta.env.VITE_NOTIFICATIONS_API_ENDPOINT as string | undefined)?.replace(/\/$/, '') ||
@@ -136,7 +137,7 @@ export async function fetchWalletBalance(): Promise<{
 
     const data = await res.json().catch(() => ({}))
     if (!res.ok) {
-      return { ok: false, error: data.detail || 'Failed to fetch wallet balance from backend.' }
+      return { ok: false, error: apiErrorDetail(data, 'Failed to fetch wallet balance from backend.') }
     }
 
     return { ok: true, balance: data as WalletBalance }
@@ -163,6 +164,8 @@ export async function topUpWallet(
   result?: WalletTransactionResult
   error?: string
   unauthorized?: boolean
+  /** HTTP status when the backend answered; undefined for network failures. */
+  status?: number
 }> {
   try {
     const session = await ensureFreshSession()
@@ -192,15 +195,27 @@ export async function topUpWallet(
     })
 
     if (res.status === 401) {
-      return { ok: false, unauthorized: true, error: 'Session expired or unauthenticated.' }
+      return { ok: false, unauthorized: true, status: 401, error: 'Session expired or unauthenticated.' }
     }
 
     const data = await res.json().catch(() => ({}))
     if (!res.ok) {
-      return { ok: false, error: data.detail || 'Failed to top up wallet.' }
+      const detail = typeof data.detail === 'string' ? data.detail : ''
+      let error: string
+      if (res.status === 403) {
+        // Self-service top-ups are disabled until a payment gateway verifies payments.
+        error = detail || 'Wallet top-ups are not available for self-service yet.'
+      } else if (res.status === 400) {
+        error = detail || 'The top-up amount was rejected.'
+      } else if (res.status >= 500) {
+        error = 'The wallet service had a problem processing your top-up. Please try again later.'
+      } else {
+        error = detail || 'Failed to top up wallet.'
+      }
+      return { ok: false, status: res.status, error }
     }
 
-    return { ok: true, result: data as WalletTransactionResult }
+    return { ok: true, status: res.status, result: data as WalletTransactionResult }
   } catch (err) {
     return {
       ok: false,
@@ -248,7 +263,7 @@ export async function fetchWalletTransactionHistory(
 
     const data = await res.json().catch(() => ({}))
     if (!res.ok) {
-      return { ok: false, error: data.detail || 'Failed to fetch transaction history from backend.' }
+      return { ok: false, error: apiErrorDetail(data, 'Failed to fetch transaction history from backend.') }
     }
 
     return { ok: true, history: data as WalletTransactionHistory }
@@ -312,7 +327,7 @@ export async function refundWallet(
 
     const data = await res.json().catch(() => ({}))
     if (!res.ok) {
-      return { ok: false, error: data.detail || 'Failed to process wallet refund.' }
+      return { ok: false, error: apiErrorDetail(data, 'Failed to process wallet refund.') }
     }
 
     return { ok: true, result: data as WalletRefundResult }

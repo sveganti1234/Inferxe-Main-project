@@ -526,6 +526,8 @@ export async function loginAdminBackend(
     }
   }
 
+  // Not an admin account: the caller continues with customer sign-in. There is deliberately no
+  // client-side admin fallback: admin access is granted only by the backend.
   return { ok: false, isAdmin: false }
 }
 

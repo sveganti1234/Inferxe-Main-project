@@ -23,6 +23,8 @@ import json
 import logging
 import re
 import socket
+
+import httpx2
 import time
 import urllib.error
 import urllib.parse
@@ -183,6 +185,23 @@ def _default_urllib_transport(
         )
         raise
 
+
+
+def _default_pooled_transport(
+    method: str,
+    url: str,
+    headers: Dict[str, str],
+    body: Optional[bytes],
+    timeout: float,
+) -> Tuple[int, Dict[str, str], bytes]:
+    """Default transport: the shared keep-alive httpx pool (also used by the SSH-key repository).
+
+    The stdlib urllib transport above opened a new connection (TCP + TLS handshake) for every
+    Supabase call; it stays available for callers that pass it explicitly.
+    """
+    from inference.supabase_ssh_keys import _default_pooled_http_transport  # lazy: avoids import coupling
+
+    return _default_pooled_http_transport(method, url, headers, body, timeout)
 
 @dataclass
 class SupabaseAPIKeyRecord:
@@ -398,7 +417,7 @@ class SupabaseAPIKeyRepository:
     ) -> None:
         self._settings = settings
         self.timeout = float(timeout)
-        self._transport = transport or _default_urllib_transport
+        self._transport = transport or _default_pooled_transport
 
     def _get_settings(self) -> SupabaseSettings:
         if self._settings is not None:
@@ -440,7 +459,7 @@ class SupabaseAPIKeyRepository:
             status_code, resp_headers, resp_body = self._transport(
                 method, url, headers, body_bytes, self.timeout
             )
-        except (TimeoutError, socket.timeout) as timeout_err:
+        except (TimeoutError, socket.timeout, httpx2.TimeoutException) as timeout_err:
             elapsed_ms = max(0.0, (time.perf_counter() - started_at) * 1000.0)
             logger.error(
                 "Supabase REST %s %s timed out after %.1fs (elapsed_ms=%.1f).",
@@ -464,7 +483,7 @@ class SupabaseAPIKeyRepository:
             raise SupabaseAPIKeyServiceUnavailableError(
                 "API key database is temporarily unavailable."
             ) from conn_err
-        except http.client.HTTPException as http_err:
+        except (http.client.HTTPException, httpx2.HTTPError) as http_err:
             elapsed_ms = max(0.0, (time.perf_counter() - started_at) * 1000.0)
             logger.error(
                 "Supabase REST %s %s protocol error (%s, elapsed_ms=%.1f).",

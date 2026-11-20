@@ -4,7 +4,7 @@ Tests cryptographic parsing, RSA/Ed25519/ECDSA validation, 2048-bit minimum chec
 private key rejection, OpenSSH SHA-256 fingerprints, and tenant duplicate detection.
 
 Run via:
-  .venv\\Scripts\\python.exe -m unittest backend/inference/tests/test_ssh_key_service.py
+  python -m pytest backend/inference/tests/test_ssh_key_service.py   (from the repository root)
 """
 
 import sys

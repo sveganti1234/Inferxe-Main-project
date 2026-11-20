@@ -1,6 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { applyLiveTarget, isTestRun, liveSupabaseTestsEnabled } from '../lib/testSafety.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 export const BACKEND_DIR = path.resolve(__dirname, '..')
@@ -73,6 +74,13 @@ export function loadBackendEnv({
   targetEnv = process.env,
 } = {}) {
   const isDefaultBackendPath = envPath === BACKEND_ENV_PATH
+  // Test processes never load the project .env (production credentials), live mode included: live tests get
+  // only the explicitly named, validated non-production project (lib/testSafety.js). Explicit envPath values
+  // (e.g. temporary fixtures) still load.
+  if (isDefaultBackendPath && targetEnv === process.env && isTestRun()) {
+    if (liveSupabaseTestsEnabled()) applyLiveTarget()
+    return { loaded: false, blocked: true, envPath, keys: [] }
+  }
   const activePath =
     isDefaultBackendPath && !fs.existsSync(BACKEND_ENV_PATH) && fs.existsSync(ROOT_ENV_PATH)
       ? ROOT_ENV_PATH

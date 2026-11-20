@@ -1,9 +1,10 @@
 // @ts-nocheck
+import './support/networkGuard.mjs'  // test isolation guard: must stay the first import (tests/testSafety.test.mjs checks)
 import assert from 'node:assert/strict'
 import crypto from 'node:crypto'
 import test from 'node:test'
 import { loadBackendEnv } from '../auth/envLoader.js'
-import { createAdminAuthMiddleware } from '../auth/adminAuth.js'
+import { createAdminAuthMiddleware, createAdminToken } from '../auth/adminAuth.js'
 import {
   upsertCustomerProfile,
   updateCustomerHeartbeat,
@@ -13,7 +14,11 @@ import {
   cleanExpiredSessions,
 } from '../database/supabaseCustomerService.js'
 
-loadBackendEnv()
+// Tests marked LIVE_SKIP read and write the Supabase project configured in backend/.env (the production
+// project, unless pointed elsewhere). They only run on explicit opt-in, like backend/tests/test_supabase_rag.py.
+const LIVE_SUPABASE = process.env.INFERXE_LIVE_SUPABASE_TESTS === '1'
+const LIVE_SKIP = LIVE_SUPABASE ? false : 'writes to the configured Supabase project; set INFERXE_LIVE_SUPABASE_TESTS=1 to run'
+if (LIVE_SUPABASE) loadBackendEnv()
 
 function encodeBase64Url(value) {
   return Buffer.from(value).toString('base64url')
@@ -100,7 +105,7 @@ function createMockHttpServer(options = {}) {
   }
 }
 
-test('1, 2, 3, 4: Customer login -> first heartbeat -> repeated heartbeat -> explicit logout lifecycle in Supabase', async () => {
+test('1, 2, 3, 4: Customer login -> first heartbeat -> repeated heartbeat -> explicit logout lifecycle in Supabase', { skip: LIVE_SKIP }, async () => {
   const testSub = 'sub-test-heartbeat-lifecycle-2026'
   const testEmail = 'heartbeat.lifecycle@inferxe.com'
   const url = process.env.SUPABASE_URL
@@ -147,7 +152,7 @@ test('1, 2, 3, 4: Customer login -> first heartbeat -> repeated heartbeat -> exp
   }
 })
 
-test('5. Browser pagehide / keepalive logout contract marks customer offline', async () => {
+test('5. Browser pagehide / keepalive logout contract marks customer offline', { skip: LIVE_SKIP }, async () => {
   const testSub = 'sub-test-pagehide-contract-2026'
   const testEmail = 'pagehide.test@inferxe.com'
   const url = process.env.SUPABASE_URL
@@ -166,12 +171,18 @@ test('5. Browser pagehide / keepalive logout contract marks customer offline', a
     const onlineCheck = await getCustomerDetails(testSub)
     assert.equal(onlineCheck.activity_status, 'Online')
 
-    // Simulate pagehide keepalive logout request
+    // Simulate pagehide keepalive logout request (keepalive fetch carries the customer's ID token)
+    const nowSec = Math.floor(Date.now() / 1000)
+    const customerToken = createSignedToken(privateKey, {
+      iss: issuer, aud: clientId, token_use: 'id', sub: testSub, email: testEmail,
+      email_verified: true, iat: nowSec - 10, exp: nowSec + 600,
+    })
     const dispatch = createMockHttpServer()
     const res = await dispatch({
       url: '/api/customer/logout',
       method: 'POST',
-      body: { cognito_sub: testSub, email: testEmail },
+      headers: { authorization: `Bearer ${customerToken}` },
+      body: { session_id: 'pagehide-tab' },
     })
 
     assert.equal(res.status, 200)
@@ -250,28 +261,41 @@ test('7. Expired token is rejected with 401 by heartbeat and logout endpoints', 
 })
 
 test('8. Admin session does not trigger customer heartbeat and is rejected with 403', async () => {
-  const dispatch = createMockHttpServer()
-
-  // Heartbeat using Superadmin email
-  const adminHbRes = await dispatch({
-    url: '/api/customer/heartbeat',
-    method: 'POST',
-    body: { email: 'admin@inferxe.com', cognito_sub: 'usr_admin' },
+  const recorded = []
+  const dispatch = createMockHttpServer({
+    updateCustomerHeartbeat: async (args) => { recorded.push(args); return true },
+    recordCustomerLogout: async (args) => { recorded.push(args); return true },
   })
-  assert.equal(adminHbRes.status, 403, 'Admin email must be rejected with 403 on customer heartbeat')
-  assert.equal(adminHbRes.data.ok, false)
+  const nowSec = Math.floor(Date.now() / 1000)
 
-  // Logout using Superadmin email
-  const adminLogoutRes = await dispatch({
-    url: '/api/customer/logout',
-    method: 'POST',
-    body: { email: 'admin@inferxe.com', cognito_sub: 'usr_admin' },
-  })
-  assert.equal(adminLogoutRes.status, 403, 'Admin email must be rejected with 403 on customer logout')
-  assert.equal(adminLogoutRes.data.ok, false)
+  for (const url of ['/api/customer/heartbeat', '/api/customer/logout']) {
+    // A superadmin email in the body is not an identity: no token -> 401
+    const noToken = await dispatch({ url, method: 'POST', body: { email: 'admin@inferxe.com', cognito_sub: 'usr_admin' } })
+    assert.equal(noToken.status, 401, `${url}: request without a token must be rejected with 401`)
+    assert.equal(noToken.data.ok, false)
+
+    // A genuine admin session token (HS256) is not a customer token -> 401
+    const adminToken = createAdminToken(
+      { sub: 'usr_admin', sid: 'sess-admin', sv: 1, role: 'superadmin', email: 'admin@inferxe.com', iat: nowSec, exp: nowSec + 600 },
+      'test_session_secret_12345678901234567890',
+    )
+    const adminSession = await dispatch({ url, method: 'POST', headers: { authorization: `Bearer ${adminToken}` } })
+    assert.equal(adminSession.status, 401, `${url}: admin session token must be rejected`)
+
+    // A verified Cognito token belonging to a superadmin email -> 403
+    const superadminCognito = createSignedToken(privateKey, {
+      iss: issuer, aud: clientId, token_use: 'id', sub: 'cognito-admin', email: 'admin@inferxe.com',
+      email_verified: true, iat: nowSec - 10, exp: nowSec + 600,
+    })
+    const adminRes = await dispatch({ url, method: 'POST', headers: { authorization: `Bearer ${superadminCognito}` } })
+    assert.equal(adminRes.status, 403, `${url}: admin account must be rejected with 403`)
+    assert.equal(adminRes.data.ok, false)
+  }
+  assert.equal(recorded.length, 0, 'no heartbeat or logout may be recorded for admin requests')
 })
 
-test('9. Admin logout remains unchanged and functional', async () => {
+// Uses no injected Supabase client, so the admin login looks up the real admin_users table.
+test('9. Admin logout remains unchanged and functional', { skip: LIVE_SKIP }, async () => {
   const dispatch = createMockHttpServer({
     adminPassword: 'admin123',
     sessionSecret: 'test_session_secret_12345678901234567890',
@@ -311,7 +335,7 @@ test('9. Admin logout remains unchanged and functional', async () => {
   assert.equal(logoutRes.data.ok, true)
 })
 
-test('10. Multiple browser sessions update shared Supabase profile without duplicating records', async () => {
+test('10. Multiple browser sessions update shared Supabase profile without duplicating records', { skip: LIVE_SKIP }, async () => {
   const testSub = 'sub-test-multi-laptop-2026'
   const testEmail = 'multi.session@inferxe.com'
   const url = process.env.SUPABASE_URL
@@ -355,7 +379,7 @@ test('10. Multiple browser sessions update shared Supabase profile without dupli
   }
 })
 
-test('11. Tab 1 logs out while Tab 2 remains active -> status remains Online', async () => {
+test('11. Tab 1 logs out while Tab 2 remains active -> status remains Online', { skip: LIVE_SKIP }, async () => {
   const testSub = 'sub-test-multi-tab-2026'
   const testEmail = 'multi.tab@inferxe.com'
   const url = process.env.SUPABASE_URL
@@ -408,7 +432,7 @@ test('11. Tab 1 logs out while Tab 2 remains active -> status remains Online', a
   }
 })
 
-test('12. Expired session cleanup prunes old sessions without affecting live sessions', async () => {
+test('12. Expired session cleanup prunes old sessions without affecting live sessions', { skip: LIVE_SKIP }, async () => {
   const testSub = 'sub-test-cleanup-2026'
   const testEmail = 'cleanup.test@inferxe.com'
 

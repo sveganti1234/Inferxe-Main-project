@@ -129,6 +129,9 @@ class TestSupabaseConfig(unittest.TestCase):
         summary = opaque_settings.masked_summary()
         self.assertEqual(summary, {"configured": True, "scheme": "https", "key_format": "sb_secret"})
 
+    # Validating the real backend/.env means loading production credentials into the test process, which the
+    # isolation guard (backend/isolation_guard.py) forbids. The same check runs outside tests: npm run check:supabase
+    @unittest.skip("loads the real backend/.env; validate it with `npm run check:supabase` instead")
     def test_live_backend_env_file_is_valid_when_present(self):
         if not BACKEND_ENV_FILE.is_file():
             self.skipTest("backend/.env not present in CI")

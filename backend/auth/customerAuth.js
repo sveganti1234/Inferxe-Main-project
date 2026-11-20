@@ -111,6 +111,8 @@ async function syncProfile(
   {
     verifyToken = verifyCognitoIdToken,
     getSupabaseClient = getSupabaseAdminClient,
+    // Write path (Supabase REST via supabaseCustomerService); injectable like the dependencies above.
+    saveCustomerProfile = upsertCustomerProfile,
   } = {}
 ) {
   const token = getBearerToken(req)
@@ -199,7 +201,7 @@ async function syncProfile(
 
     let customerRecord = null
     try {
-      customerRecord = await upsertCustomerProfile({
+      customerRecord = await saveCustomerProfile({
         cognito_sub: claims.sub,
         full_name: fullName,
         email,

@@ -2,15 +2,16 @@
 Pydantic data validation schemas for the Inferxe Inference API.
 """
 
-from typing import Optional, Dict, Any, List
+from typing import Optional, List
 from pydantic import BaseModel, Field, field_validator
 
 
 class InferenceRequest(BaseModel):
     """Customer inference payload."""
     model: Optional[str] = Field(
-        default="nvidia/nemotron-3.5-bolt-e4b",
-        description="Target model identifier"
+        default=None,
+        description="Target model identifier. Omit to use the server's default model; "
+                    "other values must be enabled by the operator (NVIDIA_ALLOWED_MODELS).",
     )
     prompt: str = Field(
         ...,

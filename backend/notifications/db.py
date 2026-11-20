@@ -4,17 +4,23 @@ Handles connection pooling, queries with RealDictCursor, and idempotent migratio
 """
 
 import os
-import json
 import logging
+import math
+import threading
 import traceback
+import weakref
 from pathlib import Path
 from typing import Dict, Any, List, Optional
-from datetime import datetime, timezone
-from urllib.parse import parse_qs, unquote, urlsplit, urlunsplit
+from urllib.parse import parse_qs, unquote, urlsplit
 import psycopg2
-from psycopg2.extras import RealDictCursor
-from psycopg2.pool import ThreadedConnectionPool
-from dotenv import load_dotenv
+from psycopg2.extensions import TRANSACTION_STATUS_IDLE, TRANSACTION_STATUS_UNKNOWN
+from psycopg2 import sql
+from psycopg2.pool import PoolError
+import sys as _sys
+_GUARD_DIR = str(__import__('pathlib').Path(__file__).resolve().parents[1])  # backend/
+if _GUARD_DIR not in _sys.path:
+    _sys.path.append(_GUARD_DIR)
+from isolation_guard import load_dotenv, is_test_process  # noqa: E402  (tests never load the project .env: isolation_guard.py)
 
 ROOT_DIR = Path(__file__).resolve().parents[2]
 BACKEND_DIR = ROOT_DIR / "backend"
@@ -91,7 +97,36 @@ except ValueError:
     PG_PORT = 5432
     PG_DB = "not configured"
 
-_pool: Optional[ThreadedConnectionPool] = None
+class DBConfigError(ValueError):
+    """A DB_* environment variable is invalid. Raised at import so startup fails clearly."""
+
+
+def _env_number(name: str, default, cast, minimum, maximum):
+    """Read a numeric env var; unset or empty means default, anything invalid raises DBConfigError."""
+    raw = os.environ.get(name)
+    if raw is None or not raw.strip():
+        return default
+    expected = f"{'an integer' if cast is int else 'a number'} between {minimum} and {maximum}"
+    try:
+        value = cast(raw.strip())
+    except ValueError:
+        raise DBConfigError(f"Invalid {name}={raw!r}: expected {expected}.") from None
+    if not math.isfinite(value) or not minimum <= value <= maximum:
+        raise DBConfigError(f"Invalid {name}={raw!r}: expected {expected}.")
+    return value
+
+
+POOL_SIZE = _env_number("DB_POOL_SIZE", 5, int, 1, 100)
+POOL_WAIT_SECONDS = _env_number("DB_POOL_TIMEOUT", 5.0, float, 0.1, 60)
+# 0 disables; the maximum is Postgres' limit for statement_timeout.
+STATEMENT_TIMEOUT_MS = _env_number("DB_STATEMENT_TIMEOUT_MS", 30000, int, 0, 2147483647)
+HEALTH_CHECK_POOL_WAIT_SECONDS = 1.0  # health probes must stay fast even when the pool is saturated
+SUPAVISOR_TRANSACTION_PORT = 6543  # session-level SET is unsafe in transaction pooling mode
+
+_pool: Optional["_ConnectionPool"] = None
+_pool_lock = threading.Lock()
+_timeout_configured: "weakref.WeakSet" = weakref.WeakSet()  # physical connections that already ran SET
+_timeout_lock = threading.Lock()  # guards _timeout_configured (WeakSet is not documented thread-safe)
 
 def _mask_connection_params(params: Dict[str, Any]) -> Dict[str, Any]:
     """Return a copy of params with credential fields masked so secrets are never logged."""
@@ -197,6 +232,23 @@ def _extract_url_components(parsed_url) -> Dict[str, Any]:
     }
 
 
+def _assert_test_database_allowed(host: Optional[str]) -> None:
+    """In test processes (any runner), refuse non-local databases before connecting: libpq opens its own
+    sockets, so the Python socket guard (backend/isolation_guard.py) cannot see these connections. The only
+    exception is a dedicated remote test database opted into with INFERXE_TEST_DATABASE_ALLOW_REMOTE=1, which
+    notifications/tests/live_db_guard.py checks is not a production DSN. Live Supabase mode does not lift it."""
+    if not is_test_process():
+        return
+    if os.environ.get("INFERXE_TEST_DATABASE_ALLOW_REMOTE") == "1":
+        return
+    if (host or "").strip("[]").lower() in ("localhost", "127.0.0.1", "::1"):
+        return
+    raise RuntimeError(
+        "[test-safety] refusing to connect to a non-local database during tests. Use an isolated local "
+        "test database (INFERXE_TEST_DATABASE_URL)."
+    )
+
+
 def get_connection_params() -> Dict[str, Any]:
     dsn = _resolve_notifications_dsn() or DATABASE_URL
     if not dsn:
@@ -252,6 +304,11 @@ def get_connection_params() -> Dict[str, Any]:
         "port": components["port"],
         "dbname": components["dbname"],
         "connect_timeout": 8,
+        # TCP keepalives so idle pooled connections dropped by the network are detected.
+        "keepalives": 1,
+        "keepalives_idle": 30,
+        "keepalives_interval": 10,
+        "keepalives_count": 3,
     }
 
     if components["user"]:
@@ -269,52 +326,250 @@ def get_connection_params() -> Dict[str, Any]:
 
     return params
 
-def get_pool() -> ThreadedConnectionPool:
-    global _pool
-    if _pool is None or _pool.closed:
-        # ── STAGE 4: Connection parameter resolution ──────────────────
+class PoolTimeoutError(PoolError):
+    """No pooled connection became free within DB_POOL_TIMEOUT seconds (mapped to HTTP 503)."""
+
+
+def _close_quietly(conn) -> None:
+    try:
+        conn.close()
+    except Exception:
+        pass
+
+
+class _ConnectionPool:
+    """Bounded pool: opens connections on demand and keeps returned ones for reuse.
+
+    The semaphore is the capacity, so slots and connections cannot drift apart.
+    A connection is handed out only under the lock while the pool is open.
+    """
+
+    def __init__(self, size: int, **params):
+        self._params = params
+        self._idle: List[Any] = []  # LIFO: reuse the most recently used (warmest) connection
+        self._in_use: set = set()  # checked-out connections; guards against double/foreign putconn
+        self._lock = threading.Lock()
+        self._slots = threading.BoundedSemaphore(size)
+        self.maxconn = size
+        self.closed = False
+        self.transaction_mode = str(params.get("port")) == str(SUPAVISOR_TRANSACTION_PORT)
+
+    def getconn(self, timeout: Optional[float] = None):
+        wait = POOL_WAIT_SECONDS if timeout is None else timeout
+        if not self._slots.acquire(timeout=wait):
+            raise PoolTimeoutError("No database connection available.")
         try:
-            params = get_connection_params()
-        except Exception:
-            # get_connection_params already logged stage-specific diagnostics
+            with self._lock:
+                if self.closed:
+                    raise PoolError("connection pool is closed")
+                while self._idle:
+                    conn = self._idle.pop()
+                    if not conn.closed:
+                        self._in_use.add(conn)
+                        return conn
+            _assert_test_database_allowed(self._params.get("host"))
+            conn = psycopg2.connect(**self._params)  # slow: no lock held
+            with self._lock:
+                if not self.closed:
+                    self._in_use.add(conn)
+                    return conn
+            # closeall() ran while connecting: never hand out a connection from a closed pool.
+            _close_quietly(conn)
+            raise PoolError("connection pool is closed")
+        except BaseException:
+            self._slots.release()
             raise
 
-        # ── STAGE 5: ThreadedConnectionPool creation ──────────────────
+    def putconn(self, conn, close: bool = False) -> None:
+        with self._lock:
+            if conn not in self._in_use:
+                # Double or foreign putconn: re-pooling would let two requests share one connection.
+                raise PoolError("connection is not checked out from this pool")
+            self._in_use.discard(conn)
         try:
-            _pool = ThreadedConnectionPool(minconn=1, maxconn=15, **params)
-        except Exception as e:
-            logger.error(
-                "Failed to initialize PostgreSQL pool at stage 'ThreadedConnectionPool': %s",
-                _sanitize_error_message(str(e)),
-            )
-            logger.debug(
-                "Pool creation traceback:\n%s",
-                traceback.format_exc(),
-            )
-            logger.debug("Connection params (masked): %s", _mask_connection_params(params))
-            raise
-    return _pool
+            keep = not close and not conn.closed
+            if keep:
+                # Same cleanup psycopg2's pool performs before re-pooling a connection.
+                status = conn.info.transaction_status
+                if status == TRANSACTION_STATUS_UNKNOWN:
+                    keep = False
+                elif status != TRANSACTION_STATUS_IDLE:
+                    try:
+                        conn.rollback()
+                    except Exception:
+                        keep = False
+            with self._lock:
+                if keep and not self.closed:
+                    self._idle.append(conn)
+                    return
+            _close_quietly(conn)
+        finally:
+            self._slots.release()
+
+    def closeall(self) -> None:
+        """Close idle connections; in-use ones are closed when their holders return them."""
+        with self._lock:
+            self.closed = True
+            idle, self._idle = self._idle, []
+        for conn in idle:
+            _close_quietly(conn)
+
+
+def get_pool() -> "_ConnectionPool":
+    global _pool
+    with _pool_lock:
+        if _pool is None or _pool.closed:
+            _pool = None
+            # ── STAGE 4: Connection parameter resolution ──────────────────
+            try:
+                params = get_connection_params()
+            except Exception:
+                # get_connection_params already logged stage-specific diagnostics
+                raise
+
+            # ── STAGE 5: Pool creation (opens no connections) ─────────────
+            try:
+                pool = _ConnectionPool(POOL_SIZE, **params)
+            except Exception as e:
+                logger.error(
+                    "Failed to initialize PostgreSQL pool: %s",
+                    _sanitize_error_message(str(e)),
+                )
+                logger.debug("Pool creation traceback:\n%s", traceback.format_exc())
+                logger.debug("Connection params (masked): %s", _mask_connection_params(params))
+                raise
+            if pool.transaction_mode and STATEMENT_TIMEOUT_MS:
+                logger.warning(
+                    "Transaction-mode pooler port detected; skipping session statement_timeout. "
+                    "Set it with ALTER ROLE instead."
+                )
+            _pool = pool
+        return _pool
+
+
+def close_pool() -> None:
+    """Close the pool (app shutdown). Requests still in flight finish and close their connection on exit."""
+    global _pool
+    with _pool_lock:
+        if _pool is not None:
+            _pool.closeall()
+            _pool = None
+
 
 class DBConnection:
     """Context manager for pooled PostgreSQL connections."""
-    def __init__(self, autocommit: bool = True):
+    def __init__(self, autocommit: bool = True, timeout: Optional[float] = None):
         self.autocommit = autocommit
+        self.timeout = timeout  # seconds to wait for a free pooled connection; None = DB_POOL_TIMEOUT
         self.conn = None
+        self._pool: Optional[_ConnectionPool] = None
 
     def __enter__(self):
-        pool = get_pool()
-        self.conn = pool.getconn()
-        self.conn.autocommit = self.autocommit
-        return self.conn
+        self._pool = get_pool()
+        conn = self._pool.getconn(timeout=self.timeout)
+        self.conn = conn
+        try:
+            # SET is transactional: run it in autocommit so a later rollback cannot undo it.
+            conn.autocommit = True
+            if STATEMENT_TIMEOUT_MS and not self._pool.transaction_mode:
+                with _timeout_lock:
+                    needs_timeout = conn not in _timeout_configured
+                if needs_timeout:  # only this request holds conn, so no check-then-set race on it
+                    with conn.cursor() as cur:
+                        cur.execute("SET statement_timeout = %s", (STATEMENT_TIMEOUT_MS,))
+                    with _timeout_lock:
+                        _timeout_configured.add(conn)
+            conn.autocommit = self.autocommit
+            return conn
+        except BaseException:
+            self._release(close=True)
+            raise
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        if self.conn:
-            if not self.autocommit and exc_type is not None:
-                try:
-                    self.conn.rollback()
-                except Exception:
-                    pass
-            get_pool().putconn(self.conn)
+        if self.conn is None:
+            return
+        if not self.autocommit and exc_type is not None:
+            try:
+                self.conn.rollback()
+            except Exception:
+                pass
+        self._release(close=isinstance(exc_val, (psycopg2.OperationalError, psycopg2.InterfaceError)))
+
+    def _release(self, close: bool) -> None:
+        conn, self.conn = self.conn, None
+        if conn is not None and self._pool is not None:
+            self._pool.putconn(conn, close=close)
+
+_UUID_REGEX = r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+
+
+def _column_type(cur, table: str, column: str) -> Optional[str]:
+    """information_schema data_type of public.<table>.<column>, or None if the column is missing."""
+    cur.execute(
+        """
+        SELECT data_type FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = %s AND column_name = %s
+        """,
+        (table, column),
+    )
+    row = cur.fetchone()
+    return row[0] if row else None
+
+
+# Tables this service creates. All are service-only: Supabase grants new public tables to its PostgREST roles
+# (anon, authenticated) by default, so each gets RLS with no policies and loses every privilege of those roles.
+# The role this service connects as owns the tables and is exempt (RLS is not FORCED); service_role bypasses RLS.
+# Same rules as database/migrations/006_enable_rls_service_only_tables.sql.
+SERVICE_ONLY_TABLES = (
+    "users", "notifications", "notification_outbox", "wallets", "wallet_transactions",
+    "gpu_inventory", "gpu_deployments", "gpu_maintenance_schedules", "workspace_settings",
+)
+PUBLIC_API_ROLES = ("anon", "authenticated")
+_TABLE_PRIVILEGES = "SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER"
+
+
+def protect_service_tables(cur, tables=SERVICE_ONLY_TABLES) -> List[str]:
+    """Enable RLS and revoke anon/authenticated privileges on existing `tables`. Idempotent: only tables that
+    need a change are altered (no ALTER TABLE lock on an already protected table). Failures are logged, never
+    raised, and are isolated with a savepoint when the cursor is inside a transaction. Returns tables changed."""
+    cur.execute(
+        "SELECT c.relname, c.relrowsecurity FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace "
+        "WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p') AND c.relname = ANY(%s);",
+        (list(tables),),
+    )
+    rls_state = dict(cur.fetchall())
+    cur.execute("SELECT rolname FROM pg_roles WHERE rolname = ANY(%s);", (list(PUBLIC_API_ROLES),))
+    roles = [r[0] for r in cur.fetchall()]  # absent on plain PostgreSQL (local/test): nothing to revoke
+    in_transaction = not cur.connection.autocommit
+    changed = []
+    for table, rls_enabled in sorted(rls_state.items()):
+        exposed = []
+        for role in roles:
+            cur.execute("SELECT has_table_privilege(%s, %s, %s);", (role, f"public.{table}", _TABLE_PRIVILEGES))
+            if cur.fetchone()[0]:
+                exposed.append(role)
+        if rls_enabled and not exposed:
+            continue
+        try:
+            if in_transaction:
+                cur.execute("SAVEPOINT protect_service_table;")
+            if not rls_enabled:
+                cur.execute(sql.SQL("ALTER TABLE public.{} ENABLE ROW LEVEL SECURITY;").format(sql.Identifier(table)))
+            if exposed:
+                cur.execute(sql.SQL("REVOKE ALL ON TABLE public.{} FROM {};").format(
+                    sql.Identifier(table), sql.SQL(", ").join(sql.Identifier(r) for r in exposed)))
+            if in_transaction:
+                cur.execute("RELEASE SAVEPOINT protect_service_table;")
+            changed.append(table)
+        except psycopg2.Error as e:
+            if in_transaction:
+                cur.execute("ROLLBACK TO SAVEPOINT protect_service_table;")
+            logger.error("Could not enable RLS / revoke public access on %s (%s); apply migration 006.",
+                         table, type(e).__name__)
+    if changed:
+        logger.info("Row-level security enabled / public access revoked on: %s", ", ".join(changed))
+    return changed
+
 
 def init_db():
     """
@@ -373,9 +628,10 @@ def init_db():
                 """,
                 (list(expected_tables),),
             )
-            col_pairs = {(r[0], r[1]) for r in cur.fetchall()}
+            col_rows = cur.fetchall()  # fetch once: a second fetchall() returns nothing
+            col_pairs = {(r[0], r[1]) for r in col_rows}
             existing_tables = {t for (t, _) in col_pairs}
-            col_types = {(r[0], r[1]): (r[2], r[3]) for r in cur.fetchall()}
+            col_types = {(r[0], r[1]): (r[2], r[3]) for r in col_rows}
 
             cur.execute(
                 """
@@ -393,11 +649,11 @@ def init_db():
                 SELECT conrelid::regclass::text, conname
                 FROM pg_constraint
                 WHERE contype = 'f'
-                  AND (conrelid::regclass::text, conname) = ANY(%s);
+                  AND conname = ANY(%s);
                 """,
-                (list(expected_fk_constraints),),
+                ([name for (_, name) in expected_fk_constraints],),
             )
-            existing_fks = {(r[0], r[1]) for r in cur.fetchall()}
+            existing_fks = {(r[0], r[1]) for r in cur.fetchall()} & expected_fk_constraints
 
             # Verify column types for critical columns
             expected_col_types = {
@@ -418,9 +674,13 @@ def init_db():
                 and types_match
             ):
                 logger.info("PostgreSQL schema already verified (%d tables ready).", len(existing_tables))
+                protect_service_tables(cur)  # no-op when already protected
                 return
-        except Exception:
-            pass
+        except Exception as e:
+            logger.warning(
+                "Schema fast-path check failed (%s); running full idempotent migration.",
+                type(e).__name__,
+            )
 
         # 1. users table
         cur.execute("""
@@ -456,15 +716,17 @@ def init_db():
         # Ensure message column exists (schema source of truth). Backfill from detail
         # for databases created before the detail->message rename.
         cur.execute("ALTER TABLE notifications ADD COLUMN IF NOT EXISTS message TEXT DEFAULT '';")
-        cur.execute(
-            """
-            UPDATE notifications
-            SET message = detail
-            WHERE (message IS NULL OR message = '')
-              AND detail IS NOT NULL
-              AND detail != '';
-            """
-        )
+        # Only legacy databases have `detail`; on a fresh one this UPDATE would fail and abort init.
+        if _column_type(cur, "notifications", "detail") is not None:
+            cur.execute(
+                """
+                UPDATE notifications
+                SET message = detail
+                WHERE (message IS NULL OR message = '')
+                  AND detail IS NOT NULL
+                  AND detail != '';
+                """
+            )
 
         # 3. notification_outbox table
         cur.execute("""
@@ -526,22 +788,34 @@ def init_db():
         cur.execute("ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS refunded_amount NUMERIC(14,2) NOT NULL DEFAULT 0;")
         cur.execute("ALTER TABLE wallet_transactions ADD COLUMN IF NOT EXISTS source VARCHAR(32) NOT NULL DEFAULT 'legacy';")
 
-        # Conditionally convert parent_transaction_id from VARCHAR(64) to UUID if needed
-        cur.execute("""
-            SELECT data_type FROM information_schema.columns
-            WHERE table_schema = 'public'
-              AND table_name = 'wallet_transactions'
-              AND column_name = 'parent_transaction_id'
-        """)
-        col_row = cur.fetchone()
-        if col_row is not None and col_row[0] != 'uuid':
-            cur.execute("""
-                ALTER TABLE wallet_transactions
-                    ALTER COLUMN parent_transaction_id TYPE UUID
-                    USING parent_transaction_id::UUID
-            """)
+        # Conditionally convert parent_transaction_id from VARCHAR(64) to UUID if needed.
+        # Skip (with a warning) when existing values are not valid UUIDs: the cast would fail
+        # and abort the remaining migration steps, including index creation.
+        parent_type = _column_type(cur, "wallet_transactions", "parent_transaction_id")
+        if parent_type is not None and parent_type != "uuid":
+            cur.execute(
+                """
+                SELECT COUNT(*) FROM wallet_transactions
+                WHERE parent_transaction_id IS NOT NULL
+                  AND parent_transaction_id::text !~* %s
+                """,
+                (_UUID_REGEX,),
+            )
+            if cur.fetchone()[0] == 0:
+                cur.execute("""
+                    ALTER TABLE wallet_transactions
+                        ALTER COLUMN parent_transaction_id TYPE UUID
+                        USING parent_transaction_id::UUID
+                """)
+                parent_type = "uuid"
+            else:
+                logger.warning(
+                    "wallet_transactions.parent_transaction_id has non-UUID values; "
+                    "skipping UUID conversion and parent FK. Clean the data, then restart."
+                )
 
-        # Idempotent self-referential FK: schema-aware check before adding
+        # Idempotent self-referential FK: only when both columns are UUID, otherwise
+        # ADD CONSTRAINT fails on the type mismatch (legacy VARCHAR ids) and aborts init.
         cur.execute("""
             SELECT 1 FROM information_schema.table_constraints
             WHERE table_schema = 'public'
@@ -550,13 +824,21 @@ def init_db():
               AND constraint_type = 'FOREIGN KEY'
         """)
         if cur.fetchone() is None:
-            cur.execute("""
-                ALTER TABLE wallet_transactions
-                    ADD CONSTRAINT fk_wallet_tx_parent
-                    FOREIGN KEY (parent_transaction_id)
-                    REFERENCES wallet_transactions(id)
-                    ON DELETE RESTRICT
-            """)
+            id_type = _column_type(cur, "wallet_transactions", "id")
+            if id_type == "uuid" and parent_type == "uuid":
+                cur.execute("""
+                    ALTER TABLE wallet_transactions
+                        ADD CONSTRAINT fk_wallet_tx_parent
+                        FOREIGN KEY (parent_transaction_id)
+                        REFERENCES wallet_transactions(id)
+                        ON DELETE RESTRICT
+                """)
+            else:
+                logger.warning(
+                    "Skipping fk_wallet_tx_parent: wallet_transactions.id is %s and "
+                    "parent_transaction_id is %s (both must be uuid).",
+                    id_type, parent_type,
+                )
 
         # 6. gpu_inventory table
         cur.execute("""
@@ -616,6 +898,7 @@ def init_db():
         cur.execute("CREATE INDEX IF NOT EXISTS idx_wallet_tx_user_id ON wallet_transactions(user_id);")
         cur.execute("CREATE INDEX IF NOT EXISTS idx_gpu_dep_user_id ON gpu_deployments(user_id);")
 
+        protect_service_tables(cur)
         logger.info("Safe database migrations completed successfully.")
 
 if __name__ == "__main__":

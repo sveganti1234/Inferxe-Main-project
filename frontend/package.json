@@ -4,6 +4,9 @@
   "version": "1.0.0",
   "description": "Inferxe Frontend — GPU Marketplace UI & Control Plane",
   "type": "module",
+  "engines": {
+    "node": ">=24.7.0"
+  },
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5173",
     "build": "tsc --noEmit && vite build",

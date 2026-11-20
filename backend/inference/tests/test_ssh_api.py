@@ -7,7 +7,7 @@ Enforces tenant isolation, private key rejection, duplicate rejection, permanent
 and sanitized error handling without local SQLite SSHKey persistence.
 
 Run via:
-  .venv\Scripts\python.exe -m unittest backend/inference/tests/test_ssh_api.py
+  python -m pytest backend/inference/tests/test_ssh_api.py   (from the repository root)
 """
 
 import base64
@@ -93,7 +93,7 @@ class TestSSHKeyAPI(unittest.TestCase):
         )
         Base.metadata.create_all(bind=cls.test_engine)
 
-        cls.client = TestClient(app, raise_server_exceptions=False)
+        cls.client = cls.enterClassContext(TestClient(app, raise_server_exceptions=False))  # runs the lifespan (inference limiter)
 
         # Generate sample keys for testing
         cls.ed25519_priv = ed25519.Ed25519PrivateKey.generate()

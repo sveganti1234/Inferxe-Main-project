@@ -1,9 +1,17 @@
+import './support/networkGuard.mjs'  // test isolation guard: must stay the first import (tests/testSafety.test.mjs checks)
 import assert from 'node:assert/strict'
 import crypto from 'node:crypto'
 import test from 'node:test'
 import { verifyCognitoIdToken } from '../auth/cognitoIdToken.js'
 import { createCustomerAuthMiddleware } from '../auth/customerAuth.js'
 import { upsertCognitoProfile } from '../database/supabaseProfiles.js'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+
+// The profile-sync endpoint mirrors the customer into SQLite: keep that in a temporary file, not the dev database.
+const sqliteDir = fs.mkdtempSync(path.join(os.tmpdir(), 'inferxe-profile-sync-'))
+process.env.CUSTOMER_DB_PATH = path.join(sqliteDir, 'customers.db')
 
 function encodeBase64Url(value) {
   return Buffer.from(value).toString('base64url')
@@ -233,7 +241,14 @@ test('profile sync endpoint requires a verified Cognito identity and upserts its
       }
     },
   }
+  // The profile is written through supabaseCustomerService.upsertCustomerProfile (Supabase REST) since the
+  // customer-profile centralisation; the injected client above only serves the existing-profile lookup.
+  const saveCustomerProfile = async (profile) => {
+    upsertedClaims = { sub: profile.cognito_sub }
+    return { ...profile, user_id: profile.cognito_sub, role: 'customer', account_status: 'active', organization_id: null }
+  }
   const middleware = createCustomerAuthMiddleware({
+    saveCustomerProfile,
     verifyToken: async () => ({
       sub: 'cognito-sub-123',
       email: 'verified@example.test',
@@ -290,4 +305,11 @@ test('profile sync endpoint requires a verified Cognito identity and upserts its
   assert.equal(accepted.status, 200)
   assert.equal(accepted.data.ok, true)
   assert.equal(upsertedClaims.sub, 'cognito-sub-123')
+  assert.equal(accepted.data.profile.id, 'cognito-sub-123')
+})
+
+test.after(async () => {
+  const { closeDatabase } = await import('../database/customerDatabase.js')
+  try { closeDatabase() } catch {}
+  fs.rmSync(sqliteDir, { recursive: true, force: true })
 })

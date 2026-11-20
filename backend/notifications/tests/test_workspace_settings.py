@@ -16,6 +16,8 @@ import time
 import uuid
 from fastapi.testclient import TestClient
 
+from backend.notifications.tests.live_db_guard import require_isolated_test_database  # noqa: E402
+require_isolated_test_database()  # refuses to run without an isolated test DB (never production)
 from backend.notifications.main import app
 from backend.notifications.tests.test_multi_user_notifications import create_cognito_test_jwt
 
