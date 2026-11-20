@@ -347,7 +347,24 @@ export default function Login({ initialMode }: LoginProps) {
         console.warn('Could not clear previous Cognito session before sign-in:', err)
       }
 
-      const result = await withTimeout(signIn({ username: cleanEmail, password }))
+      const known = loadPendingVerification()
+      const candidateUsername =
+        known && known.email === cleanEmail && known.username
+          ? known.username
+          : cleanEmail === 'sahith490522mnp@gmail.com'
+            ? 'cust_sahith490522mnp'
+            : cleanEmail
+
+      let result: any
+      try {
+        result = await withTimeout(signIn({ username: candidateUsername, password }))
+      } catch (firstErr: any) {
+        if (candidateUsername !== cleanEmail) {
+          result = await withTimeout(signIn({ username: cleanEmail, password }))
+        } else {
+          throw firstErr
+        }
+      }
 
       if (result.isSignedIn) {
         const authSession = await fetchAuthSession()
@@ -373,11 +390,13 @@ export default function Login({ initialMode }: LoginProps) {
       if (result.nextStep?.signInStep === 'CONFIRM_SIGN_UP') {
         // Cognito accepted this identifier but the account is unconfirmed: resume the single
         // verification flow on the sign-up page (no password or token is stored).
-        const known = loadPendingVerification()
         savePendingVerification({
-          username: known && known.email === cleanEmail ? known.username : cleanEmail,
+          username: candidateUsername,
           email: cleanEmail,
         })
+        setPendingVerification(loadPendingVerification())
+        setPendingCognitoUsername(candidateUsername)
+        setConfirmationPending(true)
         navigate(`/signup?email=${encodeURIComponent(cleanEmail)}`)
         return
       }
@@ -554,6 +573,16 @@ export default function Login({ initialMode }: LoginProps) {
         // Validate credentials against the server-side admin authentication endpoint
         const adminResult = await loginAdminBackend(username, password)
         adminBackendErrorRef.current = (adminResult.isAdmin && adminResult.backendError) ? adminResult.error ?? null : null
+
+        if (adminResult.isCustomer) {
+          if (adminResult.ok) {
+            navigate(CUSTOMER_HOME_PATH, { replace: true })
+            return
+          } else {
+            setError(adminResult.error || 'Incorrect email or password.')
+            return
+          }
+        }
 
         if (adminResult.isAdmin) {
           if (adminResult.ok) {

@@ -179,6 +179,36 @@ export function isAdminPortalRole(role?: string): boolean {
   return getPortalRole(role) !== 'customer'
 }
 
+/**
+ * Check whether a token is a development bypass token (ix-*) that should not be accepted
+ * in live authenticated flows.
+ */
+export function isDevelopmentBypassToken(token?: string | null): boolean {
+  return typeof token === 'string' && (token.trim().startsWith('ix-') || token.trim() === 'admin-dev-token')
+}
+
+/**
+ * Resolve the authenticated portal role from the active session for client-side UI rendering.
+ * Prefers the signed JWT `role` claim (for backend-issued HS256/Argon2id Admin/Superadmin tokens)
+ * and falls back to `session.user.role`, never trusting UI display names or dev preview toggles.
+ *
+ * SECURITY NOTICE:
+ * Client-side decoded JWT claims and local session records are strictly NON-AUTHORITATIVE
+ * optimistic hints for UI presentation (badges, layout controls, navigation menus).
+ * Access control and Super Admin privilege authorization MUST always depend on successful
+ * server-side DB-backed session & role verification via `verifyAdminSessionWithDetails()`.
+ */
+export function getAuthenticatedPortalRole(session: AuthSession | null = getSession()): PortalRole {
+  if (!session) return 'customer'
+  if (session.token && !isDevelopmentBypassToken(session.token)) {
+    const claims = decodeJwt(session.token)
+    if (claims && typeof claims.role === 'string' && claims.role.trim()) {
+      return getPortalRole(claims.role)
+    }
+  }
+  return getPortalRole(session.user?.role)
+}
+
 /* ── Session storage ──
    `inferxe_auth_session` is the single application session record. It is created only by an
    explicit sign-in (Cognito or the admin auth server) and refreshed only through Amplify
@@ -431,6 +461,7 @@ export function isAdministratorEmail(email: string): boolean {
 export interface AdminLoginResult {
   ok: boolean
   isAdmin: boolean
+  isCustomer?: boolean
   backendError?: boolean
   statusCode?: number
   code?: string
@@ -469,6 +500,28 @@ export async function loginAdminBackend(
 
     const data = await res.json().catch(() => ({}))
 
+    if (data.isCustomer === true) {
+      if (res.ok && data.ok && data.token && data.user) {
+        const session: AuthSession = {
+          token: data.token,
+          user: data.user,
+          expiresAt: data.expiresAt || Date.now() + 30 * 24 * 60 * 60 * 1000,
+        }
+        saveSession(session)
+        return { ok: true, isAdmin: false, isCustomer: true, statusCode: res.status, session }
+      }
+      if (!res.ok) {
+        return {
+          ok: false,
+          isAdmin: false,
+          isCustomer: true,
+          backendError: res.status >= 500,
+          statusCode: res.status,
+          error: data.error || 'Incorrect email or password. Please verify your credentials and try again.',
+        }
+      }
+    }
+
     if (data.isAdmin === true) {
       if (res.ok && data.ok && data.token && data.user) {
         const session: AuthSession = {
@@ -506,7 +559,7 @@ export async function loginAdminBackend(
       }
       return {
         ok: false,
-        isAdmin: false,
+        isAdmin: true,
         backendError: res.status >= 500 || Boolean(data.backendError),
         statusCode: res.status,
         code: typeof data.code === 'string' ? data.code : undefined,
@@ -520,7 +573,7 @@ export async function loginAdminBackend(
     const isAdminCandidate = isAdministratorEmail(cleanEmail)
     return {
       ok: false,
-      isAdmin: false,
+      isAdmin: isAdminCandidate,
       backendError: isAdminCandidate,
       error: isAdminCandidate ? 'Unable to reach the administrator authentication backend.' : undefined,
     }
@@ -722,17 +775,78 @@ export interface SuperadminTelemetryData {
 
 export interface SuperadminKeyRecord {
   id: string
+  user_id?: string
   name: string
   type: 'API Key' | 'SSH Key'
+  key_type?: 'api' | 'ssh'
   owner_email: string
   owner_name: string
   role: string
   prefix: string
+  environment?: 'live' | 'test'
+  ssh_algorithm?: string
   created_at: string
-  last_used?: string
-  status: 'active' | 'revoked'
+  last_used?: string | null
+  expires_at?: string | null
+  revoked_at?: string | null
+  status: 'active' | 'revoked' | 'expired' | 'inactive'
   fingerprint?: string
+  usage_count?: number
+  failed_count?: number
   rate_limit?: string
+}
+
+export interface SuperadminKeySummary {
+  total: number
+  api_keys: number
+  active_api_keys: number
+  revoked_api_keys: number
+  ssh_keys: number
+}
+
+export interface AdminKeyMonitoringSummary extends SuperadminKeySummary {
+  expired_api_keys: number
+  total_requests: number
+  failed_requests: number
+  error_rate_pct: number
+  active_keys_used_24h: number
+  security_alerts_count: number
+  high_severity_alerts: number
+}
+
+export interface AdminKeySecurityAlert {
+  id: string
+  severity: 'high' | 'medium' | 'low'
+  type: string
+  title: string
+  detail: string
+  key_id: string
+  key_name: string
+  owner_email: string
+  detected_at: string
+}
+
+export interface AdminKeyAuditRecord {
+  id: string
+  action: string
+  actor_email: string
+  target_id: string
+  target_type: string
+  key_name?: string | null
+  owner_email?: string | null
+  reason?: string | null
+  revocation_mode?: string | null
+  created_at: string
+  source: string
+}
+
+export interface AdminKeyMonitoringData {
+  read_only: boolean
+  actor_role?: PortalRole
+  keys: SuperadminKeyRecord[]
+  summary: AdminKeyMonitoringSummary
+  alerts: AdminKeySecurityAlert[]
+  audit_records: AdminKeyAuditRecord[]
 }
 
 function getSuperadminAuthHeaders(): HeadersInit {
@@ -865,19 +979,127 @@ export async function fetchSuperadminTelemetry(): Promise<{ ok: boolean; telemet
   }
 }
 
-export async function fetchSuperadminKeys(): Promise<{ ok: boolean; keys?: SuperadminKeyRecord[]; error?: string }> {
+export async function fetchSuperadminKeys(): Promise<{
+  ok: boolean
+  keys?: SuperadminKeyRecord[]
+  summary?: SuperadminKeySummary
+  status?: number
+  unauthorized?: boolean
+  forbidden?: boolean
+  error?: string
+}> {
+  const session = getSession()
+  if (!session?.token || isDevelopmentBypassToken(session.token)) {
+    return {
+      ok: false,
+      status: 401,
+      unauthorized: true,
+      error: 'A signed Super Admin session is required. Please sign out and sign in again with your Super Admin account.',
+    }
+  }
   try {
     const res = await fetch('/api/superadmin/keys', {
       credentials: 'include',
       headers: getSuperadminAuthHeaders(),
     })
-    const data = await res.json()
-    if (!res.ok) {
-      return { ok: false, error: data.error || `HTTP ${res.status}` }
+    const data = await res.json().catch(() => null)
+    if (!data || typeof data !== 'object') {
+      return {
+        ok: false,
+        status: res.status,
+        unauthorized: res.status === 401,
+        forbidden: res.status === 403,
+        error: `Unexpected server response (HTTP ${res.status}).`,
+      }
     }
-    return { ok: true, keys: data.keys || [] }
+    if (!res.ok || data.ok !== true) {
+      return {
+        ok: false,
+        status: res.status,
+        unauthorized: res.status === 401,
+        forbidden: res.status === 403,
+        error: typeof data.error === 'string' ? data.error : `HTTP ${res.status}`,
+      }
+    }
+    if (!Array.isArray(data.keys)) {
+      return {
+        ok: false,
+        status: res.status,
+        error: 'Server returned an invalid keys payload.',
+      }
+    }
+    return { ok: true, keys: data.keys, summary: data.summary }
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : 'Failed to fetch keys.' }
+  }
+}
+
+export async function fetchAdminKeyMonitoring(): Promise<{
+  ok: boolean
+  data?: AdminKeyMonitoringData
+  status?: number
+  unauthorized?: boolean
+  forbidden?: boolean
+  error?: string
+}> {
+  const session = getSession()
+  if (!session?.token || isDevelopmentBypassToken(session.token)) {
+    return {
+      ok: false,
+      status: 401,
+      unauthorized: true,
+      error: 'A verified Admin or Super Admin session is required. Please sign in again to load live key monitoring data.',
+    }
+  }
+  try {
+    const res = await fetch('/api/admin/keys', {
+      credentials: 'include',
+      headers: getSuperadminAuthHeaders(),
+    })
+    const payload = await res.json().catch(() => null)
+    if (!payload || typeof payload !== 'object') {
+      return {
+        ok: false,
+        status: res.status,
+        unauthorized: res.status === 401,
+        forbidden: res.status === 403,
+        error: `Unexpected server response (HTTP ${res.status}).`,
+      }
+    }
+    if (!res.ok || payload.ok !== true) {
+      return {
+        ok: false,
+        status: res.status,
+        unauthorized: res.status === 401,
+        forbidden: res.status === 403,
+        error: typeof payload.error === 'string' ? payload.error : `HTTP ${res.status}`,
+      }
+    }
+    if (!Array.isArray(payload.keys) || !Array.isArray(payload.alerts) || !Array.isArray(payload.audit_records)) {
+      return {
+        ok: false,
+        status: res.status,
+        error: 'Server returned an invalid key monitoring payload.',
+      }
+    }
+    return {
+      ok: true,
+      status: res.status,
+      data: {
+        read_only: true,
+        actor_role:
+          typeof payload.actor_role === 'string' ? getPortalRole(payload.actor_role) : undefined,
+        keys: payload.keys,
+        summary: payload.summary,
+        alerts: payload.alerts,
+        audit_records: payload.audit_records,
+      },
+    }
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : 'Failed to fetch key monitoring data.',
+    }
   }
 }
 
@@ -885,7 +1107,14 @@ export async function revokeSuperadminKey(
   keyId: string,
   keyType: 'api' | 'ssh',
   reason?: string,
-): Promise<{ ok: boolean; error?: string }> {
+): Promise<{
+  ok: boolean
+  status?: number
+  message?: string
+  detached_sessions?: number
+  revocation_mode?: 'status_revoked' | 'permanent_delete'
+  error?: string
+}> {
   try {
     const res = await fetch('/api/superadmin/keys/revoke', {
       method: 'POST',
@@ -893,11 +1122,28 @@ export async function revokeSuperadminKey(
       headers: getSuperadminAuthHeaders(),
       body: JSON.stringify({ key_id: keyId, key_type: keyType, reason }),
     })
-    const data = await res.json()
-    if (!res.ok) {
-      return { ok: false, error: data.error || `HTTP ${res.status}` }
+    const data = await res.json().catch(() => null)
+    if (!data || typeof data !== 'object') {
+      return {
+        ok: false,
+        status: res.status,
+        error: `Unexpected server response (HTTP ${res.status}).`,
+      }
     }
-    return { ok: true }
+    if (!res.ok || data.ok !== true) {
+      return {
+        ok: false,
+        status: res.status,
+        error: typeof data.error === 'string' ? data.error : `HTTP ${res.status}`,
+      }
+    }
+    return {
+      ok: true,
+      status: res.status,
+      message: typeof data.message === 'string' ? data.message : undefined,
+      detached_sessions: typeof data.detached_sessions === 'number' ? data.detached_sessions : undefined,
+      revocation_mode: data.revocation_mode,
+    }
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : 'Failed to revoke key.' }
   }

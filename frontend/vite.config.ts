@@ -13,7 +13,7 @@ import { createSupabaseApiMiddleware } from '../backend/api/supabaseApi.js'
 // @ts-ignore
 import { createSSOAuthMiddleware } from '../backend/auth/ssoAuth.js'
 // @ts-ignore
-import { FRONTEND_DIR, loadBackendEnv, assertNoFrontendSupabaseSecrets, collectFrontendEnvForSecurityCheck } from '../backend/auth/envLoader.js'
+import { FRONTEND_DIR, ROOT_DIR, loadBackendEnv, assertNoFrontendSupabaseSecrets, collectFrontendEnvForSecurityCheck } from '../backend/auth/envLoader.js'
 declare const process: any
 declare const __dirname: any
 
@@ -35,6 +35,7 @@ export default defineConfig(({ command, mode }) => {
   }
   if (command === 'serve') {
     loadBackendEnv()
+    loadBackendEnv({ envPath: path.join(ROOT_DIR, '.env'), override: false })
   }
 
   const notificationsPort = process.env.NOTIFICATIONS_PORT || '8002'

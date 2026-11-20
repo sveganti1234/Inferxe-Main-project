@@ -3,8 +3,10 @@ import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import {
   getSession,
   getPortalRole,
+  getAuthenticatedPortalRole,
   clearSession,
   verifyAdminSessionWithDetails,
+  isDevelopmentBypassToken,
 } from '../../lib/authStore'
 
 interface SuperadminGuardProps {
@@ -21,8 +23,8 @@ export function SuperadminGuard({ children }: SuperadminGuardProps) {
   const location = useLocation()
   const [authState, setAuthState] = useState<'checking' | 'authorized' | 'to_admin' | 'to_customer' | 'to_login'>(() => {
     const session = getSession()
-    if (!session || !session.token) return 'to_login'
-    const portalRole = getPortalRole(session.user?.role)
+    if (!session || !session.token || isDevelopmentBypassToken(session.token)) return 'to_login'
+    const portalRole = getAuthenticatedPortalRole(session)
     if (portalRole === 'admin') return 'to_admin'
     if (portalRole === 'customer') return 'to_customer'
     if (portalRole !== 'superadmin') return 'to_login'
@@ -36,13 +38,13 @@ export function SuperadminGuard({ children }: SuperadminGuardProps) {
       const session = getSession()
 
       // 1. Must have an active session
-      if (!session || !session.token) {
+      if (!session || !session.token || isDevelopmentBypassToken(session.token)) {
         if (isMounted) setAuthState('to_login')
         return
       }
 
       // 2. Fast client-side check before authoritative backend verification
-      const portalRole = getPortalRole(session.user?.role)
+      const portalRole = getAuthenticatedPortalRole(session)
       if (portalRole === 'admin') {
         if (isMounted) setAuthState('to_admin')
         return
