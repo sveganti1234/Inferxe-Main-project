@@ -209,7 +209,12 @@ test('CSV export works from mocked Supabase data only (synthetic rows, loopback 
     { user_id: 'sub-synthetic-2', email: 'second@example.test', full_name: 'Plain Name', role: 'customer', created_at: '2026-01-02T00:00:00Z' },
     { user_id: 'usr_admin', email: 'admin@example.test', full_name: 'Admin', role: 'admin', created_at: '2026-01-03T00:00:00Z' },
   ]
-  const fetchStub = stubFetch(async () => new Response(JSON.stringify(rows), { status: 200 }))
+  // Emulates the database: the customer filter (admin exclusion) is part of the request, not done in Node.
+  const fetchStub = stubFetch(async (url) => {
+    const excludeAdmins = new URL(String(url)).searchParams.get('and')?.includes('role.neq."admin"')
+    const hits = excludeAdmins ? rows.filter((r) => r.role !== 'admin') : rows
+    return new Response(JSON.stringify(hits), { status: 200, headers: { 'content-range': `0-${hits.length - 1}/${hits.length}` } })
+  })
   let csv
   try {
     await withEnv({ SUPABASE_URL: 'http://127.0.0.1:9', SUPABASE_SERVICE_ROLE_KEY: 'test-only-key' }, async () => {

@@ -22,10 +22,8 @@
     "bot-avatars": "^0.2.2",
     "framer-motion": "^12.43.0",
     "lucide-react": "^0.577.0",
-    "oidc-client-ts": "^3.5.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
-    "react-oidc-context": "^3.3.1",
     "react-router-dom": "^7.9.0"
   },
   "devDependencies": {

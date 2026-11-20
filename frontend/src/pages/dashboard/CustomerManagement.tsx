@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import {
   Search,
@@ -90,6 +90,13 @@ export default function CustomerManagement() {
   // Filters & Pagination
   const [accountTypeTab, setAccountTypeTab] = useState<'real' | 'all' | 'test'>('real')
   const [searchQuery, setSearchQuery] = useState('')
+  // Typing updates searchQuery at once; requests use the debounced value (one request per pause, not per key).
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchQuery), 300)
+    return () => clearTimeout(t)
+  }, [searchQuery])
+  const latestRequest = useRef(0)
   const [statusFilter, setStatusFilter] = useState<'all' | 'online' | 'active' | 'inactive'>('all')
   const [sortBy, setSortBy] = useState<'registration_date' | 'last_active' | 'full_name'>('registration_date')
   const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc')
@@ -116,46 +123,71 @@ export default function CustomerManagement() {
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [autoRefresh, setAutoRefresh] = useState<boolean>(true)
 
+  // The table requests one page from the server (filtering, sorting and paging run in the database).
   const loadData = useCallback(async (showLoadingSpinner = true) => {
+    const requestId = ++latestRequest.current
     if (showLoadingSpinner) setLoading(true)
     setError(null)
     try {
-      const [listRes, summaryRes] = await Promise.all([
-        fetchCustomers({
-          search: searchQuery,
-          status: statusFilter,
-          sortBy,
-          sortOrder,
-          page,
-          limit: pageSize,
-          accountType: accountTypeTab,
-        }),
-        fetchCustomerSummary(accountTypeTab),
-      ])
+      const listRes = await fetchCustomers({
+        search: debouncedSearch,
+        status: statusFilter,
+        sortBy,
+        sortOrder,
+        page,
+        limit: pageSize,
+        accountType: accountTypeTab,
+      })
 
+      if (requestId !== latestRequest.current) return  // a newer request superseded this one
       setCustomers(listRes.customers || [])
       setTotalPages(listRes.pagination.totalPages || 1)
       setTotalCount(listRes.pagination.total || 0)
-      setSummary(summaryRes)
+      // The server serves the last page when the requested one no longer exists (e.g. the list shrank).
+      if (listRes.pagination.page && listRes.pagination.page !== page) setPage(listRes.pagination.page)
     } catch (err: unknown) {
+      if (requestId !== latestRequest.current) return
       setError(err instanceof Error ? err.message : 'Failed to retrieve customer data from centralized database.')
     } finally {
-      if (showLoadingSpinner) setLoading(false)
+      if (showLoadingSpinner && requestId === latestRequest.current) setLoading(false)
     }
-  }, [searchQuery, statusFilter, sortBy, sortOrder, page, pageSize, accountTypeTab])
+  }, [debouncedSearch, statusFilter, sortBy, sortOrder, page, pageSize, accountTypeTab])
 
   useEffect(() => {
     void loadData(true)
   }, [loadData])
 
+  // Summary cards depend only on the account tab, not on search/sort/page: fetched on tab change and on refresh.
+  const latestSummary = useRef(0)
+  const loadSummary = useCallback(async () => {
+    const requestId = ++latestSummary.current
+    try {
+      const summaryRes = await fetchCustomerSummary(accountTypeTab)
+      if (requestId === latestSummary.current) setSummary(summaryRes)
+    } catch (err: unknown) {
+      if (requestId === latestSummary.current) {
+        setError(err instanceof Error ? err.message : 'Failed to retrieve customer summary.')
+      }
+    }
+  }, [accountTypeTab])
+
+  useEffect(() => {
+    void loadSummary()
+  }, [loadSummary])
+
+  const refreshAll = useCallback(
+    (showLoadingSpinner = true) => Promise.all([loadData(showLoadingSpinner), loadSummary()]),
+    [loadData, loadSummary],
+  )
+
   // Periodic Auto-Refresh (30 seconds)
   useEffect(() => {
     if (!autoRefresh) return
     const interval = setInterval(() => {
-      void loadData(false)
+      if (document.visibilityState !== 'hidden') void refreshAll(false)  // no background-tab polling
     }, 30000)
     return () => clearInterval(interval)
-  }, [autoRefresh, loadData])
+  }, [autoRefresh, refreshAll])
 
   // Fetch full details when a customer is clicked
   useEffect(() => {
@@ -222,7 +254,7 @@ export default function CustomerManagement() {
       const res = await syncCognitoCustomers()
       setBackupMessage(`Cognito Sync complete: ${res.syncedCount} records evaluated (${res.newCount} new, ${res.updatedCount} refreshed).`)
       setTimeout(() => setBackupMessage(null), 6000)
-      await loadData(true)
+      await refreshAll(true)
     } catch (err: unknown) {
       setError(err instanceof Error ? `Synchronization failed: ${err.message}` : 'Synchronization failed')
     } finally {
@@ -549,7 +581,7 @@ export default function CustomerManagement() {
             type="button"
             className="dash-btn-ghost"
             style={{ padding: '8px 12px', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 6 }}
-            onClick={() => void loadData(true)}
+            onClick={() => void refreshAll(true)}
             disabled={loading}
             title="Refresh customer database"
           >
@@ -564,7 +596,7 @@ export default function CustomerManagement() {
         <div className="dash-alert dash-alert--danger" style={{ marginBottom: 16 }}>
           <AlertCircle size={16} />
           <span>{error}</span>
-          <button type="button" className="dash-btn-ghost" style={{ marginLeft: 'auto', padding: '4px 8px' }} onClick={() => void loadData(true)}>
+          <button type="button" className="dash-btn-ghost" style={{ marginLeft: 'auto', padding: '4px 8px' }} onClick={() => void refreshAll(true)}>
             Retry
           </button>
         </div>
@@ -754,6 +786,7 @@ export default function CustomerManagement() {
                 className="dash-btn-ghost"
                 style={{ padding: '6px 10px' }}
                 disabled={page <= 1}
+                aria-label="Previous page"
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
               >
                 <ChevronLeft size={14} />
@@ -767,6 +800,7 @@ export default function CustomerManagement() {
                 className="dash-btn-ghost"
                 style={{ padding: '6px 10px' }}
                 disabled={page >= totalPages}
+                aria-label="Next page"
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               >
                 <ChevronRight size={14} />
