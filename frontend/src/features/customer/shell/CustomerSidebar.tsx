@@ -97,6 +97,17 @@ export function CustomerSidebar({
         <span className="cx-brand__name">
           Infer<em>xe</em>
         </span>
+        <button
+          type="button"
+          className="cx-collapse"
+          onClick={onToggleRail}
+          aria-pressed={rail}
+          aria-label={rail ? 'Expand sidebar' : 'Collapse sidebar'}
+          title={rail ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {rail ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
+          <span className="cx-collapse__text">Collapse sidebar</span>
+        </button>
         <button ref={closeButtonRef} type="button" className="cx-iconbtn cx-drawer-close" onClick={onClose} aria-label="Close navigation">
           <X size={18} />
         </button>
@@ -166,17 +177,6 @@ export function CustomerSidebar({
               </span>
             </Link>
           ) : <span className="cx-sidefoot__spacer" />}
-          <button
-            type="button"
-            className="cx-collapse"
-            onClick={onToggleRail}
-            aria-pressed={rail}
-            aria-label={rail ? 'Expand sidebar' : 'Collapse sidebar'}
-            title={rail ? 'Expand sidebar' : 'Collapse sidebar'}
-          >
-            {rail ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
-            <span className="cx-collapse__text">Collapse sidebar</span>
-          </button>
         </div>
         <Link to="/" className="cx-backlink" title="Back to Public Website">
           <ExternalLink size={15} aria-hidden="true" />

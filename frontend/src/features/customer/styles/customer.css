@@ -233,6 +233,30 @@
   background: var(--cx-accent-soft);
   border: 1px solid var(--cx-border-2);
 }
+.cx-brand .cx-collapse {
+  margin-left: auto;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--cx-r-xs);
+  flex-shrink: 0;
+  color: var(--cx-text-3);
+  background: transparent;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 0.18s var(--cx-ease);
+}
+.cx-brand .cx-collapse:hover {
+  color: var(--cx-text);
+  background: rgba(126, 232, 186, 0.08);
+  border-color: var(--cx-border);
+}
+.cx-brand .cx-collapse__text {
+  display: none;
+}
 
 .cx-org {
   display: flex;
@@ -433,7 +457,16 @@
 .is-rail .cx-collapse__text {
   display: none;
 }
-.is-rail .cx-brand,
+.is-rail .cx-brand {
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0 8px;
+}
+.is-rail .cx-brand .cx-collapse {
+  margin-left: 0;
+}
 .is-rail .cx-org,
 .is-rail .cx-nav__item,
 .is-rail .cx-service,
@@ -728,7 +761,8 @@
   .is-rail .cx-sidebar :is(.cx-brand, .cx-org, .cx-nav__item, .cx-service) {
     justify-content: flex-start;
   }
-  .cx-collapse {
+  .cx-collapse,
+  .cx-brand .cx-collapse {
     display: none;
   }
   .cx-iconbtn.cx-drawer-close {
