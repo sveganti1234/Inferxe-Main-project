@@ -190,6 +190,13 @@
   -webkit-backdrop-filter: blur(18px) saturate(140%);
   z-index: 30;
   overflow: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.cx-sidebar::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 .cx-sidebar::after {
   /* thin luminous edge */
@@ -305,8 +312,13 @@
   overflow-x: hidden;
   margin: 0 -6px;
   padding: 2px 6px 8px;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(126, 232, 186, 0.16) transparent;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.cx-nav::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
 }
 .cx-nav__group + .cx-nav__group {
   margin-top: 10px;
@@ -379,15 +391,7 @@
   text-overflow: ellipsis;
 }
 .cx-nav__tag {
-  flex-shrink: 0;
-  font-size: 0.6rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  padding: 0 5px;
-  line-height: 1.5;
-  border-radius: 999px;
-  border: 1px solid currentColor;
-  opacity: 0.85;
+  display: none !important;
 }
 .cx-nav__tag--reference {
   color: var(--cx-info);
@@ -3937,7 +3941,7 @@
   background: rgba(255, 255, 255, 0.8);
 }
 .cx-app[data-cx-theme='light'] .cx-nav__hoverpill { background: rgba(16, 44, 30, 0.06); }
-.cx-app[data-cx-theme='light'] .cx-nav { scrollbar-color: rgba(15, 40, 28, 0.2) transparent; }
+.cx-app[data-cx-theme='light'] .cx-nav { scrollbar-width: none; }
 .cx-app[data-cx-theme='light'] :is(.cx-collapse:hover, .cx-menu__item:hover, .cx-btn--ghost:hover:not(:disabled), .cx-table tbody tr:hover, .cx-inbox__item:hover) {
   background: rgba(16, 44, 30, 0.06);
 }
