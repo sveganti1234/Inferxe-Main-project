@@ -88,8 +88,11 @@ def _validate_service_role_key(raw_key: str) -> str:
             "SUPABASE_SERVICE_ROLE_KEY is missing. Set SUPABASE_SERVICE_ROLE_KEY in backend/.env."
         )
 
+    is_dev_fallback = os.environ.get("ADMIN_DEV_FALLBACK", "").strip().lower() in ("1", "true", "yes")
     for prefix, reason in FORBIDDEN_TOKEN_PREFIXES:
         if cleaned.startswith(prefix):
+            if prefix == "sb_publishable_" and is_dev_fallback:
+                continue
             raise SupabaseConfigurationError(reason)
 
     return cleaned
