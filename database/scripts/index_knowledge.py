@@ -150,6 +150,14 @@ def index_all_chunks(force: bool = False):
     curated_ids = [item["id"] for item in chunks]
     for i in range(0, len(curated_ids), 500):
         collection.delete(ids=curated_ids[i:i + 500])
+    # Curated vectors from an older chunks file (ids changed) would linger untagged and stale: remove `chunk_*` ids
+    # that are no longer curated. Uploaded documents use `doc_*` ids and are never touched.
+    current_ids = set(curated_ids)
+    stale_ids = [x for x in collection.get(include=[]).get("ids", []) if x.startswith("chunk_") and x not in current_ids]
+    for i in range(0, len(stale_ids), 500):
+        collection.delete(ids=stale_ids[i:i + 500])
+    if stale_ids:
+        print(f"Removed {len(stale_ids)} stale curated vectors from an earlier dataset version.")
 
     print(f"\nGenerating embeddings and storing {total_chunks} chunks...")
     batch_size = 10

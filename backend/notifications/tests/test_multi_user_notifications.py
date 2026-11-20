@@ -114,6 +114,15 @@ def run_multi_user_verification():
                     """,
                     (uid, eml, uid.replace("_", " ").title(), role, now_ts)
                 )
+                if role == "customer":  # admin wallet credits require the target customer's profile
+                    cur.execute(
+                        """
+                        INSERT INTO profiles (user_id, full_name, email, username, role, status, auth_provider, created_at, updated_at)
+                        VALUES (%s, %s, %s, %s, 'customer', 'active', 'cognito', %s, %s)
+                        ON CONFLICT (user_id) DO UPDATE SET email = EXCLUDED.email, status = 'active';
+                        """,
+                        (uid, uid.replace("_", " ").title(), eml, eml.split("@")[0], now_ts, now_ts),
+                    )
 
         # Generate verified tokens
         token_cust_a = create_cognito_test_jwt(cust_a_id, cust_a_email, ["customer"])
@@ -164,7 +173,7 @@ def run_multi_user_verification():
         assert resp.status_code == 403, f"Customer self-credit must be rejected, got {resp.status_code}"
         resp = client.post(
             "/api/wallet/transactions",
-            json={"amount": 5000.0, "idempotency_key": tx_key_a, "target_user_id": cust_a_id},
+            json={"amount": 5000.0, "idempotency_key": tx_key_a, "target_user_id": cust_a_id, "reason": "test credit"},
             headers=headers_admin
         )
         assert resp.status_code == 200, f"Expected 200, got {resp.status_code}: {resp.text}"

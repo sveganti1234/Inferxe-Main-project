@@ -28,7 +28,7 @@ export function AdapterContract() {
       </ul>
       <div className="adapter__foot">
         <span className="slot slot--live">
-          JarvisLabs · live in MVP
+          JarvisLabs · MVP target
         </span>
         <span className="slot">
           Mock adapter

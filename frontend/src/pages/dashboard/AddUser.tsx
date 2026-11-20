@@ -775,7 +775,7 @@ export default function AddUser() {
                   <span className="dash-switch-title">API Access</span>
                 </div>
                 <span className="dash-switch-desc">
-                  Allow user to create API keys (`ix-sk-...`) and invoke `/v1/chat/completions`.
+                  Allow user to create API keys (`inf_live_...`) and call `POST /api/v1/inference`.
                 </span>
               </div>
               <label className="dash-switch">

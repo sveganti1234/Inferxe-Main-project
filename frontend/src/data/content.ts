@@ -144,7 +144,7 @@ export const LAYERS: {
     tag: 'LAYER 04',
     title: 'GPU providers',
     body: 'Adding a provider means adding an adapter. The public API stays the same.',
-    chips: ['JarvisLabs · live in MVP', 'Mock adapter', 'Contract test', 'More providers · Phase 2'],
+    chips: ['JarvisLabs · MVP target', 'Mock adapter', 'Contract test', 'More providers · Phase 2'],
     icon: Cpu,
   },
 ]
@@ -436,7 +436,7 @@ export const STACK: { cat: string; tech: string; role: string }[] = [
 /* ── Security, trust, risk (DPR §6.7, §11) ────────────── */
 export const SECURITY_CONTROLS: { icon: LucideIcon; title: string; body: string }[] = [
   { icon: KeyRound, title: 'Managed secrets', body: 'Provider credentials and deployment secrets never live in source code — environment variables or secret management, with rotation.' },
-  { icon: Fingerprint, title: 'Demo authentication', body: 'Customer demo accounts are stored in the browser and are not production-secure. Production deployments must configure a trusted identity provider.' },
+  { icon: Fingerprint, title: 'Managed identity', body: 'Customer sign-in uses AWS Cognito; administrator sign-in is verified server-side by the Inferxe auth service.' },
   { icon: Network, title: 'Isolated inference endpoints', body: 'vLLM is never exposed as a public unauthenticated service — the backend is the controlled interface to the model.' },
   { icon: Gauge, title: 'Rate limits & quotas', body: 'Request limits protect both the platform and GPU spend from abuse or accidental spikes.' },
   { icon: ScanSearch, title: 'Input validation', body: 'Request size and parameters are validated before anything is forwarded to a model.' },
@@ -517,7 +517,7 @@ export const PERSONAS: { icon: LucideIcon; title: string; sub: string; body: str
     sub: 'Individuals & teams',
     body: 'Ship GPU-backed features without learning GPU SKUs. Describe the model and constraints; get a compatible, costed recommendation and a working endpoint.',
     img: '/images/code.webp',
-    points: ['Requirement-based GPU recommendation', 'Docker + vLLM provisioned for you', 'OpenAI-compatible endpoint'],
+    points: ['Requirement-based GPU recommendation', 'Docker + vLLM provisioned for you (planned)', 'OpenAI-compatible endpoint (planned)'],
   },
   {
     icon: Building2,
@@ -533,7 +533,7 @@ export const PERSONAS: { icon: LucideIcon; title: string; sub: string; body: str
     sub: 'Via API',
     body: 'Treat GPU compute as an API. Create, inspect and stop deployments programmatically, and read usage and cost back into your own product.',
     img: '/images/dev-desk.webp',
-    points: ['OpenAPI-first contract', 'Programmatic lifecycle control', 'Usage and cost endpoints'],
+    points: ['OpenAPI-first contract', 'Programmatic lifecycle control (planned)', 'Usage and cost endpoints (planned)'],
   },
   {
     icon: FlaskConical,
@@ -541,7 +541,7 @@ export const PERSONAS: { icon: LucideIcon; title: string; sub: string; body: str
     sub: 'Benchmarks & experiments',
     body: 'Compare open models across GPU classes with measured TTFT, latency and tokens/sec instead of vendor datasheets.',
     img: '/images/engineers.webp',
-    points: ['Measured benchmark corpus', 'L4 → H200 coverage', 'Reproducible Docker + vLLM setups'],
+    points: ['Benchmark corpus (in progress)', 'L4 → H200 coverage', 'Reproducible Docker + vLLM setups'],
   },
 ]
 
@@ -632,7 +632,7 @@ export const STACK_MARQUEE = [
   'PostgreSQL',
   'React',
   'TypeScript',
-  'Demo authentication',
+  'AWS Cognito',
   'Prometheus',
   'Grafana',
   'Redis',

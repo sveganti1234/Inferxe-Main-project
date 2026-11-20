@@ -101,7 +101,7 @@ export function ConsolePreview() {
                 <span className="readout-label">Usage · last 24 h</span>
                 <span className="row" style={{ gap: 6 }}>
                   <Activity className="console__act" aria-hidden />
-                  <span className="readout-label">live</span>
+                  <span className="readout-label">sample</span>
                 </span>
               </div>
               <svg viewBox="0 0 560 150" preserveAspectRatio="none" aria-hidden>

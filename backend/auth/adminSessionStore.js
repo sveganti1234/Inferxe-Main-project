@@ -25,10 +25,23 @@ function resolveSupabaseClient(injectedClient) {
 const devSessionStore = new Map()
 let devAdminPasswordHash = null
 
+/**
+ * In-memory admin store for local development without Supabase. Off by default: it must be enabled
+ * explicitly (ADMIN_DEV_FALLBACK=true), outside production, with an explicit ADMIN_PASSWORD. Otherwise a
+ * missing/misconfigured Supabase client fails closed (503) instead of opening a hardcoded-admin login.
+ */
+export function isAdminDevFallbackEnabled() {
+  return (
+    String(process.env.ADMIN_DEV_FALLBACK || '').trim().toLowerCase() === 'true' &&
+    process.env.NODE_ENV !== 'production' &&
+    Boolean(String(process.env.ADMIN_PASSWORD || '').trim())
+  )
+}
+
 async function getDevAdminPasswordHash() {
   if (!devAdminPasswordHash) {
     const { hashPassword } = await import('./adminPassword.js')
-    devAdminPasswordHash = await hashPassword(process.env.ADMIN_PASSWORD || 'admin123')
+    devAdminPasswordHash = await hashPassword(process.env.ADMIN_PASSWORD)
   }
   return devAdminPasswordHash
 }
@@ -292,7 +305,7 @@ export async function findAdminByEmailForAuth(email, supabaseClient) {
   try {
     supabase = resolveSupabaseClient(supabaseClient)
   } catch (err) {
-    if (!supabaseClient) {
+    if (!supabaseClient && isAdminDevFallbackEnabled()) {
       return findAdminByEmailDevFallback(normalizedEmail)
     }
     throw err
@@ -321,7 +334,7 @@ export async function findAdminByIdSafe(adminId, supabaseClient) {
   try {
     supabase = resolveSupabaseClient(supabaseClient)
   } catch (err) {
-    if (!supabaseClient) {
+    if (!supabaseClient && isAdminDevFallbackEnabled()) {
       return {
         id: adminId,
         email: PRIMARY_SUPERADMIN_EMAIL,
@@ -359,7 +372,7 @@ export async function createAdminSessionRecord(
   try {
     supabase = resolveSupabaseClient(supabaseClient)
   } catch (err) {
-    if (!supabaseClient) {
+    if (!supabaseClient && isAdminDevFallbackEnabled()) {
       const nowMs = Date.now()
       const nowIso = new Date(nowMs).toISOString()
       const expiresAtMs = nowMs + ttlSeconds * 1000
@@ -440,8 +453,11 @@ export async function verifyAdminSessionRecord(
   try {
     supabase = resolveSupabaseClient(supabaseClient)
   } catch (err) {
-    if (!supabaseClient) {
+    if (!supabaseClient && isAdminDevFallbackEnabled()) {
       const devSession = devSessionStore.get(sessionId)
+      if (!devSession) {
+        return { valid: false, statusCode: 401, error: 'Administrator session not found.' }
+      }
       if (devSession && devSession.revoked_at) {
         return { valid: false, statusCode: 401, error: 'Administrator session has been revoked.' }
       }
@@ -568,7 +584,7 @@ export async function revokeAdminSessionRecord(sessionId, adminUserId, supabaseC
   try {
     supabase = resolveSupabaseClient(supabaseClient)
   } catch (err) {
-    if (!supabaseClient) {
+    if (!supabaseClient && isAdminDevFallbackEnabled()) {
       const dev = devSessionStore.get(sessionId)
       if (dev) dev.revoked_at = new Date().toISOString()
       return { revoked: true }
@@ -622,7 +638,7 @@ export async function listAdminUsers(supabaseClient) {
   try {
     supabase = resolveSupabaseClient(supabaseClient)
   } catch (err) {
-    if (!supabaseClient) {
+    if (!supabaseClient && isAdminDevFallbackEnabled()) {
       try {
         const { getAllAdminUsers } = await import('../database/customerDatabase.js')
         return getAllAdminUsers().map((a) => ({
