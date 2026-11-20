@@ -1,4 +1,4 @@
-﻿"""
+"""
 Comprehensive data ingestion and cleaning pipeline for the Inferxe RAG knowledge base.
 Ingests, validates, normalizes, deduplicates, and chunks all relevant datasets from
 'Dataset for web scrap/' into structured, source-attributed passages.
