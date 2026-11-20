@@ -12,5 +12,6 @@ export default defineConfig({
     env: { VITE_NOTIFICATIONS_API_ENDPOINT: '' },
     // Tests that render the whole app cold-load the lazy console bundle; allow for slow machines.
     testTimeout: 20000,
+    hookTimeout: 30000,
   },
 })

@@ -20,6 +20,7 @@ import { createSupabaseApiMiddleware } from '../api/supabaseApi.js'
 import { createCustomerAuthMiddleware } from './customerAuth.js'
 import { createAdminAuthMiddleware } from './adminAuth.js'
 import { createSSOAuthMiddleware } from './ssoAuth.js'
+import { createMockSupabaseMiddleware } from '../dev/mockSupabaseRest.js'
 
 dotenv.config({ path: resolve(dirname(fileURLToPath(import.meta.url)), '../../.env') })
 
@@ -34,19 +35,22 @@ if (typeof crypto.argon2Sync !== 'function') {
 }
 
 const PORT = parseInt(process.env.ADMIN_AUTH_PORT || '5174', 10)
+const mockSupabaseMiddleware = createMockSupabaseMiddleware()
 const adminMiddleware = createAdminAuthMiddleware()
 const customerMiddleware = createCustomerAuthMiddleware()
 const supabaseApiMiddleware = createSupabaseApiMiddleware()
 const ssoMiddleware = createSSOAuthMiddleware()
 
 const server = http.createServer((req, res) => {
-  ssoMiddleware(req, res, () => {
-    customerMiddleware(req, res, () => {
-      adminMiddleware(req, res, () => {
-        supabaseApiMiddleware(req, res, () => {
-          res.statusCode = 404
-          res.setHeader('Content-Type', 'application/json')
-          res.end(JSON.stringify({ ok: false, error: 'Not found' }))
+  mockSupabaseMiddleware(req, res, () => {
+    ssoMiddleware(req, res, () => {
+      customerMiddleware(req, res, () => {
+        adminMiddleware(req, res, () => {
+          supabaseApiMiddleware(req, res, () => {
+            res.statusCode = 404
+            res.setHeader('Content-Type', 'application/json')
+            res.end(JSON.stringify({ ok: false, error: 'Not found' }))
+          })
         })
       })
     })
