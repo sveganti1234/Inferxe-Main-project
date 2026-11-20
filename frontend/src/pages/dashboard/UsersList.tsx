@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import {
   Plus,
   Search,
@@ -17,8 +17,16 @@ import { usePageMeta } from '../../lib/hooks'
 export default function UsersList() {
   usePageMeta('Users Directory · Inferxe Dashboard', 'Manage team members, permissions, and inference requests for LLM inference.')
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [users, setUsers] = useState<UserRecord[]>([])
-  const [searchQuery, setSearchQuery] = useState('')
+  const [searchQuery, setSearchQuery] = useState(() => searchParams.get('search') || '')
+
+  useEffect(() => {
+    const param = searchParams.get('search')
+    if (param !== null) {
+      setSearchQuery(param)
+    }
+  }, [searchParams])
   const [roleFilter, setRoleFilter] = useState<string>('all')
   const [selectedUser, setSelectedUser] = useState<UserRecord | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)

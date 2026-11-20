@@ -72,7 +72,7 @@ export function animateNavPill(
     return
   }
 
-  // Bind transitionend listener once to track when active motion completes
+  // Bind transitionend & transitioncancel listeners once to track when active motion completes
   if (!pillState.__transitionHandler) {
     pillState.__transitionHandler = (e: TransitionEvent) => {
       if (e.target === pillEl && e.propertyName === 'transform') {
@@ -80,6 +80,14 @@ export function animateNavPill(
       }
     }
     pillEl.addEventListener('transitionend', pillState.__transitionHandler)
+    pillEl.addEventListener('transitioncancel', pillState.__transitionHandler)
+  }
+
+  // If the pill is already visible at this exact target, avoid setting __isTransitioning
+  // since CSS won't fire transitionend when transform does not change
+  if (animate && isSameTarget && !isHidden && !isFirstRun) {
+    pillEl.style.opacity = '1'
+    return
   }
 
   // Apply dimensions & border radius

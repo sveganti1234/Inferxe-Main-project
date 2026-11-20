@@ -18,7 +18,12 @@ export const DEFAULT_ADMIN_SESSION_TTL_SECONDS = 12 * 60 * 60 // 12 hours
 let loggedMissingRoleColumnWarning = false
 
 function resolveSupabaseClient(injectedClient) {
-  if (injectedClient) return injectedClient
+  if (injectedClient !== undefined) {
+    if (!injectedClient) {
+      throw new Error('Supabase client is not configured.')
+    }
+    return injectedClient
+  }
   return getSupabaseAdminClient()
 }
 

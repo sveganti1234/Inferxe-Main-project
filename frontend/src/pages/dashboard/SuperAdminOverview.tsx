@@ -207,11 +207,11 @@ export default function SuperAdminOverview() {
           <div className="dash-stat-card glass glass--lift sa-kpi-card">
             <div className="sa-kpi-header">
               <span className="sa-kpi-label">Pending Invitations</span>
-              <div className="sa-kpi-icon-wrap" style={{ color: '#38bdf8', background: 'rgba(14, 165, 233, 0.12)' }}>
+              <div className="sa-kpi-icon-wrap" style={{ color: 'var(--accent, #6ee0a1)', background: 'var(--accent-soft, rgba(110, 224, 161, 0.14))' }}>
                 <Clock size={16} />
               </div>
             </div>
-            <div className="sa-kpi-val readout" style={{ color: '#38bdf8' }}>
+            <div className="sa-kpi-val readout" style={{ color: 'var(--accent, #6ee0a1)' }}>
               <Counter to={stats.pending} />
             </div>
             <div className="sa-kpi-sub">
@@ -343,7 +343,7 @@ export default function SuperAdminOverview() {
           <div className="sa-section-header">
             <div>
               <h3 className="sa-section-title">
-                <Lock size={16} style={{ color: '#38bdf8' }} />
+                <Lock size={16} style={{ color: 'var(--accent, #6ee0a1)' }} />
                 <span>Sample Platform Security Events</span>
                 <span className="sa-demo-chip" style={{ fontSize: '0.62rem', padding: '1px 6px' }}>Simulated</span>
               </h3>
