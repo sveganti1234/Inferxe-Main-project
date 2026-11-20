@@ -101,7 +101,7 @@ export function RoutingDiagram() {
 
       {/* providers */}
       {[
-        { y: 22, name: 'JarvisLabs', tag: 'LIVE IN MVP', live: true },
+        { y: 22, name: 'JarvisLabs', tag: 'MVP TARGET', live: true },
         { y: 132, name: 'Provider B', tag: 'PHASE 2', live: false },
         { y: 242, name: 'Provider C', tag: 'PHASE 2', live: false },
       ].map((p) => (

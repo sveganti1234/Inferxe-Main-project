@@ -61,9 +61,9 @@ const CUSTOMER_ADMIN_REFUSAL =
 const ADMIN_PROVIDER_REPLY =
   "Navigate to Provider Management: Open the [Provider Management](/dashboard/provider) section (Dashboard -> Provider Management).\n\n" +
   "Provider Analysis & Node Telemetry:\n" +
-  "• Active Providers: JarvisLabs, E2E Networks, Yotta Shakti Cloud, and sovereign Tier-IV nodes.\n" +
+  "• Providers: the provider workspace currently shows sample data; no external GPU provider is integrated yet.\n" +
   "• Provider Health & Telemetry: Real-time telemetry monitoring for GPU node uptime, thermals, power draw, and VRAM utilization across Indian data centers.\n" +
-  "• Provider Routing & Allocation: Automated dynamic routing allocating workloads between spot instances (up to 65% discount) and dedicated reserved nodes.\n" +
+  "• Provider Routing & Allocation: planned (multi-provider routing is not implemented yet).\n" +
   "• Margin & Revenue Tracking: Admin controls for per-GPU provider settlement rates, markup margins, and marketplace payouts."
 
 const ADMIN_FEATURES_REPLY =
@@ -209,7 +209,7 @@ function getBotReply(query: string, currentPath: string = '/'): string {
     q.includes('explain this website') ||
     q.includes('tell me about this website')
   ) {
-    return "**Inferxe** is an intelligent, decentralized GPU inference marketplace and compute orchestration platform built on the **'One API, Many GPU Providers'** architecture.\n\n**Core Highlights:**\n1. **Unified Marketplace**: Aggregates enterprise GPUs (NVIDIA H100, L40S, L4) across Indian sovereign Tier-IV data centers (Navi Mumbai & Noida) and cloud providers like JarvisLabs.\n2. **Customer Workspace**: Real-time compute telemetry (live balance, ₹60/hr burn rate, remaining runtime) and an interactive 3-column Kanban workflow board.\n3. **3D Virtual Cards & Top-Up**: Interactive digital cards with live flip, security freeze/unfreeze, and an idempotent `+ Top Up` modal with instant balance synchronization.\n4. **Cognito Enterprise Auth**: Strict RBAC for Customer and Admin portals with encrypted JWT token verification.\n5. **Drop-in OpenAI SDK**: Compatible with any OpenAI client pointing to `https://api.inferxe.com/v1`."
+    return "**Inferxe** is a GPU marketplace and AI inference platform built around the idea of **'One API, Many GPU Providers'**.\n\n**Available today:**\n1. **Inference API**: `POST /api/v1/inference` with your Inferxe API key as a bearer token. The server chooses the model; there is no streaming and it is not OpenAI-compatible yet.\n2. **Customer console**: API keys, usage, notifications, a read-only billing & wallet view, and a GPU marketplace where you can save listings.\n3. **Sign-in**: customer and admin portals with separate roles.\n\n**Planned (not available yet):** GPU provisioning and deployments, multi-provider routing with automatic failover, and self-service wallet top-ups."
   }
 
   // 3e. Project Contributions & Author Work
@@ -294,7 +294,7 @@ function getBotReply(query: string, currentPath: string = '/'): string {
   }
 
   if (q.includes('features does inferxe provide') || q.includes('inferxe provide') || q.includes('features')) {
-    return 'Documented features of the Inferxe platform:\n1. GPU Marketplace Catalog: Discover and filter GPUs across sovereign Indian clouds and JarvisLabs.\n2. GPU Sizing Calculator: Calculates weights and KV cache memory to recommend the most cost-effective GPU.\n3. Simulated Wallet & Burn Rate: Tracks runtime spend, hourly burn rates, and low-balance warnings.\n4. Sovereign Indian Data Residency: Tier-IV datacenters in Navi Mumbai and Noida compliant with DPDP Act and MeitY.\n5. OpenAI-Compatible API: Drop-in SDK endpoint pointing base_url to https://api.inferxe.com/v1.\n6. Intermediary Orchestration: Intermediary software routing layer (Inferxe does not own physical data centers).'
+    return 'Inferxe features today:\n1. GPU catalogue and a GPU sizing calculator (weights + KV cache) on the website. Rates shown are planning figures, not live prices.\n2. Inference API: POST /api/v1/inference with an Inferxe API key (prompt in, text and token usage out).\n3. Customer console: API keys, usage, notifications and a read-only billing & wallet view.\nPlanned: GPU deployments, multi-provider routing with failover, an OpenAI-compatible API and self-service top-ups. Inferxe is a software layer and does not own data centres.'
   }
 
   if (q.includes('14b') || q.includes('l40s') || q.includes('l4')) {
@@ -302,15 +302,15 @@ function getBotReply(query: string, currentPath: string = '/'): string {
   }
 
   if (q.includes('70b') || q.includes('llama 3') || q.includes('llama')) {
-    return 'Llama 3.3 70B at FP8 requires ~72 GB memory. Dual L40S (96 GB) delivers ~38 tok/s at ₹200/hr. For lowest TTFT (<25ms), our NVIDIA H100 SXM5 (80 GB) cluster reaches up to 65 tok/s.'
+    return 'Llama 3.3 70B at FP8 needs roughly 72 GB for weights plus KV cache, so it fits on two 48 GB L40S or one 80 GB H100 with a short context. Measured throughput is not published yet: the benchmark programme is still in progress.'
   }
 
   if (q.includes('rate') || q.includes('price') || q.includes('cost') || q.includes('₹') || q.includes('$') || q.includes('hourly')) {
-    return 'Inferxe sovereign GPU rates:\n• NVIDIA L4 (24 GB): ₹60/hr\n• NVIDIA L40S (48 GB): ₹100/hr\n• NVIDIA H100 SXM5 (80 GB): ₹280/hr\nSpot routing provides up to 65% automatic discount with zero lock-in contracts.'
+    return 'Inferxe planning rates (suggested list rates, not a live price list):\n• NVIDIA L4 (24 GB): about ₹60/hr\n• NVIDIA L40S (48 GB): about ₹100/hr\n• NVIDIA H100 (80 GB): about ₹250–₹300/hr\nFinal prices depend on provider rate cards, taxes and region. See the Pricing page for the estimator.'
   }
 
   if (q.includes('india') || q.includes('sovereign') || q.includes('mumbai') || q.includes('security') || q.includes('meity') || q.includes('dpdp')) {
-    return 'All Inferxe clusters operate strictly inside India-based Tier-IV datacenters (ap-south-1 Mumbai and Noida, UP). We comply with the DPDP Act and MeitY empanelment, guaranteeing zero cross-border telemetry or data egress.'
+    return 'Inferxe is designed India-first: region and residency are meant to be routing constraints, and India-hosted GPU clouds are being evaluated as future providers. Inferxe does not currently claim any certification or compliance attestation; see the Security page for the current controls.'
   }
 
   if (q.includes('api') || q.includes('openai') || q.includes('sdk') || q.includes('endpoint') || q.includes('python')) {
@@ -318,10 +318,10 @@ function getBotReply(query: string, currentPath: string = '/'): string {
   }
 
   if (q.includes('user') || q.includes('dashboard') || q.includes('admin') || q.includes('seat') || q.includes('rbac')) {
-    return 'You can invite developers and configure RBAC under Dashboard → Users (/dashboard/users). Set monthly INR spend limits, rate limits, and custom model permissions.'
+    return 'Team management (inviting users, roles and spend limits) is handled by Inferxe administrators in the admin portal. Self-service team seats and spend limits for customers are not available yet.'
   }
 
-  return 'Thanks for asking! Inferxe routes LLM inference across low-latency sovereign NVIDIA L4, L40S, and H100 clusters with FP8 FlashAttention. What model or token throughput target are you looking for?'
+  return 'Thanks for asking! I can help with Inferxe GPU sizing, the inference API, pricing estimates and the customer console. What model or workload are you planning?'
 }
 
 function FormattedMessage({ text }: { text: string }) {
@@ -894,6 +894,7 @@ export function GlobalBotCompanion() {
                 type="text"
                 className="bot-chat-input"
                 placeholder="Ask a question or enter prompt..."
+                aria-label="Message the Inferxe assistant"
                 value={inputVal}
                 onChange={(e) => setInputVal(e.target.value)}
                 onKeyDown={handleKeyDown}

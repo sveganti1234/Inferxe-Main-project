@@ -18,7 +18,6 @@ export type SubmitResult = { ok: true; delivered: boolean } | { ok: false; error
  */
 export async function submitContact(p: ContactPayload): Promise<SubmitResult> {
   if (!SITE.formEndpoint) {
-    await new Promise((r) => setTimeout(r, 900))
     if (import.meta.env.DEV) console.info('[contact] no VITE_FORM_ENDPOINT set — enquiry not delivered', p)
     return { ok: true, delivered: false }
   }

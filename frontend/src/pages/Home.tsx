@@ -47,7 +47,7 @@ function Hero() {
 
           <motion.div className="row row--wrap" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.85 }}>
             <LinkButton to="/signup" size="lg" arrow>
-              Log in to try free for 1 hour
+              Create an account
             </LinkButton>
             <LinkButton to="/how-it-works" variant="glass" size="lg">
               See how it works

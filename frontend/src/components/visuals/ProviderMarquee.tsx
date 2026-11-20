@@ -12,7 +12,7 @@ export const PROVIDERS: ProviderItem[] = [
   {
     id: 'jarvislabs',
     name: 'JarvisLabs',
-    badge: 'Live in MVP',
+    badge: 'MVP target',
     isLive: true,
     renderLogo: () => (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -34,8 +34,8 @@ export const PROVIDERS: ProviderItem[] = [
     ),
   },
   {
-    id: 'Nvdia',
-    name: 'Nvdia',
+    id: 'nvidia',
+    name: 'NVIDIA',
     badge: 'LLM API',
     renderLogo: () => (
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -195,7 +195,7 @@ export const PROVIDERS: ProviderItem[] = [
 
 export const ProviderMarquee: FC = () => {
   return (
-    <section className="strip" aria-label="Supported GPU providers">
+    <section className="strip" aria-label="GPU and model providers: JarvisLabs is the MVP target, others are under evaluation">
       <div className="marquee">
         {[0, 1].map((n) => (
           <div className="marquee__track" key={n} aria-hidden={n === 1}>

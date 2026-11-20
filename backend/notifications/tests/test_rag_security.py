@@ -413,12 +413,14 @@ def test_reindex_preserves_uploaded_documents_and_tags_curated_chunks(tmp_path, 
     real_client = chromadb.PersistentClient(path=str(persist), settings=Settings(anonymized_telemetry=False))
     col = real_client.get_or_create_collection(name=ik.COLLECTION_NAME, metadata={"hnsw:space": "cosine"})
     add_vector(col, "doc_upload_chunk_0", DOC_A, **tagged("organization", ORG_A, document_id="doc_upload"))
+    add_vector(col, "chunk_old_dataset_1", f"{QUERY} stale STALEFACT", category="gpu")  # earlier dataset version
     monkeypatch.setattr(chromadb, "PersistentClient", lambda path: real_client)
 
     ik.index_all_chunks(force=True)
 
     col = real_client.get_collection(ik.COLLECTION_NAME)
     assert col.get(ids=["doc_upload_chunk_0"])["ids"] == ["doc_upload_chunk_0"]  # upload survived
+    assert col.get(ids=["chunk_old_dataset_1"])["ids"] == []  # stale curated vector removed
     curated = col.get(ids=["curated_1"])["metadatas"][0]
     assert curated["visibility"] == "public" and curated["security_version"] == 1
 

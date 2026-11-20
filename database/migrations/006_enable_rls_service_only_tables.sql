@@ -131,18 +131,17 @@ WHERE table_schema = 'public' AND grantee IN ('anon', 'authenticated')
 -- ── E. Rollback (restores the 2026-11-18 state of the 9 exposed tables; compare with the A4 output) ──
 -- Do NOT roll back notifications / wallet_transactions: they had RLS before this migration.
 -- BEGIN;
--- ALTER TABLE public.users                     DISABLE ROW LEVEL SECURITY;
--- ALTER TABLE public.wallets                   DISABLE ROW LEVEL SECURITY;
--- ALTER TABLE public.gpu_deployments           DISABLE ROW LEVEL SECURITY;
--- ALTER TABLE public.notification_outbox       DISABLE ROW LEVEL SECURITY;
--- ALTER TABLE public.workspace_settings        DISABLE ROW LEVEL SECURITY;
--- ALTER TABLE public.gpu_inventory             DISABLE ROW LEVEL SECURITY;
--- ALTER TABLE public.gpu_maintenance_schedules DISABLE ROW LEVEL SECURITY;
--- ALTER TABLE public.ssh_keys                  DISABLE ROW LEVEL SECURITY;
--- ALTER TABLE public.notebook_instances        DISABLE ROW LEVEL SECURITY;
--- GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON TABLE
---     public.users, public.wallets, public.gpu_deployments, public.notification_outbox, public.workspace_settings,
---     public.gpu_inventory, public.gpu_maintenance_schedules, public.ssh_keys, public.notebook_instances
--- TO anon, authenticated;
+-- DO $rollback$
+-- DECLARE t text;
+-- BEGIN
+--     FOREACH t IN ARRAY ARRAY['users', 'wallets', 'gpu_deployments', 'notification_outbox', 'workspace_settings',
+--                              'gpu_inventory', 'gpu_maintenance_schedules', 'ssh_keys', 'notebook_instances'] LOOP
+--         CONTINUE WHEN to_regclass(format('public.%I', t)) IS NULL;  -- e.g. legacy tables absent
+--         EXECUTE format('ALTER TABLE public.%I DISABLE ROW LEVEL SECURITY', t);
+--         EXECUTE format('GRANT SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON TABLE public.%I '
+--                        'TO anon, authenticated', t);
+--     END LOOP;
+-- END
+-- $rollback$;
 -- COMMIT;
 -- (Rolling back re-opens the exposure; prefer fixing forward.)
