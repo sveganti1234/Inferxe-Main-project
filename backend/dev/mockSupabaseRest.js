@@ -155,8 +155,80 @@ const DEFAULT_GPU_LISTINGS = [
   },
 ]
 
+const DEFAULT_ADMIN_PASSWORD_HASH =
+  '$argon2id$v=19$m=65536,t=3,p=1$BT1KXGUqKNgs6a00ha61Rg$CtH85SvVzWopou6w7zWdYu0dTePYDAf48EHZ07XwjaE'
+const PRIMARY_SUPERADMIN_ID = 'd9a494cb-1e8d-4bca-8142-19687fa9138b'
+
 // In-memory data store for local dev
 const store = {
+  admin_users: new Map([
+    [
+      PRIMARY_SUPERADMIN_ID,
+      {
+        id: PRIMARY_SUPERADMIN_ID,
+        email: 'admin@inferxe.com',
+        full_name: 'Inferxe Super Admin',
+        role: 'superadmin',
+        is_active: true,
+        status: 'active',
+        session_version: 1,
+        password_hash: DEFAULT_ADMIN_PASSWORD_HASH,
+        created_at: '2026-01-01T00:00:00.000Z',
+        updated_at: '2026-01-01T00:00:00.000Z',
+        last_login: null,
+      },
+    ],
+    [
+      'adm_super_main',
+      {
+        id: 'adm_super_main',
+        email: 'superadmin@inferxe.com',
+        full_name: 'Inferxe Platform Superadmin',
+        role: 'superadmin',
+        is_active: true,
+        status: 'active',
+        session_version: 1,
+        password_hash: DEFAULT_ADMIN_PASSWORD_HASH,
+        created_at: '2026-01-01T00:00:00.000Z',
+        updated_at: '2026-01-01T00:00:00.000Z',
+        last_login: null,
+      },
+    ],
+    [
+      'adm_super_bhumi',
+      {
+        id: 'adm_super_bhumi',
+        email: 'bhumireddy@inferxe.com',
+        full_name: 'Bhumi Reddy',
+        role: 'superadmin',
+        is_active: true,
+        status: 'active',
+        session_version: 1,
+        password_hash: DEFAULT_ADMIN_PASSWORD_HASH,
+        created_at: '2026-01-01T00:00:00.000Z',
+        updated_at: '2026-01-01T00:00:00.000Z',
+        last_login: null,
+      },
+    ],
+    [
+      'adm_regular_alex',
+      {
+        id: 'adm_regular_alex',
+        email: 'alex.chen@inferxe.internal',
+        full_name: 'Alex Chen',
+        role: 'admin',
+        is_active: true,
+        status: 'active',
+        session_version: 1,
+        password_hash: DEFAULT_ADMIN_PASSWORD_HASH,
+        created_at: '2026-01-01T00:00:00.000Z',
+        updated_at: '2026-01-01T00:00:00.000Z',
+        last_login: null,
+      },
+    ],
+  ]),
+  admin_sessions: new Map(),
+  audit_logs: [],
   profiles: new Map(),
   organizations: [
     {
@@ -306,8 +378,125 @@ export function createMockSupabaseMiddleware() {
     const isSingleObject = (req.headers.accept || '').includes('vnd.pgrst.object+json')
 
     // Handle audit logs
-    if (table === 'audit_logs' && req.method === 'POST') {
-      return sendResponse(res, 201, { ok: true })
+    if (table === 'audit_logs') {
+      if (req.method === 'POST') {
+        const body = await readJson(req)
+        const log = { id: `log_${Date.now()}`, ...body, created_at: new Date().toISOString() }
+        store.audit_logs.push(log)
+        return sendResponse(res, 201, isSingleObject ? log : [log])
+      }
+      if (req.method === 'GET') {
+        return sendResponse(res, 200, store.audit_logs)
+      }
+    }
+
+    // ADMIN USERS
+    if (table === 'admin_users') {
+      const eqEmail = searchParams.get('email')?.replace(/^eq\./, '')?.toLowerCase()
+      const eqId = searchParams.get('id')?.replace(/^eq\./, '')
+
+      if (req.method === 'GET') {
+        let matched = Array.from(store.admin_users.values())
+        if (eqEmail) {
+          matched = matched.filter((a) => (a.email || '').toLowerCase() === eqEmail)
+        }
+        if (eqId) {
+          matched = matched.filter((a) => a.id === eqId)
+        }
+
+        if (isSingleObject) {
+          if (matched.length === 0) {
+            return sendResponse(res, 200, null)
+          }
+          return sendResponse(res, 200, matched[0])
+        }
+        return sendResponse(res, 200, matched)
+      }
+
+      if (req.method === 'PATCH') {
+        const body = await readJson(req)
+        let target = null
+        if (eqId && store.admin_users.has(eqId)) {
+          target = store.admin_users.get(eqId)
+        } else if (eqEmail) {
+          target = Array.from(store.admin_users.values()).find((a) => (a.email || '').toLowerCase() === eqEmail)
+        }
+        if (target) {
+          Object.assign(target, body, { updated_at: new Date().toISOString() })
+          return sendResponse(res, 200, isSingleObject ? target : [target])
+        }
+        return sendResponse(res, 200, isSingleObject ? null : [])
+      }
+
+      if (req.method === 'POST') {
+        const body = await readJson(req)
+        const newAdmin = {
+          id: body.id || `adm_${Date.now()}`,
+          email: (body.email || '').toLowerCase(),
+          full_name: body.full_name || 'Admin',
+          role: body.role || 'admin',
+          is_active: body.is_active !== false,
+          status: body.status || 'active',
+          session_version: body.session_version || 1,
+          password_hash: body.password_hash || DEFAULT_ADMIN_PASSWORD_HASH,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          last_login: null,
+        }
+        store.admin_users.set(newAdmin.id, newAdmin)
+        return sendResponse(res, 201, isSingleObject ? newAdmin : [newAdmin])
+      }
+    }
+
+    // ADMIN SESSIONS
+    if (table === 'admin_sessions') {
+      const eqId = searchParams.get('id')?.replace(/^eq\./, '')
+      const eqAdminId = searchParams.get('admin_user_id')?.replace(/^eq\./, '')
+
+      if (req.method === 'GET') {
+        let matched = Array.from(store.admin_sessions.values())
+        if (eqId) {
+          matched = matched.filter((s) => s.id === eqId)
+        }
+        if (eqAdminId) {
+          matched = matched.filter((s) => s.admin_user_id === eqAdminId)
+        }
+        if (isSingleObject) {
+          return sendResponse(res, 200, matched[0] || null)
+        }
+        return sendResponse(res, 200, matched)
+      }
+
+      if (req.method === 'POST') {
+        const body = await readJson(req)
+        const session = {
+          id: body.id || crypto.randomUUID(),
+          admin_user_id: body.admin_user_id,
+          session_version: body.session_version || 1,
+          expires_at: body.expires_at || new Date(Date.now() + 12 * 3600 * 1000).toISOString(),
+          created_at: new Date().toISOString(),
+          revoked_at: null,
+        }
+        store.admin_sessions.set(session.id, session)
+        return sendResponse(res, 201, isSingleObject ? session : [session])
+      }
+
+      if (req.method === 'PATCH') {
+        const body = await readJson(req)
+        let target = eqId ? store.admin_sessions.get(eqId) : null
+        if (target) {
+          Object.assign(target, body)
+          return sendResponse(res, 200, isSingleObject ? target : [target])
+        }
+        return sendResponse(res, 200, isSingleObject ? null : [])
+      }
+
+      if (req.method === 'DELETE') {
+        if (eqId) {
+          store.admin_sessions.delete(eqId)
+        }
+        return sendResponse(res, 200, [])
+      }
     }
 
     // PROFILES TABLE
@@ -439,8 +628,38 @@ export function createMockSupabaseMiddleware() {
     }
 
     // NOTIFICATIONS
-    if (table === 'notifications' && req.method === 'GET') {
-      return sendResponse(res, 200, store.notifications)
+    if (table === 'notifications') {
+      const eqId = searchParams.get('id')?.replace(/^eq\./, '')
+      const eqUserId = searchParams.get('user_id')?.replace(/^eq\./, '')
+
+      if (req.method === 'GET') {
+        let results = store.notifications
+        if (eqId) results = results.filter((n) => n.id === eqId)
+        if (eqUserId) results = results.filter((n) => !n.user_id || n.user_id === eqUserId)
+        return sendResponse(res, 200, isSingleObject ? (results[0] || null) : results)
+      }
+      if (req.method === 'POST') {
+        const body = await readJson(req)
+        const row = { id: body.id || `notif_${Date.now()}`, ...body, created_at: new Date().toISOString() }
+        store.notifications.push(row)
+        return sendResponse(res, 201, isSingleObject ? row : [row])
+      }
+      if (req.method === 'PATCH') {
+        const body = await readJson(req)
+        const matched = store.notifications.filter((n) => {
+          if (eqId && n.id !== eqId) return false
+          if (eqUserId && n.user_id && n.user_id !== eqUserId) return false
+          return true
+        })
+        for (const m of matched) {
+          Object.assign(m, body)
+        }
+        return sendResponse(res, 200, isSingleObject ? (matched[0] || null) : matched)
+      }
+      if (req.method === 'DELETE') {
+        store.notifications = store.notifications.filter((n) => !eqId || n.id !== eqId)
+        return sendResponse(res, 200, [])
+      }
     }
 
     // SAVED GPU LISTINGS
@@ -463,29 +682,148 @@ export function createMockSupabaseMiddleware() {
       }
     }
 
-    // SSH PUBLIC KEYS
-    if (table === 'ssh_public_keys') {
+    // NOTEBOOK SESSIONS
+    if (table === 'notebook_sessions') {
+      const eqId = searchParams.get('id')?.replace(/^eq\./, '')
+      const eqUserId = searchParams.get('user_id')?.replace(/^eq\./, '')
+      const eqSshKeyId = searchParams.get('selected_ssh_key_id')?.replace(/^eq\./, '')
+
       if (req.method === 'GET') {
-        return sendResponse(res, 200, store.ssh_public_keys)
+        let results = store.notebook_sessions
+        if (eqId) results = results.filter((s) => s.id === eqId)
+        if (eqUserId) results = results.filter((s) => s.user_id === eqUserId)
+        if (eqSshKeyId) results = results.filter((s) => s.selected_ssh_key_id === eqSshKeyId)
+        return sendResponse(res, 200, isSingleObject ? (results[0] || null) : results)
       }
       if (req.method === 'POST') {
         const body = await readJson(req)
-        const row = { id: `ssh_${Date.now()}`, ...body, created_at: new Date().toISOString() }
+        const row = { id: body.id || crypto.randomUUID(), ...body, created_at: new Date().toISOString() }
+        store.notebook_sessions.push(row)
+        return sendResponse(res, 201, isSingleObject ? row : [row])
+      }
+      if (req.method === 'PATCH') {
+        const body = await readJson(req)
+        const matched = store.notebook_sessions.filter((s) => {
+          if (eqId && s.id !== eqId) return false
+          if (eqUserId && s.user_id !== eqUserId) return false
+          if (eqSshKeyId && s.selected_ssh_key_id !== eqSshKeyId) return false
+          return true
+        })
+        for (const m of matched) {
+          Object.assign(m, body)
+        }
+        return sendResponse(res, 200, isSingleObject ? (matched[0] || null) : matched)
+      }
+      if (req.method === 'DELETE') {
+        store.notebook_sessions = store.notebook_sessions.filter((s) => !eqId || s.id !== eqId)
+        return sendResponse(res, 200, [])
+      }
+    }
+
+    // SSH PUBLIC KEYS
+    if (table === 'ssh_public_keys') {
+      const eqId = searchParams.get('id')?.replace(/^eq\./, '')
+      const eqUserId = searchParams.get('user_id')?.replace(/^eq\./, '')
+
+      if (req.method === 'GET') {
+        let results = store.ssh_public_keys
+        if (eqId) results = results.filter((s) => s.id === eqId)
+        if (eqUserId) results = results.filter((s) => s.user_id === eqUserId)
+        return sendResponse(res, 200, isSingleObject ? (results[0] || null) : results)
+      }
+      if (req.method === 'POST') {
+        const body = await readJson(req)
+        const row = { id: body.id || crypto.randomUUID(), ...body, created_at: new Date().toISOString() }
         store.ssh_public_keys.push(row)
-        return sendResponse(res, 201, [row])
+        return sendResponse(res, 201, isSingleObject ? row : [row])
+      }
+      if (req.method === 'PATCH') {
+        const body = await readJson(req)
+        const matched = store.ssh_public_keys.filter((s) => {
+          if (eqId && s.id !== eqId) return false
+          if (eqUserId && s.user_id !== eqUserId) return false
+          return true
+        })
+        for (const m of matched) {
+          Object.assign(m, body)
+        }
+        return sendResponse(res, 200, isSingleObject ? (matched[0] || null) : matched)
+      }
+      if (req.method === 'DELETE') {
+        const deleted = []
+        store.ssh_public_keys = store.ssh_public_keys.filter((s) => {
+          if (eqId && s.id === eqId) {
+            if (!eqUserId || s.user_id === eqUserId) {
+              deleted.push(s)
+              return false
+            }
+          }
+          return true
+        })
+        return sendResponse(res, 200, isSingleObject ? (deleted[0] || null) : deleted)
       }
     }
 
     // API KEYS
     if (table === 'api_keys') {
+      const eqId = searchParams.get('id')?.replace(/^eq\./, '')
+      const eqUserId = searchParams.get('user_id')?.replace(/^eq\./, '')
+      const eqStatus = searchParams.get('status')?.replace(/^eq\./, '')
+      const eqHash = searchParams.get('secret_hash')?.replace(/^eq\./, '')
+      const eqRevokedAt = searchParams.get('revoked_at')
+      const limit = parseInt(searchParams.get('limit') || '0', 10)
+
       if (req.method === 'GET') {
-        return sendResponse(res, 200, store.api_keys)
+        let results = store.api_keys
+        if (eqId) results = results.filter((k) => (k.id || '').toLowerCase() === eqId.toLowerCase())
+        if (eqUserId) results = results.filter((k) => (k.user_id || '').toLowerCase() === eqUserId.toLowerCase())
+        if (eqStatus) results = results.filter((k) => (k.status || '').toLowerCase() === eqStatus.toLowerCase())
+        if (eqHash) results = results.filter((k) => (k.secret_hash || '').toLowerCase() === eqHash.toLowerCase())
+        if (eqRevokedAt === 'is.null') results = results.filter((k) => k.revoked_at == null)
+        if (limit > 0) results = results.slice(0, limit)
+        return sendResponse(res, 200, isSingleObject ? (results[0] || null) : results)
       }
+
       if (req.method === 'POST') {
         const body = await readJson(req)
-        const row = { id: `key_${Date.now()}`, ...body, created_at: new Date().toISOString() }
+        const row = {
+          id: body.id || crypto.randomUUID(),
+          status: 'active',
+          revoked_at: null,
+          created_at: new Date().toISOString(),
+          ...body,
+        }
         store.api_keys.push(row)
-        return sendResponse(res, 201, [row])
+        return sendResponse(res, 201, isSingleObject ? row : [row])
+      }
+
+      if (req.method === 'PATCH') {
+        const body = await readJson(req)
+        const matched = store.api_keys.filter((k) => {
+          if (eqId && (k.id || '').toLowerCase() !== eqId.toLowerCase()) return false
+          if (eqUserId && (k.user_id || '').toLowerCase() !== eqUserId.toLowerCase()) return false
+          if (eqStatus && (k.status || '').toLowerCase() !== eqStatus.toLowerCase()) return false
+          if (eqRevokedAt === 'is.null' && k.revoked_at != null) return false
+          return true
+        })
+        for (const m of matched) {
+          Object.assign(m, body)
+        }
+        return sendResponse(res, 200, isSingleObject ? (matched[0] || null) : matched)
+      }
+
+      if (req.method === 'DELETE') {
+        const deleted = []
+        store.api_keys = store.api_keys.filter((k) => {
+          if (eqId && (k.id || '').toLowerCase() === eqId.toLowerCase()) {
+            if (!eqUserId || (k.user_id || '').toLowerCase() === eqUserId.toLowerCase()) {
+              deleted.push(k)
+              return false
+            }
+          }
+          return true
+        })
+        return sendResponse(res, 200, isSingleObject ? (deleted[0] || null) : deleted)
       }
     }
 
