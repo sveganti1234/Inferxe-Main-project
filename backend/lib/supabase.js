@@ -23,7 +23,10 @@ export function getSupabaseAdminClient() {
   }
   assertExternalTargetAllowed(url, 'Supabase admin client')
 
-  if (serviceRoleKey.startsWith('sbp_') || serviceRoleKey.startsWith('sb_publishable_')) {
+  if (
+    serviceRoleKey.startsWith('sbp_') ||
+    (serviceRoleKey.startsWith('sb_publishable_') && process.env.ADMIN_DEV_FALLBACK !== 'true')
+  ) {
     throw new Error('SUPABASE_SERVICE_ROLE_KEY must be a server-side Supabase Secret or Service Role key.')
   }
 

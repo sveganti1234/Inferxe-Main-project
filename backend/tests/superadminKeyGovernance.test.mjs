@@ -1,3 +1,4 @@
+import './support/networkGuard.mjs'
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import crypto from 'node:crypto'
