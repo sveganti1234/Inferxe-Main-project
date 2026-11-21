@@ -19,7 +19,7 @@ import {
 } from '../../lib/llmService'
 
 function walletSummary(): string {
-  return 'Your wallet balance and transaction history are shown, read-only, on the [Billing & wallet](/dashboard/app/billing) page. Adding funds and payments are not available yet, and inference requests are not currently charged.'
+  return 'Your wallet balance and transaction history are on the [Billing & wallet](/dashboard/app/billing) page. Add money there is a demo top-up: the amount is credited straight away and no real payment is taken. Inference requests are not currently charged.'
 }
 
 function recommendGpu(q: string): string | null {
@@ -47,7 +47,7 @@ const PUBLIC_WALLET_REPLY =
 function getDashboardWalletReply(): string {
   return (
     "Your wallet in the console: open [Billing & wallet](/dashboard/app/billing) to see your balance and transaction history.\n\n" +
-    "Not available yet: adding funds and payments (UPI, cards, NetBanking) cannot be used from the console today, so there is no top-up flow to follow. Pricing is not configured, and inference requests are not currently charged to your wallet.\n\n" +
+    "To add money: click Add money on that page, enter the amount and confirm. This is a demo top-up, so no real payment (UPI, cards, NetBanking) is taken. Pricing is not configured, and inference requests are not currently charged to your wallet.\n\n" +
     `Status: ${walletSummary()}`
   )
 }
@@ -133,7 +133,7 @@ function getBotReply(query: string, currentPath: string = '/'): string {
     q.includes('assist me') ||
     q === 'help'
   ) {
-    return "Hi there! I am your Inferxe AI Assistant. Ask me anything about:\n• **Project & Architecture**: Overview of Inferxe and the multi-provider orchestration.\n• **GPU Specs & Sizing**: Reference specs and memory sizing for NVIDIA H100, L40S, and L4.\n• **Wallet & Billing**: What the console shows today (balance and history are read-only; payments are not available yet).\n• **Customer Console**: API keys, usage, notifications, and what is not available yet.\n• **Inference API**: Sending requests with your Inferxe API key.\n• **Authentication**: Customer and Admin login with AWS Cognito.\n\nWhat would you like to know?"
+    return "Hi there! I am your Inferxe AI Assistant. Ask me anything about:\n• **Project & Architecture**: Overview of Inferxe and the multi-provider orchestration.\n• **GPU Specs & Sizing**: Reference specs and memory sizing for NVIDIA H100, L40S, and L4.\n• **Wallet & Billing**: What the console shows today (balance, history and demo Add money; no real payments yet).\n• **Customer Console**: API keys, usage, notifications, and what is not available yet.\n• **Inference API**: Sending requests with your Inferxe API key.\n• **Authentication**: Customer and Admin login with AWS Cognito.\n\nWhat would you like to know?"
   }
 
   const isInsideDashboard = currentPath.startsWith('/dashboard')

@@ -174,7 +174,7 @@ export default function OverviewPage() {
             value={walletData ? formatCurrency(walletData.balance, walletData.currency) : null}
             hint={walletHint}
           />
-          <Link className="cx-kpi__link" to={sectionHref(getSection('billing'))}>Top up · History <ArrowRight size={13} /></Link>
+          <Link className="cx-kpi__link" to={`${sectionHref(getSection('billing'))}?add=money`}>Add money · History <ArrowRight size={13} /></Link>
         </Card>
         <Card className="cx-panel">
           {workspace ? (

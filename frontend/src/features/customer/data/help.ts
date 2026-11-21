@@ -107,7 +107,7 @@ export const FAQ: FaqEntry[] = [
     category: 'Billing & usage',
     question: 'Can I add funds or pay from the console?',
     answer:
-      'Not yet. Payments are not available. Your wallet balance and transaction history are shown read-only on the Billing & wallet page.',
+      'Yes, as a demo: click Add money on the Billing & wallet page and enter an amount. It is credited straight away and no real payment is taken; real payments are not available yet.',
     links: [{ label: 'Billing & wallet', to: 'billing' }],
   },
   {

@@ -144,16 +144,51 @@ describe('Billing & wallet', () => {
     expect(text()).toMatch(/Updated yesterday|Updated 1 day ago/)
   })
 
-  it('states clearly that payments are unavailable and offers no way to add or move money', async () => {
+  it('Add money credits the wallet as a labelled demo top-up, once per attempt, and refreshes the balance', async () => {
+    let balance = 1250.5
+    const posted: unknown[] = []
+    handlers['GET /api/wallet/balance'] = () => jsonResponse(200, { balance, currency: 'INR', updated_at: ago(DAY) })
+    handlers['POST /api/wallet/transactions'] = (_url, init) => {
+      const body = JSON.parse(String(init.body))
+      posted.push(body)
+      balance += body.amount
+      return jsonResponse(200, { status: 'success', new_balance: balance })
+    }
     await render('/dashboard/app/billing')
-    expect(text()).toContain('Payments are not available yet.')
-    expect(text()).toContain('Pricing is not configured.')
-    const controls = [...main().querySelectorAll('button, a, form, input, textarea, select')]
-    const labels = controls.map((c) => `${c.getAttribute('aria-label') ?? ''} ${c.textContent ?? ''}`)
-    expect(labels.filter((l) => /top.?up|add (funds|money|credit)|checkout|pay\b|payment|recharge|buy|purchase|card|invoice|deposit/i.test(l))).toEqual([])
-    expect(main().querySelectorAll('form, input, textarea, select')).toHaveLength(0)
-    expect(calls().every((c) => c.startsWith('GET '))).toBe(true)
-    expect(calls().some((c) => /wallet\/transactions/.test(c))).toBe(false)
+    expect(text()).toContain('Demo payments.')
+    expect(text()).toContain('No real payment is taken')
+
+    await click(byText('button', /^\s*Add money\s*$/))
+    const input = document.querySelector<HTMLInputElement>('[role="dialog"] input')!
+    await setValue(input, '0')
+    await click(byText('[role="dialog"] button[type="submit"]', /Add money/))
+    expect(text()).toContain('Enter an amount greater than zero.')
+    await setValue(input, '100001')
+    await click(byText('[role="dialog"] button[type="submit"]', /Add money/))
+    expect(text()).toMatch(/at most ₹1,00,000|at most ₹100,000/)
+    expect(posted).toEqual([])
+
+    await setValue(input, '500')
+    await click(byText('[role="dialog"] button[type="submit"]', /Add money/))
+    await flush()
+    expect(posted).toHaveLength(1)
+    expect(posted[0]).toMatchObject({ amount: 500 })
+    expect(typeof (posted[0] as { idempotency_key?: unknown }).idempotency_key).toBe('string')
+    expect(document.querySelector('[role="dialog"]')).toBeNull()
+    expect(text()).toContain('₹500.00 added to your wallet.')
+    expect(text()).toContain('₹1,750.50')
+  })
+
+  it('shows the wallet service reason when Add money is refused', async () => {
+    handlers['POST /api/wallet/transactions'] = () =>
+      jsonResponse(403, { detail: 'Wallet top-ups are not self-service yet. Please contact Inferxe support to add funds.' })
+    await render('/dashboard/app/billing?add=money')
+    const input = document.querySelector<HTMLInputElement>('[role="dialog"] input')!
+    await setValue(input, '500')
+    await click(byText('[role="dialog"] button[type="submit"]', /Add money/))
+    await flush()
+    expect(text()).toContain('Wallet top-ups are not self-service yet.')
+    expect(document.querySelector('[role="dialog"]')).not.toBeNull()
   })
 
   it('filters credits and charges and pages long histories', async () => {

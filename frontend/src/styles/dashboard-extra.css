@@ -5885,6 +5885,7 @@ html[data-theme='light'],
   height: auto !important;
   min-height: 100% !important;
   position: static !important;
+  top: 0 !important;
   padding: 16px 14px 20px !important;
   display: flex !important;
   flex-direction: column !important;
@@ -7214,10 +7215,23 @@ html[data-theme='light'],
   justify-content: space-between !important;
   box-sizing: border-box !important;
   position: relative !important;
+  top: 0 !important;
   margin: 0 !important;
   flex-shrink: 0 !important;
   overflow: hidden !important;
   z-index: 10 !important;
+  transition: width 0.28s cubic-bezier(0.25, 1, 0.5, 1),
+              min-width 0.28s cubic-bezier(0.25, 1, 0.5, 1),
+              max-width 0.28s cubic-bezier(0.25, 1, 0.5, 1),
+              padding 0.28s cubic-bezier(0.25, 1, 0.5, 1) !important;
+}
+
+/* Explicit Super Admin Sidebar top alignment reset (overriding legacy top: calc(64px + 14px)) */
+.dash-shell[data-role="admin"] .dash-sidebar,
+.dash-window-frame--admin .dash-sidebar,
+.dash-sidebar.dash-sidebar--admin {
+  top: 0 !important;
+  margin-top: 0 !important;
 }
 
 .dash-sidebar.dash-sidebar--admin.is-collapsed,
@@ -7240,8 +7254,12 @@ html[data-theme='light'],
 
 .dash-sidebar--admin.is-collapsed .verdelo-sidebar-brand-row,
 .dash-sidebar--verdelo.is-collapsed .verdelo-sidebar-brand-row {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
   justify-content: center !important;
-  padding: 0 0 14px 0 !important;
+  gap: 10px !important;
+  padding: 0 0 12px 0 !important;
 }
 
 .verdelo-sidebar-brand-link {
@@ -7316,7 +7334,8 @@ html[data-theme='light'],
 
 .dash-sidebar--admin.is-collapsed .verdelo-sidebar-toggle,
 .dash-sidebar--verdelo.is-collapsed .verdelo-sidebar-toggle {
-  display: none !important;
+  display: flex !important;
+  margin: 0 auto !important;
 }
 
 /* Sidebar scroll area */
@@ -7343,6 +7362,18 @@ html[data-theme='light'],
   margin-bottom: 6px !important;
 }
 
+.dash-sidebar.is-collapsed .dash-nav-group,
+.dash-sidebar--admin.is-collapsed .dash-nav-group {
+  margin-bottom: 2px !important;
+}
+
+.dash-sidebar.is-collapsed .dash-nav-group + .dash-nav-group,
+.dash-sidebar--admin.is-collapsed .dash-nav-group + .dash-nav-group {
+  margin-top: 6px !important;
+  padding-top: 6px !important;
+  border-top: 1px solid var(--line) !important;
+}
+
 .dash-nav-group-btn {
   width: 100% !important;
   display: flex !important;
@@ -7359,6 +7390,18 @@ html[data-theme='light'],
   border: none !important;
   cursor: pointer !important;
   transition: color 0.15s ease !important;
+}
+
+.dash-sidebar.is-collapsed .dash-nav-group-btn,
+.dash-sidebar--admin.is-collapsed .dash-nav-group-btn {
+  display: none !important;
+  height: 0 !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  overflow: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
 }
 
 .dash-nav-group-btn:hover {
@@ -7410,9 +7453,17 @@ html[data-theme='light'],
 }
 
 .dash-sidebar--admin.is-collapsed .dash-nav-item,
-.dash-sidebar--verdelo.is-collapsed .dash-nav-item {
+.dash-sidebar--verdelo.is-collapsed .dash-nav-item,
+.dash-sidebar.is-collapsed .dash-nav-item {
+  width: 44px !important;
+  height: 40px !important;
+  margin: 2px auto !important;
   padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
   justify-content: center !important;
+  border-radius: 12px !important;
+  gap: 0 !important;
 }
 
 .dash-nav-item:hover {
@@ -7427,17 +7478,47 @@ html[data-theme='light'],
 }
 
 .dash-nav-item.is-active svg,
+.dash-nav-item.is-active .dash-nav-item-icon,
 .dash-nav-item.is-active span {
   color: var(--accent-ink) !important;
 }
 
-.dash-nav-item svg {
+.dash-nav-item svg,
+.dash-nav-item-icon {
+  width: 18px !important;
+  height: 18px !important;
+  min-width: 18px !important;
+  min-height: 18px !important;
+  stroke-width: 1.8 !important;
   color: var(--muted) !important;
   flex-shrink: 0 !important;
-  transition: color 0.15s ease !important;
+  transition: color 0.15s ease, transform 0.15s ease !important;
 }
 
-.dash-nav-item:hover svg {
+.dash-sidebar.is-collapsed .dash-nav-item svg,
+.dash-sidebar--admin.is-collapsed .dash-nav-item svg,
+.dash-sidebar.is-collapsed .dash-nav-item-icon,
+.dash-sidebar--admin.is-collapsed .dash-nav-item-icon {
+  width: 18px !important;
+  height: 18px !important;
+  min-width: 18px !important;
+  min-height: 18px !important;
+  margin: 0 auto !important;
+  flex-shrink: 0 !important;
+}
+
+.dash-sidebar.is-collapsed .dash-nav-item span,
+.dash-sidebar.is-collapsed .dash-nav-item .dash-nav-badge,
+.dash-sidebar--admin.is-collapsed .dash-nav-item span,
+.dash-sidebar--admin.is-collapsed .dash-nav-item .dash-nav-badge {
+  display: none !important;
+  max-width: 0 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.dash-nav-item:hover svg,
+.dash-nav-item:hover .dash-nav-item-icon {
   color: var(--ink) !important;
 }
 
@@ -7464,6 +7545,12 @@ html[data-theme='light'],
 .dash-nav-item.is-active .dash-nav-badge {
   color: var(--accent-ink) !important;
   background: rgba(0, 0, 0, 0.2) !important;
+}
+
+.dash-sidebar.is-collapsed .dash-sidebar__footer,
+.dash-sidebar--admin.is-collapsed .dash-sidebar__footer {
+  padding-top: 8px !important;
+  align-items: center !important;
 }
 
 /* 🌟 Floating unified nav pill (Exact Verdelo .nav__pill) */
