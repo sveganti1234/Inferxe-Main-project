@@ -613,8 +613,51 @@ export function createMockSupabaseMiddleware() {
     }
 
     // DEPLOYMENTS
-    if (table === 'deployments' && req.method === 'GET') {
-      return sendResponse(res, 200, store.deployments)
+    if (table === 'deployments') {
+      if (req.method === 'GET') {
+        return sendResponse(res, 200, store.deployments)
+      }
+      if (req.method === 'POST') {
+        const body = await readJson(req)
+        const row = {
+          id: body.id || crypto.randomUUID(),
+          user_id: body.user_id || '',
+          organization_id: body.organization_id || null,
+          listing_id: body.listing_id || null,
+          name: body.name || 'Untitled deployment',
+          model_name: body.model_name || 'Llama-3-70b-instruct',
+          gpu_model: body.gpu_model || 'NVIDIA H100 80GB',
+          region: body.region || 'Mumbai, IN',
+          status: body.status || 'provisioning',
+          hourly_rate: body.hourly_rate ?? 60,
+          currency: body.currency || 'INR',
+          endpoint_url: body.endpoint_url || `https://${(body.name || 'endpoint').toLowerCase().replace(/[^a-z0-9]/g, '-')}.endpoints.inferxe.com/v1`,
+          started_at: body.started_at || new Date().toISOString(),
+          stopped_at: null,
+          metadata: body.metadata || {},
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }
+        store.deployments.unshift(row)
+        return sendResponse(res, 201, [row])
+      }
+      if (req.method === 'PATCH') {
+        const body = await readJson(req)
+        const id = searchParams.get('id')?.replace(/^eq\./, '')
+        const item = store.deployments.find((d) => d.id === id)
+        if (item) {
+          Object.assign(item, body, { updated_at: new Date().toISOString() })
+          return sendResponse(res, 200, [item])
+        }
+        return sendResponse(res, 404, { message: 'Not found' })
+      }
+      if (req.method === 'DELETE') {
+        const id = searchParams.get('id')?.replace(/^eq\./, '')
+        if (id) {
+          store.deployments = store.deployments.filter((d) => d.id !== id)
+        }
+        return sendResponse(res, 200, [])
+      }
     }
 
     // USAGE RECORDS
