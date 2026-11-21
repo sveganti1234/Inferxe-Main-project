@@ -28,12 +28,12 @@ function SpendLimitCard({ organizationName }: { organizationName: string | null 
   const limit = budgetData ? budgetData.monthlyBudget : null
   const pct = limit && spent !== null ? Math.min(100, Math.round((spent / limit) * 100)) : null
   const head =
-    budget.state.status === 'error' ? 'Unavailable' : !budgetData ? '…' : limit === null ? 'No spending limit set' : formatCurrency(limit, 'INR')
+    budget.state.status === 'error' || limit === null ? 'No spending limit set' : !budgetData ? '…' : formatCurrency(limit, 'INR')
   return (
     <div className="cx-quota">
       <div className="cx-quota__head">
         <span>Monthly spend limit</span>
-        <strong className={limit === null ? 'cx-quota__none' : undefined}>{head}</strong>
+        <strong className={limit === null || budget.state.status === 'error' ? 'cx-quota__none' : undefined}>{head}</strong>
       </div>
       {pct !== null ? <div className="cx-quota__bar" aria-hidden="true"><span style={{ width: `${pct}%` }} /></div> : null}
       <div className="cx-quota__meta">
@@ -96,6 +96,17 @@ export function CustomerSidebar({
         <span className="cx-brand__name">
           Infer<em>xe</em>
         </span>
+        <button
+          type="button"
+          className="cx-collapse"
+          onClick={onToggleRail}
+          aria-pressed={rail}
+          aria-label={rail ? 'Expand sidebar' : 'Collapse sidebar'}
+          title={rail ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {rail ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
+          <span className="cx-collapse__text">Collapse sidebar</span>
+        </button>
         <button ref={closeButtonRef} type="button" className="cx-iconbtn cx-drawer-close" onClick={onClose} aria-label="Close navigation">
           <X size={18} />
         </button>
@@ -161,17 +172,6 @@ export function CustomerSidebar({
               </span>
             </Link>
           ) : <span className="cx-sidefoot__spacer" />}
-          <button
-            type="button"
-            className="cx-collapse"
-            onClick={onToggleRail}
-            aria-pressed={rail}
-            aria-label={rail ? 'Expand sidebar' : 'Collapse sidebar'}
-            title={rail ? 'Expand sidebar' : 'Collapse sidebar'}
-          >
-            {rail ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
-            <span className="cx-collapse__text">Collapse sidebar</span>
-          </button>
         </div>
         <Link to="/" className="cx-backlink" title="Back to Public Website">
           <ExternalLink size={15} aria-hidden="true" />

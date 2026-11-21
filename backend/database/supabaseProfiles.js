@@ -37,7 +37,10 @@ export async function upsertCognitoProfile(
     )
   }
 
-  if (apiKey.startsWith('sbp_') || apiKey.startsWith('sb_publishable_')) {
+  if (
+    apiKey.startsWith('sbp_') ||
+    (apiKey.startsWith('sb_publishable_') && process.env.ADMIN_DEV_FALLBACK !== 'true')
+  ) {
     throw new Error('SUPABASE_SERVICE_ROLE_KEY must be the server-side Supabase secret/service role key.')
   }
 

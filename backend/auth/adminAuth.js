@@ -515,12 +515,16 @@ export function createAdminAuthMiddleware(config = {}) {
   const resolveClient = () => {
     if (typeof config.getSupabaseClient === 'function') {
       try {
-        return config.getSupabaseClient()
+        const client = config.getSupabaseClient()
+        return client !== undefined ? client : undefined
       } catch {
         return null
       }
     }
-    return config.supabaseClient || null
+    if (config.supabaseClient !== undefined) {
+      return config.supabaseClient
+    }
+    return undefined
   }
   // Cognito settings given to the middleware are passed to the verifier (they were ignored before);
   // unset ones fall back to the environment as usual.
@@ -593,7 +597,9 @@ export function createAdminAuthMiddleware(config = {}) {
     const isAdminRoute = parsedPath.startsWith('/api/admin')
     const isSuperAdminRoute = parsedPath.startsWith('/api/superadmin')
     const isCustomerRoute = parsedPath.startsWith('/api/customer')
-    const isDirectRoute = (parsedPath === '/login' || parsedPath === '/verify' || parsedPath === '/logout') && req.method === 'POST'
+    const isDirectRoute =
+      (parsedPath === '/login' || parsedPath === '/verify' || parsedPath === '/logout') &&
+      (req.method === 'POST' || req.method === 'OPTIONS' || req.method === 'GET')
 
     if (!isAdminRoute && !isSuperAdminRoute && !isDirectRoute && !isCustomerRoute) {
       return next()
@@ -1132,6 +1138,10 @@ export function createAdminAuthMiddleware(config = {}) {
         if (!auth.email) {
           return sendJson(req, res, 400, { ok: false, error: 'The customer token does not include an email address.' })
         }
+        // The profile email is written from the token below, so only a Cognito-verified email may be used.
+        if (auth.claims.email_verified !== true && auth.claims.email_verified !== 'true') {
+          return sendJson(req, res, 403, { ok: false, error: 'A verified customer email is required.' })
+        }
         const body = await parseJsonBody(req)
         const { claims, cognito_sub, email } = auth
         // Profile details are the customer's own; role and account_status are never taken from the client.
@@ -1380,46 +1390,6 @@ export function createAdminAuthMiddleware(config = {}) {
           return sendJson(req, res, 400, {
             ok: false,
             error: 'Please enter your email and password.',
-          })
-        }
-
-        const customerConfigEmail = (process.env.CUSTOMER_EMAIL || 'sahith490522mnp@gmail.com').toLowerCase().trim()
-        const customerConfigPassword = process.env.CUSTOMER_PASSWORD || 'Qwaszx12$'
-
-        if (email === customerConfigEmail && password === customerConfigPassword) {
-          const customerUser = {
-            id: 'c1030d2a-c011-70d7-5ca6-9aa45e612d5a',
-            email: customerConfigEmail,
-            username: 'sahith',
-            fullName: 'Veganti Sahith',
-            full_name: 'Veganti Sahith',
-            role: 'customer',
-            is_active: true,
-            status: 'active',
-            organization: 'Sahith Workspace',
-          }
-          const nowSec = Math.floor(Date.now() / 1000)
-          const expSec = nowSec + 30 * 24 * 3600
-          const payload = {
-            sub: customerUser.id,
-            sid: 'sess_' + crypto.randomUUID(),
-            email: customerUser.email,
-            role: 'customer',
-            name: customerUser.fullName,
-            fullName: customerUser.fullName,
-            organization: customerUser.organization,
-            iat: nowSec,
-            exp: expSec,
-          }
-          const token = createAdminToken(payload, getSessionSecret())
-          return sendJson(req, res, 200, {
-            ok: true,
-            isAdmin: false,
-            isCustomer: true,
-            role: 'customer',
-            token,
-            user: customerUser,
-            expiresAt: expSec * 1000,
           })
         }
 
