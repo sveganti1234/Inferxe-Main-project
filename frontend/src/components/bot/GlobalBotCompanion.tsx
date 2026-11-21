@@ -439,7 +439,6 @@ export function getBotReply(query: string, currentPath: string = '/'): string {
   if (q.includes('l40s') && q.includes('spec')) {
     return 'The NVIDIA L40S is built on NVIDIA\'s Ada Lovelace architecture. It features 48 GB of GDDR6 memory with ECC and 864 GB/s bandwidth. Compute throughput delivers 1,466 FP8 TFLOPS and 733 FP16/BF16 Tensor TFLOPS at 350W TDP, designed for both heavy LLM inference and generative AI fine-tuning.'
   }
-  }
 
   if (q.includes('quantization') && (q.includes('memory') || q.includes('vram') || q.includes('affect'))) {
     return 'Quantization reduces GPU memory requirements by storing weights in lower-precision representations:\n• FP16/BF16: 2 bytes per parameter (a 7B model requires ~14 GB for weights).\n• FP8: 1 byte per parameter (50% reduction, ~7 GB for weights).\n• AWQ / INT4: 0.5 bytes per parameter (75% reduction, ~3.5 GB for weights).\n• KV-Cache Quantization: Cutting KV-cache precision from FP16 to FP8 halves KV cache footprint, enabling 2x longer context windows or higher concurrency.'
