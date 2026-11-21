@@ -425,7 +425,7 @@ describe('Customer Orders & Purchase History Restoration', () => {
     const text = document.body.textContent ?? ''
     expect(text).toContain('Order Details · ORD-8492')
     expect(text).toContain('24GB VRAM · 300 GB/s · PCIe Gen 4')
-    expect(text).toContain('Prepaid Compute Wallet')
+    expect(text).toContain('Prepaid Wallet')
     expect(text).toContain('TX-1048')
     expect(text).toContain('Active Debit')
     expect(text).toContain('Yotta NM1 (Mumbai)')

@@ -227,7 +227,7 @@ export interface CreateOrderPayload {
   details?: Record<string, unknown>
 }
 
-export async function createOrder(payload: CreateOrderPayload): Promise<void> {
+export async function createOrder(payload: CreateOrderPayload): Promise<Record<string, unknown> | undefined> {
   const body = await customerRequest<{ ok?: boolean; order?: Record<string, unknown> }>(
     '/api/customer/orders',
     {
@@ -238,6 +238,7 @@ export async function createOrder(payload: CreateOrderPayload): Promise<void> {
   if (!body?.ok) {
     throw new CustomerApiError('invalid_response', defaultMessage('invalid_response'))
   }
+  return body.order
 }
 
 export async function updateOrderStatus(
