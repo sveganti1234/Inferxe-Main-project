@@ -164,3 +164,52 @@ export async function fetchInferenceHealth(signal?: AbortSignal): Promise<Infere
     inferenceAvailable: providerStatus === 'configured',
   }
 }
+
+/* ── Deployments (Customer API) ── */
+
+export interface CreateDeploymentPayload {
+  name: string
+  model_name: string
+  gpu_model: string
+  region: string
+  hourly_rate?: number
+  currency?: string
+}
+
+export async function createDeployment(payload: CreateDeploymentPayload): Promise<void> {
+  const body = await customerRequest<{ ok?: boolean; deployment?: Record<string, unknown> }>(
+    '/api/customer/deployments',
+    {
+      method: 'POST',
+      body: payload,
+    },
+  )
+  if (!body?.ok) {
+    throw new CustomerApiError('invalid_response', defaultMessage('invalid_response'))
+  }
+}
+
+export async function updateDeploymentStatus(
+  id: string,
+  status: 'running' | 'stopped' | 'provisioning' | 'terminated',
+): Promise<void> {
+  if (!id) throw new CustomerApiError('bad_request', 'Deployment ID is required.')
+  const body = await customerRequest<{ ok?: boolean }>(`/api/customer/deployments/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: { status },
+  })
+  if (!body?.ok) {
+    throw new CustomerApiError('invalid_response', defaultMessage('invalid_response'))
+  }
+}
+
+export async function deleteDeployment(id: string): Promise<void> {
+  if (!id) throw new CustomerApiError('bad_request', 'Deployment ID is required.')
+  const body = await customerRequest<{ ok?: boolean }>(`/api/customer/deployments/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  })
+  if (!body?.ok) {
+    throw new CustomerApiError('invalid_response', defaultMessage('invalid_response'))
+  }
+}
+

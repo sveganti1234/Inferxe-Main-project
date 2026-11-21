@@ -207,10 +207,10 @@ describe('console shell', () => {
     view.unmount()
   })
 
-  it('opens the read-only Deployments page with an honest unavailable notice', async () => {
+  it('opens the Deployments page with summary cards and lifecycle controls', async () => {
     const view = await renderConsole('/dashboard/app/deployments', okHandlers())
     expect(view.text()).not.toContain('This section is being rebuilt')
-    expect(view.text()).toContain('Deployment provisioning is not available yet.')
+    expect(view.text()).toContain('TOTAL DEPLOYMENTS')
     expect(view.host.querySelector('[aria-current="page"]')?.textContent).toContain('Deployments')
     view.unmount()
   })
