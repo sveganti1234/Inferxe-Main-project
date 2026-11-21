@@ -12,6 +12,7 @@ import {
   Activity,
   BellRing,
   BrainCircuit,
+  CreditCard,
   Cpu,
   FlaskConical,
   KeyRound,
@@ -41,6 +42,7 @@ export type SectionId =
   | 'usage'
   | 'developer'
   | 'billing'
+  | 'checkout'
   | 'notifications'
   | 'settings'
   | 'help'
@@ -183,6 +185,22 @@ export const CONSOLE_SECTIONS: ConsoleSection[] = [
     description: 'Wallet balance and transaction history.',
     availabilityNote: 'Real balance and transactions. Adding funds is not available yet.',
     capabilities: ['Wallet balance', 'Transaction ledger'],
+  },
+  {
+    id: 'checkout',
+    label: 'Payment & Checkout',
+    path: 'checkout',
+    icon: CreditCard,
+    group: 'Billing & Payments',
+    availability: 'live',
+    description: 'Simulated payment processing with demo coupon discounts.',
+    availabilityNote: 'Simulated payment processing with demo coupon discounts and sovereign GPU capacity reservation.',
+    capabilities: [
+      'Dedicated compute reservation by duration',
+      'Promotional coupon codes and discount calculations',
+      'Prepaid wallet and corporate credit card payment methods',
+      'Instant order registration in orders ledger',
+    ],
   },
   {
     id: 'settings',

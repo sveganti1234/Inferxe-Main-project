@@ -645,3 +645,44 @@ export function getOrderCounts(orders: OrderView[]): {
     archived: orders.filter((o) => o.status === 'archived').length,
   }
 }
+
+/* ── Checkout & Payments View Helpers ── */
+
+export interface CheckoutCoupon {
+  code: string
+  percent?: number
+  flat?: number
+}
+
+export const VALID_COUPONS: Record<string, CheckoutCoupon> = {
+  INFERXE10: { code: 'INFERXE10', percent: 10 },
+  FRIEND15: { code: 'FRIEND15', percent: 15 },
+  LAUNCH50: { code: 'LAUNCH50', flat: 500 },
+}
+
+export interface CheckoutBreakdown {
+  baseCost: number
+  discount: number
+  taxable: number
+  tax: number
+  total: number
+}
+
+export function calculateCheckoutCost(
+  hourlyPrice: number,
+  durationHours: number,
+  appliedCoupon?: CheckoutCoupon | null,
+): CheckoutBreakdown {
+  const baseCost = Math.max(0, hourlyPrice * durationHours)
+  let discount = 0
+  if (appliedCoupon?.percent) {
+    discount = Math.round((baseCost * appliedCoupon.percent) / 100)
+  } else if (appliedCoupon?.flat) {
+    discount = Math.min(baseCost, appliedCoupon.flat)
+  }
+  const taxable = Math.max(0, baseCost - discount)
+  const tax = Math.round(taxable * 0.18)
+  const total = taxable + tax
+  return { baseCost, discount, taxable, tax, total }
+}
+
