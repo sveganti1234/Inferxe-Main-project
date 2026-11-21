@@ -515,12 +515,16 @@ export function createAdminAuthMiddleware(config = {}) {
   const resolveClient = () => {
     if (typeof config.getSupabaseClient === 'function') {
       try {
-        return config.getSupabaseClient()
+        const client = config.getSupabaseClient()
+        return client !== undefined ? client : undefined
       } catch {
         return null
       }
     }
-    return config.supabaseClient || null
+    if (config.supabaseClient !== undefined) {
+      return config.supabaseClient
+    }
+    return undefined
   }
   // Cognito settings given to the middleware are passed to the verifier (they were ignored before);
   // unset ones fall back to the environment as usual.
@@ -593,7 +597,9 @@ export function createAdminAuthMiddleware(config = {}) {
     const isAdminRoute = parsedPath.startsWith('/api/admin')
     const isSuperAdminRoute = parsedPath.startsWith('/api/superadmin')
     const isCustomerRoute = parsedPath.startsWith('/api/customer')
-    const isDirectRoute = (parsedPath === '/login' || parsedPath === '/verify' || parsedPath === '/logout') && req.method === 'POST'
+    const isDirectRoute =
+      (parsedPath === '/login' || parsedPath === '/verify' || parsedPath === '/logout') &&
+      (req.method === 'POST' || req.method === 'OPTIONS' || req.method === 'GET')
 
     if (!isAdminRoute && !isSuperAdminRoute && !isDirectRoute && !isCustomerRoute) {
       return next()

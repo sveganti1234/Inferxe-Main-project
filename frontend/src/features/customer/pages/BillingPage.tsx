@@ -1,14 +1,17 @@
 /**
- * Billing & wallet — READ ONLY.
- *  - Balance:  8002 GET /api/wallet/balance
- *  - History:  GET /api/customer/workspace → wallet_transactions
- * There is deliberately no top-up, checkout, payment or credit control anywhere on this page:
- * payments are not available yet, and the backend must not let customers credit themselves.
+ * Billing & wallet.
+ *  - Balance:   8002 GET /api/wallet/balance
+ *  - History:   GET /api/customer/workspace → wallet_transactions
+ *  - Add money: 8002 POST /api/wallet/transactions — a demo top-up of the customer's own wallet.
+ *    No payment is taken (there is no payment gateway); the service allows it only while
+ *    WALLET_SELF_RECHARGE_ENABLED is on, and labels each one "Demo top-up" in the history.
  */
-import { useMemo, useState } from 'react'
-import { ArrowDownLeft, ArrowRight, ArrowUpRight, Info, Receipt, RefreshCw, Wallet } from 'lucide-react'
+import { useMemo, useState, type FormEvent } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { ArrowDownLeft, ArrowRight, ArrowUpRight, Info, Plus, Receipt, RefreshCw, Wallet } from 'lucide-react'
 import { usePageMeta } from '../../../lib/hooks'
-import { fetchWalletBalance } from '../data/serviceClients'
+import { CustomerApiError } from '../data/http'
+import { MAX_DEMO_TOPUP, addMoneyToWallet, fetchWalletBalance } from '../data/serviceClients'
 import { useAsyncResource } from '../data/useAsyncResource'
 import { useCustomerWorkspace } from '../data/WorkspaceContext'
 import {
@@ -23,7 +26,8 @@ import {
 } from '../data/selectors'
 import { getSection, sectionHref } from '../navigation'
 import { signOutToLogin } from '../shell/CustomerShell'
-import { Segmented } from '../ui/controls'
+import { Field, Segmented, TextInput } from '../ui/controls'
+import { Dialog } from '../ui/Dialog'
 import { Button, ButtonLink, Card, CardHeader, DataTable, Notice, PageHeader, Stat, StatusPill, type Column } from '../ui/primitives'
 import { EmptyState, ErrorState, LoadingBlock, Skeleton } from '../ui/states'
 
@@ -36,6 +40,16 @@ function statusTone(status: string | null): 'success' | 'warning' | 'danger' | '
   if (s === 'failed' || s === 'cancelled' || s === 'rejected') return 'danger'
   if (s === 'pending' || s === 'processing') return 'warning'
   return 'neutral'
+}
+
+/** The amount typed into "Add money", or the reason it cannot be used. */
+export function parseTopUpAmount(raw: string): { amount: number } | { error: string } {
+  const text = raw.trim().replace(/,/g, '')
+  if (!/^\d+(\.\d{1,2})?$/.test(text)) return { error: 'Enter an amount in rupees, for example 500 or 1250.50.' }
+  const amount = Number(text)
+  if (amount <= 0) return { error: 'Enter an amount greater than zero.' }
+  if (amount > MAX_DEMO_TOPUP) return { error: `You can add at most ${formatCurrency(MAX_DEMO_TOPUP, 'INR')} at a time.` }
+  return { amount }
 }
 
 function AmountCell({ entry }: { entry: LedgerEntry }) {
@@ -56,6 +70,47 @@ export default function BillingPage() {
   const wallet = useAsyncResource(fetchWalletBalance, { cacheKey: 'wallet' })
   const [filter, setFilter] = useState<Filter>('all')
   const [visible, setVisible] = useState(PAGE_SIZE)
+
+  // "Add money" dialog; ?add=money (the overview's Add money link) opens it on arrival.
+  const [params, setParams] = useSearchParams()
+  const [addOpen, setAddOpen] = useState(() => params.get('add') === 'money')
+  const [amountText, setAmountText] = useState('')
+  const [addError, setAddError] = useState<string | null>(null)
+  const [adding, setAdding] = useState(false)
+  const [attemptKey, setAttemptKey] = useState(() => crypto.randomUUID())
+  const [added, setAdded] = useState<number | null>(null)
+
+  const openAdd = () => {
+    setAmountText('')
+    setAddError(null)
+    setAttemptKey(crypto.randomUUID())
+    setAddOpen(true)
+  }
+  const closeAdd = () => {
+    setAddOpen(false)
+    if (params.has('add')) setParams({}, { replace: true })
+  }
+  const submitAdd = async (e: FormEvent) => {
+    e.preventDefault()
+    const parsed = parseTopUpAmount(amountText)
+    if ('error' in parsed) {
+      setAddError(parsed.error)
+      return
+    }
+    setAdding(true)
+    setAddError(null)
+    try {
+      await addMoneyToWallet(parsed.amount, attemptKey)
+      closeAdd()
+      setAdded(parsed.amount)
+      refresh()
+      wallet.refresh()
+    } catch (err) {
+      setAddError(err instanceof CustomerApiError ? err.message : 'The money could not be added. Please try again.')
+    } finally {
+      setAdding(false)
+    }
+  }
 
   const entries = useMemo(() => (workspace ? selectLedger(workspace) : []), [workspace])
   const totals = useMemo(() => selectLedgerTotals(entries), [entries])
@@ -154,15 +209,25 @@ export default function BillingPage() {
         title="Billing & wallet"
         description="Your wallet balance and every recorded transaction."
         actions={
-          <Button variant="secondary" onClick={refreshAll} disabled={state.status === 'loading' || wallet.state.status === 'loading'}>
-            <RefreshCw size={15} /> Refresh
-          </Button>
+          <>
+            <Button variant="secondary" onClick={refreshAll} disabled={state.status === 'loading' || wallet.state.status === 'loading'}>
+              <RefreshCw size={15} /> Refresh
+            </Button>
+            <Button variant="primary" onClick={openAdd}>
+              <Plus size={15} /> Add money
+            </Button>
+          </>
         }
       />
 
-      <Notice tone="warning" icon={<Info size={17} />}>
-        <strong>Payments are not available yet.</strong> You can’t add funds, check out or pay invoices from the console
-        at this time. The balance and history below are read-only records of your account.
+      <Notice icon={<Info size={17} />}>
+        {added !== null ? (
+          <>
+            <strong>{formatCurrency(added, 'INR')} added to your wallet.</strong>{' '}
+          </>
+        ) : null}
+        <strong>Demo payments.</strong> Add money credits your wallet straight away. No real payment is taken, and each
+        top-up appears in your history as a demo top-up.
       </Notice>
 
       <div className="cx-grid cx-grid--4" role="list" aria-label="Wallet summary">
@@ -242,6 +307,36 @@ export default function BillingPage() {
           Totals add up completed transactions in each recorded currency. They describe the history above and are not a reconciliation of your balance.
         </p>
       </section>
+
+      <Dialog
+        open={addOpen}
+        title="Add money"
+        description="Demo top-up: the amount is credited to your wallet straight away. No payment is taken."
+        onClose={closeAdd}
+        dismissible={!adding}
+      >
+        <form onSubmit={submitAdd} className="cx-form" noValidate>
+          <Field label="Amount (₹)" error={addError ?? undefined} hint={`Up to ${formatCurrency(MAX_DEMO_TOPUP, 'INR')} at a time.`}>
+            {({ inputId, describedBy, invalid }) => (
+              <TextInput
+                id={inputId}
+                value={amountText}
+                onChange={(e) => setAmountText(e.target.value)}
+                inputMode="decimal"
+                autoComplete="off"
+                aria-describedby={describedBy}
+                aria-invalid={invalid}
+                data-autofocus
+                placeholder="500"
+              />
+            )}
+          </Field>
+          <div className="cx-dialog__foot cx-dialog__foot--inline">
+            <Button variant="ghost" onClick={closeAdd} disabled={adding}>Cancel</Button>
+            <Button variant="primary" type="submit" disabled={adding}>{adding ? 'Adding…' : 'Add money'}</Button>
+          </div>
+        </form>
+      </Dialog>
 
       <section className="cx-section" aria-labelledby="cx-pricing-title">
         <Card>

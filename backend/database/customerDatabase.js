@@ -225,6 +225,44 @@ function runMigrations(db) {
       new Date().toISOString(),
     )
   }
+
+  // Migration 5: Ensure customer_sessions schema allows nullable customer_id and login_at without legacy FK constraints
+  if (!applied.has(5)) {
+    try {
+      const tableSql = db.prepare("SELECT sql FROM sqlite_master WHERE name='customer_sessions'").get()?.sql || ''
+      if (tableSql.includes('FOREIGN KEY (customer_id) REFERENCES customers') || tableSql.includes('customer_id TEXT NOT NULL')) {
+        db.exec(`
+          CREATE TABLE IF NOT EXISTS customer_sessions_mig (
+            session_id TEXT PRIMARY KEY,
+            customer_id TEXT,
+            cognito_sub TEXT,
+            email TEXT,
+            token_hash TEXT,
+            login_at TEXT,
+            logout_at TEXT,
+            status TEXT NOT NULL DEFAULT 'active',
+            ip_address TEXT,
+            user_agent TEXT,
+            last_seen_at TEXT,
+            created_at TEXT
+          );
+          INSERT OR IGNORE INTO customer_sessions_mig SELECT session_id, customer_id, cognito_sub, email, token_hash, login_at, logout_at, status, ip_address, user_agent, last_seen_at, created_at FROM customer_sessions;
+          DROP TABLE customer_sessions;
+          ALTER TABLE customer_sessions_mig RENAME TO customer_sessions;
+          CREATE INDEX IF NOT EXISTS idx_customer_sessions_customer ON customer_sessions(customer_id);
+          CREATE INDEX IF NOT EXISTS idx_customer_sessions_sub ON customer_sessions(cognito_sub);
+          CREATE INDEX IF NOT EXISTS idx_customer_sessions_email ON customer_sessions(email);
+          CREATE INDEX IF NOT EXISTS idx_customer_sessions_last_seen ON customer_sessions(last_seen_at);
+        `)
+      }
+    } catch {}
+
+    db.prepare('INSERT INTO schema_migrations (version, name, applied_at) VALUES (?, ?, ?)').run(
+      5,
+      '005_fix_customer_sessions_schema',
+      new Date().toISOString(),
+    )
+  }
 }
 
 /**

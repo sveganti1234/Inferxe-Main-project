@@ -724,7 +724,7 @@ class NotificationService:
             tx_cols = _get_table_columns(cur, "wallet_transactions")
             tx_id = str(uuid.uuid4()) if tx_cols.get("id") == "uuid" else f"tx_{uuid.uuid4().hex[:10]}"
             tx_now = now_iso()
-            tx_description = f"Administrator credit: {admin_credit['reason']}"[:500] if admin_credit else "Wallet recharge top-up"
+            tx_description = f"Administrator credit: {admin_credit['reason']}"[:500] if admin_credit else "Demo top-up (no payment collected)"
             if "direction" in tx_cols and "transaction_type" in tx_cols:
                 cur.execute(
                     """
