@@ -604,7 +604,9 @@ export function createAdminAuthMiddleware(config = {}) {
     const isAdminRoute = parsedPath.startsWith('/api/admin')
     const isSuperAdminRoute = parsedPath.startsWith('/api/superadmin')
     const isCustomerRoute = parsedPath.startsWith('/api/customer')
-    const isDirectRoute = (parsedPath === '/login' || parsedPath === '/verify' || parsedPath === '/logout') && req.method === 'POST'
+    const isDirectRoute =
+      (parsedPath === '/login' || parsedPath === '/verify' || parsedPath === '/logout') &&
+      (req.method === 'POST' || req.method === 'OPTIONS' || req.method === 'GET')
 
     if (!isAdminRoute && !isSuperAdminRoute && !isDirectRoute && !isCustomerRoute) {
       return next()

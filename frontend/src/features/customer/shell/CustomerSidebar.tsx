@@ -4,8 +4,7 @@ import { NavLink } from 'react-router-dom'
 import { ExternalLink, PanelLeftClose, PanelLeftOpen, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { LogoMark } from '../../../components/Logo'
-import { CONSOLE_SECTIONS, NAV_GROUPS, effectiveAvailability, getSection, sectionHref } from '../navigation'
-import { availabilityLabel } from '../ui/AvailabilityBadge'
+import { CONSOLE_SECTIONS, NAV_GROUPS, getSection, sectionHref } from '../navigation'
 import type { ConsoleSignals } from './useConsoleSignals'
 import { useCustomerWorkspace } from '../data/WorkspaceContext'
 import { fetchWorkspaceBudget } from '../data/serviceClients'
@@ -118,7 +117,6 @@ export function CustomerSidebar({
           <div className="cx-nav__group" key={group}>
             <div className="cx-nav__label">{group}</div>
             {CONSOLE_SECTIONS.filter((s) => s.group === group).map((section) => {
-              const availability = effectiveAvailability(section, signals)
               const Icon = section.icon
               return (
                 <NavLink
@@ -126,7 +124,7 @@ export function CustomerSidebar({
                   to={sectionHref(section)}
                   end={section.path === ''}
                   className="cx-nav__item"
-                  title={rail ? `${section.label}${availability === 'live' ? '' : ` (${availabilityLabel(availability)})`}` : undefined}
+                  title={rail ? section.label : undefined}
                   onClick={onNavigate}
                   onMouseEnter={() => setHovered(section.id)}
                 >
@@ -149,9 +147,6 @@ export function CustomerSidebar({
                       </AnimatePresence>
                       <Icon size={18} strokeWidth={1.9} aria-hidden="true" />
                       <span className="cx-nav__text">{section.label}</span>
-                      {availability !== 'live' ? (
-                        <span className={`cx-nav__tag cx-nav__tag--${availability}`}>{availabilityLabel(availability)}</span>
-                      ) : null}
                     </>
                   )}
                 </NavLink>

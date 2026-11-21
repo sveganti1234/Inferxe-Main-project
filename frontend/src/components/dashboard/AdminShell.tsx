@@ -9,9 +9,9 @@ import {
   Sun,
   ChevronDown,
   ChevronRight,
+  ChevronLeft,
   Cpu,
   ExternalLink,
-  PanelLeftClose,
   Globe,
   HelpCircle,
   LayoutDashboard,
@@ -47,14 +47,14 @@ export function preloadRoute(_path: string) {}
 interface NavItem {
   label: string
   to: string
-  icon: React.ComponentType<{ size?: number; className?: string; style?: React.CSSProperties }>
+  icon: React.ComponentType<{ size?: number; className?: string; style?: React.CSSProperties; strokeWidth?: number }>
   badge?: string
   badgeType?: 'pill' | 'count'
 }
 
 interface AdminNavGroup {
   title: string
-  icon?: React.ComponentType<{ size?: number; className?: string; style?: React.CSSProperties }>
+  icon?: React.ComponentType<{ size?: number; className?: string; style?: React.CSSProperties; strokeWidth?: number }>
   items: NavItem[]
 }
 
@@ -207,15 +207,15 @@ export function AdminShell() {
 
   const unreadNotifCount = liveNotifs.filter((n) => !n.read).length
 
-  // Mobile responsiveness
+  // Mobile responsiveness (matches @media (max-width: 900px))
   const [isMobile, setIsMobile] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') return window.innerWidth <= 840
+    if (typeof window !== 'undefined') return window.innerWidth <= 900
     return false
   })
 
   useEffect(() => {
     const handleResize = () => {
-      const mobile = window.innerWidth <= 840
+      const mobile = window.innerWidth <= 900
       setIsMobile(mobile)
       if (!mobile && mobileMenuOpen) setMobileMenuOpen(false)
     }
@@ -636,8 +636,8 @@ export function AdminShell() {
                   }}
                   onMouseLeave={() => setHoveredFlyout(null)}
                 >
-                  <item.icon />
-                  <span>{item.label}</span>
+                  <item.icon size={18} strokeWidth={1.8} className="dash-nav-item-icon" />
+                  {!isSidebarCollapsed && <span>{item.label}</span>}
                 </Link>
               )
             })}
@@ -652,25 +652,27 @@ export function AdminShell() {
 
     return (
       <div key={group.title} className="dash-nav-group">
-        <button
-          type="button"
-          className={`dash-nav-group-title dash-nav-group-btn ${isExpanded ? 'is-expanded' : ''} ${
-            isCategoryActive ? 'is-active-category' : ''
-          }`}
-          onClick={() => toggleAdminGroup(group.title)}
-          aria-expanded={isExpanded}
-          title={isExpanded ? `Collapse ${group.title}` : `Expand ${group.title}`}
-        >
-          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            {group.icon && <group.icon size={13} style={{ color: dashTheme === 'light' ? '#123D2D' : '#50e396' }} />}
-            <span>{group.title}</span>
-          </span>
-          <ChevronDown
-            size={13}
-            className={`dash-nav-group-chevron ${isExpanded ? 'is-expanded' : ''}`}
-            aria-hidden="true"
-          />
-        </button>
+        {!isSidebarCollapsed && (
+          <button
+            type="button"
+            className={`dash-nav-group-title dash-nav-group-btn ${isExpanded ? 'is-expanded' : ''} ${
+              isCategoryActive ? 'is-active-category' : ''
+            }`}
+            onClick={() => toggleAdminGroup(group.title)}
+            aria-expanded={isExpanded}
+            title={isExpanded ? `Collapse ${group.title}` : `Expand ${group.title}`}
+          >
+            <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              {group.icon && <group.icon size={13} strokeWidth={1.8} style={{ color: dashTheme === 'light' ? '#123D2D' : '#50e396' }} />}
+              <span>{group.title}</span>
+            </span>
+            <ChevronDown
+              size={13}
+              className={`dash-nav-group-chevron ${isExpanded ? 'is-expanded' : ''}`}
+              aria-hidden="true"
+            />
+          </button>
+        )}
 
         <AnimatePresence initial={false}>
           {showItems && (
@@ -709,9 +711,9 @@ export function AdminShell() {
                     }}
                     onMouseLeave={() => setHoveredFlyout(null)}
                   >
-                    <item.icon />
-                    <span>{item.label}</span>
-                    {item.badge && (
+                    <item.icon size={18} strokeWidth={1.8} className="dash-nav-item-icon" />
+                    {!isSidebarCollapsed && <span>{item.label}</span>}
+                    {!isSidebarCollapsed && item.badge && (
                       <span className={`dash-nav-badge ${item.badgeType === 'count' ? 'dash-nav-badge--count' : ''}`}>
                         {item.badge}
                       </span>
@@ -761,17 +763,23 @@ export function AdminShell() {
                   </span>
                 )}
               </Link>
-              {!isSidebarCollapsed && (
-                <button
-                  type="button"
-                  className="verdelo-sidebar-toggle"
-                  onClick={toggleSidebarCollapse}
-                  title="Collapse sidebar (Ctrl+B)"
-                  aria-label="Collapse sidebar"
-                >
-                  <PanelLeftClose size={17} />
-                </button>
-              )}
+              <button
+                type="button"
+                className="verdelo-sidebar-toggle"
+                onClick={toggleSidebarCollapse}
+                title={isSidebarCollapsed ? "Expand sidebar (Ctrl+B)" : "Collapse sidebar (Ctrl+B)"}
+                aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              >
+                <ChevronLeft
+                  size={16}
+                  strokeWidth={2.2}
+                  style={{
+                    transition: 'transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1)',
+                    transform: isSidebarCollapsed ? 'rotate(180deg)' : 'rotate(0deg)',
+                  }}
+                  aria-hidden="true"
+                />
+              </button>
             </div>
 
             {/* Scrollable Navigation Area */}
@@ -786,8 +794,57 @@ export function AdminShell() {
             </div>
 
             {/* Sidebar Footer: Fleet Health Quota Card + User Card */}
-            <div className="dash-sidebar__footer">
-              {!isSidebarCollapsed && (
+            <div className={`dash-sidebar__footer ${isSidebarCollapsed ? 'is-collapsed' : ''}`}>
+              {isSidebarCollapsed ? (
+                <div style={{ display: 'flex', justifyContent: 'center', padding: '4px 0' }}>
+                  <div ref={profileMenuRef} style={{ position: 'relative' }}>
+                    <div
+                      className="verdelo-user-avatar"
+                      onClick={() => setAdminMenuOpen(!adminMenuOpen)}
+                      role="button"
+                      tabIndex={0}
+                      title={`${user.fullName || 'Admin'} (${roleLabel})`}
+                      style={{ cursor: 'pointer', margin: '0 auto', width: 34, height: 34, fontSize: '0.85rem' }}
+                    >
+                      {initials}
+                    </div>
+
+                    {adminMenuOpen && (
+                      <div
+                        className="dash-dropdown-popover"
+                        style={{
+                          position: 'fixed',
+                          left: '80px',
+                          bottom: '16px',
+                          padding: '12px',
+                          zIndex: 1200,
+                          minWidth: '220px',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 8, borderBottom: '1px solid var(--line)' }}>
+                          <div className="verdelo-user-avatar" style={{ width: 32, height: 32 }}>{initials}</div>
+                          <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                            <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--ink)' }}>{user.fullName || 'Admin'}</span>
+                            <span style={{ fontSize: '0.72rem', color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user.email || 'admin@inferxe.com'}</span>
+                          </div>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, paddingTop: 6 }}>
+                          <button
+                            type="button"
+                            className="dash-nav-item dash-nav-item--danger"
+                            onClick={async () => {
+                              setAdminMenuOpen(false)
+                              await performSignOut('/')
+                            }}
+                          >
+                            <LogOut size={15} /> Sign Out
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {/* Fleet cluster quota card matching Customer .verdelo-safe-spend-card */}
                   <div className="verdelo-safe-spend-card" title="Cluster Fleet: 4 Nodes · 14 Users (64% capacity)">
