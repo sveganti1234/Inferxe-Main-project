@@ -5229,3 +5229,185 @@
   flex-wrap: wrap;
   margin-top: 4px;
 }
+
+/* ── Rewards & Discounts (image19.png) ── */
+
+.cx-rewards-stats-grid {
+  margin-bottom: 20px;
+}
+
+.cx-stat-card {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.cx-stat-card__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.cx-stat-card__label {
+  font-size: 0.84rem;
+  color: var(--cx-muted, #7e9a8b);
+  font-weight: 500;
+}
+
+.cx-stat-icon-wrap {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(16, 185, 129, 0.1);
+  color: #10b981;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cx-stat-icon-wrap--gift {
+  background: rgba(168, 85, 247, 0.1);
+  color: #a855f7;
+}
+
+.cx-stat-card__val {
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: #ffffff;
+  line-height: 1.1;
+}
+
+.cx-stat-card__val--green {
+  color: #10b981;
+}
+
+.cx-stat-card__hint {
+  font-size: 0.74rem;
+  color: var(--cx-muted, #7e9a8b);
+  margin-top: 6px;
+}
+
+.cx-rewards-mid-grid {
+  margin-bottom: 20px;
+}
+
+.cx-rewards-card {
+  padding: 24px;
+}
+
+.cx-rewards-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--cx-border, rgba(255, 255, 255, 0.08));
+}
+
+.cx-rewards-card-header h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.cx-rewards-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.cx-ref-link-box {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid var(--cx-border, rgba(255, 255, 255, 0.1));
+  border-radius: 8px;
+  gap: 10px;
+}
+
+.cx-ref-link-code {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.8rem;
+  color: #86efac;
+  word-break: break-all;
+}
+
+.cx-rewards-subtext {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--cx-muted, #94a3b8);
+}
+
+.cx-rewards-subtext strong {
+  color: #ffffff;
+}
+
+.cx-rewards-actions-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.cx-youtube-icon {
+  color: #ef4444;
+}
+
+.cx-creator-input-wrap {
+  width: 100%;
+}
+
+.cx-creator-input {
+  width: 100%;
+  text-transform: uppercase;
+}
+
+.cx-creator-msg {
+  margin: 0;
+  font-size: 0.78rem;
+  padding: 8px 12px;
+  border-radius: 6px;
+}
+
+.cx-creator-msg.is-success {
+  background: rgba(16, 185, 129, 0.12);
+  color: #86efac;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.cx-creator-msg.is-error {
+  background: rgba(239, 68, 68, 0.12);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.25);
+}
+
+.cx-coupons-table-card {
+  padding: 24px;
+}
+
+.cx-apply-checkout-link {
+  color: #86efac;
+}
+
+.cx-coupons-table th {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--cx-muted, #7e9a8b);
+  text-transform: uppercase;
+}
+
+.cx-coupon-code-mono {
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.cx-coupon-benefit {
+  font-weight: 600;
+  color: #86efac;
+}

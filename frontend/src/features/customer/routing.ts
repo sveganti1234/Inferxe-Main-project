@@ -59,6 +59,8 @@ const LEGACY_WORKSPACE_PAGES: Record<string, string> = {
   wallet: 'billing',
   checkout: 'checkout',
   payments: 'checkout',
+  rewards: 'rewards',
+  discounts: 'rewards',
   notifications: 'notifications',
   settings: 'settings',
   help: 'help',

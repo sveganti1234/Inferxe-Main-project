@@ -15,6 +15,7 @@ import {
   CreditCard,
   Cpu,
   FlaskConical,
+  Gift,
   KeyRound,
   LayoutDashboard,
   LifeBuoy,
@@ -43,6 +44,7 @@ export type SectionId =
   | 'developer'
   | 'billing'
   | 'checkout'
+  | 'rewards'
   | 'notifications'
   | 'settings'
   | 'help'
@@ -200,6 +202,22 @@ export const CONSOLE_SECTIONS: ConsoleSection[] = [
       'Promotional coupon codes and discount calculations',
       'Prepaid wallet and corporate credit card payment methods',
       'Instant order registration in orders ledger',
+    ],
+  },
+  {
+    id: 'rewards',
+    label: 'Rewards & Discounts',
+    path: 'rewards',
+    icon: Gift,
+    group: 'Billing & Payments',
+    availability: 'live',
+    description: 'Referral discounts, coupon codes and creator trial codes.',
+    availabilityNote: 'Referral tracking, promotional discount coupons, and 1-hour creator trials.',
+    capabilities: [
+      'Personal referral link and tracking counter',
+      'Earned referral compute discount tracker',
+      'Creator and YouTuber 1-hour trial activation',
+      'Active coupon codes directory',
     ],
   },
   {
