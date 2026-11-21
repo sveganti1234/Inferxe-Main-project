@@ -259,8 +259,8 @@ function seedInitialAdmins(db) {
     {
       id: 'adm_regular_main',
       email: 'admin@inferxe.com',
-      full_name: 'Inferxe Administrator',
-      role: 'admin',
+      full_name: 'Inferxe Super Admin',
+      role: 'superadmin',
       status: 'active',
       created_at: '2026-02-01T00:00:00.000Z',
       last_login: nowIso,

@@ -155,8 +155,80 @@ const DEFAULT_GPU_LISTINGS = [
   },
 ]
 
+const DEFAULT_ADMIN_PASSWORD_HASH =
+  '$argon2id$v=19$m=65536,t=3,p=1$BT1KXGUqKNgs6a00ha61Rg$CtH85SvVzWopou6w7zWdYu0dTePYDAf48EHZ07XwjaE'
+const PRIMARY_SUPERADMIN_ID = 'd9a494cb-1e8d-4bca-8142-19687fa9138b'
+
 // In-memory data store for local dev
 const store = {
+  admin_users: new Map([
+    [
+      PRIMARY_SUPERADMIN_ID,
+      {
+        id: PRIMARY_SUPERADMIN_ID,
+        email: 'admin@inferxe.com',
+        full_name: 'Inferxe Super Admin',
+        role: 'superadmin',
+        is_active: true,
+        status: 'active',
+        session_version: 1,
+        password_hash: DEFAULT_ADMIN_PASSWORD_HASH,
+        created_at: '2026-01-01T00:00:00.000Z',
+        updated_at: '2026-01-01T00:00:00.000Z',
+        last_login: null,
+      },
+    ],
+    [
+      'adm_super_main',
+      {
+        id: 'adm_super_main',
+        email: 'superadmin@inferxe.com',
+        full_name: 'Inferxe Platform Superadmin',
+        role: 'superadmin',
+        is_active: true,
+        status: 'active',
+        session_version: 1,
+        password_hash: DEFAULT_ADMIN_PASSWORD_HASH,
+        created_at: '2026-01-01T00:00:00.000Z',
+        updated_at: '2026-01-01T00:00:00.000Z',
+        last_login: null,
+      },
+    ],
+    [
+      'adm_super_bhumi',
+      {
+        id: 'adm_super_bhumi',
+        email: 'bhumireddy@inferxe.com',
+        full_name: 'Bhumi Reddy',
+        role: 'superadmin',
+        is_active: true,
+        status: 'active',
+        session_version: 1,
+        password_hash: DEFAULT_ADMIN_PASSWORD_HASH,
+        created_at: '2026-01-01T00:00:00.000Z',
+        updated_at: '2026-01-01T00:00:00.000Z',
+        last_login: null,
+      },
+    ],
+    [
+      'adm_regular_alex',
+      {
+        id: 'adm_regular_alex',
+        email: 'alex.chen@inferxe.internal',
+        full_name: 'Alex Chen',
+        role: 'admin',
+        is_active: true,
+        status: 'active',
+        session_version: 1,
+        password_hash: DEFAULT_ADMIN_PASSWORD_HASH,
+        created_at: '2026-01-01T00:00:00.000Z',
+        updated_at: '2026-01-01T00:00:00.000Z',
+        last_login: null,
+      },
+    ],
+  ]),
+  admin_sessions: new Map(),
+  audit_logs: [],
   profiles: new Map(),
   organizations: [
     {
@@ -331,8 +403,125 @@ export function createMockSupabaseMiddleware() {
     const isSingleObject = (req.headers.accept || '').includes('vnd.pgrst.object+json')
 
     // Handle audit logs
-    if (table === 'audit_logs' && req.method === 'POST') {
-      return sendResponse(res, 201, { ok: true })
+    if (table === 'audit_logs') {
+      if (req.method === 'POST') {
+        const body = await readJson(req)
+        const log = { id: `log_${Date.now()}`, ...body, created_at: new Date().toISOString() }
+        store.audit_logs.push(log)
+        return sendResponse(res, 201, isSingleObject ? log : [log])
+      }
+      if (req.method === 'GET') {
+        return sendResponse(res, 200, store.audit_logs)
+      }
+    }
+
+    // ADMIN USERS
+    if (table === 'admin_users') {
+      const eqEmail = searchParams.get('email')?.replace(/^eq\./, '')?.toLowerCase()
+      const eqId = searchParams.get('id')?.replace(/^eq\./, '')
+
+      if (req.method === 'GET') {
+        let matched = Array.from(store.admin_users.values())
+        if (eqEmail) {
+          matched = matched.filter((a) => (a.email || '').toLowerCase() === eqEmail)
+        }
+        if (eqId) {
+          matched = matched.filter((a) => a.id === eqId)
+        }
+
+        if (isSingleObject) {
+          if (matched.length === 0) {
+            return sendResponse(res, 200, null)
+          }
+          return sendResponse(res, 200, matched[0])
+        }
+        return sendResponse(res, 200, matched)
+      }
+
+      if (req.method === 'PATCH') {
+        const body = await readJson(req)
+        let target = null
+        if (eqId && store.admin_users.has(eqId)) {
+          target = store.admin_users.get(eqId)
+        } else if (eqEmail) {
+          target = Array.from(store.admin_users.values()).find((a) => (a.email || '').toLowerCase() === eqEmail)
+        }
+        if (target) {
+          Object.assign(target, body, { updated_at: new Date().toISOString() })
+          return sendResponse(res, 200, isSingleObject ? target : [target])
+        }
+        return sendResponse(res, 200, isSingleObject ? null : [])
+      }
+
+      if (req.method === 'POST') {
+        const body = await readJson(req)
+        const newAdmin = {
+          id: body.id || `adm_${Date.now()}`,
+          email: (body.email || '').toLowerCase(),
+          full_name: body.full_name || 'Admin',
+          role: body.role || 'admin',
+          is_active: body.is_active !== false,
+          status: body.status || 'active',
+          session_version: body.session_version || 1,
+          password_hash: body.password_hash || DEFAULT_ADMIN_PASSWORD_HASH,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          last_login: null,
+        }
+        store.admin_users.set(newAdmin.id, newAdmin)
+        return sendResponse(res, 201, isSingleObject ? newAdmin : [newAdmin])
+      }
+    }
+
+    // ADMIN SESSIONS
+    if (table === 'admin_sessions') {
+      const eqId = searchParams.get('id')?.replace(/^eq\./, '')
+      const eqAdminId = searchParams.get('admin_user_id')?.replace(/^eq\./, '')
+
+      if (req.method === 'GET') {
+        let matched = Array.from(store.admin_sessions.values())
+        if (eqId) {
+          matched = matched.filter((s) => s.id === eqId)
+        }
+        if (eqAdminId) {
+          matched = matched.filter((s) => s.admin_user_id === eqAdminId)
+        }
+        if (isSingleObject) {
+          return sendResponse(res, 200, matched[0] || null)
+        }
+        return sendResponse(res, 200, matched)
+      }
+
+      if (req.method === 'POST') {
+        const body = await readJson(req)
+        const session = {
+          id: body.id || crypto.randomUUID(),
+          admin_user_id: body.admin_user_id,
+          session_version: body.session_version || 1,
+          expires_at: body.expires_at || new Date(Date.now() + 12 * 3600 * 1000).toISOString(),
+          created_at: new Date().toISOString(),
+          revoked_at: null,
+        }
+        store.admin_sessions.set(session.id, session)
+        return sendResponse(res, 201, isSingleObject ? session : [session])
+      }
+
+      if (req.method === 'PATCH') {
+        const body = await readJson(req)
+        let target = eqId ? store.admin_sessions.get(eqId) : null
+        if (target) {
+          Object.assign(target, body)
+          return sendResponse(res, 200, isSingleObject ? target : [target])
+        }
+        return sendResponse(res, 200, isSingleObject ? null : [])
+      }
+
+      if (req.method === 'DELETE') {
+        if (eqId) {
+          store.admin_sessions.delete(eqId)
+        }
+        return sendResponse(res, 200, [])
+      }
     }
 
     // PROFILES TABLE
