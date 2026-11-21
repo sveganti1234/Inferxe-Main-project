@@ -348,24 +348,44 @@ describe('Inference playground', () => {
 
 /* ── Deployments ── */
 describe('Deployments page', () => {
-  it('says provisioning is unavailable and offers no create/start/stop controls (empty)', async () => {
+  it('shows summary cards and empty state with new deployment action when empty', async () => {
     await render('/dashboard/app/deployments')
-    expect(text()).toContain('Deployment provisioning is not available yet')
+    expect(text()).toContain('TOTAL DEPLOYMENTS')
+    expect(text()).toContain('RUNNING ENDPOINTS')
+    expect(text()).toContain('HOURLY SPEND')
     expect(text()).toContain('No deployment records')
-    expect(pageButton(/create|deploy|start|stop|launch|scale/i)).toBeFalsy()
+    expect(document.querySelector('button[aria-label="New deployment"]')).toBeTruthy()
   })
 
-  it('shows only existing records as recorded status, never as running infrastructure', async () => {
+  it('shows deployment records with summary stats, status pill, and action buttons', async () => {
     handlers['GET /api/customer/workspace'] = () =>
       jsonResponse(200, workspaceEnvelope(emptyWorkspace({
-        deployments: [{ id: 'd1', user_id: 'u', organization_id: null, listing_id: null, name: 'my-dep', model_name: 'llama', gpu_model: 'H100', region: 'r1', status: 'running', hourly_rate: 5, endpoint_url: 'https://secret.example/x', started_at: null, stopped_at: null, metadata: null, created_at: '2026-01-01T00:00:00Z', updated_at: null }],
+        deployments: [{
+          id: 'd1',
+          user_id: 'u',
+          organization_id: null,
+          listing_id: null,
+          name: 'my-dep',
+          model_name: 'llama',
+          gpu_model: 'H100',
+          region: 'Mumbai, IN',
+          status: 'running',
+          hourly_rate: 60,
+          currency: 'INR',
+          endpoint_url: 'https://my-dep.endpoints.inferxe.com/v1',
+          started_at: '2026-01-01T00:00:00Z',
+          stopped_at: null,
+          metadata: null,
+          created_at: '2026-01-01T00:00:00Z',
+          updated_at: null,
+        }],
       })))
     await render('/dashboard/app/deployments')
     expect(text()).toContain('my-dep')
-    expect(text()).toContain('Running (recorded)')
-    expect(text()).not.toContain('secret.example')
-    expect(pageButton(/create|start|stop|launch|scale/i)).toBeFalsy()
-    expect(calls().filter((c) => c.startsWith('POST') || c.startsWith('DELETE') || c.startsWith('PUT'))).toEqual([])
+    expect(text()).toContain('Running')
+    expect(text()).toContain('₹60/hr')
+    expect(document.querySelector('button[aria-label="Stop deployment my-dep"]')).toBeTruthy()
+    expect(document.querySelector('button[aria-label="Restart deployment my-dep"]')).toBeTruthy()
   })
 
   it('shows an error state and a loading state', async () => {

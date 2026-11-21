@@ -124,7 +124,13 @@ async function getRows(supabase, table, columnList, field, value) {
   let query = supabase.from(table).select(columnList)
   if (value !== undefined && value !== null) query = query.eq(field, value)
   const result = await query
-  if (result.error) throw result.error
+  if (result.error) {
+    if (result.error.code === '42501') {
+      console.warn(`[customer-api] Permission denied (42501) for table '${table}'; returning empty collection.`)
+      return []
+    }
+    throw result.error
+  }
   return result.data || []
 }
 
@@ -180,7 +186,10 @@ async function getWorkspace(context) {
   ] = results
 
   for (const result of results) {
-    if (result?.error) throw result.error
+    if (result?.error) {
+      if (result.error.code === '42501') continue
+      throw result.error
+    }
   }
 
   return {
@@ -400,6 +409,105 @@ async function handleCustomerApi(req, res, path) {
         .eq('listing_id', listingId)
       if (result.error) throw result.error
       return sendJson(res, 200, { ok: true })
+    }
+
+    if (path === '/api/customer/deployments' && req.method === 'POST') {
+      const body = await readCustomerJsonBody(req)
+      const name = typeof body.name === 'string' ? body.name.trim() : ''
+      const modelName = typeof body.model_name === 'string' ? body.model_name.trim() : ''
+      const gpuModel = typeof body.gpu_model === 'string' ? body.gpu_model.trim() : ''
+      const region = typeof body.region === 'string' ? body.region.trim() : 'Mumbai, IN'
+      const hourlyRate = typeof body.hourly_rate === 'number' && body.hourly_rate >= 0 ? body.hourly_rate : 60
+      const currency = typeof body.currency === 'string' && body.currency.trim() ? body.currency.trim().toUpperCase() : 'INR'
+
+      if (!name || name.length > 100) {
+        return sendJson(res, 400, { ok: false, error: 'Endpoint name must be between 1 and 100 characters.' })
+      }
+      if (!modelName) {
+        return sendJson(res, 400, { ok: false, error: 'A model is required for the deployment.' })
+      }
+      if (!gpuModel) {
+        return sendJson(res, 400, { ok: false, error: 'A GPU selection is required for the deployment.' })
+      }
+
+      const id = crypto.randomUUID()
+      const now = new Date().toISOString()
+      const newRecord = {
+        id,
+        user_id: claims.sub,
+        organization_id: context.profile.organization_id || null,
+        name,
+        model_name: modelName,
+        gpu_model: gpuModel,
+        region,
+        status: 'provisioning',
+        hourly_rate: hourlyRate,
+        currency,
+        endpoint_url: `https://${name.toLowerCase().replace(/[^a-z0-9]/g, '-')}.endpoints.inferxe.com/v1`,
+        started_at: now,
+        created_at: now,
+        updated_at: now,
+      }
+
+      const result = await supabase
+        .from('deployments')
+        .insert(newRecord)
+        .select(WORKSPACE_SELECTS.deployments)
+        .single()
+
+      if (result.error) throw result.error
+      return sendJson(res, 201, { ok: true, deployment: result.data })
+    }
+
+    if (path.startsWith('/api/customer/deployments/') && req.method === 'PATCH') {
+      const deploymentId = decodeURIComponent(path.slice('/api/customer/deployments/'.length))
+      const body = await readCustomerJsonBody(req)
+      const allowedStatuses = ['running', 'stopped', 'provisioning', 'terminated']
+      const updateData = { updated_at: new Date().toISOString() }
+
+      if (body.status !== undefined) {
+        const nextStatus = String(body.status).toLowerCase().trim()
+        if (!allowedStatuses.includes(nextStatus)) {
+          return sendJson(res, 400, { ok: false, error: `Invalid status. Must be one of: ${allowedStatuses.join(', ')}` })
+        }
+        updateData.status = nextStatus
+        if (nextStatus === 'running') {
+          updateData.started_at = new Date().toISOString()
+        } else if (nextStatus === 'stopped' || nextStatus === 'terminated') {
+          updateData.stopped_at = new Date().toISOString()
+        }
+      }
+
+      if (typeof body.name === 'string' && body.name.trim()) {
+        updateData.name = body.name.trim().slice(0, 100)
+      }
+
+      const result = await supabase
+        .from('deployments')
+        .update(updateData)
+        .eq('id', deploymentId)
+        .eq('user_id', claims.sub)
+        .select(WORKSPACE_SELECTS.deployments)
+        .maybeSingle()
+
+      if (result.error) throw result.error
+      if (!result.data) return sendJson(res, 404, { ok: false, error: 'Deployment was not found.' })
+      return sendJson(res, 200, { ok: true, deployment: result.data })
+    }
+
+    if (path.startsWith('/api/customer/deployments/') && req.method === 'DELETE') {
+      const deploymentId = decodeURIComponent(path.slice('/api/customer/deployments/'.length))
+      const result = await supabase
+        .from('deployments')
+        .delete()
+        .eq('id', deploymentId)
+        .eq('user_id', claims.sub)
+        .select('id')
+        .maybeSingle()
+
+      if (result.error) throw result.error
+      if (!result.data) return sendJson(res, 404, { ok: false, error: 'Deployment was not found.' })
+      return sendJson(res, 200, { ok: true, id: result.data.id })
     }
 
     if (path === '/api/customer/ssh-keys' && req.method === 'POST') {
