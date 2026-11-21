@@ -101,7 +101,7 @@ export function DashboardLayout({
       icon: 'check',
       title: 'Marlow Market settled',
       hasDot: true,
-      desc: '$84.36 is final on the Travel card.',
+      desc: '₹84.36 is final on the Travel card.',
       time: '50 min ago',
       unread: true,
     },
@@ -109,7 +109,7 @@ export function DashboardLayout({
       id: 'a2',
       type: 'pending',
       icon: 'card',
-      title: 'Marlow Market · $84.36',
+      title: 'Marlow Market · ₹84.36',
       hasDot: true,
       desc: 'Jonas on the Travel card — pending.',
       time: '2 h ago',
@@ -121,7 +121,7 @@ export function DashboardLayout({
       icon: 'pie',
       title: 'Eating out is nearly spent',
       hasDot: true,
-      desc: "Most of November's $420 is gone, 18 days to go.",
+      desc: "Most of November's ₹420 is gone, 18 days to go.",
       time: 'Yesterday, 6:04 PM',
       unread: true,
     },
@@ -131,7 +131,7 @@ export function DashboardLayout({
       icon: 'goal',
       title: "Ada's laptop is 75% there",
       hasDot: true,
-      desc: '$1,082 saved — on track for January.',
+      desc: '₹1,082 saved — on track for January.',
       time: 'Tue, 9:00 AM',
       unread: true,
     },
@@ -141,7 +141,7 @@ export function DashboardLayout({
       icon: 'calendar',
       title: 'Fulcrum Gym on the 14th',
       hasDot: false,
-      desc: '$54.00 goes out by autopay in 2 days.',
+      desc: '₹54.00 goes out by autopay in 2 days.',
       time: 'Mon, 7:30 AM',
       unread: false,
     },
@@ -1091,8 +1091,8 @@ export function DashboardLayout({
                   {/* Safe to spend today card */}
                   <div className="verdelo-safe-spend-card">
                     <div className="verdelo-safe-spend-label">Safe to spend today</div>
-                    <div className="verdelo-safe-spend-amount">$67</div>
-                    <div className="verdelo-safe-spend-sub">$269 of bills still due · 19 days left</div>
+                    <div className="verdelo-safe-spend-amount">₹67</div>
+                    <div className="verdelo-safe-spend-sub">₹269 of bills still due · 19 days left</div>
                   </div>
 
                   {/* Account Owner Card */}

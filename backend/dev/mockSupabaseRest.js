@@ -63,7 +63,7 @@ const DEFAULT_GPU_LISTINGS = [
     region: 'India (Noida)',
     quantity: 16,
     hourly_price: 2.49,
-    currency: 'USD',
+    currency: 'INR',
     status: 'available',
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
@@ -80,7 +80,7 @@ const DEFAULT_GPU_LISTINGS = [
     region: 'India (Noida)',
     quantity: 24,
     hourly_price: 1.89,
-    currency: 'USD',
+    currency: 'INR',
     status: 'available',
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
@@ -97,7 +97,7 @@ const DEFAULT_GPU_LISTINGS = [
     region: 'US East (Virginia)',
     quantity: 32,
     hourly_price: 0.89,
-    currency: 'USD',
+    currency: 'INR',
     status: 'available',
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
@@ -114,7 +114,7 @@ const DEFAULT_GPU_LISTINGS = [
     region: 'India (Noida)',
     quantity: 48,
     hourly_price: 0.39,
-    currency: 'USD',
+    currency: 'INR',
     status: 'available',
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
@@ -131,7 +131,7 @@ const DEFAULT_GPU_LISTINGS = [
     region: 'EU Central (Frankfurt)',
     quantity: 64,
     hourly_price: 0.44,
-    currency: 'USD',
+    currency: 'INR',
     status: 'available',
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
@@ -148,7 +148,7 @@ const DEFAULT_GPU_LISTINGS = [
     region: 'India (Noida)',
     quantity: 20,
     hourly_price: 0.49,
-    currency: 'USD',
+    currency: 'INR',
     status: 'available',
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
@@ -302,7 +302,7 @@ const store = {
       wallet_id: '',
       user_id: '',
       amount: 250.00,
-      currency: 'USD',
+      currency: 'INR',
       type: 'credit',
       status: 'completed',
       description: 'Welcome GPU Compute Credits',
@@ -316,7 +316,7 @@ const store = {
       id: 'notif_welcome',
       user_id: '',
       title: 'Welcome to Inferxe Compute Platform',
-      message: 'Your developer workspace is ready with $250.00 compute credits.',
+      message: 'Your developer workspace is ready with ₹250.00 compute credits.',
       type: 'info',
       read: false,
       created_at: new Date().toISOString(),
@@ -367,33 +367,8 @@ export function createMockSupabaseMiddleware() {
       return res.end()
     }
 
-    // Also support fallback endpoints for wallet and settings if Python services are not running
-    if (pathname === '/api/wallet/balance' && req.method === 'GET') {
-      return sendResponse(res, 200, {
-        ok: true,
-        balance: 250.00,
-        currency: 'USD',
-        available_balance: 250.00,
-        pending_charges: 0.00,
-      })
-    }
-
-    if (pathname === '/api/workspace/settings' && req.method === 'GET') {
-      return sendResponse(res, 200, {
-        ok: true,
-        monthly_budget: 500,
-        currency: 'INR',
-        alerts_enabled: true,
-      })
-    }
-
-    if (pathname === '/api/notifications/unread-count' && req.method === 'GET') {
-      return sendResponse(res, 200, {
-        ok: true,
-        unread_count: 0,
-      })
-    }
-
+    // Wallet, budget and notifications are served only by the real notifications service (8002):
+    // a canned answer here would show every customer the same made-up balance.
     if (!pathname.startsWith('/rest/v1/')) {
       return next()
     }
@@ -617,7 +592,7 @@ export function createMockSupabaseMiddleware() {
           wallet = {
             id: `wal_${eqUserId.slice(0, 8)}`,
             user_id: eqUserId,
-            currency: 'USD',
+            currency: 'INR',
             balance: 250.00,
             created_at: '2026-01-01T00:00:00Z',
             updated_at: '2026-01-01T00:00:00Z',
