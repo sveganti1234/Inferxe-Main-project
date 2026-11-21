@@ -273,11 +273,11 @@ function getBotReply(query: string, currentPath: string = '/'): string {
   }
 
   if (q.includes('compare nvidia l4 and l40s') || (q.includes('l4') && q.includes('l40s') && q.includes('compare'))) {
-    return 'Both NVIDIA L4 and L40S are based on Ada Lovelace architecture:\n• Memory: L4 has 24 GB GDDR6 (300 GB/s); L40S has 48 GB GDDR6 with ECC (864 GB/s).\n• Compute: L4 delivers 485 FP8 / 242 FP16 TFLOPS; L40S delivers 1,466 FP8 / 733 FP16 TFLOPS (3x compute).\n• Power: L4 requires 72W; L40S requires 350W.\n• Pricing: On JarvisLabs, L4 is ₹41/hr ($0.44/hr) on-demand vs ₹18/hr ($0.19/hr) spot. L40S is ₹118/hr ($1.25/hr) on-demand vs ₹61/hr ($0.65/hr) spot. Inferxe marketplace retail rates are ₹60/hr for L4 and ₹100/hr for L40S.'
+    return 'Both NVIDIA L4 and L40S are based on Ada Lovelace architecture:\n• Memory: L4 has 24 GB GDDR6 (300 GB/s); L40S has 48 GB GDDR6 with ECC (864 GB/s).\n• Compute: L4 delivers 485 FP8 / 242 FP16 TFLOPS; L40S delivers 1,466 FP8 / 733 FP16 TFLOPS (3x compute).\n• Power: L4 requires 72W; L40S requires 350W.\n• Pricing: On JarvisLabs, L4 is ₹41/hr on-demand vs ₹18/hr spot. L40S is ₹118/hr on-demand vs ₹61/hr spot. Inferxe marketplace retail rates are ₹60/hr for L4 and ₹100/hr for L40S.'
   }
 
   if (q.includes('hourly price of an h100') || q.includes('price of an h100') || q.includes('h100 price') || q.includes('h100 rate')) {
-    return 'Documented hourly rates for NVIDIA H100 SXM (80 GB):\n• JarvisLabs.ai (MVP Provider): $3.49/hr (₹330/hr) on-demand, and $1.55/hr (₹146/hr) spot instances.\n• E2E Networks: ₹340/hr on-demand.\n• Yotta NM1 Shakti Cloud: ₹350/hr on-demand.\n• Inferxe Proposed Marketplace Rate: ₹250–₹280/hr with automated spot optimization.'
+    return 'Documented hourly rates for NVIDIA H100 SXM (80 GB):\n• JarvisLabs.ai (MVP Provider): ₹330/hr on-demand, and ₹146/hr spot instances.\n• E2E Networks: ₹340/hr on-demand.\n• Yotta NM1 Shakti Cloud: ₹350/hr on-demand.\n• Inferxe Proposed Marketplace Rate: ₹250–₹280/hr with automated spot optimization.'
   }
 
   if (q.includes('quantization') && (q.includes('memory') || q.includes('vram') || q.includes('affect'))) {
