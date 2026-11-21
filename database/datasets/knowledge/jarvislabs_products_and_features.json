@@ -1,0 +1,62 @@
+[
+  {
+    "product_name": "Templates",
+    "consumption_model": "Managed Container Instances",
+    "startup_time": "1.8 seconds",
+    "supported_environments": "PyTorch, ComfyUI, vLLM, JupyterLab, VS Code, SSH",
+    "billing": "Per-minute",
+    "persistence": "Persistent disk storage survives container stop/restart",
+    "use_case": "Rapid prototyping, interactive fine-tuning, image generation workflows",
+    "source_url": "https://jarvislabs.ai/products/templates"
+  },
+  {
+    "product_name": "On-Demand VMs",
+    "consumption_model": "Full Root-Access Cloud VMs",
+    "startup_time": "< 90 seconds",
+    "supported_environments": "Custom Linux kernels, Docker daemon, Kubernetes, NVIDIA drivers",
+    "billing": "Per-minute",
+    "persistence": "Dedicated block storage with pause/resume capability",
+    "use_case": "Production deployment, Inferxe backend vLLM orchestration, custom software stacks",
+    "source_url": "https://jarvislabs.ai/products/vm"
+  },
+  {
+    "product_name": "Serverless Inference",
+    "consumption_model": "Managed API Worker Endpoints",
+    "startup_time": "Auto-scaling workers",
+    "supported_environments": "OpenAI-compatible /v1/chat/completions endpoints for open models",
+    "billing": "Per worker-minute / token basis",
+    "persistence": "Stateless worker pool with shared model weights cache",
+    "use_case": "Production API endpoints with fluctuating web traffic",
+    "source_url": "https://jarvislabs.ai/products/serverless"
+  },
+  {
+    "product_name": "H200 InfiniBand Clusters",
+    "consumption_model": "Dedicated Multi-Node AI Supercomputing",
+    "startup_time": "Reserved capacity",
+    "supported_environments": "128 to 1,024+ NVIDIA H200 SXM GPUs over InfiniBand fabric",
+    "billing": "Committed / Monthly contracts",
+    "persistence": "High-throughput parallel shared filesystem",
+    "use_case": "Frontier foundation model pre-training, massive distributed RLHF",
+    "source_url": "https://jarvislabs.ai/products/clusters"
+  },
+  {
+    "product_name": "Network Filesystems",
+    "consumption_model": "Shared Distributed Cloud Storage",
+    "startup_time": "Instant mount",
+    "supported_environments": "NFS mountable across all instances in the same region",
+    "billing": "$0.10 / GB / month",
+    "persistence": "Permanent persistent storage",
+    "use_case": "Storing multi-gigabyte model weights (Llama 70B, Qwen 72B), datasets, training checkpoints",
+    "source_url": "https://jarvislabs.ai/products/filesystems"
+  },
+  {
+    "product_name": "JarvisLabs CLI",
+    "consumption_model": "Developer Automation Tooling",
+    "startup_time": "Instant terminal execution",
+    "supported_environments": "Python package (`pip install jarvislabs`)",
+    "billing": "Free tool",
+    "persistence": "Local config with API key",
+    "use_case": "Programmatic provisioning, CI/CD integration, headless cluster launch",
+    "source_url": "https://jarvislabs.ai/products/cli"
+  }
+]

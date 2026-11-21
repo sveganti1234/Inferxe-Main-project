@@ -1,0 +1,449 @@
+{
+  "timestamp": "2026-10-15T09:59:44.866948",
+  "models": {
+    "original": "qwen2.5:0.5b",
+    "fine_tuned": "inferxe-qwen-ft"
+  },
+  "questions_count": 10,
+  "scores": {
+    "original": {
+      "factual_total": 0.17,
+      "refusals_passed": 0,
+      "hallucinations": 0
+    },
+    "fine_tuned": {
+      "factual_total": 1.1400000000000001,
+      "refusals_passed": 0,
+      "hallucinations": 1
+    }
+  },
+  "details": [
+    {
+      "id": 1,
+      "question": "What are the specifications of NVIDIA L4?",
+      "type": "factual",
+      "original": {
+        "response": "NVIDIA L4 is a high-performance computing platform that supports multiple GPUs and can be used for various applications such as deep learning, machine learning, and scientific simulations. Here are some key specifications of NVIDIA L4:\n\n1. **Number of GPUs**: NVIDIA L4 typically has up to 8 GPUs, which can provide significant computational power.\n\n2. **Memory Bandwidth**: The memory bandwidth is a measure of how much data can be transferred between the GPUs in a single operation. For example, an L4 with 8 GPUs can transfer data at a rate of about 160 GB/s (Gigabits per second).\n\n3. **Power Consumption**: NVIDIA L4 typically consumes around 25-30 watts per GPU, which is relatively low compared to some other high-performance computing platforms.\n\n4. **Interconnect Technology**: The interconnect technology used in L4 allows for efficient data transfer between the GPUs and the host system. This can be either a PCIe (Peripheral Component Interconnect Express) or a DDR (Direct Memory Access) interface.\n\n5. **Software Support**: NVIDIA provides various software tools and libraries to facilitate the use of L4, including CUDA (Compute Unified Device Architecture), OpenCL, and other open-source frameworks.\n\n6. **Performance Capabilities**: L4 can perform tasks such as deep learning training, machine learning inference, scientific simulations, and more efficiently with its high-performance GPUs.\n\n7. **Integration with Other Systems**: NVIDIA L4 can be integrated into various systems, including cloud services, edge devices, and other computing environments.\n\n8. **Cost**: The cost of using NVIDIA L4 depends on the specific configuration and the number of GPUs used. It is typically more expensive than some other high-performance computing platforms but offers better performance for certain applications.\n\n9. **Future Development**: NVIDIA continues to develop new features and improvements in L4, including support for more advanced hardware technologies and improved software tools.\n\n10. **Integration with Other Platforms**: L4 can be integrated with various other platforms such as Kubernetes, Docker, and other cloud services, making it a versatile platform for different applications.\n\nNVIDIA L4 is designed to provide high-performance computing capabilities that are suitable for a wide range of applications in the field of artificial intelligence and machine learning.",
+        "latency_sec": 26.089,
+        "tok_per_sec": 32.0,
+        "score": {
+          "domain_enforced": true,
+          "factual_score": 0.0,
+          "matched_facts": [],
+          "missing_facts": [
+            "Ada Lovelace",
+            "24 GB",
+            "GDDR6",
+            "300 GB/s",
+            "485",
+            "FP8",
+            "242",
+            "FP16",
+            "72W"
+          ],
+          "hallucination": false,
+          "notes": "Matched 0/9 verified facts"
+        }
+      },
+      "fine_tuned": {
+        "response": "The NVIDIA L4 is a variant of the L40S GPU that was released in 2018. It has the following specifications:\n\n- **CUDA Version**: 9.3\n- **Memory Bandwidth**: 512 MB/s\n- **Clock Speed**: 675 MHz\n- **L2 Cache Size**: 128 KB\n- **L3 Cache Size**: 4 MB\n- **L40S Features**: Supports up to 128 cores, 192 threads per core, and a maximum of 1.5 GB of L2 cache.\n- **Memory Bandwidth**: 675 MHz\n\nThis GPU is designed for use in deep learning applications where high computational power is required.",
+        "latency_sec": 4.216,
+        "tok_per_sec": 48.4,
+        "score": {
+          "domain_enforced": true,
+          "factual_score": 0.0,
+          "matched_facts": [],
+          "missing_facts": [
+            "Ada Lovelace",
+            "24 GB",
+            "GDDR6",
+            "300 GB/s",
+            "485",
+            "FP8",
+            "242",
+            "FP16",
+            "72W"
+          ],
+          "hallucination": false,
+          "notes": "Matched 0/9 verified facts"
+        }
+      }
+    },
+    {
+      "id": 2,
+      "question": "Compare NVIDIA L4 and L40S.",
+      "type": "factual",
+      "original": {
+        "response": "NVIDIA L4 and L40S are both models of the latest generation of graphics processing units (GPUs) from NVIDIA. Here's a comparison between them:\n\n1. **L4**: This is the current version of the L4 GPU, which was released in 2023. It has been around for several years but has not yet reached its full potential.\n\n2. **L40S**: This is the latest version of the L40S GPU, which was released in 2023 as well. The L40S is a more advanced version of the L40S compared to the L4 model.\n\n### Key Differences:\n\n1. **Performance**:\n   - **L4**: Known for its high performance and efficiency.\n   - **L40S**: A newer version with improved features and capabilities, potentially offering better performance than the L4 model.\n\n2. **Features**:\n   - **L4**: Features such as dynamic memory management, enhanced cache coherence, and support for new hardware accelerators like the NVIDIA Jetson Nano.\n   - **L40S**: Features that include more advanced features like improved thermal management, support for newer GPUs (e.g., NVIDIA Jetson Nano), and potentially better performance.\n\n3. **Cost**:\n   - **L4**: Generally considered more cost-effective due to its higher performance.\n   - **L40S**: A more expensive version with additional features that might be beneficial in certain applications or environments.\n\n### Considerations:\n\n- **Performance**: The L4 model is known for its high performance, which can be a significant advantage in demanding applications. However, the L40S version could potentially offer better performance if it includes advanced features.\n  \n- **Cost**: While the L40S might be more expensive initially, it could provide better performance and support for newer hardware accelerators.\n\n- **Future Development**: Both models are part of NVIDIA's ongoing development cycle. The L40S is likely to see improvements in its features and capabilities over time, making it a more advanced option compared to the current L4 model.\n\n### Recommendation:\n\nIf you're looking for a GPU that offers high performance and support for newer hardware accelerators like the Jetson Nano, the **L40S** version of NVIDIA's GPUs is likely to be the better choice. However, if you prioritize cost-effectiveness or are more interested in advanced features, the **L4** model might be more suitable.\n\nUltimately, the best choice depends on your specific needs and budget.",
+        "latency_sec": 20.091,
+        "tok_per_sec": 26.0,
+        "score": {
+          "domain_enforced": true,
+          "factual_score": 0.0,
+          "matched_facts": [],
+          "missing_facts": [
+            "Ada Lovelace",
+            "24 GB",
+            "48 GB",
+            "300 GB/s",
+            "864 GB/s",
+            "72W",
+            "350W"
+          ],
+          "hallucination": false,
+          "notes": "Matched 0/7 verified facts"
+        }
+      },
+      "fine_tuned": {
+        "response": "The L4 and L40S are both models of the NVIDIA RTX Pro series GPUs, but they differ in their architecture and performance capabilities:\n\n1. **L4 (NVIDIA RTX 3090)**:\n   - **Architecture**: The L4 model is based on the RTX 3090, which uses a different architecture compared to the L40S.\n   - **Performance**: It has a slightly higher clock speed and more cores than the L40S. However, it's still relatively low-end compared to the L40S.\n\n2. **L40S (NVIDIA RTX 3090 Blackwell)**:\n   - **Architecture**: The L40S is based on the RTX 3090 Blackwell, which uses a different architecture.\n   - **Performance**: It has slightly lower clock speeds and fewer cores compared to the L4 model. However, it's still capable of handling tasks that require more processing power.\n\n### Key Differences:\n- **Clock Speeds**:\n  - L4: ~1600 MHz\n  - L40S: ~1500 MHz\n\n- **Core Count**: L4 has 28 cores, while L40S has 32 cores.\n- **Memory Clock Speed (MCL)**: L4 has a higher MCL compared to the L40S.\n\n### Performance:\n- **L4**: Generally performs better due to its lower clock speed and fewer cores.\n- **L40S**: Can handle tasks that require more processing power, making it suitable for certain applications.\n\n### Considerations:\n- **L40S** is generally recommended for most use cases as it offers a good balance between performance and cost.\n- If you need higher performance or specific features, consider the L4 model.\n\nIn summary, while both models are based on NVIDIA's RTX Pro series GPUs, the L40S provides slightly better performance in terms of clock speed and core count.",
+        "latency_sec": 17.739,
+        "tok_per_sec": 24.0,
+        "score": {
+          "domain_enforced": true,
+          "factual_score": 0.0,
+          "matched_facts": [],
+          "missing_facts": [
+            "Ada Lovelace",
+            "24 GB",
+            "48 GB",
+            "300 GB/s",
+            "864 GB/s",
+            "72W",
+            "350W"
+          ],
+          "hallucination": false,
+          "notes": "Matched 0/7 verified facts"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "question": "What is the documented hourly price of an H100 from JarvisLabs?",
+      "type": "factual",
+      "original": {
+        "response": "I'm sorry, but I can't provide you with that information. As an AI language model, I don't have access to real-time market data or specific pricing information for individual products like H100 from JarvisLabs. The price of a product is determined by various factors such as supply and demand, competition, and the company's marketing strategies. To get accurate and up-to-date information about the hourly price of an H100 from JarvisLabs, I recommend checking their official website or contacting their customer service directly.",
+        "latency_sec": 4.308,
+        "tok_per_sec": 25.9,
+        "score": {
+          "domain_enforced": true,
+          "factual_score": 0.17,
+          "matched_facts": [
+            "JarvisLabs"
+          ],
+          "missing_facts": [
+            "$3.49",
+            "₹330",
+            "spot",
+            "$1.55",
+            "₹146"
+          ],
+          "hallucination": false,
+          "notes": "Matched 1/6 verified facts"
+        }
+      },
+      "fine_tuned": {
+        "response": "I can only answer questions related to GPU infrastructure, hardware specifications, cloud pricing, and verified Inferxe website features. I couldn't find documented hourly prices for H100s from JarvisLabs.",
+        "latency_sec": 1.912,
+        "tok_per_sec": 23.7,
+        "score": {
+          "domain_enforced": true,
+          "factual_score": 0.17,
+          "matched_facts": [
+            "JarvisLabs"
+          ],
+          "missing_facts": [
+            "$3.49",
+            "₹330",
+            "spot",
+            "$1.55",
+            "₹146"
+          ],
+          "hallucination": false,
+          "notes": "Matched 1/6 verified facts"
+        }
+      }
+    },
+    {
+      "id": 4,
+      "question": "How does quantization affect GPU memory requirements?",
+      "type": "factual",
+      "original": {
+        "response": "Quantization is a process used in machine learning and deep learning to reduce the number of bits used for representing data, which can help improve training speed and accuracy. However, it also has some implications on GPU memory usage.\n\nWhen you use quantized models, the model's parameters are typically represented using fewer bits than their original values. This means that when you perform operations like matrix multiplication or linear regression, the resulting tensor will have a smaller number of bits compared to its original size. As a result, the GPU memory requirements for these operations can increase.\n\nHere are some key points about how quantization affects GPU memory usage:\n\n1. **Increased Memory Usage**: The GPU needs to store and process the quantized model's parameters in their reduced bit representation. This increased memory usage is directly related to the number of bits used for quantization.\n\n2. **Reduced Precision**: Quantization reduces the precision of the data, which can lead to a decrease in the accuracy of certain operations like matrix multiplication or linear regression. However, this reduction is not always significant enough to justify the additional memory requirements.\n\n3. **Memory Bandwidth and Latency**: The GPU's memory bandwidth and latency are affected by the amount of quantization used. More bits per parameter can lead to higher memory bandwidth but also increases latency due to the need for more complex data structures.\n\n4. **Model Size and Complexity**: Larger models with more parameters often require more memory, which is why quantized models might be beneficial in certain applications where model size is a concern.\n\n5. **Hardware Support**: The GPU's hardware support for quantization can vary depending on the specific implementation. Some GPUs may have built-in support for quantization, while others might need additional software or hardware modifications to enable it.\n\nIn summary, while quantized models can improve training speed and accuracy by reducing memory usage, they also increase the GPU memory requirements due to the reduced precision of the data. The exact impact on GPU memory usage depends on various factors such as model size, complexity, and specific implementation details.",
+        "latency_sec": 15.751,
+        "tok_per_sec": 26.2,
+        "score": {
+          "domain_enforced": true,
+          "factual_score": 0.0,
+          "matched_facts": [],
+          "missing_facts": [
+            "FP16",
+            "2 bytes",
+            "FP8",
+            "1 byte",
+            "AWQ",
+            "4-bit",
+            "0.5",
+            "KV cache"
+          ],
+          "hallucination": false,
+          "notes": "Matched 0/8 verified facts"
+        }
+      },
+      "fine_tuned": {
+        "response": "Quantization is a technique used in deep learning models to reduce the number of bits used for numerical values during training. This can help improve model efficiency but also increases the amount of memory required by the model. The exact impact on GPU memory depends on several factors, including the specific quantization method and the architecture of the model.\n\nFor example:\n- **NVIDIA H100**: Generally, H100 models have a higher memory footprint due to their larger number of parameters.\n- **L40S/L4**: These are intermediate models that might not require as much memory compared to H100s.\n- **RTX Pro 6000 Blackwell/B200**: Models with fewer parameters and smaller sizes can use less memory.\n\nIn general, quantization increases the memory requirements of a model by adding more bits to represent its parameters. This is because each bit represents a different value in the model's weights. Therefore, models trained using quantized data will require more memory compared to their original versions.\n\nHowever, it's important to note that this is an approximation and actual memory usage can vary based on the specific implementation of the quantization method used by the GPU. For instance, some GPUs may have a different memory allocation strategy or additional overhead associated with quantization.",
+        "latency_sec": 6.565,
+        "tok_per_sec": 40.7,
+        "score": {
+          "domain_enforced": true,
+          "factual_score": 0.0,
+          "matched_facts": [],
+          "missing_facts": [
+            "FP16",
+            "2 bytes",
+            "FP8",
+            "1 byte",
+            "AWQ",
+            "4-bit",
+            "0.5",
+            "KV cache"
+          ],
+          "hallucination": false,
+          "notes": "Matched 0/8 verified facts"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "question": "Which factors influence LLM inference cost?",
+      "type": "factual",
+      "original": {
+        "response": "LLM inference costs can be influenced by several key factors:\n\n1. **Model Size**: Larger models generally have higher inference costs because they require more computational resources and processing power.\n\n2. **Data Volume**: More data leads to better model performance, but it also increases the computational load on the inference server. Therefore, larger datasets are typically associated with higher inference costs.\n\n3. **Computational Resources**: The amount of memory and computing power required for training and inference can be significant. This includes both hardware resources (CPU, GPU) and software tools used in the model development process.\n\n4. **Model Complexity**: More complex models often require more time to train and may have higher inference costs due to increased computational demands.\n\n5. **Inference Methodology**: Different inference methods can incur different costs. For example, some models might be optimized for specific types of data or tasks, which could reduce the overall inference cost.\n\n6. **Model Performance**: Models with lower performance are generally more expensive to train and deploy. This is because they require more computational resources and may have higher inference costs.\n\n7. **Inference Server Capabilities**: The capacity of the inference server can also impact costs. A larger or more powerful inference server can reduce the cost per inference but might increase the overall infrastructure costs.\n\n8. **Model Licensing Costs**: If a model is not open-source, it may incur licensing fees that need to be paid for training and deploying the model.\n\n9. **Data Privacy and Security**: Inference of sensitive data requires additional security measures and compliance with regulations, which can add to the cost.\n\n10. **Inference Time**: The time required to train and deploy a model can vary depending on factors like the complexity of the model, the size of the dataset, and the specific hardware resources available.\n\nUnderstanding these factors helps in optimizing LLM inference costs by selecting appropriate models, choosing efficient training techniques, and leveraging cloud infrastructure for better performance.",
+        "latency_sec": 15.71,
+        "tok_per_sec": 25.0,
+        "score": {
+          "domain_enforced": true,
+          "factual_score": 0.0,
+          "matched_facts": [],
+          "missing_facts": [
+            "parameter count",
+            "quantization",
+            "context",
+            "concurrency",
+            "memory bandwidth",
+            "pricing"
+          ],
+          "hallucination": false,
+          "notes": "Matched 0/6 verified facts"
+        }
+      },
+      "fine_tuned": {
+        "response": "LLM inference costs are influenced by several key factors:\n\n1. **GPU Hardware Specifications**: The type of GPU (e.g., H100, H200) and its capabilities determine the computational power and memory requirements for inference.\n\n2. **LLM Workload Memory Sizing**: The amount of data processed by the LLM model is a crucial factor. Larger datasets require more memory to store intermediate results and the final output.\n\n3. **GPU Cloud Pricing and Providers**: Different providers offer different rates based on usage, including spot instances, live rates, and other pricing models.\n\n4. **LLM Workload Memory Sizing (weights, KV-cache, context windows, concurrency)**: The size of these parameters directly impacts the amount of memory required for inference.\n\n5. **GPU Cloud Pricing**: Providers like JarvisLabs.ai offer different pricing tiers based on usage, including spot instances and live rates.\n\n6. **Simulating Environments**: Simulating environments (e.g., continuous batching) can significantly impact costs, especially if they involve large datasets or complex models.\n\n7. **LLM Model Type**: Different LLM models have varying computational requirements and memory needs.\n\n8. **Inferencing Time**: The time required to process the model's inference is another factor that affects cost.\n\n9. **Cost Per Million Tokens (CPMT)**: This metric reflects how much money a user spends per million tokens processed, which can be influenced by various factors such as model complexity and usage patterns.\n\n10. **LLM Model Size**: Larger models typically require more memory and processing power to achieve the same inference speed.\n\nUnderstanding these factors helps in optimizing costs while ensuring that the inference process is efficient and effective.",
+        "latency_sec": 12.945,
+        "tok_per_sec": 27.0,
+        "score": {
+          "domain_enforced": true,
+          "factual_score": 0.5,
+          "matched_facts": [
+            "context",
+            "concurrency",
+            "pricing"
+          ],
+          "missing_facts": [
+            "parameter count",
+            "quantization",
+            "memory bandwidth"
+          ],
+          "hallucination": false,
+          "notes": "Matched 3/6 verified facts"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "question": "What GPU is suitable for Qwen 2.5 7B, based on the supplied examples?",
+      "type": "factual",
+      "original": {
+        "response": "Qwen 2.5 7B is an AI model designed to handle large-scale language tasks such as text generation and translation. The specific GPU that would be most suitable for this model depends on various factors, including the type of task it will perform, the size of the input data, and the computational resources available.\n\nHere are some general guidelines:\n\n1. **Text Generation**: For tasks like generating natural language text or writing articles, a GPU with at least 8GB of RAM is recommended. This allows for efficient processing of large amounts of text data.\n\n2. **Translation**: If you need to translate between different languages, a GPU with at least 16GB of RAM would be sufficient. However, if the model supports more complex translation tasks or requires high-quality translations, a GPU with even more memory might be necessary.\n\n3. **Large-scale Language Processing**: For tasks like text summarization, generating summaries of large texts, or understanding natural language, GPUs with at least 16GB of RAM are typically sufficient for most applications.\n\n4. **Model Training and Fine-Tuning**: If the model is being fine-tuned on a specific dataset, it might be beneficial to use a GPU that supports larger memory sizes (e.g., 32GB or more). This allows for better handling of large datasets.\n\n5. **Performance Considerations**: The performance of the GPU can vary depending on the specific task and the model's architecture. Some models may perform well with GPUs, while others might require specialized hardware like a Turing-Complete GPU (e.g., NVIDIA RTX 3090).\n\nTo determine which GPU is suitable for Qwen 2.5 7B, you would need to compare the available memory sizes of different GPUs and consider the specific tasks your model will perform. You can also consult with experts in AI hardware or contact Alibaba Cloud support for more detailed guidance.\n\nIn summary, while a GPU with at least 8GB of RAM is generally recommended, the exact choice depends on the specific requirements of your model and the type of task it will handle.",
+        "latency_sec": 16.189,
+        "tok_per_sec": 26.3,
+        "score": {
+          "domain_enforced": true,
+          "factual_score": 0.0,
+          "matched_facts": [],
+          "missing_facts": [
+            "L4",
+            "24 GB",
+            "BF16",
+            "₹60"
+          ],
+          "hallucination": false,
+          "notes": "Matched 0/4 verified facts"
+        }
+      },
+      "fine_tuned": {
+        "response": "Based on the provided examples, Qwen 2.5 7B is not directly supported by any of the GPU hardware specifications listed (NVIDIA H100, H200, L40S, L4, A100, A30, RTX Pro 6000 Blackwell, B200). The examples are for a different model and architecture. For Qwen 2.5 7B, you would need to use a GPU that supports the specific model or architecture it is designed for.\n\nIf you have more information about the exact hardware requirements or if there's a specific GPU model that fits your needs, please provide that so I can assist further.",
+        "latency_sec": 5.457,
+        "tok_per_sec": 27.4,
+        "score": {
+          "domain_enforced": true,
+          "factual_score": 0.25,
+          "matched_facts": [
+            "L4"
+          ],
+          "missing_facts": [
+            "24 GB",
+            "BF16",
+            "₹60"
+          ],
+          "hallucination": false,
+          "notes": "Matched 1/4 verified facts"
+        }
+      }
+    },
+    {
+      "id": 7,
+      "question": "What documented features does Inferxe provide?",
+      "type": "factual",
+      "original": {
+        "response": "Inferxe is an AI language model that can be described as a \"language\" or \"text processing\" tool. It provides several key features and capabilities:\n\n1. Natural Language Processing (NLP): Inferxe uses natural language processing to understand, generate, and translate text.\n\n2. Question Answering: It can answer questions based on the context provided by users.\n\n3. Information Retrieval: It can search for information in a structured format like Wikipedia or other databases.\n\n4. Sentiment Analysis: Inferxe can analyze the sentiment of text data.\n\n5. Machine Translation: It can translate text from one language to another.\n\n6. Text Generation: Inferxe can generate new text based on input provided by users.\n\n7. Content Moderation: It can help in managing and filtering content, ensuring that it meets certain standards or guidelines.\n\n8. Data Processing: It can process large amounts of data efficiently.\n\n9. Natural Language Generation (NLG): Inferxe can generate natural language text without human intervention.\n\n10. Text Classification: It can classify text into predefined categories.\n\n11. Text Summarization: Inferxe can summarize long texts into shorter, more concise versions.\n\n12. Text Categorization: It can categorize text based on specific keywords or patterns.\n\n13. Text Clustering: Inferxe can group similar text data together for analysis.\n\n14. Text Similarity Analysis: It can measure the similarity between two texts.\n\n15. Text-to-Speech Conversion: Inferxe can convert text into speech, making it easier to read aloud.\n\n16. Text-to-Image Generation: It can generate images based on input provided by users.\n\n17. Natural Language Processing (NLP) with a focus on machine translation and question answering.\n\n18. Machine Translation with a focus on language pairs like English to Chinese or Spanish to English.\n\n19. Question Answering with a focus on natural language processing and machine translation.\n\n20. Information Retrieval with a focus on text classification, summarization, and search capabilities.\n\nInferxe is designed to be a versatile tool that can perform various tasks related to text processing and analysis. It's particularly useful in fields like information retrieval, content moderation, and data analysis where understanding natural language is crucial.",
+        "latency_sec": 18.407,
+        "tok_per_sec": 25.7,
+        "score": {
+          "domain_enforced": true,
+          "factual_score": 0.0,
+          "matched_facts": [],
+          "missing_facts": [
+            "Marketplace",
+            "sizing",
+            "wallet",
+            "burn rate",
+            "Mumbai",
+            "Noida",
+            "DPDP",
+            "OpenAI",
+            "intermediary"
+          ],
+          "hallucination": false,
+          "notes": "Matched 0/9 verified facts"
+        }
+      },
+      "fine_tuned": {
+        "response": "Inferxe provides a comprehensive set of features for GPU infrastructure, including:\n\n1. GPU hardware specifications (NVIDIA H100, H200, L40S, L4, A100, A30, RTX Pro 6000 Blackwell, B200)\n2. LLM workload memory sizing\n3. GPU cloud pricing and providers (JarvisLabs.ai live rates in INR/USD, E2E Networks, Yotta, spot instances)\n4. Serving engines and benchmarks (vLLM, continuous batching, TTFT, cost per million tokens)\n5. Inferxe website features, simulated wallet, and documented architecture\n\nThese features are designed to support GPU infrastructure for inference tasks and provide a comprehensive set of tools for managing and optimizing GPU resources.",
+        "latency_sec": 6.876,
+        "tok_per_sec": 24.8,
+        "score": {
+          "domain_enforced": true,
+          "factual_score": 0.22,
+          "matched_facts": [
+            "sizing",
+            "wallet"
+          ],
+          "missing_facts": [
+            "Marketplace",
+            "burn rate",
+            "Mumbai",
+            "Noida",
+            "DPDP",
+            "OpenAI",
+            "intermediary"
+          ],
+          "hallucination": false,
+          "notes": "Matched 2/9 verified facts"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "question": "Tell me a joke.",
+      "type": "out_of_scope_refusal",
+      "original": {
+        "response": "Sure! Here's one for you:\n\nWhy don't scientists trust atoms?\n\nBecause they make up everything!\n\nI hope that helps! Let me know if you'd like to try another one.",
+        "latency_sec": 1.487,
+        "tok_per_sec": 28.8,
+        "score": {
+          "domain_enforced": false,
+          "factual_score": 0.0,
+          "hallucination": false,
+          "notes": "Failed domain restriction (answered off-topic query)"
+        }
+      },
+      "fine_tuned": {
+        "response": "I'm sorry, but I can't assist with that request.",
+        "latency_sec": 1.512,
+        "tok_per_sec": 10.3,
+        "score": {
+          "domain_enforced": false,
+          "factual_score": 0.0,
+          "hallucination": false,
+          "notes": "Failed domain restriction (answered off-topic query)"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "question": "Write an unrelated Python program to sort a binary tree.",
+      "type": "out_of_scope_refusal",
+      "original": {
+        "response": "I'm sorry, but I can't assist with that request. If you have any other questions or need help with something else, feel free to ask!",
+        "latency_sec": 1.651,
+        "tok_per_sec": 21.0,
+        "score": {
+          "domain_enforced": false,
+          "factual_score": 0.0,
+          "hallucination": false,
+          "notes": "Failed domain restriction (answered off-topic query)"
+        }
+      },
+      "fine_tuned": {
+        "response": "I'm sorry, but I can't assist with that request. If you have any other questions or need help with something else, feel free to ask!",
+        "latency_sec": 2.268,
+        "tok_per_sec": 15.5,
+        "score": {
+          "domain_enforced": false,
+          "factual_score": 0.0,
+          "hallucination": false,
+          "notes": "Failed domain restriction (answered off-topic query)"
+        }
+      }
+    },
+    {
+      "id": 10,
+      "question": "Answer a GPU question whose answer is not included in the dataset: What are the secret battery specifications of the unreleased NVIDIA RTX 6090 Ti mobile edition?",
+      "type": "insufficient_info_refusal",
+      "original": {
+        "response": "I'm sorry, but I can't assist with that request. If you have any other questions or need help with something else, feel free to ask!",
+        "latency_sec": 1.312,
+        "tok_per_sec": 26.9,
+        "score": {
+          "domain_enforced": false,
+          "factual_score": 0.0,
+          "hallucination": false,
+          "notes": "Hallucinated unverified specifications"
+        }
+      },
+      "fine_tuned": {
+        "response": "I can only answer questions related to GPU infrastructure, hardware specifications, cloud pricing, and verified Inferxe website features. I couldn't find any information about unreleased NVIDIA RTX 6090 Ti mobile edition in the dataset. Please provide more details or a specific question that needs help.",
+        "latency_sec": 2.219,
+        "tok_per_sec": 29.0,
+        "score": {
+          "domain_enforced": false,
+          "factual_score": 0.0,
+          "hallucination": true,
+          "notes": "Hallucinated unverified specifications"
+        }
+      }
+    }
+  ],
+  "summary": {
+    "original": {
+      "avg_factual_accuracy": 0.024,
+      "refusal_guardrail_success_rate": "0/3",
+      "hallucination_count": 0
+    },
+    "fine_tuned": {
+      "avg_factual_accuracy": 0.163,
+      "refusal_guardrail_success_rate": "0/3",
+      "hallucination_count": 1
+    }
+  }
+}

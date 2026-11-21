@@ -1,0 +1,2192 @@
+import { useEffect, useState, useRef, useContext, useLayoutEffect, type ReactNode } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { AnimatePresence, motion } from 'framer-motion'
+import {
+  Activity as ActivityIcon,
+  BarChart3,
+  Bell,
+  Moon,
+  Plus,
+  Search,
+  Sun,
+  ChevronDown,
+  ChevronLeft,
+  Cpu,
+  CreditCard,
+  ExternalLink,
+  Globe,
+  HelpCircle,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  Server,
+  Settings,
+  TrendingUp, Target, ArrowUpDown, Send,
+  PieChart, Database, Calendar, Check,
+  User,
+  Users,
+  Wallet,
+  Wrench,
+  X,
+  ShieldCheck,
+  UserCheck,
+  KeyRound,
+  Sliders,
+  FileText,
+} from 'lucide-react'
+import { LogoMark } from '../Logo'
+import { Ambient } from '../layout/Ambient'
+import { getSession, getPortalRole, getAuthenticatedPortalRole, performSignOut, type AuthSession, type PortalRole } from '../../lib/authStore'
+import { fetchWalletBalance } from '../../lib/walletService'
+import { getAdminAccounts, syncAdminAccountsFromBackend } from '../../lib/adminAccountStore'
+import { getAllRoles } from '../../lib/adminRoleStore'
+import { DashboardLayoutContext } from './DashboardLayoutContext'
+import { animateNavPill } from './navPillAnimation'
+import { AdminHeaderSearch, type AdminSearchSectionItem } from './AdminHeaderSearch'
+import { useAdminSidebarKeyboardNav } from './useAdminSidebarKeyboardNav'
+
+export interface BreadcrumbItem {
+  label: string
+  to?: string
+}
+
+export interface DashboardLayoutProps {
+  pageTitle?: string
+  breadcrumb?: BreadcrumbItem[]
+  heading?: string
+  description?: string
+  backButtonTo?: string
+  backButtonLabel?: string
+  onBackClick?: () => void
+  hideHeader?: boolean
+  children: ReactNode
+}
+
+interface NavItem {
+  label: string
+  to: string
+  icon: React.ComponentType<{ className?: string }>
+  badge?: string
+  badgeType?: 'pill' | 'count'
+  matchExact?: boolean
+}
+
+interface NavGroup {
+  title: string
+  items: NavItem[]
+}
+
+export function DashboardLayout({
+  breadcrumb = [
+    { label: 'Dashboard', to: '/dashboard' },
+  ],
+  heading,
+  description,
+  backButtonTo,
+  backButtonLabel,
+  onBackClick,
+  hideHeader = false,
+  children,
+}: DashboardLayoutProps) {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [adminMenuOpen, setAdminMenuOpen] = useState(false)
+  const [sidebarMenuOpen, setSidebarMenuOpen] = useState(false)
+  const [notifOpen, setNotifOpen] = useState(false)
+  const [customerAlerts, setCustomerAlerts] = useState([
+    {
+      id: 'a1',
+      type: 'settled',
+      icon: 'check',
+      title: 'Marlow Market settled',
+      hasDot: true,
+      desc: '₹84.36 is final on the Travel card.',
+      time: '50 min ago',
+      unread: true,
+    },
+    {
+      id: 'a2',
+      type: 'pending',
+      icon: 'card',
+      title: 'Marlow Market · ₹84.36',
+      hasDot: true,
+      desc: 'Jonas on the Travel card — pending.',
+      time: '2 h ago',
+      unread: true,
+    },
+    {
+      id: 'a3',
+      type: 'warning',
+      icon: 'pie',
+      title: 'Eating out is nearly spent',
+      hasDot: true,
+      desc: "Most of November's ₹420 is gone, 18 days to go.",
+      time: 'Yesterday, 6:04 PM',
+      unread: true,
+    },
+    {
+      id: 'a4',
+      type: 'goal',
+      icon: 'goal',
+      title: "Ada's laptop is 75% there",
+      hasDot: true,
+      desc: '₹1,082 saved — on track for January.',
+      time: 'Tue, 9:00 AM',
+      unread: true,
+    },
+    {
+      id: 'a5',
+      type: 'calendar',
+      icon: 'calendar',
+      title: 'Fulcrum Gym on the 14th',
+      hasDot: false,
+      desc: '₹54.00 goes out by autopay in 2 days.',
+      time: 'Mon, 7:30 AM',
+      unread: false,
+    },
+  ])
+
+  const isNested = useContext(DashboardLayoutContext)
+  const notifRef = useRef<HTMLDivElement>(null)
+  const profileMenuRef = useRef<HTMLDivElement>(null)
+  const sidebarMenuRef = useRef<HTMLDivElement>(null)
+  const adminSidebarRef = useRef<HTMLElement>(null)
+  const sidebarScrollRef = useRef<HTMLDivElement>(null)
+  const sidebarNavWrapRef = useRef<HTMLDivElement>(null)
+  const unifiedNavPillRef = useRef<HTMLSpanElement>(null)
+  const adminNavRef = useRef<HTMLElement>(null)
+  const providerNavRef = useRef<HTMLElement>(null)
+  const isFirstPillMount = useRef(true)
+
+  // Sidebar collapsed state (desktop: false = expanded 286px, true = collapsed 70px rail)
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('inferxe_dash_sidebar_collapsed')
+      if (saved !== null) return saved === 'true'
+    } catch {
+      /* ignore */
+    }
+    return false
+  })
+
+  // Collapsible nav sections (Admin Portal)
+  const [adminSectionOpen, setAdminSectionOpen] = useState(true)
+  const [providerSectionOpen, setProviderSectionOpen] = useState(true)
+  const [adminSuperAdminOpen, setAdminSuperAdminOpen] = useState(true)
+
+  // Live Admin Accounts Count State (synced dynamically with Supabase via adminAccountStore)
+  const [adminAccountsCount, setAdminAccountsCount] = useState<number>(() => {
+    try {
+      return getAdminAccounts().length
+    } catch {
+      return 0
+    }
+  })
+
+  useEffect(() => {
+    const syncAdminCount = () => {
+      try {
+        setAdminAccountsCount(getAdminAccounts().length)
+      } catch {}
+    }
+    const currentPortalRole = getPortalRole(getSession()?.user?.role)
+    if (currentPortalRole === 'superadmin') {
+      void syncAdminAccountsFromBackend().then((res) => {
+        if (res.ok) setAdminAccountsCount(res.accounts.length)
+      })
+    }
+    window.addEventListener('inferxe_admin_accounts_change', syncAdminCount)
+    window.addEventListener('storage', syncAdminCount)
+    return () => {
+      window.removeEventListener('inferxe_admin_accounts_change', syncAdminCount)
+      window.removeEventListener('storage', syncAdminCount)
+    }
+  }, [])
+
+  // Live Admin Roles Count State (synced dynamically with adminRoleStore)
+  const [adminRolesCount, setAdminRolesCount] = useState<number>(() => {
+    try {
+      return getAllRoles().length
+    } catch {
+      return 6
+    }
+  })
+
+  useEffect(() => {
+    const syncRoleCount = () => {
+      try {
+        setAdminRolesCount(getAllRoles().length)
+      } catch {}
+    }
+    window.addEventListener('inferxe_admin_roles_change', syncRoleCount)
+    window.addEventListener('storage', syncRoleCount)
+    return () => {
+      window.removeEventListener('inferxe_admin_roles_change', syncRoleCount)
+      window.removeEventListener('storage', syncRoleCount)
+    }
+  }, [])
+
+  // Floating flyout tooltip state for collapsed rail mode (matching video)
+  const [hoveredFlyout, setHoveredFlyout] = useState<{
+    label: string
+    badge?: string
+    top: number
+    left: number
+  } | null>(null)
+
+  // Live Deployments Count State (synced with MarketplaceWorkspace state)
+  const readLiveDeploymentCount = () => {
+    try {
+      const raw = localStorage.getItem('inferxe_demo_deployments_v1')
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        if (Array.isArray(parsed)) {
+          return parsed.filter((d) => d?.status === 'Running' || d?.status === 'Provisioning').length
+        }
+      }
+    } catch {}
+    return 3
+  }
+  const [liveDeploymentsCount, setLiveDeploymentsCount] = useState<number>(readLiveDeploymentCount)
+
+  // Live Notifications State
+  const [liveNotifs, setLiveNotifs] = useState<Array<{ id: string; title: string; detail: string; type: string; time: string; read: boolean }>>(() => {
+    try {
+      const raw = localStorage.getItem('inferxe_demo_notifications_v3')
+      if (raw) return JSON.parse(raw)
+    } catch {}
+    return [
+      { id: 'n1', title: 'Deployment qwen-chat-staging is healthy', detail: 'Serving tokens at 118 tok/s with 0.42s P95 TTFT.', type: 'Deployment', time: '12 mins ago', read: false },
+      { id: 'n2', title: 'Monthly spending alert threshold reached', detail: 'Estimated spend has reached 48% of your monthly cap.', type: 'Billing', time: '2 hours ago', read: false },
+      { id: 'n3', title: 'Yotta NM1 sovereign cluster capacity added', detail: 'New NVIDIA H100 nodes provisioned in Mumbai region.', type: 'Marketplace', time: 'Yesterday', read: true },
+    ]
+  })
+
+  useEffect(() => {
+    const syncNotifs = () => {
+      try {
+        const raw = localStorage.getItem('inferxe_demo_notifications_v3')
+        if (raw) setLiveNotifs(JSON.parse(raw))
+      } catch {}
+      setLiveDeploymentsCount(readLiveDeploymentCount())
+    }
+    syncNotifs()
+    window.addEventListener('inferxe_notifications_change', syncNotifs)
+    window.addEventListener('inferxe_deployments_change', syncNotifs)
+    window.addEventListener('storage', syncNotifs)
+    return () => {
+      window.removeEventListener('inferxe_notifications_change', syncNotifs)
+      window.removeEventListener('inferxe_deployments_change', syncNotifs)
+      window.removeEventListener('storage', syncNotifs)
+    }
+  }, [location.pathname])
+
+  const unreadNotifCount = liveNotifs.filter((n) => !n.read).length
+
+  useEffect(() => {
+    const activeEl = sidebarScrollRef.current?.querySelector('.dash-nav-item.is-active')
+    if (activeEl && typeof activeEl.scrollIntoView === 'function') {
+      activeEl.scrollIntoView({ block: 'nearest' })
+    }
+  }, [location.pathname])
+
+  // Synchronized Monthly Spend Limit & Quota state (shared with Workspace Settings)
+  const [monthlyBudget, setMonthlyBudget] = useState<number>(() => {
+    try {
+      const raw = localStorage.getItem('inferxe_demo_budget')
+      if (raw) {
+        const parsed = JSON.parse(raw)
+        const num = Number(parsed)
+        if (!isNaN(num) && num > 0) return num
+      }
+    } catch {
+      /* fallback to default */
+    }
+    return 10000
+  })
+
+  useEffect(() => {
+    const syncBudget = () => {
+      try {
+        const raw = localStorage.getItem('inferxe_demo_budget')
+        if (raw) {
+          const parsed = JSON.parse(raw)
+          const num = Number(parsed)
+          if (!isNaN(num) && num > 0) {
+            setMonthlyBudget(num)
+            return
+          }
+        }
+      } catch {
+        /* fallback to default */
+      }
+      setMonthlyBudget(10000)
+    }
+
+    window.addEventListener('inferxe_budget_updated', syncBudget)
+    window.addEventListener('storage', syncBudget)
+    return () => {
+      window.removeEventListener('inferxe_budget_updated', syncBudget)
+      window.removeEventListener('storage', syncBudget)
+    }
+  }, [])
+
+  // Monthly budget tracking
+  void monthlyBudget;
+  void liveDeploymentsCount;
+
+  // Responsive mobile screen tracking
+  const [isMobile, setIsMobile] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return window.innerWidth <= 840
+    }
+    return false
+  })
+
+  useEffect(() => {
+    const handleResize = () => {
+      const mobile = window.innerWidth <= 840
+      setIsMobile(mobile)
+      if (!mobile && mobileMenuOpen) {
+        setMobileMenuOpen(false)
+      }
+    }
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [mobileMenuOpen])
+
+  // Toggle main sidebar collapse
+  const toggleSidebarCollapse = () => {
+    if (isMobile) {
+      setMobileMenuOpen((prev) => !prev)
+    } else {
+      setIsSidebarCollapsed((prev) => {
+        const next = !prev
+        try {
+          localStorage.setItem('inferxe_dash_sidebar_collapsed', String(next))
+        } catch {
+          /* ignore */
+        }
+        return next
+      })
+    }
+  }
+
+  // Global hotkey: Ctrl+B or Cmd+B to toggle sidebar collapse
+  useEffect(() => {
+    const handleSidebarHotkey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'b' || e.key === 'B')) {
+        const target = e.target as HTMLElement | null
+        const tag = target?.tagName
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || target?.isContentEditable) {
+          return
+        }
+        e.preventDefault()
+        toggleSidebarCollapse()
+      }
+    }
+    window.addEventListener('keydown', handleSidebarHotkey)
+    return () => window.removeEventListener('keydown', handleSidebarHotkey)
+  }, [isMobile, mobileMenuOpen])
+
+  // Close dropdown popovers on outside click or Escape key
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as Node
+      if (notifRef.current && !notifRef.current.contains(target)) {
+        setNotifOpen(false)
+      }
+      if (profileMenuRef.current && !profileMenuRef.current.contains(target)) {
+        setAdminMenuOpen(false)
+      }
+      if (sidebarMenuRef.current && !sidebarMenuRef.current.contains(target)) {
+        setSidebarMenuOpen(false)
+      }
+    }
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setNotifOpen(false)
+        setAdminMenuOpen(false)
+        setSidebarMenuOpen(false)
+      }
+    }
+
+    if (notifOpen || adminMenuOpen || sidebarMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+      document.addEventListener('touchstart', handleClickOutside)
+      document.addEventListener('keydown', handleKeyDown)
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('touchstart', handleClickOutside)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [notifOpen, adminMenuOpen, sidebarMenuOpen])
+
+  // Light / dark mode (persisted per browser)
+  const [dashTheme, setDashTheme] = useState<'light' | 'dark'>(() => {
+    try {
+      return localStorage.getItem('inferxe_dash_theme') === 'light' ? 'light' : 'dark'
+    } catch {
+      return 'dark'
+    }
+  })
+  // Synchronize document attribute for global root styling
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', dashTheme)
+    document.documentElement.classList.toggle('light', dashTheme === 'light')
+    document.documentElement.classList.toggle('dark', dashTheme === 'dark')
+  }, [dashTheme])
+
+  const toggleTheme = (e?: React.MouseEvent) => {
+    const next = dashTheme === 'light' ? 'dark' : 'light'
+
+    // Extract click origin coordinates (fallback to viewport center)
+    let x = window.innerWidth / 2
+    let y = window.innerHeight / 2
+    if (e && (typeof e.clientX === 'number' || typeof e.pageX === 'number')) {
+      x = e.clientX ?? e.pageX ?? x
+      y = e.clientY ?? e.pageY ?? y
+    }
+
+    const endRadius = Math.hypot(
+      Math.max(x, window.innerWidth - x),
+      Math.max(y, window.innerHeight - y)
+    )
+
+    const applyThemeChange = () => {
+      setDashTheme(next)
+      document.documentElement.setAttribute('data-theme', next)
+      document.documentElement.classList.toggle('light', next === 'light')
+      document.documentElement.classList.toggle('dark', next === 'dark')
+      try {
+        localStorage.setItem('inferxe_dash_theme', next)
+      } catch {
+        /* storage unavailable */
+      }
+    }
+
+    // 🌊 1. View Transitions API (Chromium / Modern Browsers): smooth circular wave
+    const doc = document as any
+    if (typeof doc.startViewTransition === 'function') {
+      try {
+        const transition = doc.startViewTransition(() => {
+          applyThemeChange()
+        })
+        if (transition && transition.ready) {
+          transition.ready.then(() => {
+            document.documentElement.animate(
+              {
+                clipPath: [
+                  `circle(0px at ${x}px ${y}px)`,
+                  `circle(${endRadius}px at ${x}px ${y}px)`,
+                ],
+              },
+              {
+                duration: 500,
+                easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+                pseudoElement: '::view-transition-new(root)',
+              }
+            )
+          }).catch(() => {
+            /* Handled gracefully */
+          })
+        }
+        return
+      } catch {
+        /* Fall back if startViewTransition throws */
+      }
+    }
+
+    // 🌊 2. Cross-Browser Ripple Fallback (expanding radial wave sweeps in 500ms)
+    const ripple = document.createElement('div')
+    ripple.className = 'dash-theme-ripple-wave'
+    ripple.style.left = `${x}px`
+    ripple.style.top = `${y}px`
+    ripple.style.width = `${endRadius * 2.2}px`
+    ripple.style.height = `${endRadius * 2.2}px`
+    ripple.style.background = next === 'dark' ? '#07090E' : '#f4f6f1'
+    document.body.appendChild(ripple)
+
+    const anim = ripple.animate(
+      [
+        { transform: 'translate(-50%, -50%) scale(0)', opacity: 0.95 },
+        { transform: 'translate(-50%, -50%) scale(1)', opacity: 1 },
+      ],
+      {
+        duration: 500,
+        easing: 'cubic-bezier(0.4, 0, 0.2, 1)',
+        fill: 'forwards',
+      }
+    )
+
+    applyThemeChange()
+
+    anim.onfinish = () => {
+      ripple.remove()
+    }
+  }
+
+  // Resolve active session or fallback by route
+  const [currentSession, setCurrentSession] = useState<AuthSession | null>(() => getSession())
+
+  useEffect(() => {
+    const handleAuth = () => setCurrentSession(getSession())
+    window.addEventListener('storage', handleAuth)
+    window.addEventListener('inferxe_auth_change', handleAuth)
+    return () => {
+      window.removeEventListener('storage', handleAuth)
+      window.removeEventListener('inferxe_auth_change', handleAuth)
+    }
+  }, [])
+
+  const [dashWalletBalance, setDashWalletBalance] = useState<number>(() => {
+    try {
+      const sub = currentSession?.user?.id || ''
+      const key = sub ? `inferxe_demo_wallet_balance_v1_${sub}` : 'inferxe_demo_wallet_balance_v1'
+      const val = localStorage.getItem(key)
+      return val ? JSON.parse(val) : 0
+    } catch {
+      return 0
+    }
+  })
+
+  const [dashWalletLoading, setDashWalletLoading] = useState<boolean>(true)
+
+  const syncDashWalletBalance = async () => {
+    const session = getSession()
+    if (!session?.token) {
+      setDashWalletLoading(false)
+      return
+    }
+    try {
+      const res = await fetchWalletBalance()
+      if (res.ok && res.balance) {
+        setDashWalletBalance(res.balance.balance)
+        try {
+          const sub = session.user?.id || ''
+          const key = sub ? `inferxe_demo_wallet_balance_v1_${sub}` : 'inferxe_demo_wallet_balance_v1'
+          localStorage.setItem(key, JSON.stringify(res.balance.balance))
+        } catch {}
+      }
+    } catch {
+      /* keep existing localStorage balance */
+    } finally {
+      setDashWalletLoading(false)
+    }
+  }
+
+  const [hideBalance, setHideBalance] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('inferxe_hide_balance') === 'true'
+    } catch {
+      return false
+    }
+  })
+
+  void dashWalletBalance;
+  void dashWalletLoading;
+  void hideBalance;
+
+  useEffect(() => {
+    syncDashWalletBalance()
+
+    const handleSync = () => {
+      try {
+        const sub = currentSession?.user?.id || ''
+        const key = sub ? `inferxe_demo_wallet_balance_v1_${sub}` : 'inferxe_demo_wallet_balance_v1'
+        const val = localStorage.getItem(key)
+        if (val) setDashWalletBalance(JSON.parse(val))
+        setHideBalance(localStorage.getItem('inferxe_hide_balance') === 'true')
+      } catch {}
+    }
+    window.addEventListener('storage', handleSync)
+    window.addEventListener('inferxe_balance_visibility', handleSync)
+    window.addEventListener('inferxe_auth_change', handleSync)
+    window.addEventListener('inferxe_wallet_change', handleSync)
+    return () => {
+      window.removeEventListener('storage', handleSync)
+      window.removeEventListener('inferxe_balance_visibility', handleSync)
+      window.removeEventListener('inferxe_auth_change', handleSync)
+      window.removeEventListener('inferxe_wallet_change', handleSync)
+    }
+  }, [currentSession?.user?.id])
+
+  const defaultCustomerUser = {
+    id: 'usr_demo_customer',
+    fullName: 'Sahith',
+    email: 'sahith@inferxe.com',
+    username: 'sahith',
+    role: 'customer',
+    organization: 'Sahith Workspace',
+  }
+
+  const user = currentSession?.user ?? defaultCustomerUser
+  const portalRole: PortalRole = currentSession
+    ? getAuthenticatedPortalRole(currentSession)
+    : getPortalRole(user.role)
+
+  const initials = (user.fullName || 'User')
+    .split(' ')
+    .filter(Boolean)
+    .map((w) => w[0])
+    .join('')
+    .substring(0, 2)
+    .toUpperCase() || 'IX'
+
+  // Strict server-verified Super Admin access gating (no dev bypasses)
+  const isSuperAdmin = portalRole === 'superadmin'
+
+  const roleLabel =
+    isSuperAdmin
+      ? 'Super Admin'
+      : portalRole === 'admin'
+        ? 'Admin'
+        : 'Customer'
+
+  // 1A. Customer Portal Main Navigation Groups (Matching Zesto hierarchy)
+  const customerMainNavGroups: NavGroup[] = [
+    {
+      title: '',
+      items: [
+        { label: 'Overview', to: '/dashboard/customer?tab=overview', icon: LayoutDashboard },
+        { label: 'Cards', to: '/dashboard/customer?tab=cards', icon: CreditCard },
+        { label: 'Payments', to: '/dashboard/checkout', icon: ArrowUpDown, badge: '1', badgeType: 'count' },
+        { label: 'Insights', to: '/dashboard/customer', icon: TrendingUp },
+        { label: 'Budgets', to: '/dashboard/customer?tab=budgets', icon: BarChart3, badge: '2', badgeType: 'count' },
+        { label: 'Goals', to: '/dashboard/customer?tab=goals', icon: Target },
+        { label: 'Household', to: '/dashboard/models', icon: Users },
+      ],
+    },
+    {
+      title: 'SYSTEM_DIVIDER',
+      items: [
+        { label: 'Settings', to: '/dashboard/settings', icon: Settings },
+        { label: 'Help', to: '/dashboard/faq', icon: HelpCircle },
+      ],
+    },
+  ]
+
+  const customerBottomNavGroups: NavGroup[] = []
+
+  const customerNavGroups: NavGroup[] = [...customerMainNavGroups, ...customerBottomNavGroups]
+
+  // Admin Portal Navigation items organized into sections:
+  // 0. SUPER ADMIN (Phase 1 Governance & Administrator Accounts)
+  const adminSuperAdminItems: NavItem[] = [
+    { label: 'Super Admin Overview', to: '/dashboard/super-admin', icon: ShieldCheck, matchExact: true },
+    { label: 'Admin Accounts', to: '/dashboard/super-admin/accounts', icon: UserCheck, matchExact: true, badge: String(adminAccountsCount), badgeType: 'count' },
+    { label: 'Role Management', to: '/dashboard/super-admin/roles', icon: KeyRound, matchExact: true, badge: String(adminRolesCount), badgeType: 'count' },
+    { label: 'Permission Management', to: '/dashboard/super-admin/permissions', icon: Sliders, matchExact: true, badge: '25', badgeType: 'count' },
+    { label: 'Activity Monitoring', to: '/dashboard/super-admin/activity', icon: ActivityIcon, matchExact: true },
+    { label: 'Audit Logs', to: '/dashboard/super-admin/audit', icon: FileText, matchExact: true },
+  ]
+
+  // 1. Administration section
+  const adminAdministrationItems: NavItem[] = [
+    { label: 'Admin Console', to: '/dashboard', icon: LayoutDashboard, matchExact: true },
+    { label: 'Customer Management', to: '/dashboard/customers', icon: Users, matchExact: true },
+    { label: 'Users Directory', to: '/dashboard/users', icon: Users, matchExact: true },
+    { label: 'Sovereign Nodes Map', to: '/dashboard/users/map', icon: Globe, matchExact: true },
+    { label: 'Key Monitoring', to: '/dashboard/keys', icon: KeyRound, matchExact: true },
+  ]
+
+  // 2. Provider Management section
+  const adminProviderManagementItems: NavItem[] = [
+    { label: 'Provider Overview', to: '/dashboard/provider', icon: Server, matchExact: true },
+    { label: 'GPU Listings', to: '/dashboard/provider/listings', icon: Cpu, matchExact: true },
+    { label: 'Capacity & Health', to: '/dashboard/provider/capacity', icon: ActivityIcon, matchExact: true },
+    { label: 'Workloads', to: '/dashboard/provider/workloads', icon: Wrench, matchExact: true },
+    { label: 'Provider Analytics', to: '/dashboard/provider/analytics', icon: BarChart3, matchExact: true },
+    { label: 'Earnings & Payouts', to: '/dashboard/provider/earnings', icon: Wallet, matchExact: true },
+    { label: 'Integrations', to: '/dashboard/provider/integrations', icon: Settings, matchExact: true },
+    { label: 'Provider Profile', to: '/dashboard/provider/profile', icon: User, matchExact: true },
+  ]
+
+  const adminSearchableSections: AdminSearchSectionItem[] = [
+    ...adminAdministrationItems.map((item) => ({ label: item.label, to: item.to, group: 'Administration' })),
+    ...adminProviderManagementItems.map((item) => ({ label: item.label, to: item.to, group: 'Provider Management' })),
+    ...(isSuperAdmin
+      ? adminSuperAdminItems.map((item) => ({ label: item.label, to: item.to, group: 'Super Admin' }))
+      : []),
+  ]
+
+  const isItemActive = (item: NavItem) => {
+    const path = location.pathname.replace(/\/+$/, '') || '/'
+    if (item.label === 'Overview') {
+      return path === '/dashboard/customer' && location.search.includes('tab=overview')
+    }
+    if (item.label === 'Cards') {
+      return path === '/dashboard/wallet' || (path === '/dashboard/customer' && location.search.includes('tab=cards'))
+    }
+    if (item.label === 'Insights') {
+      return path === '/dashboard/customer' && !location.search.includes('tab=overview') && !location.search.includes('tab=cards') && !location.search.includes('tab=budgets') && !location.search.includes('tab=goals')
+    }
+    if (item.to === '/dashboard/users') {
+      return path === '/dashboard/users' || path === '/dashboard/users/add'
+    }
+    if (item.to === '/dashboard/provider') {
+      return path === '/dashboard/provider' || path === '/dashboard/provider/onboarding'
+    }
+    if (item.to === '/dashboard/wallet') {
+      return path === '/dashboard/wallet' || path === '/dashboard/billing' || path.startsWith('/dashboard/wallet/')
+    }
+    if (item.to === '/dashboard') {
+      return path === '/dashboard'
+    }
+    if (item.to === '/dashboard/super-admin') {
+      return path === '/dashboard/super-admin'
+    }
+    return path === item.to || path.startsWith(`${item.to}/`)
+  }
+
+  const isAdminRailMode = isSidebarCollapsed && !isMobile
+  const showAdminItems = adminSectionOpen || isAdminRailMode
+  const showProviderItems = providerSectionOpen || isAdminRailMode
+  const showSuperAdminItems = adminSuperAdminOpen || isAdminRailMode
+
+  const { sidebarPointerHandlers: adminSidebarPointerHandlers } = useAdminSidebarKeyboardNav({
+    enabled: !isNested && portalRole !== 'customer',
+    sidebarRef: adminSidebarRef,
+    sidebarNavWrapRef,
+    isMobile,
+    mobileMenuOpen,
+    isRailMode: isAdminRailMode,
+    hasOpenPopover: notifOpen || adminMenuOpen,
+    hasOpenFlyout: Boolean(hoveredFlyout),
+    currentPathname: location.pathname,
+    visibleSections: {
+      admin: showAdminItems,
+      provider: showProviderItems,
+      'super-admin': isSuperAdmin && showSuperAdminItems,
+    },
+    onNavigate: (to) => {
+      navigate(to)
+    },
+    onOpenSection: (section) => {
+      if (section === 'admin') setAdminSectionOpen(true)
+      else if (section === 'provider') setProviderSectionOpen(true)
+      else if (section === 'super-admin') setAdminSuperAdminOpen(true)
+    },
+    onCloseSection: (section) => {
+      if (section === 'admin') setAdminSectionOpen(false)
+      else if (section === 'provider') setProviderSectionOpen(false)
+      else if (section === 'super-admin') setAdminSuperAdminOpen(false)
+    },
+    onCloseFlyout: () => setHoveredFlyout(null),
+    onCloseMobileMenu: () => setMobileMenuOpen(false),
+  })
+
+  // Auto-open the Admin accordion group containing the active route on navigation
+  useEffect(() => {
+    if (isNested || portalRole === 'customer') return
+    const path = location.pathname.replace(/\/+$/, '') || '/dashboard'
+    if (path.startsWith('/dashboard/super-admin')) {
+      setAdminSuperAdminOpen(true)
+    } else if (path.startsWith('/dashboard/provider')) {
+      setProviderSectionOpen(true)
+    } else if (
+      path === '/dashboard' ||
+      path.startsWith('/dashboard/customers') ||
+      path.startsWith('/dashboard/users') ||
+      path.startsWith('/dashboard/keys')
+    ) {
+      setAdminSectionOpen(true)
+    }
+  }, [location.pathname, isNested, portalRole])
+
+  const getVisibleActiveNavItem = (): HTMLElement | null => {
+    const activeItemEl = sidebarNavWrapRef.current?.querySelector<HTMLElement>('.dash-nav-item.is-active') ?? null
+    if (!activeItemEl) return null
+    const navSection = activeItemEl.closest<HTMLElement>('[data-nav-section]')?.dataset.navSection
+    if (navSection === 'admin' && !showAdminItems) return null
+    if (navSection === 'provider' && !showProviderItems) return null
+    if (navSection === 'super-admin' && !showSuperAdminItems) return null
+    return activeItemEl
+  }
+
+  // Floating Nav Pill Animation (Standalone Fallback) — Single unified pill across all items
+  useLayoutEffect(() => {
+    if (isNested) return
+    const animate = !isFirstPillMount.current
+    const radius = isAdminRailMode ? 14 : 9999
+
+    const activeItemEl = getVisibleActiveNavItem()
+    animateNavPill(unifiedNavPillRef.current, activeItemEl, { animate, radius })
+
+    isFirstPillMount.current = false
+  }, [location.pathname, isAdminRailMode, isNested, showAdminItems, showProviderItems, showSuperAdminItems])
+
+  useEffect(() => {
+    if (isNested) return
+    const syncPill = () => {
+      const radius = isAdminRailMode ? 14 : 9999
+      const activeItemEl = getVisibleActiveNavItem()
+      animateNavPill(unifiedNavPillRef.current, activeItemEl, { animate: false, radius })
+    }
+    const ro = new ResizeObserver(syncPill)
+    if (sidebarNavWrapRef.current) ro.observe(sidebarNavWrapRef.current)
+    document.fonts?.ready.then(syncPill)
+    return () => ro.disconnect()
+  }, [isAdminRailMode, isNested, showAdminItems, showProviderItems, showSuperAdminItems])
+
+  const activeCustomerGroupTitle =
+    customerNavGroups.find((grp) => grp.items.some((item) => isItemActive(item)))?.title ?? 'GENERAL'
+
+  const [expandedCustomerGroups, setExpandedCustomerGroups] = useState<Record<string, boolean>>(() => ({
+    [activeCustomerGroupTitle]: true,
+  }))
+
+  useEffect(() => {
+    setExpandedCustomerGroups((prev) =>
+      prev[activeCustomerGroupTitle] ? prev : { ...prev, [activeCustomerGroupTitle]: true },
+    )
+  }, [activeCustomerGroupTitle])
+
+  const toggleCustomerGroup = (title: string) => {
+    setExpandedCustomerGroups((prev) => ({
+      ...prev,
+      [title]: !prev[title],
+    }))
+  }
+
+  const renderCustomerGroup = (group: NavGroup) => {
+    if (group.title === 'SYSTEM_DIVIDER') {
+      return (
+        <div key="customer-system-divider" className="dash-nav-group" style={{ margin: 0, padding: 0 }}>
+          <div className="verdelo-nav-divider" />
+          <nav className="dash-nav-list" aria-label="Settings and Help">
+            {group.items.map((item) => {
+              const active = isItemActive(item)
+              return (
+                <Link
+                  key={item.label}
+                  to={item.to}
+                  className={`dash-nav-item ${active ? 'is-active' : ''}`}
+                  aria-current={active ? 'page' : undefined}
+                  onClick={() => {
+                    setHoveredFlyout(null)
+                    setMobileMenuOpen(false)
+                  }}
+                  onMouseEnter={(e) => {
+                    if (isSidebarCollapsed && !isMobile) {
+                      const rect = e.currentTarget.getBoundingClientRect()
+                      setHoveredFlyout({
+                        label: item.label,
+                        badge: item.badge,
+                        top: rect.top + rect.height / 2,
+                        left: rect.right + 12,
+                      })
+                    }
+                  }}
+                  onMouseLeave={() => setHoveredFlyout(null)}
+                >
+                  <item.icon />
+                  <span>{item.label}</span>
+                </Link>
+              )
+            })}
+          </nav>
+        </div>
+      )
+    }
+
+    if (!group.title) {
+      return (
+        <div key="customer-main-nav" className="dash-nav-group" style={{ margin: 0, padding: 0 }}>
+          <nav className="dash-nav-list" aria-label="Customer Navigation">
+            {group.items.map((item) => {
+              const active = isItemActive(item)
+              return (
+                <Link
+                  key={item.label}
+                  to={item.to}
+                  className={`dash-nav-item ${active ? 'is-active' : ''}`}
+                  aria-current={active ? 'page' : undefined}
+                  onClick={() => {
+                    setHoveredFlyout(null)
+                    setMobileMenuOpen(false)
+                  }}
+                  onMouseEnter={(e) => {
+                    if (isSidebarCollapsed && !isMobile) {
+                      const rect = e.currentTarget.getBoundingClientRect()
+                      setHoveredFlyout({
+                        label: item.label,
+                        badge: item.badge,
+                        top: rect.top + rect.height / 2,
+                        left: rect.right + 12,
+                      })
+                    }
+                  }}
+                  onMouseLeave={() => setHoveredFlyout(null)}
+                >
+                  <item.icon />
+                  <span>{item.label}</span>
+                  {item.badge && (
+                    <span className={`dash-nav-badge ${item.badgeType === 'count' ? 'dash-nav-badge--count' : ''}`}>
+                      {item.badge}
+                    </span>
+                  )}
+                </Link>
+              )
+            })}
+          </nav>
+        </div>
+      )
+    }
+
+    const isExpanded = Boolean(expandedCustomerGroups[group.title])
+    const showItems = (isSidebarCollapsed && !isMobile) || isExpanded
+
+    return (
+      <div key={group.title} className="dash-nav-group">
+        <button
+          type="button"
+          className={`dash-nav-group-title dash-nav-group-btn ${isExpanded ? 'is-expanded' : ''}`}
+          onClick={() => toggleCustomerGroup(group.title)}
+          aria-expanded={isExpanded}
+          title={isExpanded ? `Collapse ${group.title}` : `Expand ${group.title}`}
+        >
+          <span>{group.title}</span>
+          <ChevronDown
+            size={13}
+            className={`dash-nav-group-chevron ${isExpanded ? 'is-expanded' : ''}`}
+            aria-hidden="true"
+          />
+        </button>
+        <AnimatePresence initial={false}>
+          {showItems && (
+            <motion.nav
+              className="dash-nav-list"
+              aria-label={group.title}
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.22, ease: [0.25, 1, 0.5, 1] }}
+              style={{ overflow: 'hidden' }}
+            >
+              {group.items.map((item) => {
+                const active = isItemActive(item)
+                return (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    className={`dash-nav-item ${active ? 'is-active' : ''}`}
+                    aria-current={active ? 'page' : undefined}
+                    onClick={() => {
+                      setHoveredFlyout(null)
+                      setMobileMenuOpen(false)
+                    }}
+                    onMouseEnter={(e) => {
+                      if (isSidebarCollapsed && !isMobile) {
+                        const rect = e.currentTarget.getBoundingClientRect()
+                        setHoveredFlyout({
+                          label: item.label,
+                          badge: item.badge,
+                          top: rect.top + rect.height / 2,
+                          left: rect.right + 12,
+                        })
+                      }
+                    }}
+                    onMouseLeave={() => setHoveredFlyout(null)}
+                  >
+                    <item.icon />
+                    <span>{item.label}</span>
+                    {item.badge && (
+                      <span className={`dash-nav-badge ${item.badgeType === 'count' ? 'dash-nav-badge--count' : ''}`}>
+                        {item.badge}
+                      </span>
+                    )}
+                  </Link>
+                )
+              })}
+            </motion.nav>
+          )}
+        </AnimatePresence>
+      </div>
+    )
+  }
+
+  const handleBack = () => {
+    if (onBackClick) {
+      onBackClick()
+    } else if (backButtonTo) {
+      navigate(backButtonTo)
+    } else {
+      if (portalRole === 'admin') navigate('/dashboard')
+      else navigate('/dashboard/customer')
+    }
+  }
+
+  const portalHomeRoute = portalRole === 'admin' ? '/dashboard' : '/dashboard/customer'
+
+  if (portalRole === 'customer') {
+    return (
+      <div className="dash-shell" data-theme={dashTheme} data-role="customer">
+        <Ambient />
+        <div className="dash-window-frame dash-window-frame--customer">
+          {/* Mobile backdrop overlay */}
+          {mobileMenuOpen && (
+            <div
+              className="dash-sidebar-overlay"
+              onClick={() => setMobileMenuOpen(false)}
+              aria-hidden="true"
+            />
+          )}
+
+          {/* ── Left Sidebar (Full height from top to bottom) ── */}
+          <aside
+            className={`dash-sidebar dash-sidebar--verdelo ${
+              isMobile
+                ? (mobileMenuOpen ? 'is-open' : '')
+                : (isSidebarCollapsed ? 'is-collapsed' : '')
+            }`}
+            aria-label="Dashboard Sidebar"
+          >
+            {/* Top brand header inside the sidebar (Image 5 & Image 6) */}
+            <div className="verdelo-sidebar-brand-row">
+              <Link to="/dashboard/customer" className="verdelo-sidebar-brand-link">
+                <div className="verdelo-brand-logo-leaf" title="Verdelo">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#082417" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 22v-9" />
+                    <path d="M9 10a5 5 0 0 1 5-5c2.5 0 4 2 4 4a5 5 0 0 1-5 5H9z" />
+                    <path d="M15 13a5 5 0 0 1-5 5c-2.5 0-4-2-4-4a5 5 0 0 1 5-5h4z" />
+                  </svg>
+                </div>
+                {!isSidebarCollapsed && (
+                  <div className="verdelo-sidebar-brand-text">
+                    <span className="verdelo-brand-name">Verdelo</span>
+                    <span className="verdelo-brand-sub">Sahith Workspace</span>
+                  </div>
+                )}
+              </Link>
+              <button
+                type="button"
+                className="verdelo-sidebar-toggle"
+                onClick={toggleSidebarCollapse}
+                title={isSidebarCollapsed ? "Expand sidebar (Ctrl+B)" : "Collapse sidebar (Ctrl+B)"}
+                aria-label={isSidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              >
+                <svg width="15" height="15" viewBox="0 0 16 16" fill="none">
+                  <rect x="2" y="2" width="12" height="12" rx="3" stroke="currentColor" strokeWidth="1.5" />
+                  <line x1="6.5" y1="2" x2="6.5" y2="14" stroke="currentColor" strokeWidth="1.5" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Navigation links */}
+            <div ref={sidebarScrollRef} className="dash-sidebar__scroll">
+              <div className="dash-nav-groups">
+                {customerMainNavGroups.map(renderCustomerGroup)}
+              </div>
+            </div>
+
+            {/* Sidebar Footer: Safe to spend + User card */}
+            <div className="dash-sidebar__footer">
+              {!isSidebarCollapsed && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {/* Safe to spend today card */}
+                  <div className="verdelo-safe-spend-card">
+                    <div className="verdelo-safe-spend-label">Safe to spend today</div>
+                    <div className="verdelo-safe-spend-amount">₹67</div>
+                    <div className="verdelo-safe-spend-sub">₹269 of bills still due · 19 days left</div>
+                  </div>
+
+                  {/* Account Owner Card */}
+                  <div ref={sidebarMenuRef} style={{ position: 'relative' }}>
+                    <div
+                      className="verdelo-user-pill"
+                      onClick={() => setSidebarMenuOpen(!sidebarMenuOpen)}
+                      role="button"
+                      tabIndex={0}
+                      title={`${user.fullName} (${roleLabel})`}
+                    >
+                      <div className="verdelo-user-avatar">{initials}</div>
+                      <div className="verdelo-user-info">
+                        <span className="verdelo-user-name">{user.fullName}</span>
+                        <span className="verdelo-user-email">{user.email}</span>
+                      </div>
+                      <span className="verdelo-user-dots">•••</span>
+                    </div>
+
+                    {sidebarMenuOpen && (
+                      <div
+                        className="dash-dropdown-popover"
+                        style={{
+                          position: 'absolute',
+                          bottom: 'calc(100% + 8px)',
+                          left: 0,
+                          right: 0,
+                          padding: '12px',
+                          zIndex: 1200,
+                        }}
+                      >
+                        <div className="dash-user-head">
+                          <div className="dash-user-name">{user.fullName}</div>
+                          <div className="dash-user-email">{user.email}</div>
+                          <div style={{ marginTop: 6, display: 'flex', gap: 6, alignItems: 'center' }}>
+                            <span
+                              className="tag"
+                              style={{
+                                background: 'rgba(80, 227, 150, 0.18)',
+                                color: '#50e396',
+                                borderColor: 'rgba(80, 227, 150, 0.4)',
+                                fontSize: '0.68rem',
+                                fontWeight: 600,
+                              }}
+                            >
+                              {user.organization || 'Customer Workspace'}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, paddingTop: 6 }}>
+                          <button
+                            type="button"
+                            className="dash-nav-item dash-nav-item--danger"
+                            onClick={async () => {
+                              setSidebarMenuOpen(false)
+                              await performSignOut('/login')
+                            }}
+                          >
+                            <LogOut size={15} /> Sign Out
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              <Link
+                to="/"
+                className="dash-sidebar__public-link"
+                title="Back to Public Website"
+                onClick={() => {
+                  setHoveredFlyout(null)
+                  setMobileMenuOpen(false)
+                }}
+              >
+                <ExternalLink size={13} />
+                {!isSidebarCollapsed && <span>Back to Public Website</span>}
+              </Link>
+            </div>
+          </aside>
+
+          {/* ── Right Content Pane ── */}
+          <div className="dash-customer-content-pane">
+            {/* Top action bar: Search capsule + Quick Actions (Image 5 & Image 7) */}
+            <header className="dash-customer-topbar">
+              {isMobile && (
+                <button
+                  className="dash-mobile-burger"
+                  onClick={toggleSidebarCollapse}
+                  aria-label="Toggle navigation menu"
+                >
+                  {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+                </button>
+              )}
+
+              {/* Search Capsule */}
+              <div
+                className="verdelo-search-pill"
+                onClick={() => {
+                  const searchModalTrigger = document.querySelector('.dash-search-btn') as HTMLButtonElement | null
+                  if (searchModalTrigger) searchModalTrigger.click()
+                }}
+                role="button"
+                tabIndex={0}
+                aria-label="Search payments, people, pages"
+              >
+                <Search size={15} className="verdelo-search-icon" />
+                <span className="verdelo-search-text">Search payments, people, pages</span>
+                <kbd className="verdelo-search-kbd">⌘K</kbd>
+              </div>
+
+              {/* Action cluster on right */}
+              <div className="dash-customer-topbar__actions">
+                {/* Green + Action Circle */}
+                <button
+                  type="button"
+                  className="verdelo-btn-circle verdelo-btn-circle--mint"
+                  onClick={() => window.dispatchEvent(new Event('inferxe_open_topup'))}
+                  title="Add / Move money"
+                  aria-label="Add or move money"
+                >
+                  <Plus size={16} strokeWidth={2.8} />
+                </button>
+
+                {/* Dark Glass Send Circle */}
+                <button
+                  type="button"
+                  className="verdelo-btn-circle verdelo-btn-circle--glass"
+                  onClick={() => window.dispatchEvent(new Event('inferxe_open_send'))}
+                  title="Send money"
+                  aria-label="Send money"
+                >
+                  <Send size={14} />
+                </button>
+
+                {/* Vertical Separator */}
+                <span className="verdelo-topbar-sep" aria-hidden="true" />
+
+                {/* Sun / Theme icon */}
+                <button
+                  id="dash-header-theme-toggle"
+                  className="verdelo-topbar-icon-btn"
+                  onClick={(e) => toggleTheme(e)}
+                  title={dashTheme === "light" ? "Switch to dark mode" : "Switch to light mode"}
+                  aria-label="Toggle light / dark mode"
+                >
+                  <Sun size={17} />
+                </button>
+
+                {/* Bell with mint dot & Alerts dropdown (Image 8) */}
+                <div ref={notifRef} style={{ position: 'relative' }}>
+                  <button
+                    className="verdelo-topbar-icon-btn verdelo-bell-btn"
+                    title="Alerts"
+                    aria-label="Alerts"
+                    onClick={() => {
+                      setNotifOpen(!notifOpen)
+                      setAdminMenuOpen(false)
+                    }}
+                  >
+                    <Bell size={18} />
+                    {customerAlerts.some(a => a.unread) && <span className="verdelo-bell-dot" />}
+                  </button>
+
+                  {notifOpen && (
+                    <div className="verdelo-alerts-popup">
+                      <div className="verdelo-alerts-header">
+                        <h3 className="verdelo-alerts-title">Alerts</h3>
+                        <button
+                          type="button"
+                          className="verdelo-alerts-mark-read"
+                          onClick={() => {
+                            setCustomerAlerts(prev => prev.map(a => ({ ...a, hasDot: false, unread: false })))
+                          }}
+                        >
+                          Mark all read
+                        </button>
+                      </div>
+
+                      <div className="verdelo-alerts-list">
+                        {customerAlerts.map(alert => (
+                          <div className="verdelo-alert-row" key={alert.id}>
+                            <div className={`verdelo-alert-icon-box verdelo-alert-icon-box--${alert.type}`}>
+                              {alert.icon === 'check' && <Check size={16} strokeWidth={2.4} />}
+                              {alert.icon === 'card' && <CreditCard size={16} />}
+                              {alert.icon === 'pie' && <PieChart size={16} />}
+                              {alert.icon === 'goal' && <Database size={16} />}
+                              {alert.icon === 'calendar' && <Calendar size={16} />}
+                            </div>
+                            <div className="verdelo-alert-body">
+                              <div className="verdelo-alert-title-line">
+                                <span className="verdelo-alert-name">{alert.title}</span>
+                                {alert.hasDot && <span className="verdelo-alert-dot" />}
+                              </div>
+                              <div className="verdelo-alert-desc">{alert.desc}</div>
+                              <div className="verdelo-alert-time">{alert.time}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* User Avatar Circle */}
+                <div ref={profileMenuRef} style={{ position: 'relative' }}>
+                  <div
+                    className="verdelo-avatar-pill"
+                    onClick={() => {
+                      setAdminMenuOpen(!adminMenuOpen)
+                      setNotifOpen(false)
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    title={`${user.fullName} (${roleLabel})`}
+                  >
+                    <span>{initials.charAt(0)}</span>
+                  </div>
+
+                  {adminMenuOpen && (
+                    <div
+                      className="dash-dropdown-popover"
+                      style={{
+                        position: 'absolute',
+                        top: 'calc(100% + 10px)',
+                        right: 0,
+                        width: '270px',
+                        padding: '12px',
+                        zIndex: 1100,
+                      }}
+                    >
+                      <div className="dash-user-head">
+                        <div className="dash-user-name">{user.fullName}</div>
+                        <div className="dash-user-email">{user.email}</div>
+                        <div style={{ marginTop: 6, display: 'flex', gap: 6, alignItems: 'center' }}>
+                          <span
+                            className="tag"
+                            style={{
+                              background: 'rgba(80, 227, 150, 0.18)',
+                              color: '#50e396',
+                              borderColor: 'rgba(80, 227, 150, 0.4)',
+                              fontSize: '0.68rem',
+                              fontWeight: 600,
+                            }}
+                          >
+                            {user.organization || 'Customer Workspace'}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, paddingTop: 6 }}>
+                        <button
+                          type="button"
+                          className="dash-nav-item dash-nav-item--danger"
+                          onClick={async () => {
+                            setAdminMenuOpen(false)
+                            await performSignOut('/login')
+                          }}
+                        >
+                          <LogOut size={15} /> Sign Out
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </header>
+
+            {/* Main scrollable body */}
+            <main className="dash-main">
+              <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+              style={{ width: '100%', minHeight: '100%' }}
+            >
+              {children}
+            </motion.div>
+            </main>
+          </div>
+
+          {/* Floating flyout tooltip in collapsed rail mode */}
+          {isSidebarCollapsed && !isMobile && hoveredFlyout && (
+            <div
+              className="dash-sidebar-flyout"
+              style={{
+                position: 'fixed',
+                top: hoveredFlyout.top,
+                left: hoveredFlyout.left,
+                transform: 'translateY(-50%)',
+                zIndex: 9999,
+              }}
+            >
+              <span>{hoveredFlyout.label}</span>
+              {hoveredFlyout.badge && <span className="dash-nav-badge">{hoveredFlyout.badge}</span>}
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
+  if ((portalRole === 'admin' || portalRole === 'superadmin') && isNested) {
+    return (
+      <div className="dash-nested-view" style={{ width: '100%', minHeight: '100%' }}>
+        {breadcrumb && breadcrumb.length > 0 && (
+          <nav className="dash-breadcrumb" aria-label="Breadcrumb">
+            {breadcrumb.map((bc, idx) => (
+              <span key={bc.label} className="row" style={{ gap: 8, alignItems: 'center' }}>
+                {idx > 0 && <span className="dash-breadcrumb__sep">/</span>}
+                {bc.to ? (
+                  <Link to={bc.to}>{bc.label}</Link>
+                ) : (
+                  <span className="dash-breadcrumb__current">{bc.label}</span>
+                )}
+              </span>
+            ))}
+          </nav>
+        )}
+
+        {!hideHeader && (heading || backButtonLabel) && (
+          <div className="dash-header-row">
+            <div>
+              <h1 className="dash-header-title">{heading}</h1>
+              {description && <p className="dash-header-desc">{description}</p>}
+            </div>
+
+            {backButtonLabel && (
+              <button type="button" className="dash-back-btn" onClick={handleBack} aria-label={backButtonLabel}>
+                <ChevronLeft />
+                <span>{backButtonLabel}</span>
+              </button>
+            )}
+          </div>
+        )}
+
+        {children}
+      </div>
+    )
+  }
+
+  return (
+    <div className="dash-shell" data-theme={dashTheme} data-role="admin">
+      <Ambient />
+      <div className="dash-window-frame">
+        {/* ── Top Navigation Bar ──────────────────────────────── */}
+        <header className="dash-topbar">
+          <div className="dash-topbar__left">
+            <Link to={portalHomeRoute} className="row" style={{ gap: 10, alignItems: 'center' }}>
+              <LogoMark size={28} theme={dashTheme} />
+              <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.05rem', color: 'var(--ink)' }}>
+                Infer<span style={{ color: 'var(--brand-hi)' }}>xe</span>
+              </span>
+            </Link>
+
+            <span className="dash-topbar__divider" aria-hidden />
+            <span
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.66rem',
+                letterSpacing: '0.06em',
+                textTransform: 'uppercase',
+                padding: '2px 8px',
+                borderRadius: 4,
+                background: dashTheme === 'light' ? 'rgba(14, 165, 233, 0.12)' : 'rgba(14, 165, 233, 0.18)',
+                color: dashTheme === 'light' ? '#0284c7' : '#38bdf8',
+                border: `1px solid ${dashTheme === 'light' ? 'rgba(14, 165, 233, 0.35)' : 'rgba(56, 189, 248, 0.3)'}`,
+                marginLeft: 4,
+                fontWeight: 600,
+              }}
+            >
+              Admin Portal
+            </span>
+          </div>
+
+          {/* Center: Search Bar & Quick Actions matching Customer Visual System */}
+          <div className="dash-topbar__center">
+            <AdminHeaderSearch sections={adminSearchableSections} isSuperAdmin={isSuperAdmin} />
+
+            {/* Quick Action Button: Add User or Deploy */}
+            <button
+              type="button"
+              className="verdelo-btn-circle verdelo-btn-circle--mint"
+              onClick={() => navigate('/dashboard/users/add')}
+              title="Add User / Deploy"
+              aria-label="Add User or Deploy"
+            >
+              <Plus size={16} strokeWidth={2.8} />
+            </button>
+
+            {/* Quick Navigation / Sovereign Nodes Telemetry */}
+            <button
+              type="button"
+              className="verdelo-btn-circle verdelo-btn-circle--glass"
+              onClick={() => navigate('/dashboard/users/map')}
+              title="Sovereign Nodes Fleet Map"
+              aria-label="Sovereign Nodes Fleet Map"
+            >
+              <Send size={14} />
+            </button>
+          </div>
+
+          {/* Right: Notifications & Admin Profile */}
+          <div className="dash-topbar__right">
+            <button
+              id="dash-header-theme-toggle"
+              className={`dash-theme-toggle dash-theme-toggle--${dashTheme}`}
+              onClick={(e) => toggleTheme(e)}
+              title={dashTheme === "light" ? "Switch to dark mode" : "Switch to light mode"}
+              aria-label="Toggle light / dark mode"
+            >
+              <AnimatePresence initial={false}>
+                <motion.span
+                  key={dashTheme}
+                  className="dash-theme-icon-wrap"
+                  initial={{
+                    rotate: dashTheme === 'light' ? 90 : -90,
+                    scale: 0.25,
+                    opacity: 0,
+                    color: dashTheme === 'light' ? '#FBBF24' : '#0284c7',
+                  }}
+                  animate={{
+                    rotate: 0,
+                    scale: 1,
+                    opacity: 1,
+                    color: dashTheme === 'light' ? '#0284c7' : '#FBBF24',
+                  }}
+                  exit={{
+                    rotate: dashTheme === 'light' ? -90 : 90,
+                    scale: 0.25,
+                    opacity: 0,
+                    color: dashTheme === 'light' ? '#0284c7' : '#FBBF24',
+                  }}
+                  transition={{
+                    duration: 0.45,
+                    ease: [0.34, 1.3, 0.64, 1],
+                  }}
+                >
+                  {dashTheme === "light" ? (
+                    <Moon size={16} className="dash-theme-icon dash-theme-icon--moon" />
+                  ) : (
+                    <Sun size={16} className="dash-theme-icon dash-theme-icon--sun" />
+                  )}
+                </motion.span>
+              </AnimatePresence>
+            </button>
+
+            {/* Admin Notifications */}
+            <div ref={notifRef} style={{ position: 'relative' }}>
+              <button
+                className="dash-topbar__btn-icon"
+                title="Notifications"
+                aria-label="Notifications"
+                onClick={() => {
+                  setNotifOpen(!notifOpen)
+                  setAdminMenuOpen(false)
+                }}
+                style={{ position: 'relative' }}
+              >
+                <Bell size={17} />
+                {unreadNotifCount > 0 ? (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: -2,
+                      right: -2,
+                      background: '#ef4444',
+                      color: '#fff',
+                      borderRadius: '50%',
+                      minWidth: 15,
+                      height: 15,
+                      padding: '0 3px',
+                      fontSize: '0.62rem',
+                      fontWeight: 700,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: '1.5px solid var(--surface-1)',
+                    }}
+                  >
+                    {unreadNotifCount > 9 ? '9+' : unreadNotifCount}
+                  </span>
+                ) : null}
+              </button>
+
+              {notifOpen && (
+                <div
+                  className="dash-dropdown-popover"
+                  style={{
+                    width: '350px',
+                    padding: '16px',
+                    maxHeight: '440px',
+                    overflowY: 'auto',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                    <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.74rem', color: 'var(--brand-hi)', textTransform: 'uppercase', fontWeight: 700, letterSpacing: '0.06em' }}>
+                      Notifications & Alerts
+                    </span>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      {unreadNotifCount > 0 && (
+                        <span
+                          style={{
+                            fontSize: '0.68rem',
+                            fontWeight: 600,
+                            padding: '2px 8px',
+                            borderRadius: 10,
+                            background: 'rgba(239, 68, 68, 0.16)',
+                            border: '1px solid rgba(239, 68, 68, 0.35)',
+                            color: '#ef4444',
+                          }}
+                        >
+                          {unreadNotifCount} new
+                        </span>
+                      )}
+                      <button
+                        type="button"
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: 'var(--ink-muted)',
+                          fontSize: '0.68rem',
+                          cursor: 'pointer',
+                          textDecoration: 'underline',
+                        }}
+                        onClick={() => {
+                          const updated = liveNotifs.map((n) => ({ ...n, read: true }))
+                          setLiveNotifs(updated)
+                          localStorage.setItem('inferxe_demo_notifications_v3', JSON.stringify(updated))
+                          window.dispatchEvent(new CustomEvent('inferxe_notifications_change'))
+                        }}
+                      >
+                        Mark all read
+                      </button>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {liveNotifs.length === 0 ? (
+                      <div style={{ textAlign: 'center', padding: '16px', color: 'var(--ink-muted)', fontSize: '0.82rem' }}>
+                        No notifications yet.
+                      </div>
+                    ) : (
+                      liveNotifs.slice(0, 5).map((n) => (
+                        <div
+                          key={n.id}
+                          className={`dash-notif-card ${!n.read ? 'dash-notif-card--accent' : 'dash-notif-card--standard'}`}
+                          style={{ cursor: 'pointer' }}
+                          onClick={() => {
+                            const updated = liveNotifs.map((item) => item.id === n.id ? { ...item, read: true } : item)
+                            setLiveNotifs(updated)
+                            localStorage.setItem('inferxe_demo_notifications_v3', JSON.stringify(updated))
+                            window.dispatchEvent(new CustomEvent('inferxe_notifications_change'))
+                            setNotifOpen(false)
+                            navigate('/dashboard/notifications')
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
+                            <span
+                              style={{
+                                fontSize: '0.66rem',
+                                textTransform: 'uppercase',
+                                fontWeight: 700,
+                                color: n.type === 'Billing' ? '#10b981' : n.type === 'Deployment' ? '#06b6d4' : 'var(--brand-hi)',
+                              }}
+                            >
+                              {n.type}
+                            </span>
+                            <span style={{ fontSize: '0.64rem', color: 'var(--ink-muted)' }}>{n.time}</span>
+                          </div>
+                          <div className="dash-notif-card__title" style={{ fontWeight: !n.read ? 700 : 500 }}>
+                            {n.title}
+                          </div>
+                          <div className="dash-notif-card__desc">{n.detail}</div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  <div style={{ marginTop: 12, borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 10, textAlign: 'center' }}>
+                    <Link
+                      to="/dashboard/notifications"
+                      style={{ fontSize: '0.74rem', color: 'var(--brand-hi)', textDecoration: 'none', fontWeight: 600 }}
+                      onClick={() => setNotifOpen(false)}
+                    >
+                      View All Notifications →
+                    </Link>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Admin Profile */}
+            <div ref={profileMenuRef} style={{ position: 'relative' }}>
+              <div
+                className="dash-admin-profile"
+                onClick={() => {
+                  setAdminMenuOpen(!adminMenuOpen)
+                  setNotifOpen(false)
+                }}
+                role="button"
+                tabIndex={0}
+                aria-label="User Profile Menu"
+              >
+                <div className="dash-admin-avatar">
+                  {initials}
+                  <span className="dash-admin-avatar__online" />
+                </div>
+                <div className="dash-admin-info">
+                  <span className="dash-admin-name">{user.fullName}</span>
+                  <span className="dash-admin-role">{roleLabel}</span>
+                </div>
+                <ChevronDown size={14} style={{ color: 'var(--ink-3)' }} />
+              </div>
+
+              {adminMenuOpen && (
+                <div
+                  className="dash-dropdown-popover"
+                  style={{
+                    width: '270px',
+                    padding: '12px',
+                  }}
+                >
+                  <div className="dash-user-head">
+                    <div className="dash-user-name">{user.fullName}</div>
+                    <div className="dash-user-email">{user.email}</div>
+                    <div style={{ marginTop: 6, display: 'flex', gap: 6, alignItems: 'center' }}>
+                      <span
+                        className="tag"
+                        style={{
+                          background: 'rgba(118, 185, 0, 0.18)',
+                          color: 'var(--brand-hi)',
+                          borderColor: 'var(--brand)',
+                          fontSize: '0.68rem',
+                          fontWeight: 600,
+                        }}
+                      >
+                        {roleLabel}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2, paddingTop: 4 }}>
+
+                    <button
+                      type="button"
+                      className="dash-nav-item dash-nav-item--danger"
+                      onClick={async () => {
+                        setAdminMenuOpen(false)
+                        await performSignOut('/login')
+                      }}
+                    >
+                      <LogOut size={15} /> Sign Out
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Mobile hamburger */}
+            <button
+              className="dash-mobile-burger"
+              onClick={toggleSidebarCollapse}
+              aria-label="Toggle navigation menu"
+            >
+              {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+            </button>
+          </div>
+        </header>
+
+        {/* ── Layout Body (Sidebar + Content) ─────────────────── */}
+        <div className="dash-body">
+          {mobileMenuOpen && (
+            <div
+              className="dash-sidebar-overlay"
+              onClick={() => setMobileMenuOpen(false)}
+              aria-hidden="true"
+            />
+          )}
+
+          <aside
+            ref={adminSidebarRef}
+            className={`dash-sidebar ${
+              isMobile
+                ? (mobileMenuOpen ? 'is-open' : '')
+                : (isSidebarCollapsed ? 'is-collapsed' : '')
+            }`}
+            aria-label="Dashboard Sidebar"
+            {...adminSidebarPointerHandlers}
+          >
+            <div className="dash-sidebar__top">
+              {!isAdminRailMode && (
+                <span className="dash-sidebar__workspace-tag">
+                  Admin Control
+                </span>
+              )}
+              <button
+                type="button"
+                className="dash-sidebar__toggle-btn"
+                onClick={toggleSidebarCollapse}
+                title={isMobile ? "Close sidebar" : isAdminRailMode ? "Expand sidebar (Ctrl+B)" : "Collapse sidebar (Ctrl+B)"}
+                aria-label={isMobile ? "Close sidebar" : isAdminRailMode ? "Expand sidebar" : "Collapse sidebar"}
+              >
+                <ChevronLeft
+                  size={14}
+                  style={{
+                    transition: 'transform 0.28s cubic-bezier(0.25, 1, 0.5, 1)',
+                    transform: isAdminRailMode ? 'rotate(180deg)' : 'rotate(0deg)',
+                  }}
+                />
+              </button>
+            </div>
+
+            <div ref={sidebarScrollRef} className="dash-sidebar__scroll">
+              <div ref={sidebarNavWrapRef} className="dash-sidebar-nav-wrap" style={{ position: 'relative' }}>
+                {/* 🌟 ONE UNIFIED FLOATING NAV PILL FOR THE ENTIRE SIDEBAR */}
+                <span ref={unifiedNavPillRef} className="dash-nav-pill" aria-hidden="true" />
+
+                {/* Section A: Administration */}
+                <button
+                  type="button"
+                  data-nav-section-toggle="admin"
+                  className="dash-nav-section-title dash-nav-section-btn"
+                  onClick={() => setAdminSectionOpen(!adminSectionOpen)}
+                  aria-expanded={adminSectionOpen}
+                >
+                  <span>Administration</span>
+                  <ChevronDown
+                    size={13}
+                    style={{
+                      transition: 'transform 0.24s cubic-bezier(0.25, 1, 0.5, 1)',
+                      transform: adminSectionOpen ? 'rotate(0deg)' : 'rotate(-90deg)',
+                    }}
+                  />
+                </button>
+                <AnimatePresence initial={false}>
+                  {showAdminItems && (
+                    <motion.nav
+                      ref={adminNavRef}
+                      data-nav-section="admin"
+                      className="dash-nav-list"
+                      aria-label="Administration Navigation"
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.24, ease: [0.25, 1, 0.5, 1] }}
+                      style={{ overflow: 'hidden', position: 'relative' }}
+                    >
+                      {adminAdministrationItems.map((item) => {
+                        const active = isItemActive(item)
+                        return (
+                          <Link
+                            key={item.label}
+                            to={item.to}
+                            data-nav-to={item.to}
+                            className={`dash-nav-item ${active ? 'is-active' : ''}`}
+                            onClick={() => {
+                              setHoveredFlyout(null)
+                              setMobileMenuOpen(false)
+                            }}
+                            onMouseEnter={(e) => {
+                              if (isAdminRailMode) {
+                                const rect = e.currentTarget.getBoundingClientRect()
+                                setHoveredFlyout({
+                                  label: item.label,
+                                  badge: item.badge,
+                                  top: rect.top + rect.height / 2,
+                                  left: rect.right + 12,
+                                })
+                              }
+                            }}
+                            onMouseLeave={() => setHoveredFlyout(null)}
+                            onFocus={(e) => {
+                              if (isAdminRailMode) {
+                                const rect = e.currentTarget.getBoundingClientRect()
+                                setHoveredFlyout({
+                                  label: item.label,
+                                  badge: item.badge,
+                                  top: rect.top + rect.height / 2,
+                                  left: rect.right + 12,
+                                })
+                              }
+                            }}
+                            onBlur={() => setHoveredFlyout(null)}
+                          >
+                            <item.icon />
+                            <span>{item.label}</span>
+                            {item.badge && <span className="dash-nav-badge">{item.badge}</span>}
+                          </Link>
+                        )
+                      })}
+                    </motion.nav>
+                  )}
+                </AnimatePresence>
+
+                {/* Section B: Provider Management */}
+                <button
+                  type="button"
+                  data-nav-section-toggle="provider"
+                  className="dash-nav-section-title dash-nav-section-btn"
+                  style={{ marginTop: 18 }}
+                  onClick={() => setProviderSectionOpen(!providerSectionOpen)}
+                  aria-expanded={providerSectionOpen}
+                >
+                  <span>Provider Management</span>
+                  <ChevronDown
+                    size={13}
+                    style={{
+                      transition: 'transform 0.24s cubic-bezier(0.25, 1, 0.5, 1)',
+                      transform: providerSectionOpen ? 'rotate(0deg)' : 'rotate(-90deg)',
+                    }}
+                  />
+                </button>
+                <AnimatePresence initial={false}>
+                  {showProviderItems && (
+                    <motion.nav
+                      ref={providerNavRef}
+                      data-nav-section="provider"
+                      className="dash-nav-list"
+                      aria-label="Provider Management Navigation"
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.24, ease: [0.25, 1, 0.5, 1] }}
+                      style={{ overflow: 'hidden', position: 'relative' }}
+                    >
+                      {adminProviderManagementItems.map((item) => {
+                        const active = isItemActive(item)
+                        return (
+                          <Link
+                            key={item.label}
+                            to={item.to}
+                            data-nav-to={item.to}
+                            className={`dash-nav-item ${active ? 'is-active' : ''}`}
+                            onClick={() => {
+                              setHoveredFlyout(null)
+                              setMobileMenuOpen(false)
+                            }}
+                            onMouseEnter={(e) => {
+                              if (isAdminRailMode) {
+                                const rect = e.currentTarget.getBoundingClientRect()
+                                setHoveredFlyout({
+                                  label: item.label,
+                                  badge: item.badge,
+                                  top: rect.top + rect.height / 2,
+                                  left: rect.right + 12,
+                                })
+                              }
+                            }}
+                            onMouseLeave={() => setHoveredFlyout(null)}
+                            onFocus={(e) => {
+                              if (isAdminRailMode) {
+                                const rect = e.currentTarget.getBoundingClientRect()
+                                setHoveredFlyout({
+                                  label: item.label,
+                                  badge: item.badge,
+                                  top: rect.top + rect.height / 2,
+                                  left: rect.right + 12,
+                                })
+                              }
+                            }}
+                            onBlur={() => setHoveredFlyout(null)}
+                          >
+                            <item.icon />
+                            <span>{item.label}</span>
+                            {item.badge && <span className="dash-nav-badge">{item.badge}</span>}
+                          </Link>
+                        )
+                      })}
+                    </motion.nav>
+                  )}
+                </AnimatePresence>
+
+                {/* Independent Control Group 2: SUPER ADMIN CONTROL */}
+                {isSuperAdmin && (
+                  <div className="dash-sidebar__control-group" aria-label="Super Admin Control">
+                    {!isAdminRailMode && (
+                      <div className="dash-sidebar__control-header">
+                        <span className="dash-sidebar__workspace-tag">
+                          Super Admin Control
+                        </span>
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      data-nav-section-toggle="super-admin"
+                      className="dash-nav-section-title dash-nav-section-btn"
+                      onClick={() => setAdminSuperAdminOpen(!adminSuperAdminOpen)}
+                      aria-expanded={adminSuperAdminOpen}
+                    >
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <ShieldCheck size={13} style={{ color: dashTheme === 'light' ? '#0e5b3c' : '#50e396' }} />
+                        <span>Super Admin</span>
+                      </span>
+                      <ChevronDown
+                        size={13}
+                        style={{
+                          transition: 'transform 0.24s cubic-bezier(0.25, 1, 0.5, 1)',
+                          transform: adminSuperAdminOpen ? 'rotate(0deg)' : 'rotate(-90deg)',
+                        }}
+                      />
+                    </button>
+                    <AnimatePresence initial={false}>
+                      {showSuperAdminItems && (
+                        <motion.nav
+                          data-nav-section="super-admin"
+                          className="dash-nav-list"
+                          aria-label="Super Admin Navigation"
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.24, ease: [0.25, 1, 0.5, 1] }}
+                          style={{ overflow: 'hidden', position: 'relative' }}
+                        >
+                          {adminSuperAdminItems.map((item) => {
+                            const active = isItemActive(item)
+                            return (
+                              <Link
+                                key={item.label}
+                                to={item.to}
+                                data-nav-to={item.to}
+                                className={`dash-nav-item ${active ? 'is-active' : ''}`}
+                                onClick={() => {
+                                  setHoveredFlyout(null)
+                                  setMobileMenuOpen(false)
+                                }}
+                                onMouseEnter={(e) => {
+                                  if (isAdminRailMode) {
+                                    const rect = e.currentTarget.getBoundingClientRect()
+                                    setHoveredFlyout({
+                                      label: item.label,
+                                      badge: item.badge,
+                                      top: rect.top + rect.height / 2,
+                                      left: rect.right + 12,
+                                    })
+                                  }
+                                }}
+                                onMouseLeave={() => setHoveredFlyout(null)}
+                                onFocus={(e) => {
+                                  if (isAdminRailMode) {
+                                    const rect = e.currentTarget.getBoundingClientRect()
+                                    setHoveredFlyout({
+                                      label: item.label,
+                                      badge: item.badge,
+                                      top: rect.top + rect.height / 2,
+                                      left: rect.right + 12,
+                                    })
+                                  }
+                                }}
+                                onBlur={() => setHoveredFlyout(null)}
+                              >
+                                <item.icon />
+                                <span>{item.label}</span>
+                                {item.badge && (
+                                  <span className={`dash-nav-badge ${item.badgeType === 'count' ? 'dash-nav-badge--count' : ''}`}>
+                                    {item.badge}
+                                  </span>
+                                )}
+                              </Link>
+                            )
+                          })}
+                        </motion.nav>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Quota & Organization Footer */}
+            <div className="dash-sidebar__footer">
+              <div className="dash-quota-card plate plate--dark" title="Cluster Fleet: 4 Nodes · 14 Users (64% capacity)">
+                <div className="dash-quota-card__header">
+                  <span className="dash-quota-card__label engrave" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    Cluster & Node Fleet
+                  </span>
+                  <span className="dash-quota-card__val readout" style={{ fontSize: '0.78rem' }}>4 Nodes · 14 Users</span>
+                </div>
+                <div className="dash-quota-progress well">
+                  <div className="dash-quota-bar" style={{ width: '64%' }} />
+                </div>
+                <div className="dash-quota-card__sub">
+                  Enterprise Sovereign Control · Tier IV Infrastructure
+                </div>
+              </div>
+
+              <div
+                className={`verdelo-user-pill admin-sidebar-profile ${isSidebarCollapsed && !isMobile ? 'is-collapsed' : ''}`}
+                onClick={() => setAdminMenuOpen(!adminMenuOpen)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    setAdminMenuOpen(!adminMenuOpen)
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+                title={`${user.fullName || 'Inferxe Administrator'} · ${roleLabel} · ${user.email || 'admin@inferxe.com'}`}
+                aria-label="Administrator profile menu"
+                style={{ marginTop: 8 }}
+              >
+                <div className="verdelo-user-avatar">{initials}</div>
+                {(!isSidebarCollapsed || isMobile) && (
+                  <>
+                    <div className="verdelo-user-info">
+                      <span className="verdelo-user-name">{user.fullName || 'Inferxe Administrator'}</span>
+                      <span className="verdelo-user-role">{roleLabel}</span>
+                      <span className="verdelo-user-email">{user.email || 'admin@inferxe.com'}</span>
+                    </div>
+                    <span className="verdelo-user-dots" aria-hidden="true">•••</span>
+                  </>
+                )}
+              </div>
+
+              <Link
+                to="/"
+                className="dash-sidebar__public-link"
+                title="Back to Public Website"
+                onClick={() => {
+                  setHoveredFlyout(null)
+                  setMobileMenuOpen(false)
+                }}
+              >
+                <ExternalLink size={13} />
+                <span>Back to Public Website</span>
+              </Link>
+            </div>
+          </aside>
+
+          {/* Floating flyout tooltip in collapsed rail mode */}
+          {isSidebarCollapsed && !isMobile && hoveredFlyout && (
+            <div
+              className="dash-sidebar-flyout"
+              style={{
+                position: 'fixed',
+                top: hoveredFlyout.top,
+                left: hoveredFlyout.left,
+                transform: 'translateY(-50%)',
+                zIndex: 9999,
+              }}
+            >
+              <span>{hoveredFlyout.label}</span>
+              {hoveredFlyout.badge && <span className="dash-nav-badge">{hoveredFlyout.badge}</span>}
+            </div>
+          )}
+
+          {/* Main Content Area */}
+          <main className="dash-main">
+            {breadcrumb && breadcrumb.length > 0 && (
+              <nav className="dash-breadcrumb" aria-label="Breadcrumb">
+                {breadcrumb.map((bc, idx) => (
+                  <span key={bc.label} className="row" style={{ gap: 8, alignItems: 'center' }}>
+                    {idx > 0 && <span className="dash-breadcrumb__sep">/</span>}
+                    {bc.to ? (
+                      <Link to={bc.to}>{bc.label}</Link>
+                    ) : (
+                      <span className="dash-breadcrumb__current">{bc.label}</span>
+                    )}
+                  </span>
+                ))}
+              </nav>
+            )}
+
+            {!hideHeader && (heading || backButtonLabel) && (
+              <div className="dash-header-row">
+                <div>
+                  <h1 className="dash-header-title">{heading}</h1>
+                  {description && <p className="dash-header-desc">{description}</p>}
+                </div>
+
+                {backButtonLabel && (
+                  <button type="button" className="dash-back-btn" onClick={handleBack} aria-label={backButtonLabel}>
+                    <ChevronLeft />
+                    <span>{backButtonLabel}</span>
+                  </button>
+                )}
+              </div>
+            )}
+
+            <motion.div
+              key={location.pathname}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+              style={{ width: '100%', minHeight: '100%' }}
+            >
+              {children}
+            </motion.div>
+          </main>
+        </div>
+      </div>
+    </div>
+  )
+}

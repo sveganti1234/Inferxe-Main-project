@@ -1,0 +1,10 @@
+{
+  "indexed_at": "2026-10-15 15:01:54",
+  "collection_name": "inferxe_knowledge_base",
+  "embedding_model": "nomic-embed-text",
+  "embedding_dimension": 768,
+  "source_chunks_file": "rag/data/cleaned_knowledge_chunks.json",
+  "file_hash": "9246ebe06df42093f120e08f6a1352b3bdd1d4c1b81b793e54ce39b10000f81c",
+  "indexed_chunks": 158,
+  "status": "success"
+}

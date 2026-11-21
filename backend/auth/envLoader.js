@@ -1,0 +1,161 @@
+import fs from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { applyLiveTarget, isTestRun, liveSupabaseTestsEnabled } from '../lib/testSafety.js'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+export const BACKEND_DIR = path.resolve(__dirname, '..')
+export const ROOT_DIR = path.resolve(BACKEND_DIR, '..')
+export const FRONTEND_DIR = path.join(ROOT_DIR, 'frontend')
+export const BACKEND_ENV_PATH = path.join(BACKEND_DIR, '.env')
+export const ROOT_ENV_PATH = path.resolve(BACKEND_DIR, '..', '.env')
+
+const FORBIDDEN_FRONTEND_PREFIXES = ['VITE_SUPABASE_']
+const FORBIDDEN_FRONTEND_SECRET_KEYS = new Set([
+  'SUPABASE_SERVICE_ROLE_KEY',
+  'SUPABASE_SECRET_KEY',
+  'SUPABASE_URL',
+])
+
+/**
+ * Parse .env file contents without evaluating shell code or mutating process.env.
+ */
+export function parseEnvContent(content) {
+  const parsed = {}
+  const lines = String(content || '').split(/\r?\n/)
+
+  for (const rawLine of lines) {
+    const trimmed = rawLine.trim()
+    if (!trimmed || trimmed.startsWith('#')) continue
+
+    const line = trimmed.startsWith('export ') ? trimmed.slice(7).trim() : trimmed
+    const eqIndex = line.indexOf('=')
+    if (eqIndex <= 0) continue
+
+    const key = line.slice(0, eqIndex).trim()
+    if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(key)) continue
+
+    let value = line.slice(eqIndex + 1).trim()
+    const quoteChar = value[0]
+    if (quoteChar === '"' || quoteChar === "'") {
+      let endIdx = -1
+      for (let i = 1; i < value.length; i += 1) {
+        if (value[i] === quoteChar && (quoteChar === "'" || value[i - 1] !== '\\')) {
+          endIdx = i
+          break
+        }
+      }
+      if (endIdx !== -1) {
+        const trailing = value.slice(endIdx + 1).trim()
+        if (!trailing || trailing.startsWith('#')) {
+          value = value.slice(1, endIdx)
+        }
+      }
+    } else {
+      const commentIndex = value.search(/\s+#/)
+      if (commentIndex !== -1) {
+        value = value.slice(0, commentIndex).trim()
+      }
+    }
+
+    parsed[key] = value
+  }
+
+  return parsed
+}
+
+/**
+ * Load server-side backend/.env credentials into targetEnv without overwriting
+ * values that are already defined unless override=true.
+ */
+export function loadBackendEnv({
+  envPath = BACKEND_ENV_PATH,
+  override = false,
+  targetEnv = process.env,
+} = {}) {
+  const isDefaultBackendPath = envPath === BACKEND_ENV_PATH
+  // Test processes never load the project .env (production credentials), live mode included: live tests get
+  // only the explicitly named, validated non-production project (lib/testSafety.js). Explicit envPath values
+  // (e.g. temporary fixtures) still load.
+  if (isDefaultBackendPath && targetEnv === process.env && isTestRun()) {
+    if (liveSupabaseTestsEnabled()) applyLiveTarget()
+    return { loaded: false, blocked: true, envPath, keys: [] }
+  }
+  const activePath =
+    isDefaultBackendPath && !fs.existsSync(BACKEND_ENV_PATH) && fs.existsSync(ROOT_ENV_PATH)
+      ? ROOT_ENV_PATH
+      : envPath
+
+  if (!fs.existsSync(activePath)) {
+    return { loaded: false, envPath, keys: [] }
+  }
+
+  const content = fs.readFileSync(activePath, 'utf8')
+  const parsed = parseEnvContent(content)
+  const loadedKeys = []
+
+  for (const [key, value] of Object.entries(parsed)) {
+    if (override || targetEnv[key] === undefined || targetEnv[key] === '') {
+      targetEnv[key] = value
+      loadedKeys.push(key)
+    }
+  }
+
+  return { loaded: true, envPath, keys: loadedKeys }
+}
+
+/**
+ * Reject any server-only Supabase credential or VITE_SUPABASE_* key placed in
+ * frontend environment files so secrets cannot reach the React client bundle.
+ */
+export function assertNoFrontendSupabaseSecrets(frontendEnv = {}) {
+  for (const [key, value] of Object.entries(frontendEnv)) {
+    const isForbiddenPrefix = FORBIDDEN_FRONTEND_PREFIXES.some((prefix) => key.startsWith(prefix))
+    const isForbiddenSecret = FORBIDDEN_FRONTEND_SECRET_KEYS.has(key)
+
+    if ((isForbiddenPrefix || isForbiddenSecret) && String(value || '').trim() !== '') {
+      throw new Error(
+        `[security] Forbidden Supabase setting "${key}" detected in frontend env. Keep SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY strictly in backend/.env without a VITE_ prefix.`,
+      )
+    }
+
+    if (key === 'VITE_SUPABASE_SERVICE_ROLE_KEY' || key === 'VITE_SUPABASE_SECRET_KEY') {
+      throw new Error(
+        `[security] Forbidden secret variable "${key}" declared in frontend env. Remove it from frontend/.env*.`,
+      )
+    }
+  }
+}
+
+/**
+ * Collect frontend .env* file declarations plus any VITE_-prefixed entries from
+ * processEnv while ignoring server-only non-VITE_ processEnv entries (such as
+ * SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY loaded by dev middleware or IDE shells).
+ */
+export function collectFrontendEnvForSecurityCheck({
+  envDir = FRONTEND_DIR,
+  mode = 'development',
+  processEnv = process.env,
+} = {}) {
+  const candidateFiles = ['.env', '.env.local']
+  if (mode) {
+    candidateFiles.push(`.env.${mode}`, `.env.${mode}.local`)
+  }
+
+  const collected = {}
+  for (const filename of candidateFiles) {
+    const filePath = path.join(envDir, filename)
+    if (!fs.existsSync(filePath)) continue
+    const parsed = parseEnvContent(fs.readFileSync(filePath, 'utf8'))
+    assertNoFrontendSupabaseSecrets(parsed)
+    Object.assign(collected, parsed)
+  }
+
+  for (const [key, value] of Object.entries(processEnv || {})) {
+    if (key.startsWith('VITE_')) {
+      collected[key] = value
+    }
+  }
+
+  return collected
+}

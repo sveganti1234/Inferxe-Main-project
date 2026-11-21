@@ -1,0 +1,26 @@
+{
+  "name": "inferxe-backend",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Inferxe Backend Services",
+  "type": "module",
+  "engines": {
+    "node": ">=24.7.0"
+  },
+  "scripts": {
+    "server:admin": "node auth/adminAuthServer.mjs",
+    "server:inference": ".\\venv\\Scripts\\python.exe -m uvicorn inference.main:app --host 127.0.0.1 --port 8001 --reload",
+    "server:inference:global": "python -m uvicorn inference.main:app --host 127.0.0.1 --port 8001 --reload",
+    "test:chat": "node rag/tests/test_chat_store.mjs",
+    "test:inference": "python -m pytest inference/tests/test_inference_api.py -q",
+    "test": "node --import ./tests/support/networkGuard.mjs --test auth/tests/*.test.mjs tests/*.test.mjs",
+    "test:auth": "node --import ./tests/support/networkGuard.mjs --test auth/tests/*.test.mjs",
+    "check:supabase": "node scripts/check-supabase.mjs"
+  },
+  "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.1162.0",
+    "@supabase/supabase-js": "^2.119.0",
+    "aws-jwt-verify": "^5.2.1",
+    "dotenv": "^18.0.9"
+  }
+}
