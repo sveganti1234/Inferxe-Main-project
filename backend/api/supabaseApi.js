@@ -501,6 +501,92 @@ async function handleCustomerApi(req, res, path) {
       return sendJson(res, 200, { ok: true, id: result.data.id })
     }
 
+    if (path === '/api/customer/orders' && req.method === 'POST') {
+      const body = await readCustomerJsonBody(req)
+      const orderNumber = typeof body.order_number === 'string' && body.order_number.trim()
+        ? body.order_number.trim()
+        : `ORD-${Math.floor(1000 + Math.random() * 9000)}`
+      const itemName = typeof body.item_name === 'string' && body.item_name.trim()
+        ? body.item_name.trim()
+        : 'Compute Workload'
+      const providerName = typeof body.provider_name === 'string' && body.provider_name.trim()
+        ? body.provider_name.trim()
+        : 'Inferxe Facility'
+      const durationMinutes = typeof body.duration_minutes === 'number' && body.duration_minutes > 0
+        ? body.duration_minutes
+        : 60
+      const totalCost = typeof body.total_cost === 'number' && body.total_cost >= 0
+        ? body.total_cost
+        : 0
+      const currency = typeof body.currency === 'string' && body.currency.trim()
+        ? body.currency.trim().toUpperCase()
+        : 'INR'
+      const allowedStatuses = ['running', 'completed', 'cancelled', 'archived']
+      const status = typeof body.status === 'string' && allowedStatuses.includes(body.status.toLowerCase().trim())
+        ? body.status.toLowerCase().trim()
+        : 'running'
+
+      const id = crypto.randomUUID()
+      const now = new Date().toISOString()
+      const newOrder = {
+        id,
+        user_id: claims.sub,
+        organization_id: context.profile.organization_id || null,
+        deployment_id: typeof body.deployment_id === 'string' ? body.deployment_id.trim() : null,
+        order_number: orderNumber,
+        item_name: itemName,
+        provider_name: providerName,
+        order_date: body.order_date || now,
+        duration_minutes: durationMinutes,
+        total_cost: totalCost,
+        currency,
+        status,
+        details: typeof body.details === 'object' && body.details ? body.details : {},
+        created_at: now,
+        updated_at: now,
+      }
+
+      const result = await supabase
+        .from('orders')
+        .insert(newOrder)
+        .select(WORKSPACE_SELECTS.orders)
+        .single()
+
+      if (result.error) throw result.error
+      return sendJson(res, 201, { ok: true, order: result.data })
+    }
+
+    if (path.startsWith('/api/customer/orders/') && req.method === 'PATCH') {
+      const orderId = decodeURIComponent(path.slice('/api/customer/orders/'.length))
+      const body = await readCustomerJsonBody(req)
+      const allowedStatuses = ['running', 'completed', 'cancelled', 'archived']
+      const updateData = { updated_at: new Date().toISOString() }
+
+      if (body.status !== undefined) {
+        const nextStatus = String(body.status).toLowerCase().trim()
+        if (!allowedStatuses.includes(nextStatus)) {
+          return sendJson(res, 400, { ok: false, error: `Invalid status. Must be one of: ${allowedStatuses.join(', ')}` })
+        }
+        updateData.status = nextStatus
+      }
+
+      if (typeof body.details === 'object' && body.details) {
+        updateData.details = body.details
+      }
+
+      const result = await supabase
+        .from('orders')
+        .update(updateData)
+        .eq('id', orderId)
+        .eq('user_id', claims.sub)
+        .select(WORKSPACE_SELECTS.orders)
+        .maybeSingle()
+
+      if (result.error) throw result.error
+      if (!result.data) return sendJson(res, 404, { ok: false, error: 'Order was not found.' })
+      return sendJson(res, 200, { ok: true, order: result.data })
+    }
+
     if (path === '/api/customer/ssh-keys' && req.method === 'POST') {
       const body = await readCustomerJsonBody(req)
       const name = typeof body.name === 'string' ? body.name.trim() : ''

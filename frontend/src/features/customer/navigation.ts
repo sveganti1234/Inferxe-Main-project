@@ -17,6 +17,7 @@ import {
   KeyRound,
   LayoutDashboard,
   LifeBuoy,
+  Receipt,
   Rocket,
   Settings2,
   SquareTerminal,
@@ -35,6 +36,7 @@ export type SectionId =
   | 'gpus'
   | 'playground'
   | 'deployments'
+  | 'orders'
   | 'api-keys'
   | 'usage'
   | 'developer'
@@ -137,6 +139,17 @@ export const CONSOLE_SECTIONS: ConsoleSection[] = [
     description: 'SSH public keys and notebook sessions for GPU workspaces.',
     availabilityNote: 'SSH keys are real; the notebook runtime is simulated.',
     capabilities: ['Add and remove SSH public keys', 'Create, start and stop notebook sessions (simulated runtime)'],
+  },
+  {
+    id: 'orders',
+    label: 'Orders & Purchase History',
+    path: 'orders',
+    icon: Receipt,
+    group: 'Orders & Activity',
+    availability: 'live',
+    description: 'Track active, completed, cancelled, and archived compute orders.',
+    availabilityNote: 'Real-time compute order records and lifecycle tracking.',
+    capabilities: ['Complete compute order history', 'Filter by status: Running, Completed, Cancelled, Archived', 'View hardware, datacenter, and payment details', 'Archive and invoice inspection'],
   },
   {
     id: 'usage',
