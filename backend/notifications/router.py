@@ -53,6 +53,8 @@ class WalletTransactionRequest(BaseModel):
 
 # Single administrator credit ceiling (INR) to catch typing mistakes; larger credits need several entries.
 MAX_ADMIN_CREDIT = 1_000_000
+# Demo top-up ceiling (INR) per transaction, when WALLET_SELF_RECHARGE_ENABLED is on.
+MAX_DEMO_TOPUP = 100_000
 
 class WalletRefundRequest(BaseModel):
     original_transaction_id: str = Field(..., min_length=1, description="ID of the original debit transaction to refund")
@@ -255,7 +257,7 @@ def schedule_maintenance(
 # ── Integrated Workflow Triggers (Wallet & Deployments) ──
 
 def _self_recharge_enabled() -> bool:
-    """Explicit opt-in for demo/dev environments without a payment gateway (off by default)."""
+    """Demo "Add money": customers credit their own wallet with no payment taken (off unless set)."""
     return os.environ.get("WALLET_SELF_RECHARGE_ENABLED", "").strip().lower() in ("1", "true", "yes")
 
 
@@ -266,11 +268,13 @@ def process_wallet_transaction(
 ):
     """
     Integrated wallet endpoint:
-    - Amount > 0: Recharges a wallet (administrators only — there is no verified payment flow yet,
-      so customers cannot credit themselves) and generates WALLET_RECHARGE notification.
+    - Amount > 0: Recharges a wallet and generates WALLET_RECHARGE notification. Administrators credit a
+      customer with an audit reason; customers can credit only their own wallet, and only as a labelled demo
+      top-up when WALLET_SELF_RECHARGE_ENABLED is on (there is no payment gateway).
     - Amount < 0: Debits the caller's own wallet and generates WALLET_DEBIT and threshold notifications.
     """
-    if req.amount >= 0 and not user.is_admin:
+    demo_topup = req.amount >= 0 and not user.is_admin
+    if demo_topup and not _self_recharge_enabled():
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Wallet top-ups are not self-service yet. Please contact Inferxe support to add funds.",
@@ -280,7 +284,10 @@ def process_wallet_transaction(
     if req.target_user_id and req.amount < 0:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="target_user_id is only supported for credits.")
     admin_credit = None
-    if req.amount >= 0:
+    if demo_topup:
+        if not (0 < req.amount <= MAX_DEMO_TOPUP):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Enter an amount greater than 0 and at most {MAX_DEMO_TOPUP:,}.")
+    elif req.amount >= 0:
         reason = (req.reason or "").strip()
         if not req.target_user_id:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Choose the customer whose wallet should be credited (target_user_id).")
@@ -291,12 +298,6 @@ def process_wallet_transaction(
         admin_credit = {"administrator_email": user.email or user.user_id, "reason": reason}
     try:
         if req.amount >= 0:
-            # No payment gateway verifies top-ups yet, so customers must not credit themselves.
-            if not (user.is_admin or _self_recharge_enabled()):
-                raise HTTPException(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    detail="Wallet top-ups require a verified payment and are not available for self-service.",
-                )
             result = NotificationService.process_wallet_recharge(
                 user_id=req.target_user_id or user.user_id,
                 amount=req.amount,

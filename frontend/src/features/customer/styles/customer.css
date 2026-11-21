@@ -3933,3 +3933,11 @@
 @media (max-width: 1023px) {
   .cx-app[data-cx-theme='light'] .cx-topbar { background: rgba(240, 245, 242, 0.85); }
 }
+
+/* Desktop: the topbar scrolls away with the page instead of staying pinned over the content. */
+@media (min-width: 1024px) {
+  .cx-topbar {
+    position: relative;
+    top: auto;
+  }
+}

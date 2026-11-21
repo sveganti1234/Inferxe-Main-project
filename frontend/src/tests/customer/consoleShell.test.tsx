@@ -177,9 +177,8 @@ describe('console shell', () => {
     expect(view.host.querySelector('.cx-iconbtn__count')?.textContent).toBe('3')
     expect(view.text()).toContain('Inference API unavailable')
     expect(view.text()).toMatch(/Hello, Ada/)
-    // Playground is labelled unavailable while the model provider is not configured
-    const playground = [...navItems].find((n) => n.textContent?.includes('Inference playground'))
-    expect(playground?.textContent).toContain('Unavailable')
+    // Sidebar items carry no availability tags; each page states its own status.
+    expect([...navItems].map((n) => n.textContent).join(' ')).not.toMatch(/Unavailable|Reference|Simulated|Preview/)
     view.unmount()
   })
 

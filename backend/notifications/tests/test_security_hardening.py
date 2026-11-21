@@ -145,12 +145,17 @@ def test_admin_can_recharge(wallet_client):
     assert len(calls["recharge"]) == 1 and calls["recharge"][0]["user_id"] == "cust-9"
 
 
-def test_self_recharge_flag_no_longer_allows_customer_top_ups(wallet_client, monkeypatch):
-    # Upstream (bd3824a) made top-ups admin-only with an audit reason; the old opt-in flag grants nothing.
+def test_demo_flag_lets_customers_add_money_to_their_own_wallet_only(wallet_client, monkeypatch):
     as_user, calls = wallet_client
     monkeypatch.setenv("WALLET_SELF_RECHARGE_ENABLED", "true")
-    assert as_user(False).post("/api/wallet/transactions", json={"amount": 100}).status_code == 403
-    assert calls["recharge"] == []
+    client = as_user(False)
+    assert client.post("/api/wallet/transactions", json={"amount": 500}).status_code == 200
+    assert calls["recharge"] == [{"user_id": "u1", "amount": 500, "idempotency_key": None, "admin_credit": None}]
+    # never someone else's wallet, never zero, never above the demo ceiling
+    assert client.post("/api/wallet/transactions", json={"amount": 500, "target_user_id": "cust-9"}).status_code == 403
+    assert client.post("/api/wallet/transactions", json={"amount": 0}).status_code == 400
+    assert client.post("/api/wallet/transactions", json={"amount": 100_001}).status_code == 400
+    assert len(calls["recharge"]) == 1
 
 
 # ── GPU deployment isolation (former "usr_demo_admin" identity exemption) ────

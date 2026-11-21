@@ -115,6 +115,20 @@ export async function fetchWalletBalance(signal?: AbortSignal): Promise<WalletBa
   }
 }
 
+/** Largest single demo top-up the wallet service accepts (MAX_DEMO_TOPUP in the notifications router). */
+export const MAX_DEMO_TOPUP = 100_000
+
+/**
+ * Demo "Add money": credits the signed-in customer's own wallet. No payment is taken; the service only
+ * accepts it while WALLET_SELF_RECHARGE_ENABLED is on. One idempotency key per attempt prevents double credits.
+ */
+export async function addMoneyToWallet(amount: number, idempotencyKey: string): Promise<void> {
+  await customerRequest<unknown>('/api/wallet/transactions', {
+    method: 'POST',
+    body: { amount, idempotency_key: idempotencyKey },
+  })
+}
+
 /* ── Monthly budget (8002) ── */
 
 /** Only a budget the customer saved is returned; the service reports `budget_configured: false` otherwise. */
