@@ -653,8 +653,38 @@ export function createMockSupabaseMiddleware() {
     }
 
     // NOTIFICATIONS
-    if (table === 'notifications' && req.method === 'GET') {
-      return sendResponse(res, 200, store.notifications)
+    if (table === 'notifications') {
+      const eqId = searchParams.get('id')?.replace(/^eq\./, '')
+      const eqUserId = searchParams.get('user_id')?.replace(/^eq\./, '')
+
+      if (req.method === 'GET') {
+        let results = store.notifications
+        if (eqId) results = results.filter((n) => n.id === eqId)
+        if (eqUserId) results = results.filter((n) => !n.user_id || n.user_id === eqUserId)
+        return sendResponse(res, 200, isSingleObject ? (results[0] || null) : results)
+      }
+      if (req.method === 'POST') {
+        const body = await readJson(req)
+        const row = { id: body.id || `notif_${Date.now()}`, ...body, created_at: new Date().toISOString() }
+        store.notifications.push(row)
+        return sendResponse(res, 201, isSingleObject ? row : [row])
+      }
+      if (req.method === 'PATCH') {
+        const body = await readJson(req)
+        const matched = store.notifications.filter((n) => {
+          if (eqId && n.id !== eqId) return false
+          if (eqUserId && n.user_id && n.user_id !== eqUserId) return false
+          return true
+        })
+        for (const m of matched) {
+          Object.assign(m, body)
+        }
+        return sendResponse(res, 200, isSingleObject ? (matched[0] || null) : matched)
+      }
+      if (req.method === 'DELETE') {
+        store.notifications = store.notifications.filter((n) => !eqId || n.id !== eqId)
+        return sendResponse(res, 200, [])
+      }
     }
 
     // SAVED GPU LISTINGS
@@ -677,29 +707,148 @@ export function createMockSupabaseMiddleware() {
       }
     }
 
-    // SSH PUBLIC KEYS
-    if (table === 'ssh_public_keys') {
+    // NOTEBOOK SESSIONS
+    if (table === 'notebook_sessions') {
+      const eqId = searchParams.get('id')?.replace(/^eq\./, '')
+      const eqUserId = searchParams.get('user_id')?.replace(/^eq\./, '')
+      const eqSshKeyId = searchParams.get('selected_ssh_key_id')?.replace(/^eq\./, '')
+
       if (req.method === 'GET') {
-        return sendResponse(res, 200, store.ssh_public_keys)
+        let results = store.notebook_sessions
+        if (eqId) results = results.filter((s) => s.id === eqId)
+        if (eqUserId) results = results.filter((s) => s.user_id === eqUserId)
+        if (eqSshKeyId) results = results.filter((s) => s.selected_ssh_key_id === eqSshKeyId)
+        return sendResponse(res, 200, isSingleObject ? (results[0] || null) : results)
       }
       if (req.method === 'POST') {
         const body = await readJson(req)
-        const row = { id: `ssh_${Date.now()}`, ...body, created_at: new Date().toISOString() }
+        const row = { id: body.id || crypto.randomUUID(), ...body, created_at: new Date().toISOString() }
+        store.notebook_sessions.push(row)
+        return sendResponse(res, 201, isSingleObject ? row : [row])
+      }
+      if (req.method === 'PATCH') {
+        const body = await readJson(req)
+        const matched = store.notebook_sessions.filter((s) => {
+          if (eqId && s.id !== eqId) return false
+          if (eqUserId && s.user_id !== eqUserId) return false
+          if (eqSshKeyId && s.selected_ssh_key_id !== eqSshKeyId) return false
+          return true
+        })
+        for (const m of matched) {
+          Object.assign(m, body)
+        }
+        return sendResponse(res, 200, isSingleObject ? (matched[0] || null) : matched)
+      }
+      if (req.method === 'DELETE') {
+        store.notebook_sessions = store.notebook_sessions.filter((s) => !eqId || s.id !== eqId)
+        return sendResponse(res, 200, [])
+      }
+    }
+
+    // SSH PUBLIC KEYS
+    if (table === 'ssh_public_keys') {
+      const eqId = searchParams.get('id')?.replace(/^eq\./, '')
+      const eqUserId = searchParams.get('user_id')?.replace(/^eq\./, '')
+
+      if (req.method === 'GET') {
+        let results = store.ssh_public_keys
+        if (eqId) results = results.filter((s) => s.id === eqId)
+        if (eqUserId) results = results.filter((s) => s.user_id === eqUserId)
+        return sendResponse(res, 200, isSingleObject ? (results[0] || null) : results)
+      }
+      if (req.method === 'POST') {
+        const body = await readJson(req)
+        const row = { id: body.id || crypto.randomUUID(), ...body, created_at: new Date().toISOString() }
         store.ssh_public_keys.push(row)
-        return sendResponse(res, 201, [row])
+        return sendResponse(res, 201, isSingleObject ? row : [row])
+      }
+      if (req.method === 'PATCH') {
+        const body = await readJson(req)
+        const matched = store.ssh_public_keys.filter((s) => {
+          if (eqId && s.id !== eqId) return false
+          if (eqUserId && s.user_id !== eqUserId) return false
+          return true
+        })
+        for (const m of matched) {
+          Object.assign(m, body)
+        }
+        return sendResponse(res, 200, isSingleObject ? (matched[0] || null) : matched)
+      }
+      if (req.method === 'DELETE') {
+        const deleted = []
+        store.ssh_public_keys = store.ssh_public_keys.filter((s) => {
+          if (eqId && s.id === eqId) {
+            if (!eqUserId || s.user_id === eqUserId) {
+              deleted.push(s)
+              return false
+            }
+          }
+          return true
+        })
+        return sendResponse(res, 200, isSingleObject ? (deleted[0] || null) : deleted)
       }
     }
 
     // API KEYS
     if (table === 'api_keys') {
+      const eqId = searchParams.get('id')?.replace(/^eq\./, '')
+      const eqUserId = searchParams.get('user_id')?.replace(/^eq\./, '')
+      const eqStatus = searchParams.get('status')?.replace(/^eq\./, '')
+      const eqHash = searchParams.get('secret_hash')?.replace(/^eq\./, '')
+      const eqRevokedAt = searchParams.get('revoked_at')
+      const limit = parseInt(searchParams.get('limit') || '0', 10)
+
       if (req.method === 'GET') {
-        return sendResponse(res, 200, store.api_keys)
+        let results = store.api_keys
+        if (eqId) results = results.filter((k) => (k.id || '').toLowerCase() === eqId.toLowerCase())
+        if (eqUserId) results = results.filter((k) => (k.user_id || '').toLowerCase() === eqUserId.toLowerCase())
+        if (eqStatus) results = results.filter((k) => (k.status || '').toLowerCase() === eqStatus.toLowerCase())
+        if (eqHash) results = results.filter((k) => (k.secret_hash || '').toLowerCase() === eqHash.toLowerCase())
+        if (eqRevokedAt === 'is.null') results = results.filter((k) => k.revoked_at == null)
+        if (limit > 0) results = results.slice(0, limit)
+        return sendResponse(res, 200, isSingleObject ? (results[0] || null) : results)
       }
+
       if (req.method === 'POST') {
         const body = await readJson(req)
-        const row = { id: `key_${Date.now()}`, ...body, created_at: new Date().toISOString() }
+        const row = {
+          id: body.id || crypto.randomUUID(),
+          status: 'active',
+          revoked_at: null,
+          created_at: new Date().toISOString(),
+          ...body,
+        }
         store.api_keys.push(row)
-        return sendResponse(res, 201, [row])
+        return sendResponse(res, 201, isSingleObject ? row : [row])
+      }
+
+      if (req.method === 'PATCH') {
+        const body = await readJson(req)
+        const matched = store.api_keys.filter((k) => {
+          if (eqId && (k.id || '').toLowerCase() !== eqId.toLowerCase()) return false
+          if (eqUserId && (k.user_id || '').toLowerCase() !== eqUserId.toLowerCase()) return false
+          if (eqStatus && (k.status || '').toLowerCase() !== eqStatus.toLowerCase()) return false
+          if (eqRevokedAt === 'is.null' && k.revoked_at != null) return false
+          return true
+        })
+        for (const m of matched) {
+          Object.assign(m, body)
+        }
+        return sendResponse(res, 200, isSingleObject ? (matched[0] || null) : matched)
+      }
+
+      if (req.method === 'DELETE') {
+        const deleted = []
+        store.api_keys = store.api_keys.filter((k) => {
+          if (eqId && (k.id || '').toLowerCase() === eqId.toLowerCase()) {
+            if (!eqUserId || (k.user_id || '').toLowerCase() === eqUserId.toLowerCase()) {
+              deleted.push(k)
+              return false
+            }
+          }
+          return true
+        })
+        return sendResponse(res, 200, isSingleObject ? (deleted[0] || null) : deleted)
       }
     }
 
