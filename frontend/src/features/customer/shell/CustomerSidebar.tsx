@@ -74,7 +74,9 @@ export function CustomerSidebar({
   // Off-canvas and closed: remove from the tab order and the accessibility tree.
   const hidden = mobile && !open
   const inference =
-    signals.inferenceAvailable === true
+    signals.inferenceAvailable === true && signals.inferenceSimulated
+      ? { dot: 'cx-dot--warn', text: 'Inference API in demo mode' }
+      : signals.inferenceAvailable === true
       ? { dot: 'cx-dot--live is-pulsing', text: 'Inference API online' }
       : signals.inferenceAvailable === false
         ? { dot: 'cx-dot--warn', text: 'Inference API unavailable' }

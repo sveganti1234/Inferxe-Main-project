@@ -160,7 +160,103 @@ export async function fetchInferenceHealth(signal?: AbortSignal): Promise<Infere
   return {
     status: body.status,
     providerStatus,
-    // 8001 reports nvidia_provider as 'configured' or 'missing_api_key'; only the former can serve requests.
-    inferenceAvailable: providerStatus === 'configured',
+    // 8001 reports nvidia_provider as 'configured', 'demo' (simulated replies) or 'missing_api_key'.
+    inferenceAvailable: providerStatus === 'configured' || providerStatus === 'demo',
+    simulated: providerStatus === 'demo',
   }
 }
+
+/* ── Deployments (Customer API) ── */
+
+export interface CreateDeploymentPayload {
+  name: string
+  model_name: string
+  gpu_model: string
+  region: string
+  hourly_rate?: number
+  currency?: string
+}
+
+export async function createDeployment(payload: CreateDeploymentPayload): Promise<void> {
+  const body = await customerRequest<{ ok?: boolean; deployment?: Record<string, unknown> }>(
+    '/api/customer/deployments',
+    {
+      method: 'POST',
+      body: payload,
+    },
+  )
+  if (!body?.ok) {
+    throw new CustomerApiError('invalid_response', defaultMessage('invalid_response'))
+  }
+}
+
+export async function updateDeploymentStatus(
+  id: string,
+  status: 'running' | 'stopped' | 'provisioning' | 'terminated',
+): Promise<void> {
+  if (!id) throw new CustomerApiError('bad_request', 'Deployment ID is required.')
+  const body = await customerRequest<{ ok?: boolean }>(`/api/customer/deployments/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body: { status },
+  })
+  if (!body?.ok) {
+    throw new CustomerApiError('invalid_response', defaultMessage('invalid_response'))
+  }
+}
+
+export async function deleteDeployment(id: string): Promise<void> {
+  if (!id) throw new CustomerApiError('bad_request', 'Deployment ID is required.')
+  const body = await customerRequest<{ ok?: boolean }>(`/api/customer/deployments/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  })
+  if (!body?.ok) {
+    throw new CustomerApiError('invalid_response', defaultMessage('invalid_response'))
+  }
+}
+
+/* ── Orders & Purchase History (Customer API) ── */
+
+export interface CreateOrderPayload {
+  order_number?: string
+  item_name: string
+  provider_name: string
+  duration_minutes?: number
+  total_cost?: number
+  currency?: string
+  status?: 'running' | 'completed' | 'cancelled' | 'archived'
+  deployment_id?: string
+  details?: Record<string, unknown>
+}
+
+export async function createOrder(payload: CreateOrderPayload): Promise<Record<string, unknown> | undefined> {
+  const body = await customerRequest<{ ok?: boolean; order?: Record<string, unknown> }>(
+    '/api/customer/orders',
+    {
+      method: 'POST',
+      body: payload,
+    },
+  )
+  if (!body?.ok) {
+    throw new CustomerApiError('invalid_response', defaultMessage('invalid_response'))
+  }
+  return body.order
+}
+
+export async function updateOrderStatus(
+  id: string,
+  status: 'running' | 'completed' | 'cancelled' | 'archived',
+  details?: Record<string, unknown>,
+): Promise<void> {
+  if (!id) throw new CustomerApiError('bad_request', 'Order ID is required.')
+  const body = await customerRequest<{ ok?: boolean; order?: Record<string, unknown> }>(
+    `/api/customer/orders/${encodeURIComponent(id)}`,
+    {
+      method: 'PATCH',
+      body: { status, ...(details ? { details } : {}) },
+    },
+  )
+  if (!body?.ok) {
+    throw new CustomerApiError('invalid_response', defaultMessage('invalid_response'))
+  }
+}
+

@@ -21,6 +21,7 @@ export const LEGACY_ONLY_TABS = ['cards', 'payments', 'insights', 'budgets', 'go
 
 const NATIVE_TABS: Record<string, string> = {
   overview: CONSOLE_BASE,
+  profile: `${CONSOLE_BASE}/profile`,
   settings: `${CONSOLE_BASE}/settings`,
   help: `${CONSOLE_BASE}/help`,
 }
@@ -51,12 +52,20 @@ const LEGACY_WORKSPACE_PAGES: Record<string, string> = {
   gpus: 'gpus',
   models: 'models',
   deployments: 'deployments',
+  wishlist: 'wishlist',
+  orders: 'orders',
   'api-keys': 'api-keys',
   analytics: 'usage',
   usage: 'usage',
   billing: 'billing',
   wallet: 'billing',
+  checkout: 'checkout',
+  payments: 'checkout',
+  rewards: 'rewards',
+  discounts: 'rewards',
   notifications: 'notifications',
+  profile: 'profile',
+  organization: 'profile',
   settings: 'settings',
   help: 'help',
   playground: 'playground',

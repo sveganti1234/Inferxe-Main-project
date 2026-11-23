@@ -89,7 +89,7 @@ from inference.auth import (
     is_cognito_configured,
     is_test_mode_enabled,
 )
-from inference.service import InferenceService
+from inference.service import InferenceService, demo_inference_enabled, nvidia_key_configured
 
 router = APIRouter(prefix="/api/v1", tags=["Inference & Management"])
 logger = logging.getLogger("inferxe.routes")
@@ -197,8 +197,8 @@ def _close_health_http_client() -> None:
 def health_check():
     """Health status check covering Supabase REST, optional legacy PostgreSQL, NVIDIA, and Cognito."""
     db_ok = check_database_connection(engine)
-    nvidia_key = (os.getenv("NVIDIA_API_KEY") or "").strip()
-    nvidia_configured = bool(nvidia_key) and "your-key-here" not in nvidia_key
+    nvidia_configured = nvidia_key_configured()
+    demo_mode = demo_inference_enabled()
     cognito_ok = is_cognito_configured()
 
     supabase_ok = False
@@ -232,9 +232,9 @@ def health_check():
         supabase_status = "unreachable"
 
     db_status = "connected" if db_ok else ("supabase_rest" if supabase_ok else "unreachable")
-    nvidia_status = "configured" if nvidia_configured else "missing_api_key"
+    nvidia_status = "configured" if nvidia_configured else ("demo" if demo_mode else "missing_api_key")
     storage_ok = supabase_ok or db_ok
-    overall_status = "ok" if (storage_ok and nvidia_configured) else "degraded"
+    overall_status = "ok" if (storage_ok and (nvidia_configured or demo_mode)) else "degraded"
 
     return HealthResponse(
         status=overall_status,

@@ -22,6 +22,11 @@ import ModelsPage from './pages/ModelsPage'
 import GpusPage from './pages/GpusPage'
 import PlaygroundPage from './pages/PlaygroundPage'
 import DeploymentsPage from './pages/DeploymentsPage'
+import WishlistPage from './pages/WishlistPage'
+import OrdersPage from './pages/OrdersPage'
+import CheckoutPage from './pages/CheckoutPage'
+import RewardsPage from './pages/RewardsPage'
+import ProfilePage from './pages/ProfilePage'
 import HelpPage from './pages/HelpPage'
 import SectionPreview from './pages/SectionPreview'
 import type { SectionId } from './navigation'
@@ -39,6 +44,11 @@ const IMPLEMENTED: Partial<Record<SectionId, () => ReactElement>> = {
   gpus: () => <GpusPage />,
   playground: () => <PlaygroundPage />,
   deployments: () => <DeploymentsPage />,
+  wishlist: () => <WishlistPage />,
+  orders: () => <OrdersPage />,
+  checkout: () => <CheckoutPage />,
+  rewards: () => <RewardsPage />,
+  profile: () => <ProfilePage />,
   help: () => <HelpPage />,
 }
 import { ButtonLink, Card } from './ui/primitives'

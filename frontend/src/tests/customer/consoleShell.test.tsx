@@ -39,12 +39,12 @@ beforeEach(() => {
 
 /* ── Navigation config ── */
 describe('console navigation', () => {
-  it('defines the 12 approved sections with unique paths', () => {
+  it('defines the approved sections with unique paths', () => {
     expect(CONSOLE_SECTIONS.map((s) => s.id)).toEqual([
-      'overview', 'models', 'gpus', 'playground', 'deployments', 'api-keys',
-      'developer', 'usage', 'notifications', 'billing', 'settings', 'help',
+      'overview', 'models', 'gpus', 'playground', 'deployments', 'wishlist', 'api-keys',
+      'developer', 'orders', 'usage', 'notifications', 'billing', 'checkout', 'rewards', 'profile', 'settings', 'help',
     ])
-    expect(new Set(CONSOLE_SECTIONS.map((s) => s.path)).size).toBe(12)
+    expect(new Set(CONSOLE_SECTIONS.map((s) => s.path)).size).toBe(17)
   })
 
   it('labels availability honestly', () => {
@@ -170,7 +170,7 @@ describe('console shell', () => {
   it('renders the sidebar, real identity and live signals on the home page', async () => {
     const view = await renderConsole('/dashboard/app', okHandlers())
     const navItems = view.host.querySelectorAll('.cx-nav__item')
-    expect(navItems).toHaveLength(12)
+    expect(navItems).toHaveLength(17)
     expect(view.host.querySelector('.cx-org')).toBeNull() // display-only organization card removed
     expect(view.host.querySelector('.cx-quota__sub')?.textContent).toContain('Acme Research')
     expect(view.host.querySelector('.cx-account__name')?.textContent).toBe('Ada Lovelace')
@@ -207,10 +207,10 @@ describe('console shell', () => {
     view.unmount()
   })
 
-  it('opens the read-only Deployments page with an honest unavailable notice', async () => {
+  it('opens the Deployments page with summary cards and lifecycle controls', async () => {
     const view = await renderConsole('/dashboard/app/deployments', okHandlers())
     expect(view.text()).not.toContain('This section is being rebuilt')
-    expect(view.text()).toContain('Deployment provisioning is not available yet.')
+    expect(view.text()).toContain('TOTAL DEPLOYMENTS')
     expect(view.host.querySelector('[aria-current="page"]')?.textContent).toContain('Deployments')
     view.unmount()
   })
@@ -245,7 +245,7 @@ describe('console shell', () => {
     }))
     expect(view.host.querySelector('.cx-iconbtn__count')).toBeNull()
     expect(view.text()).toContain('Inference status unknown')
-    expect(view.host.querySelectorAll('.cx-nav__item')).toHaveLength(12)
+    expect(view.host.querySelectorAll('.cx-nav__item')).toHaveLength(17)
     view.unmount()
   })
 

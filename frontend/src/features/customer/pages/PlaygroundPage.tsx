@@ -127,6 +127,8 @@ export default function PlaygroundPage() {
   const healthPill =
     health.state.status === 'loading' && !health.state.data ? (
       <StatusPill>Checking…</StatusPill>
+    ) : gate.runnable && health.state.data?.simulated ? (
+      <StatusPill tone="warning" dot>Simulated</StatusPill>
     ) : gate.runnable ? (
       <StatusPill tone="success" dot>Online</StatusPill>
     ) : gate.tone === 'unavailable' ? (
@@ -142,10 +144,18 @@ export default function PlaygroundPage() {
         description="Send a prompt to the Inferxe inference API with one of your API keys."
       />
 
-      <Notice icon={<Info size={17} />}>
-        <strong>This runs on the live inference service.</strong> Requests use your API key and are recorded in your{' '}
-        <Link to={sectionHref(getSection('usage'))}>usage</Link>. The model is chosen by the server — it cannot be selected here.
-      </Notice>
+      {health.state.data?.simulated ? (
+        <Notice tone="warning" icon={<Info size={17} />}>
+          <strong>Demo mode: responses are simulated.</strong> The server has no model provider key, so it returns a canned reply
+          instead of calling a model. Requests still use your API key and are recorded in your{' '}
+          <Link to={sectionHref(getSection('usage'))}>usage</Link>.
+        </Notice>
+      ) : (
+        <Notice icon={<Info size={17} />}>
+          <strong>This runs on the live inference service.</strong> Requests use your API key and are recorded in your{' '}
+          <Link to={sectionHref(getSection('usage'))}>usage</Link>. The model is chosen by the server — it cannot be selected here.
+        </Notice>
+      )}
 
       <div className="cx-playground">
         <div className="cx-stack">
@@ -155,7 +165,9 @@ export default function PlaygroundPage() {
               <div className="cx-health__text">
                 <h2 className="cx-card__title" id="cx-health-title">Inference service</h2>
                 <p className="cx-card__desc" role="status">
-                  {gate.runnable
+                  {gate.runnable && health.state.data?.simulated
+                    ? 'Demo mode: no model provider is configured, so replies are simulated. You can run requests.'
+                    : gate.runnable
                     ? 'The model provider is configured. You can run requests.'
                     : gate.reason}
                 </p>

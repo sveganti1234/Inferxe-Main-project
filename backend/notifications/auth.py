@@ -612,12 +612,26 @@ def assert_profile_active(user: AuthenticatedUser) -> None:
     if _ACTIVE_PROFILE_CACHE.get(user.user_id, 0.0) > now:
         return
     try:
-        from .db import DBConnection  # local import keeps auth importable without a database
+        from .db import DBConnection, _resolve_notifications_dsn
 
-        with DBConnection(autocommit=True) as conn:
-            cur = conn.cursor()
-            cur.execute("SELECT status FROM profiles WHERE user_id = %s LIMIT 1;", (user.user_id,))
-            row = cur.fetchone()
+        dsn = _resolve_notifications_dsn()
+        if dsn:
+            with DBConnection(autocommit=True) as conn:
+                cur = conn.cursor()
+                cur.execute("SELECT status FROM profiles WHERE user_id = %s LIMIT 1;", (user.user_id,))
+                row = cur.fetchone()
+        else:
+            row = None
+            try:
+                from backend.database.supabase_client import get_supabase_client
+                sb = get_supabase_client()
+                if sb:
+                    p_res = sb.table("profiles").select("status").eq("user_id", user.user_id).limit(1).execute()
+                    rows = p_res.data if hasattr(p_res, "data") else []
+                    if rows:
+                        row = rows[0]
+            except Exception:
+                pass
     except Exception as db_err:
         logger.error("Profile status lookup failed: %s", type(db_err).__name__)
         raise HTTPException(
