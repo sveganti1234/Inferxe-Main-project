@@ -5924,4 +5924,457 @@
   margin: 0 0 8px;
 }
 
+/* ───────────────────────────────────────────────────────────────────────────
+   Usage & Analytics Telemetry & Data Dashboard (media_1795413266726_b1dd2ec4.jpg)
+   ─────────────────────────────────────────────────────────────────────────── */
+
+.cx-analytics-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.cx-analytics-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 18px 20px;
+  background: var(--cx-surface-2, rgba(16, 26, 20, 0.65));
+  border: 1px solid var(--cx-border, rgba(34, 197, 94, 0.12));
+  border-radius: 12px;
+}
+
+.cx-analytics-toolbar h2 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--cx-text, #ffffff);
+  margin: 0 0 4px;
+}
+
+.cx-analytics-toolbar p {
+  font-size: 0.84rem;
+  color: var(--cx-muted, #7e9a8b);
+  margin: 0;
+}
+
+.cx-analytics-pills {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0, 0, 0, 0.25);
+  padding: 4px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.cx-analytics-pill {
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--cx-muted, #7e9a8b);
+  font-size: 0.78rem;
+  font-weight: 500;
+  padding: 6px 14px;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cx-analytics-pill:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.cx-analytics-pill.is-active {
+  background: #10b981;
+  color: #062e1a;
+  border-color: #10b981;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.35);
+}
+
+.cx-analytics-grid--4 {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 1024px) {
+  .cx-analytics-grid--4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .cx-analytics-grid--4 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cx-analytics-metric {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cx-analytics-metric__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.cx-analytics-metric__label {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--cx-muted, #7e9a8b);
+}
+
+.cx-analytics-icon-box {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  color: #10b981;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cx-analytics-metric__val {
+  font-size: 1.85rem;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.02em;
+  font-family: var(--font-display, inherit);
+}
+
+.cx-analytics-metric__sub {
+  font-size: 0.74rem;
+  font-weight: 500;
+}
+
+.cx-analytics-metric__sub--up {
+  color: #10b981;
+}
+
+.cx-analytics-metric__sub--accent {
+  color: #10b981;
+}
+
+.cx-analytics-metric__sub--muted {
+  color: var(--cx-muted, #7e9a8b);
+}
+
+.cx-analytics-two-col {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+}
+
+@media (max-width: 900px) {
+  .cx-analytics-two-col {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cx-analytics-panel {
+  padding: 22px;
+  display: flex;
+  flex-direction: column;
+}
+
+.cx-analytics-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.cx-analytics-panel__head h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #ffffff;
+  margin: 0;
+}
+
+.cx-analytics-panel__badge {
+  font-size: 0.75rem;
+  color: var(--cx-muted, #7e9a8b);
+  font-family: var(--font-mono, monospace);
+}
+
+/* ── Bar Chart: Request Throughput Profile ── */
+.cx-analytics-bars {
+  height: 220px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-around;
+  gap: 12px;
+  padding: 25px 16px 12px;
+  position: relative;
+}
+
+.cx-analytics-bar-col {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  cursor: pointer;
+  position: relative;
+  transition: transform 0.2s ease;
+}
+
+.cx-analytics-bar-col:hover {
+  transform: translateY(-3px);
+}
+
+.cx-analytics-bar {
+  width: min(100%, 36px);
+  min-height: 10px;
+  border-radius: 6px 6px 2px 2px;
+  background: linear-gradient(180deg, #10b981, rgba(16, 185, 129, 0.35));
+  box-shadow: 0 0 14px rgba(16, 185, 129, 0.12);
+  position: relative;
+  transition: height 0.35s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.cx-analytics-bar-col:hover .cx-analytics-bar,
+.cx-analytics-bar-col.is-active .cx-analytics-bar {
+  background: linear-gradient(180deg, #a7f3d0, #10b981);
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.6), 0 -4px 10px rgba(16, 185, 129, 0.4);
+}
+
+.cx-analytics-bar-cap {
+  position: absolute;
+  top: -3px;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: 3px 3px 0 0;
+  background: #ffffff;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.cx-analytics-bar-col:hover .cx-analytics-bar-cap,
+.cx-analytics-bar-col.is-active .cx-analytics-bar-cap {
+  opacity: 1;
+}
+
+.cx-analytics-bar-label {
+  font-size: 0.68rem;
+  color: var(--cx-muted, #7e9a8b);
+  transition: color 0.2s ease;
+  font-family: var(--font-mono, monospace);
+}
+
+.cx-analytics-bar-col:hover .cx-analytics-bar-label,
+.cx-analytics-bar-col.is-active .cx-analytics-bar-label {
+  color: #10b981;
+  font-weight: 700;
+}
+
+.cx-analytics-bar-tooltip {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(10, 18, 12, 0.96);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8), 0 0 16px rgba(16, 185, 129, 0.25);
+  border-radius: 8px;
+  padding: 7px 11px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.cx-analytics-bar-tooltip__date {
+  font-size: 0.67rem;
+  color: var(--cx-muted, #7e9a8b);
+  font-family: var(--font-mono, monospace);
+}
+
+.cx-analytics-bar-tooltip__reqs {
+  font-size: 0.98rem;
+  font-weight: 700;
+  color: #ffffff;
+  font-family: var(--font-mono, monospace);
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.cx-analytics-bar-tooltip__reqs span {
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--cx-muted, #7e9a8b);
+}
+
+.cx-analytics-bar-tooltip__meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.65rem;
+}
+
+.cx-analytics-bar-tooltip__badge {
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 0.58rem;
+}
+
+.cx-analytics-bar-tooltip__badge--discount {
+  background: rgba(16, 185, 129, 0.18);
+  color: #10b981;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+.cx-analytics-bar-tooltip__badge--peak {
+  background: rgba(245, 158, 11, 0.18);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+}
+
+.cx-analytics-bar-tooltip__badge--optimal {
+  background: rgba(6, 182, 212, 0.18);
+  color: #06b6d4;
+  border: 1px solid rgba(6, 182, 212, 0.35);
+}
+
+.cx-analytics-bar-tooltip__latency {
+  color: #10b981;
+  font-size: 0.64rem;
+  font-family: var(--font-mono, monospace);
+}
+
+/* ── Workload Breakdown Progress Bars ── */
+.cx-analytics-progress-row {
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.cx-analytics-progress-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.cx-analytics-progress-row__top {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  color: var(--cx-muted, #7e9a8b);
+  margin-bottom: 8px;
+}
+
+.cx-analytics-progress-row__top strong {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.cx-analytics-progress {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.cx-analytics-progress__bar {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  background: #10b981;
+  transition: width 0.35s ease;
+}
+
+/* ── Second Stat Row (3 Cards) ── */
+.cx-analytics-grid--3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 768px) {
+  .cx-analytics-grid--3 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Bottom Section: Models Temp & GPU Utilization Curve ── */
+.cx-analytics-temp-row {
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.cx-analytics-temp-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.cx-analytics-temp-row__top {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.82rem;
+  color: #ffffff;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.cx-analytics-temp-row__val {
+  font-weight: 700;
+  font-family: var(--font-mono, monospace);
+}
+
+.cx-analytics-temp-row__val--amber {
+  color: #f59e0b;
+}
+
+.cx-analytics-temp-row__val--green {
+  color: #10b981;
+}
+
+.cx-analytics-graph {
+  width: 100%;
+  height: 140px;
+  display: block;
+  margin-top: 8px;
+}
+
+.cx-analytics-graph__line {
+  fill: none;
+  stroke: #10b981;
+  stroke-width: 1.8;
+  vector-effect: non-scaling-stroke;
+}
+
+.cx-analytics-graph__fill {
+  fill: rgba(16, 185, 129, 0.15);
+  stroke: none;
+}
+
+.cx-analytics-graph__axis {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 4px 0;
+  font-size: 0.72rem;
+  color: var(--cx-muted, #7e9a8b);
+  font-family: var(--font-mono, monospace);
+}
+
+
 
