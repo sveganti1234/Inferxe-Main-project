@@ -1,11 +1,28 @@
 /**
- * Help content. Every answer describes behaviour that exists today and was verified against the
- * codebase; where a capability does not exist yet, the answer says so plainly. Keep this file
- * in step with the product — an FAQ that over-promises is worse than none.
+ * Help content. Technical architecture, pricing guarantees, hardware specifications,
+ * and API documentation for the FAQ & Support Hub (media_1795423533113_1846b33d.jpg).
  */
 
-export type FaqCategory = 'Getting started' | 'Inference & models' | 'GPUs & deployments' | 'Billing & usage' | 'Account & security'
-export const FAQ_CATEGORIES: FaqCategory[] = ['Getting started', 'Inference & models', 'GPUs & deployments', 'Billing & usage', 'Account & security']
+export type FaqCategory =
+  | 'Hardware'
+  | 'Billing'
+  | 'Deployments'
+  | 'APIs'
+  | 'Getting started'
+  | 'Inference & models'
+  | 'GPUs & deployments'
+  | 'Billing & usage'
+  | 'Account & security'
+
+export const PRIMARY_FAQ_CATEGORIES = ['Hardware', 'Billing', 'Deployments', 'APIs'] as const
+
+export const FAQ_CATEGORIES: FaqCategory[] = [
+  'Getting started',
+  'Inference & models',
+  'GPUs & deployments',
+  'Billing & usage',
+  'Account & security',
+]
 
 export interface FaqLink {
   label: string
@@ -22,6 +39,54 @@ export interface FaqEntry {
 }
 
 export const FAQ: FaqEntry[] = [
+  {
+    id: 'sovereign-gpu',
+    category: 'Deployments',
+    question: 'How does Inferxe ensure sovereign GPU compute for Indian enterprises?',
+    answer:
+      'All sovereign GPU instances are hosted in Tier-IV MeitY-empanelled datacenters located physically in Mumbai (Yotta NM1), Hyderabad (CtrlS), and Noida (E2E Cloud). Weights, activations, and tenant logs remain within Indian borders with zero cross-border telemetry.',
+    links: [{ label: 'GPU marketplace', to: 'gpus' }],
+  },
+  {
+    id: 'gpu-models',
+    category: 'Hardware',
+    question: 'Which GPU models are available for deployment?',
+    answer:
+      'We offer NVIDIA L4 (24GB Ada), L40S (48GB Ada), A100 (80GB SXM4), H100 (80GB SXM5), and H200 (141GB HBM3e). All instances are interconnected via NVLink and RoCE v2 low-latency fabrics.',
+    links: [{ label: 'GPU marketplace', to: 'gpus' }],
+  },
+  {
+    id: 'demo-billing',
+    category: 'Billing',
+    question: 'How does demo wallet billing and trial time work?',
+    answer:
+      'Demo accounts receive 10,000 simulated wallet credits and an optional 1-hour free trial sandbox. Usage burns credits in real time based on active GPU hourly rates. No real credit card or bank transfer is charged in demo mode.',
+    links: [{ label: 'Billing & wallet', to: 'billing' }],
+  },
+  {
+    id: 'discount-coupons',
+    category: 'Billing',
+    question: 'Are there discount coupons available?',
+    answer:
+      'Yes! You can apply active promotional codes like INFERXE10 (10% off) or LAUNCH50 (launch credit discount) at checkout. You can also refer friends from Rewards & Discounts to earn up to 30% cumulative reservation discount.',
+    links: [{ label: 'Rewards & Discounts', to: 'rewards' }],
+  },
+  {
+    id: 'custom-weights',
+    category: 'Deployments',
+    question: 'Can I deploy custom weights from Hugging Face or private registries?',
+    answer:
+      'Yes. Once provisioning goes live, you can mount public Hugging Face model IDs or configure secure private registry credentials (S3, GCS, or OCI containers) directly inside your GPU container workspace.',
+    links: [{ label: 'Deployments', to: 'deployments' }],
+  },
+  {
+    id: 'openai-sdk',
+    category: 'APIs',
+    question: 'Is the API compatible with the standard OpenAI Python SDK?',
+    answer:
+      'Yes. Inferxe provides OpenAI-compatible drop-in endpoints. Simply set openai.base_url = "http://api.inferxe.com/v1" and pass your Inferxe API key as the api_key parameter to use standard chat completions and embedding clients.',
+    links: [{ label: 'API keys', to: 'api-keys' }],
+  },
   {
     id: 'what-can-i-do',
     category: 'Getting started',
@@ -150,10 +215,23 @@ export const FAQ: FaqEntry[] = [
   },
 ]
 
-export function filterFaq(entries: FaqEntry[], f: { query: string; category: FaqCategory | 'all' }): FaqEntry[] {
+export function filterFaq(
+  entries: FaqEntry[],
+  f: { query: string; category: string },
+): FaqEntry[] {
   const q = f.query.trim().toLowerCase()
   return entries.filter((e) => {
-    if (f.category !== 'all' && e.category !== f.category) return false
+    if (f.category !== 'all') {
+      const cat = f.category.toLowerCase()
+      const entryCat = e.category.toLowerCase()
+      const matches =
+        entryCat === cat ||
+        (cat === 'hardware' && (entryCat.includes('hardware') || entryCat.includes('gpus'))) ||
+        (cat === 'billing' && entryCat.includes('billing')) ||
+        (cat === 'deployments' && (entryCat.includes('deploy') || entryCat.includes('gpus'))) ||
+        (cat === 'apis' && (entryCat.includes('api') || entryCat.includes('inference')))
+      if (!matches) return false
+    }
     if (!q) return true
     return `${e.question} ${e.answer}`.toLowerCase().includes(q)
   })
