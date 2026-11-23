@@ -6,6 +6,7 @@ and persists execution telemetry to Supabase (`inference_requests`).
 
 import logging
 import math
+import os
 import re
 import threading
 import time
@@ -36,6 +37,39 @@ DEFAULT_MODEL = "nvidia/nemotron-3.5-bolt-e4b"
 _INTEGER_TOKEN_RE = re.compile(r"^[0-9]+$")
 
 
+def nvidia_key_configured() -> bool:
+    key = (os.getenv("NVIDIA_API_KEY") or "").strip()
+    return bool(key) and "your-key-here" not in key
+
+
+def demo_inference_enabled() -> bool:
+    """Simulated inference is used only when INFERENCE_DEMO_MODE is on AND no real NVIDIA key is set."""
+    flag = (os.getenv("INFERENCE_DEMO_MODE") or "").strip().lower() in ("1", "true", "yes", "on")
+    return flag and not nvidia_key_configured()
+
+
+class DemoProvider:
+    """Stand-in for NVIDIAProvider that returns a canned reply; no model is called."""
+
+    def __init__(self):
+        self.model = configured_models()[0]
+
+    def generate(self, prompt: str, max_tokens: int = 300, temperature: float = 0.2, model: Optional[str] = None) -> dict:
+        reply = (
+            "[Demo mode] This is a simulated response. No model was called because the server has no "
+            f"NVIDIA_API_KEY. Your prompt was {len(prompt)} characters long."
+        )
+        words = reply.split()
+        reply = " ".join(words[: max(1, max_tokens)])
+        # shortcut: ~4 chars per token estimate, replace when a real provider is configured
+        return {
+            "provider": "demo",
+            "model": model or self.model,
+            "content": reply,
+            "usage": {"prompt_tokens": max(1, len(prompt) // 4), "completion_tokens": len(reply.split())},
+        }
+
+
 class _MalformedProviderResponseError(Exception):
     """Raised when an upstream inference provider returns a malformed response payload."""
 
@@ -58,7 +92,7 @@ class InferenceService:
         if self._provider is None:
             with self._init_lock:
                 if self._provider is None:
-                    self._provider = NVIDIAProvider()
+                    self._provider = DemoProvider() if demo_inference_enabled() else NVIDIAProvider()
         return self._provider
 
     @property
@@ -520,7 +554,7 @@ class InferenceService:
 
         return InferenceResponse(
             success=True,
-            provider="nvidia",
+            provider=provider_name,
             model=model_name,
             response=response_text,
             usage=UsageInfo(

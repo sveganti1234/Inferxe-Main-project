@@ -387,6 +387,8 @@ async function main() {
   const childEnv = {
     ...process.env,
     PYTHONPATH: [ROOT_DIR, BACKEND_DIR, process.env.PYTHONPATH].filter(Boolean).join(path.delimiter),
+    // Local dev only: simulate inference when no NVIDIA key is set. Set INFERENCE_DEMO_MODE=false in .env to disable.
+    INFERENCE_DEMO_MODE: envCheck.effective.INFERENCE_DEMO_MODE || process.env.INFERENCE_DEMO_MODE || 'true',
     PYTHONUTF8: '1',
     PYTHONIOENCODING: 'utf-8',
   }

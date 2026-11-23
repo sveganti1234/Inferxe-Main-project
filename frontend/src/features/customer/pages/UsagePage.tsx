@@ -4,10 +4,10 @@
  * empty state, and cost is only shown when the backend recorded one.
  */
 import { useMemo, useState } from 'react'
-import { Activity, AlertTriangle, BookOpen, Clock, Cpu, KeyRound, RefreshCw, Zap } from 'lucide-react'
+import { Activity, AlertTriangle, BookOpen, Clock, Cpu, FlaskConical, KeyRound, RefreshCw, Zap } from 'lucide-react'
 import { usePageMeta } from '../../../lib/hooks'
 import { useCustomerWorkspace } from '../data/WorkspaceContext'
-import { formatCompact, formatDateTime, formatInteger, formatPercent } from '../data/selectors'
+import { formatCompact, formatDateTime, formatInteger, formatPercent, selectApiKeySummary } from '../data/selectors'
 import {
   selectUsageReport,
   USAGE_WINDOWS,
@@ -121,7 +121,11 @@ export default function UsagePage() {
             body="Requests you send to the Inferxe inference API with one of your API keys are recorded here: volume, tokens, latency and reliability. Nothing is estimated or sampled."
             actions={
               <>
-                <ButtonLink to={sectionHref(getSection('api-keys'))} variant="primary"><KeyRound size={15} /> Create an API key</ButtonLink>
+                {selectApiKeySummary(workspace!).active > 0 ? (
+                  <ButtonLink to={sectionHref(getSection('playground'))} variant="primary"><FlaskConical size={15} /> Send a request in the playground</ButtonLink>
+                ) : (
+                  <ButtonLink to={sectionHref(getSection('api-keys'))} variant="primary"><KeyRound size={15} /> Create an API key</ButtonLink>
+                )}
                 <ButtonLink to="/developers" variant="secondary"><BookOpen size={15} /> Developer docs</ButtonLink>
               </>
             }
