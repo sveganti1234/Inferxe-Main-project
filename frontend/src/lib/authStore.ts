@@ -12,6 +12,7 @@ export interface AuthSession {
     username: string
     role: string
     organization?: string
+    permissions?: string[]
   }
   expiresAt: number
 }
@@ -286,6 +287,7 @@ export function saveSession(session: AuthSession): void {
 /** Remove the Inferxe session record only. Use `signOutCurrentUser()` for a user-initiated sign-out. */
 export function clearSession(): void {
   removeSessionRecord()
+  clearAdminAuthCaches()
 }
 
 function isNetworkError(err: unknown): boolean {
@@ -492,9 +494,15 @@ export async function loginAdminBackend(
 
     if (data.isAdmin === true) {
       if (res.ok && data.ok && data.token && data.user) {
+        const permissions = Array.isArray(data.permissions)
+          ? data.permissions
+          : (Array.isArray(data.user?.permissions) ? data.user.permissions : undefined)
         const session: AuthSession = {
           token: data.token,
-          user: data.user,
+          user: {
+            ...data.user,
+            permissions,
+          },
           expiresAt: data.expiresAt || Date.now() + 12 * 60 * 60 * 1000,
         }
         saveSession(session)
@@ -552,64 +560,143 @@ export async function loginAdminBackend(
   return { ok: false, isAdmin: false }
 }
 
+interface AdminVerifyCacheEntry {
+  result: AdminVerifyResult
+  timestamp: number
+}
+const adminVerifyCache = new Map<string, AdminVerifyCacheEntry>()
+const adminVerifyInFlight = new Map<string, Promise<AdminVerifyResult>>()
+
+/**
+ * Check if the provided admin token was authoritatively verified by the backend
+ * within the given freshness window (default: 30 seconds).
+ */
+export function isSessionVerifiedRecently(token?: string | null, maxAgeMs = 30000): boolean {
+  if (!token) return false
+  const entry = adminVerifyCache.get(token)
+  if (!entry) return false
+  return Date.now() - entry.timestamp < maxAgeMs && entry.result.valid === true
+}
+
 /**
  * Validate an active admin session against the backend database-backed session store
- * and return the authoritative server user record (including role).
+ * and return the authoritative server user record (including role and permissions).
+ * Includes automatic in-flight promise deduplication and short TTL caching.
  */
-export async function verifyAdminSessionWithDetails(token: string): Promise<AdminVerifyResult> {
+export async function verifyAdminSessionWithDetails(token: string, force = false): Promise<AdminVerifyResult> {
   if (!token || token.startsWith('ix-') || token === 'admin-dev-token') {
     return { valid: false }
   }
 
-  try {
-    const res = await fetch(`${ADMIN_API_BASE}/verify`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({ token }),
-    })
-
-    if (!res.ok) {
-      return { valid: false }
+  if (!force) {
+    const cached = adminVerifyCache.get(token)
+    if (cached && Date.now() - cached.timestamp < 30000 && cached.result.valid) {
+      return cached.result
     }
-
-    const data = await res.json().catch(() => ({}))
-    if (!data.ok || !data.valid || !data.user) {
-      return { valid: false }
+    const inFlight = adminVerifyInFlight.get(token)
+    if (inFlight) {
+      return inFlight
     }
-
-    const currentSession = getSession()
-    if (currentSession && currentSession.token === token) {
-      const serverUser = data.user as AuthUser
-      if (
-        currentSession.user.role !== serverUser.role ||
-        currentSession.user.email !== serverUser.email ||
-        currentSession.user.id !== serverUser.id
-      ) {
-        saveSession({
-          ...currentSession,
-          user: {
-            ...currentSession.user,
-            ...serverUser,
-          },
-        })
-      }
-    }
-
-    return { valid: true, user: data.user as AuthUser }
-  } catch {
-    return { valid: false }
   }
+
+  const fetchPromise = (async (): Promise<AdminVerifyResult> => {
+    try {
+      const res = await fetch(`${ADMIN_API_BASE}/verify`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ token }),
+      })
+
+      if (!res.ok) {
+        adminVerifyCache.delete(token)
+        return { valid: false }
+      }
+
+      const data = await res.json().catch(() => ({}))
+      if (!data.ok || !data.valid || !data.user) {
+        adminVerifyCache.delete(token)
+        return { valid: false }
+      }
+
+      const serverUser = data.user as AuthUser
+      if (Array.isArray(data.permissions) && !serverUser.permissions) {
+        serverUser.permissions = data.permissions
+      }
+
+      const currentSession = getSession()
+      if (currentSession && currentSession.token === token) {
+        if (
+          currentSession.user.role !== serverUser.role ||
+          currentSession.user.email !== serverUser.email ||
+          currentSession.user.id !== serverUser.id ||
+          JSON.stringify(currentSession.user.permissions) !== JSON.stringify(serverUser.permissions)
+        ) {
+          saveSession({
+            ...currentSession,
+            user: {
+              ...currentSession.user,
+              ...serverUser,
+            },
+          })
+        }
+      }
+
+      const verifyResult: AdminVerifyResult = { valid: true, user: serverUser }
+      adminVerifyCache.set(token, { result: verifyResult, timestamp: Date.now() })
+      return verifyResult
+    } catch {
+      adminVerifyCache.delete(token)
+      return { valid: false }
+    } finally {
+      adminVerifyInFlight.delete(token)
+    }
+  })()
+
+  adminVerifyInFlight.set(token, fetchPromise)
+  return fetchPromise
+}
+
+/**
+ * Check whether the active administrator session has a specific permission.
+ * Super Admin accounts always return true. Standard admins evaluate against user.permissions.
+ */
+export function hasPermission(permissionId: string): boolean {
+  const session = getSession()
+  if (!session?.user) return false
+  const role = String(session.user.role || '').toLowerCase().trim()
+  if (role === 'superadmin' || role === 'super_admin') return true
+  if (role !== 'admin') return false
+
+  const perms = session.user.permissions
+  if (Array.isArray(perms)) {
+    return perms.includes(permissionId)
+  }
+
+  // Fallback to canonical operational permissions if permissions array not populated
+  const adminDefaultPermissions = [
+    'dashboard:view',
+    'users:view',
+    'users:manage',
+    'api:keys:view',
+    'ssh:keys:view',
+    'notebooks:view',
+    'infra:nodes:view',
+    'infra:workloads:view',
+    'infra:telemetry:view',
+    'billing:invoices:view',
+  ]
+  return adminDefaultPermissions.includes(permissionId)
 }
 
 /**
  * Validate an active admin session token with the backend server.
  */
 export async function verifyAdminSessionServer(token: string): Promise<boolean> {
-  const result = await verifyAdminSessionWithDetails(token)
+  const result = await verifyAdminSessionWithDetails(token, true)
   return result.valid
 }
 
@@ -703,6 +790,97 @@ export interface SuperadminAuditLog {
   created_at: string
 }
 
+export interface SuperadminSessionRecord {
+  id: string
+  admin_user_id: string
+  admin_email: string
+  admin_name?: string
+  role: string
+  session_version: number
+  created_at: string
+  expires_at: string
+  revoked_at?: string | null
+  status: 'active' | 'expired' | 'revoked'
+}
+
+export interface SuperadminDashboardOverview {
+  unavailableMetrics?: string[]
+  adminStats: {
+    available?: boolean
+    total: number
+    active: number
+    inactive: number
+    superadminCount: number
+    standardAdminCount: number
+    roleDistribution: {
+      superadmin: number
+      admin: number
+    }
+  }
+  customerStats: {
+    available?: boolean
+    total: number
+    active: number
+    inactive: number
+    online: number
+    registrations: {
+      today: number
+      last7Days: number
+      last30Days: number
+      daily: Array<{ date: string; count: number }>
+    }
+  }
+  activityStats: {
+    available?: boolean
+    totalActivities: number
+    activitiesToday: number
+    successfulLogins: number
+    failedLogins: number
+    recentSessionRevocations: number
+    recentActivities: Array<{
+      id: string
+      action: string
+      category: string
+      severity: string
+      adminName: string
+      adminEmail: string
+      targetResource: string
+      description: string
+      timestamp: string
+      isoTimestamp: string
+      details: Record<string, unknown>
+    }>
+  }
+  securityStats: {
+    available?: boolean
+    failedLoginAttempts: number
+    blockedActions: number
+    activeSessions: number
+    revokedSessions: number
+    recentSecurityEvents: Array<{
+      id: string
+      action: string
+      category: string
+      severity: string
+      adminName: string
+      adminEmail: string
+      targetResource: string
+      description: string
+      ipAddress: string
+      timestamp: string
+      isoTimestamp: string
+      details: Record<string, unknown>
+    }>
+  }
+  platformStats: {
+    organizationsAvailable?: boolean
+    apiKeysAvailable?: boolean
+    totalOrganizations: number
+    totalApiKeys: number
+    activeApiKeys: number
+  }
+}
+
 export interface SuperadminGpuCluster {
   id: string
   name: string
@@ -727,6 +905,8 @@ export interface SuperadminGpuCluster {
 }
 
 export interface SuperadminTelemetryData {
+  isConfigured?: boolean
+  message?: string
   clusters: SuperadminGpuCluster[]
   summary: {
     totalGpuCount: number
@@ -738,7 +918,7 @@ export interface SuperadminTelemetryData {
     criticalAlerts: number
     averageLatencyMs: number
     globalHealthScore: number
-  }
+  } | null
 }
 
 export interface SuperadminKeyRecord {
@@ -826,21 +1006,102 @@ function getSuperadminAuthHeaders(): HeadersInit {
   }
 }
 
-export async function fetchSuperadminAdmins(): Promise<{ ok: boolean; admins?: SuperadminAdminRecord[]; error?: string }> {
-  try {
-    const res = await fetch('/api/superadmin/admins', {
-      cache: 'no-store',
-      credentials: 'include',
-      headers: getSuperadminAuthHeaders(),
-    })
-    const data = await res.json()
-    if (!res.ok) {
-      return { ok: false, error: data.error || `HTTP ${res.status}` }
-    }
-    return { ok: true, admins: data.admins || [] }
-  } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : 'Failed to fetch admin accounts.' }
+// ── In-Memory Caches & In-Flight Request Deduplication ────────────────────────
+
+let superadminAdminsCache: { data: SuperadminAdminRecord[]; timestamp: number } | null = null
+let adminsInFlight: Promise<{ ok: boolean; admins?: SuperadminAdminRecord[]; error?: string }> | null = null
+
+export function getCachedSuperadminAdmins(): SuperadminAdminRecord[] | null {
+  if (superadminAdminsCache && Date.now() - superadminAdminsCache.timestamp < 30000) {
+    return superadminAdminsCache.data
   }
+  return null
+}
+
+export function invalidateSuperadminAdminsCache(): void {
+  superadminAdminsCache = null
+}
+
+let superadminOverviewCache: { data: SuperadminDashboardOverview; timestamp: number } | null = null
+let overviewInFlight: Promise<{ ok: boolean; overview?: SuperadminDashboardOverview; error?: string }> | null = null
+
+export function getCachedSuperadminDashboardOverview(): SuperadminDashboardOverview | null {
+  if (superadminOverviewCache && Date.now() - superadminOverviewCache.timestamp < 30000) {
+    return superadminOverviewCache.data
+  }
+  return null
+}
+
+export function invalidateSuperadminOverviewCache(): void {
+  superadminOverviewCache = null
+}
+
+const auditLogsCache = new Map<string, { data: { logs: any[]; total: number; stats?: any }; timestamp: number }>()
+const auditLogsInFlight = new Map<string, Promise<any>>()
+
+export function invalidateSuperadminAuditLogsCache(): void {
+  auditLogsCache.clear()
+}
+
+const activityCache = new Map<string, { data: { activities: any[]; total: number; stats?: any }; timestamp: number }>()
+const activityInFlight = new Map<string, Promise<any>>()
+
+export function invalidateSuperadminActivityCache(): void {
+  activityCache.clear()
+}
+
+const sessionsCache = new Map<string, { data: { sessions: SuperadminSessionRecord[]; total: number; totalCount: number; activeCount: number; expiredCount: number; revokedCount: number }; timestamp: number }>()
+const sessionsInFlight = new Map<string, Promise<any>>()
+
+export function invalidateSuperadminSessionsCache(): void {
+  sessionsCache.clear()
+}
+
+export function clearAdminAuthCaches(): void {
+  adminVerifyCache.clear()
+  adminVerifyInFlight.clear()
+  superadminOverviewCache = null
+  overviewInFlight = null
+  superadminAdminsCache = null
+  adminsInFlight = null
+  auditLogsCache.clear()
+  auditLogsInFlight.clear()
+  activityCache.clear()
+  activityInFlight.clear()
+  sessionsCache.clear()
+  sessionsInFlight.clear()
+}
+
+export async function fetchSuperadminAdmins(force = false): Promise<{ ok: boolean; admins?: SuperadminAdminRecord[]; error?: string }> {
+  if (!force && superadminAdminsCache && Date.now() - superadminAdminsCache.timestamp < 20000) {
+    return { ok: true, admins: superadminAdminsCache.data }
+  }
+  if (!force && adminsInFlight) {
+    return adminsInFlight
+  }
+
+  adminsInFlight = (async () => {
+    try {
+      const res = await fetch('/api/superadmin/admins', {
+        cache: 'no-store',
+        credentials: 'include',
+        headers: getSuperadminAuthHeaders(),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        return { ok: false, error: data.error || `HTTP ${res.status}` }
+      }
+      const admins = data.admins || []
+      superadminAdminsCache = { data: admins, timestamp: Date.now() }
+      return { ok: true, admins }
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : 'Failed to fetch admin accounts.' }
+    } finally {
+      adminsInFlight = null
+    }
+  })()
+
+  return adminsInFlight
 }
 
 export async function createDeveloperAdminAccount(input: {
@@ -876,6 +1137,8 @@ export async function createDeveloperAdminAccount(input: {
         error: data.error || `HTTP ${res.status}`,
       }
     }
+    invalidateSuperadminAdminsCache()
+    invalidateSuperadminOverviewCache()
     return { ok: true, statusCode: res.status, admin: data.admin }
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : 'Failed to create developer admin account.' }
@@ -898,36 +1161,352 @@ export async function updateAdminAccountStatus(
     if (!res.ok) {
       return { ok: false, error: data.error || `HTTP ${res.status}` }
     }
+    invalidateSuperadminAdminsCache()
+    invalidateSuperadminOverviewCache()
+    invalidateSuperadminSessionsCache()
     return { ok: true }
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : 'Failed to update admin account status.' }
   }
 }
 
-export async function fetchSuperadminAuditLogs(params?: {
-  category?: string
-  search?: string
-  limit?: number
-  offset?: number
-}): Promise<{ ok: boolean; logs?: SuperadminAuditLog[]; total?: number; error?: string }> {
+export async function updateSuperadminAdmin(
+  adminId: string,
+  updates: {
+    email?: string
+    password?: string
+    is_active?: boolean
+    status?: 'active' | 'inactive' | 'suspended'
+    reason?: string
+  },
+): Promise<{
+  ok: boolean
+  admin?: SuperadminAdminRecord
+  statusCode?: number
+  code?: string
+  isDuplicate?: boolean
+  error?: string
+}> {
   try {
-    const q = new URLSearchParams()
-    if (params?.category) q.set('category', params.category)
-    if (params?.search) q.set('search', params.search)
-    if (params?.limit) q.set('limit', String(params.limit))
-    if (params?.offset) q.set('offset', String(params.offset))
-
-    const res = await fetch(`/api/superadmin/audit-logs?${q.toString()}`, {
+    const res = await fetch(`/api/superadmin/admins/${encodeURIComponent(adminId)}`, {
+      method: 'PATCH',
+      cache: 'no-store',
       credentials: 'include',
       headers: getSuperadminAuthHeaders(),
+      body: JSON.stringify(updates),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      const code = typeof data.code === 'string' ? data.code : undefined
+      return {
+        ok: false,
+        statusCode: res.status,
+        code,
+        isDuplicate: res.status === 409 || code === 'DUPLICATE_ADMIN_EMAIL',
+        error: data.error || `HTTP ${res.status}`,
+      }
+    }
+    invalidateSuperadminAdminsCache()
+    invalidateSuperadminOverviewCache()
+    return { ok: true, statusCode: res.status, admin: data.admin }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Failed to update administrator account.' }
+  }
+}
+
+export async function deleteSuperadminAdmin(
+  adminId: string,
+  reason?: string,
+): Promise<{
+  ok: boolean
+  statusCode?: number
+  error?: string
+}> {
+  try {
+    const res = await fetch(`/api/superadmin/admins/${encodeURIComponent(adminId)}`, {
+      method: 'DELETE',
+      cache: 'no-store',
+      credentials: 'include',
+      headers: getSuperadminAuthHeaders(),
+      body: JSON.stringify({ reason }),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      return {
+        ok: false,
+        statusCode: res.status,
+        error: data.error || `HTTP ${res.status}`,
+      }
+    }
+    invalidateSuperadminAdminsCache()
+    invalidateSuperadminOverviewCache()
+    return { ok: true, statusCode: res.status }
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Failed to delete administrator account.' }
+  }
+}
+
+export async function fetchSuperadminAuditLogs(
+  params?: {
+    category?: string
+    search?: string
+    admin?: string
+    action?: string
+    severity?: string
+    dateRange?: string
+    startDate?: string
+    endDate?: string
+    sortBy?: string
+    limit?: number
+    offset?: number
+  },
+  force = false,
+): Promise<{
+  ok: boolean
+  logs?: any[]
+  total?: number
+  stats?: {
+    totalEvents: number
+    eventsToday: number
+    uniqueActors: number
+    criticalCount: number
+    warningCount?: number
+    successCount?: number
+    infoCount?: number
+  }
+  error?: string
+}> {
+  const cacheKey = JSON.stringify(params || {})
+  if (!force) {
+    const cached = auditLogsCache.get(cacheKey)
+    if (cached && Date.now() - cached.timestamp < 15000) {
+      return { ok: true, ...cached.data }
+    }
+    const inFlight = auditLogsInFlight.get(cacheKey)
+    if (inFlight) {
+      return inFlight
+    }
+  }
+
+  const fetchPromise = (async () => {
+    try {
+      const q = new URLSearchParams()
+      if (params?.category) q.set('category', params.category)
+      if (params?.search) q.set('search', params.search)
+      if (params?.admin) q.set('admin', params.admin)
+      if (params?.action) q.set('action', params.action)
+      if (params?.severity) q.set('severity', params.severity)
+      if (params?.dateRange) q.set('dateRange', params.dateRange)
+      if (params?.startDate) q.set('startDate', params.startDate)
+      if (params?.endDate) q.set('endDate', params.endDate)
+      if (params?.sortBy) q.set('sortBy', params.sortBy)
+      if (params?.limit) q.set('limit', String(params.limit))
+      if (params?.offset) q.set('offset', String(params.offset))
+
+      const res = await fetch(`/api/superadmin/audit-logs?${q.toString()}`, {
+        credentials: 'include',
+        headers: getSuperadminAuthHeaders(),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        return { ok: false, error: data.error || `HTTP ${res.status}` }
+      }
+      const payload = {
+        logs: data.logs || data.activities || [],
+        total: data.total || 0,
+        stats: data.stats,
+      }
+      auditLogsCache.set(cacheKey, { data: payload, timestamp: Date.now() })
+      return {
+        ok: true,
+        ...payload,
+      }
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : 'Failed to fetch audit logs.' }
+    } finally {
+      auditLogsInFlight.delete(cacheKey)
+    }
+  })()
+
+  auditLogsInFlight.set(cacheKey, fetchPromise)
+  return fetchPromise
+}
+
+export async function fetchSuperadminActivity(
+  params?: {
+    category?: string
+    search?: string
+    admin?: string
+    action?: string
+    severity?: string
+    dateRange?: string
+    startDate?: string
+    endDate?: string
+    limit?: number
+    offset?: number
+  },
+  force = false,
+): Promise<{
+  ok: boolean
+  activities?: any[]
+  total?: number
+  stats?: {
+    totalEvents: number
+    eventsToday: number
+    uniqueActors: number
+    criticalCount: number
+  }
+  error?: string
+}> {
+  const cacheKey = JSON.stringify(params || {})
+  if (!force) {
+    const cached = activityCache.get(cacheKey)
+    if (cached && Date.now() - cached.timestamp < 15000) {
+      return { ok: true, ...cached.data }
+    }
+    const inFlight = activityInFlight.get(cacheKey)
+    if (inFlight) {
+      return inFlight
+    }
+  }
+
+  const fetchPromise = (async () => {
+    try {
+      const q = new URLSearchParams()
+      if (params?.category) q.set('category', params.category)
+      if (params?.search) q.set('search', params.search)
+      if (params?.admin) q.set('admin', params.admin)
+      if (params?.action) q.set('action', params.action)
+      if (params?.severity) q.set('severity', params.severity)
+      if (params?.dateRange) q.set('dateRange', params.dateRange)
+      if (params?.startDate) q.set('startDate', params.startDate)
+      if (params?.endDate) q.set('endDate', params.endDate)
+      if (params?.limit) q.set('limit', String(params.limit))
+      if (params?.offset) q.set('offset', String(params.offset))
+
+      const res = await fetch(`/api/superadmin/activity?${q.toString()}`, {
+        credentials: 'include',
+        headers: getSuperadminAuthHeaders(),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        return { ok: false, error: data.error || `HTTP ${res.status}` }
+      }
+      const payload = {
+        activities: data.activities || [],
+        total: data.total || 0,
+        stats: data.stats,
+      }
+      activityCache.set(cacheKey, { data: payload, timestamp: Date.now() })
+      return {
+        ok: true,
+        ...payload,
+      }
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : 'Failed to fetch activity logs.' }
+    } finally {
+      activityInFlight.delete(cacheKey)
+    }
+  })()
+
+  activityInFlight.set(cacheKey, fetchPromise)
+  return fetchPromise
+}
+
+export async function fetchSuperadminSessions(
+  params?: {
+    email?: string
+    status?: string
+    search?: string
+    limit?: number
+    offset?: number
+  },
+  force = false,
+): Promise<{
+  ok: boolean
+  sessions?: SuperadminSessionRecord[]
+  total?: number
+  totalCount?: number
+  activeCount?: number
+  expiredCount?: number
+  revokedCount?: number
+  error?: string
+}> {
+  const cacheKey = JSON.stringify(params || {})
+  if (!force) {
+    const cached = sessionsCache.get(cacheKey)
+    if (cached && Date.now() - cached.timestamp < 15000) {
+      return { ok: true, ...cached.data }
+    }
+    const inFlight = sessionsInFlight.get(cacheKey)
+    if (inFlight) {
+      return inFlight
+    }
+  }
+
+  const fetchPromise = (async () => {
+    try {
+      const q = new URLSearchParams()
+      if (params?.email) q.set('email', params.email)
+      if (params?.status) q.set('status', params.status)
+      if (params?.search) q.set('search', params.search)
+      if (params?.limit) q.set('limit', String(params.limit))
+      if (params?.offset) q.set('offset', String(params.offset))
+
+      const res = await fetch(`/api/superadmin/sessions?${q.toString()}`, {
+        credentials: 'include',
+        headers: getSuperadminAuthHeaders(),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        return { ok: false, error: data.error || `HTTP ${res.status}` }
+      }
+      const payload = {
+        sessions: data.sessions || [],
+        total: data.total || 0,
+        totalCount: data.totalCount || 0,
+        activeCount: data.activeCount || 0,
+        expiredCount: data.expiredCount || 0,
+        revokedCount: data.revokedCount || 0,
+      }
+      sessionsCache.set(cacheKey, { data: payload, timestamp: Date.now() })
+      return {
+        ok: true,
+        ...payload,
+      }
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : 'Failed to fetch administrator sessions.' }
+    } finally {
+      sessionsInFlight.delete(cacheKey)
+    }
+  })()
+
+  sessionsInFlight.set(cacheKey, fetchPromise)
+  return fetchPromise
+}
+
+export async function revokeSuperadminSession(
+  sessionId: string,
+  reason?: string,
+): Promise<{ ok: boolean; message?: string; targetEmail?: string; error?: string }> {
+  try {
+    const res = await fetch(`/api/superadmin/sessions/${encodeURIComponent(sessionId)}/revoke`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: getSuperadminAuthHeaders(),
+      body: JSON.stringify({ reason }),
     })
     const data = await res.json()
     if (!res.ok) {
       return { ok: false, error: data.error || `HTTP ${res.status}` }
     }
-    return { ok: true, logs: data.logs || [], total: data.total || 0 }
+    invalidateSuperadminSessionsCache()
+    invalidateSuperadminActivityCache()
+    invalidateSuperadminAuditLogsCache()
+    invalidateSuperadminOverviewCache()
+    return { ok: true, message: data.message, targetEmail: data.targetEmail }
   } catch (err) {
-    return { ok: false, error: err instanceof Error ? err.message : 'Failed to fetch audit logs.' }
+    return { ok: false, error: err instanceof Error ? err.message : 'Failed to revoke administrator session.' }
   }
 }
 
@@ -1105,6 +1684,7 @@ export async function revokeSuperadminKey(
         error: typeof data.error === 'string' ? data.error : `HTTP ${res.status}`,
       }
     }
+    invalidateSuperadminOverviewCache()
     return {
       ok: true,
       status: res.status,
@@ -1115,4 +1695,41 @@ export async function revokeSuperadminKey(
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : 'Failed to revoke key.' }
   }
+}
+
+export async function fetchSuperadminDashboardOverview(force = false): Promise<{
+  ok: boolean
+  overview?: SuperadminDashboardOverview
+  error?: string
+}> {
+  if (!force && superadminOverviewCache && Date.now() - superadminOverviewCache.timestamp < 20000) {
+    return { ok: true, overview: superadminOverviewCache.data }
+  }
+  if (!force && overviewInFlight) {
+    return overviewInFlight
+  }
+
+  overviewInFlight = (async () => {
+    try {
+      const res = await fetch('/api/superadmin/dashboard/overview', {
+        credentials: 'include',
+        headers: getSuperadminAuthHeaders(),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        return { ok: false, error: data.error || `HTTP ${res.status}` }
+      }
+      const overview = data.overview
+      if (overview) {
+        superadminOverviewCache = { data: overview, timestamp: Date.now() }
+      }
+      return { ok: true, overview }
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : 'Failed to load Super Admin dashboard overview.' }
+    } finally {
+      overviewInFlight = null
+    }
+  })()
+
+  return overviewInFlight
 }

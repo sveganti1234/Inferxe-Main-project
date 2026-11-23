@@ -195,7 +195,7 @@ describe('Shell controls', () => {
     expect(crumbs()).toEqual(['General', 'Overview'])
     act(() => root!.unmount()); root = null; document.body.replaceChildren()
     await render('/dashboard/app/models')
-    expect(crumbs()).toEqual(['Compute & AI', 'Model marketplace'])
+    expect(crumbs()).toEqual(['Compute & AI', 'LLM catalog'])
     act(() => root!.unmount()); root = null; document.body.replaceChildren()
     await render('/dashboard/app/billing')
     expect(crumbs()).toEqual(['Billing & Payments', 'Billing & wallet'])

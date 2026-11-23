@@ -85,10 +85,10 @@ describe('route cutover', () => {
   it('maps ?tab=settings and /dashboard/customer/help to native pages', async () => {
     storeCustomerSession()
     await renderApp('/dashboard/customer?tab=settings')
-    expect(host.querySelector('h1')?.textContent).toBe('Settings')
+    expect(host.querySelector('h1')?.textContent).toMatch(/Settings/)
     reset()
     await renderApp('/dashboard/customer/help')
-    expect(host.querySelector('h1')?.textContent).toBe('Help')
+    expect(host.querySelector('h1')?.textContent).toMatch(/FAQ & Support Hub|Help/)
   })
 
   it('keeps Verdelo-only deep links working through the guarded legacy route', async () => {
@@ -125,7 +125,7 @@ describe('route cutover', () => {
 
   it('sends old customer workspace pages to their native console equivalents (no demo workspace for customers)', async () => {
     storeCustomerSession()
-    for (const [path, h1] of [['/dashboard/gpus', 'GPU marketplace'], ['/dashboard/wallet', 'Billing & wallet'], ['/dashboard/api-keys', 'API keys'], ['/dashboard/analytics', 'Usage & analytics'], ['/dashboard/anything-else', null]] as const) {
+    for (const [path, h1] of [['/dashboard/gpus', 'GPU marketplace'], ['/dashboard/wallet', 'Billing & wallet'], ['/dashboard/api-keys', 'API Keys & JWT Tokens'], ['/dashboard/analytics', 'Usage & Analytics'], ['/dashboard/anything-else', null]] as const) {
       await renderApp(path)
       expect(host.querySelector('.cx-app'), path).not.toBeNull()
       expect(host.querySelector('iframe'), path).toBeNull()

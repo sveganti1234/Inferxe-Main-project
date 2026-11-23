@@ -124,15 +124,17 @@ export function ButtonLink({
   to,
   variant = 'secondary',
   size,
+  className,
   children,
 }: {
   to: string
   variant?: ButtonVariant
   size?: 'sm'
+  className?: string
   children: ReactNode
 }) {
   return (
-    <Link to={to} className={cx('cx-btn', `cx-btn--${variant}`, size === 'sm' && 'cx-btn--sm')}>
+    <Link to={to} className={cx('cx-btn', `cx-btn--${variant}`, size === 'sm' && 'cx-btn--sm', className)}>
       {children}
     </Link>
   )

@@ -7,6 +7,7 @@ import {
   clearSession,
   verifyAdminSessionWithDetails,
   isDevelopmentBypassToken,
+  isSessionVerifiedRecently,
 } from '../../lib/authStore'
 
 interface SuperadminGuardProps {
@@ -18,6 +19,7 @@ interface SuperadminGuardProps {
  * Enforces authoritative server-side DB-backed session & role verification.
  * Strictly prevents standard Admins, Customers, revoked sessions, and unauthenticated users from accessing Superadmin modules.
  * If a regular Admin attempts direct URL access, they are redirected to /dashboard.
+ * Uses optimistic rendering and cached session verification to prevent blank screens and flickering during navigation.
  */
 export function SuperadminGuard({ children }: SuperadminGuardProps) {
   const location = useLocation()
@@ -28,7 +30,8 @@ export function SuperadminGuard({ children }: SuperadminGuardProps) {
     if (portalRole === 'admin') return 'to_admin'
     if (portalRole === 'customer') return 'to_customer'
     if (portalRole !== 'superadmin') return 'to_login'
-    return 'checking'
+    // If claims are valid, authorize immediately for smooth rendering while background check confirms
+    return 'authorized'
   })
 
   useEffect(() => {
@@ -57,6 +60,12 @@ export function SuperadminGuard({ children }: SuperadminGuardProps) {
 
       if (portalRole !== 'superadmin') {
         if (isMounted) setAuthState('to_login')
+        return
+      }
+
+      // If already verified within TTL, skip redundant network round-trip on every route change
+      if (isSessionVerifiedRecently(session.token)) {
+        if (isMounted) setAuthState('authorized')
         return
       }
 

@@ -43,7 +43,9 @@ from inference.supabase_notebooks import (
     get_notebook_repository,
 )
 from inference.supabase_telemetry import (
+    SupabaseTelemetryError,
     SupabaseTelemetryRepository,
+    SupabaseTelemetryServiceUnavailableError,
     get_telemetry_repository,
 )
 from inference.schemas import (
@@ -68,7 +70,11 @@ from inference.schemas import (
     RoutingRecommendResponse,
     NotebookLogsResponse,
     NotebookTelemetryResponse,
+    RecommendRequest,
+    PricingEstimateRequest,
 )
+from inference.catalog import load_catalog
+from inference.routing import recommend, estimate_price, summarize_usage
 from inference.ssh_key_service import (
     SSHKeyValidationError,
     DuplicateSSHKeyError,
@@ -100,7 +106,7 @@ from inference.auth import (
     is_cognito_configured,
     is_test_mode_enabled,
 )
-from inference.service import InferenceService
+from inference.service import InferenceService, demo_inference_enabled, nvidia_key_configured
 
 router = APIRouter(prefix="/api/v1", tags=["Inference & Management"])
 logger = logging.getLogger("inferxe.routes")
@@ -208,8 +214,8 @@ def _close_health_http_client() -> None:
 def health_check():
     """Health status check covering Supabase REST, optional legacy PostgreSQL, NVIDIA, and Cognito."""
     db_ok = check_database_connection(engine)
-    nvidia_key = (os.getenv("NVIDIA_API_KEY") or "").strip()
-    nvidia_configured = bool(nvidia_key) and "your-key-here" not in nvidia_key
+    nvidia_configured = nvidia_key_configured()
+    demo_mode = demo_inference_enabled()
     cognito_ok = is_cognito_configured()
 
     supabase_ok = False
@@ -243,9 +249,9 @@ def health_check():
         supabase_status = "unreachable"
 
     db_status = "connected" if db_ok else ("supabase_rest" if supabase_ok else "unreachable")
-    nvidia_status = "configured" if nvidia_configured else "missing_api_key"
+    nvidia_status = "configured" if nvidia_configured else ("demo" if demo_mode else "missing_api_key")
     storage_ok = supabase_ok or db_ok
-    overall_status = "ok" if (storage_ok and nvidia_configured) else "degraded"
+    overall_status = "ok" if (storage_ok and (nvidia_configured or demo_mode)) else "degraded"
 
     return HealthResponse(
         status=overall_status,
@@ -1181,4 +1187,108 @@ def get_live_hardware_telemetry():
         ],
     }
 
+# --- Catalogue, Routing, Pricing & Usage (DPR §11, §9, §24.3, §13) ---
+# Catalogue and pricing are public reference data (also shown on the website); routing and usage are
+# tenant-scoped and use the developer API key, like /inference.
+
+@router.get(
+    "/gpus",
+    summary="Unified GPU Catalogue",
+    description="Normalized GPU models with their provider offers and measured benchmarks. All filters are optional.",
+)
+def list_gpus(
+    min_vram_gb: Optional[float] = None,
+    provider: Optional[str] = None,
+    region: Optional[str] = None,
+    sovereign_only: bool = False,
+):
+    catalog = load_catalog()
+    offers = [
+        o for o in catalog["offers"]
+        if (provider is None or o["provider_id"] == provider)
+        and (region is None or region.lower() in o["region"].lower())
+        and (not sovereign_only or o["sovereign_india_hosted"])
+    ]
+    gpus = []
+    for gpu in catalog["gpus"].values():
+        if min_vram_gb is not None and (gpu["vram_gb"] or 0) < min_vram_gb:
+            continue
+        gpu_offers = [o for o in offers if o["gpu_id"] == gpu["id"]]
+        # With an offer filter set, a GPU nobody offers under that filter is not a match.
+        if (provider or region or sovereign_only) and not gpu_offers:
+            continue
+        gpus.append({**gpu, "offers": gpu_offers})
+    return {"success": True, "count": len(gpus), "gpus": gpus}
+
+
+@router.get(
+    "/providers",
+    summary="GPU Providers",
+    description="Providers in the catalogue with regions, offered GPUs and integration status.",
+)
+def list_providers():
+    providers = list(load_catalog()["providers"].values())
+    return {"success": True, "count": len(providers), "providers": providers}
+
+
+@router.post(
+    "/recommend",
+    summary="Recommend GPU Placement",
+    description="Filters provider/GPU offers by memory, policy, budget and speed, then ranks them by routing mode. "
+                "The decision is recorded for the authenticated tenant.",
+)
+def recommend_placement(
+    req: RecommendRequest,
+    api_key: SupabaseAPIKeyRecord = Depends(verify_customer_api_key),
+    telemetry_repo: SupabaseTelemetryRepository = Depends(get_telemetry_repository),
+):
+    result = recommend(req.model_dump())
+    decision_id = None
+    try:
+        decision_id = telemetry_repo.record_routing_decision(
+            user_id=api_key.user_id,
+            organization_id=api_key.organization_id,
+            api_key_id=api_key.id,
+            workload=req.model_dump(),
+            mode=result["mode"],
+            selected_offer_id=result["selected"]["offer_id"] if result["selected"] else None,
+            candidates=result["candidates"][:5],
+        )
+    except Exception as e:
+        # Like inference telemetry: a recording failure must not fail the customer's request.
+        logger.error("Failed to record routing decision (%s).", type(e).__name__)
+    return {"success": True, "decision_id": decision_id, **result}
+
+
+@router.post(
+    "/pricing/estimate",
+    summary="Estimate Infrastructure Cost",
+    description="Estimated runtime cost for a catalogue offer from the reference rate card.",
+)
+def pricing_estimate(req: PricingEstimateRequest):
+    estimate = estimate_price(req.offer_id, req.gpu_count, req.hours, req.storage_gb, req.spot)
+    if estimate is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Unknown offer_id. See GET /api/v1/gpus.")
+    return {"success": True, **estimate}
+
+
+@router.get(
+    "/usage",
+    summary="Inference Usage Summary",
+    description="Requests, tokens, cost and latency for the authenticated customer's most recent inference requests.",
+)
+def usage_summary(
+    limit: int = 1000,
+    api_key: SupabaseAPIKeyRecord = Depends(verify_customer_api_key),
+    telemetry_repo: SupabaseTelemetryRepository = Depends(get_telemetry_repository),
+):
+    if limit < 1 or limit > 1000:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="limit must be between 1 and 1000.")
+    try:
+        records = telemetry_repo.list_user_inference_requests(api_key.user_id, limit=limit)
+    except SupabaseTelemetryServiceUnavailableError:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Usage database is unavailable.")
+    except SupabaseTelemetryError:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Upstream usage database rejected the request.")
+    return {"success": True, **summarize_usage(records)}
 

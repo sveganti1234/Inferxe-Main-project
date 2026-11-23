@@ -5,16 +5,12 @@
  * Supabase-backed endpoints (`/api/superadmin/admins`, `/api/superadmin/admins/status`).
  * All hardcoded placeholder/demo administrator accounts have been removed.
  */
-import { fetchSuperadminAdmins, type SuperadminAdminRecord } from './authStore'
+import { fetchSuperadminAdmins, fetchSuperadminActivity, type SuperadminAdminRecord } from './authStore'
 
 export type AdminRole =
   | 'super_admin'
+  | 'superadmin'
   | 'admin'
-  | 'infrastructure_admin'
-  | 'billing_admin'
-  | 'support_admin'
-  | 'security_auditor'
-  | (string & {})
 
 export type AdminStatus = 'active' | 'inactive' | 'invited'
 
@@ -61,6 +57,10 @@ export interface AdminActivityLog {
   newValue?: string
   source?: string
   ipAddress?: string
+  userAgent?: string
+  targetType?: string
+  targetId?: string
+  details?: Record<string, unknown>
   isDemo?: boolean
 }
 
@@ -86,9 +86,16 @@ export const ADMIN_ROLE_METADATA: Record<
     permissionsSummary: string[]
   }
 > = {
+  superadmin: {
+    title: 'Super Admin',
+    description: 'Full platform governance, admin account lifecycle, and unrestricted access (Protected Role).',
+    badgeClass: 'chip--lime',
+    color: '#50e396',
+    permissionsSummary: ['Full Platform Control', 'Manage Admin Accounts', 'RBAC & Key Access', 'Global Overrides'],
+  },
   super_admin: {
     title: 'Super Admin',
-    description: 'Full platform governance, admin account lifecycle, and unrestricted access.',
+    description: 'Full platform governance, admin account lifecycle, and unrestricted access (Protected Role).',
     badgeClass: 'chip--lime',
     color: '#50e396',
     permissionsSummary: ['Full Platform Control', 'Manage Admin Accounts', 'RBAC & Key Access', 'Global Overrides'],
@@ -100,34 +107,6 @@ export const ADMIN_ROLE_METADATA: Record<
     color: '#06b6d4',
     permissionsSummary: ['Admin Console', 'Customer Management', 'Users Directory', 'Provider Operations'],
   },
-  infrastructure_admin: {
-    title: 'Infrastructure Admin',
-    description: 'GPU fleet orchestration, sovereign cluster nodes, topology, and hardware health.',
-    badgeClass: 'chip--cyan',
-    color: '#06b6d4',
-    permissionsSummary: ['GPU Node Fleet', 'NVLink & Pod Orchestration', 'Capacity & Maintenance', 'Cluster SLAs'],
-  },
-  billing_admin: {
-    title: 'Billing Admin',
-    description: 'FinOps management, wallet credit balances, invoicing, and provider payout approvals.',
-    badgeClass: 'chip--amber',
-    color: '#f59e0b',
-    permissionsSummary: ['Wallet Reserves', 'Spend Caps & Overrides', 'Provider Payouts', 'Financial Reports'],
-  },
-  support_admin: {
-    title: 'Support Admin',
-    description: 'Customer onboarding assistance, model catalog access, and workspace triage.',
-    badgeClass: 'chip--purple',
-    color: '#a855f7',
-    permissionsSummary: ['Customer Account Triage', 'Model Quota Grants', 'SSH Key Assistance', 'Ticket Escalations'],
-  },
-  security_auditor: {
-    title: 'Security Auditor',
-    description: 'Compliance verification, cryptographic key audits, and platform activity logs.',
-    badgeClass: 'chip--red',
-    color: '#ef4444',
-    permissionsSummary: ['Audit Logs Read-Only', 'Compliance Reviews', 'MFA Status Audits', 'Security Telemetry'],
-  },
 }
 
 export function getAdminRoleMeta(role: string): {
@@ -137,21 +116,11 @@ export function getAdminRoleMeta(role: string): {
   color: string
   permissionsSummary: string[]
 } {
-  if (ADMIN_ROLE_METADATA[role]) {
-    return ADMIN_ROLE_METADATA[role]
+  const clean = String(role || '').trim().toLowerCase()
+  if (clean === 'superadmin' || clean === 'super_admin') {
+    return ADMIN_ROLE_METADATA.super_admin
   }
-  const formatted = role
-    .replace(/^custom_/, '')
-    .split('_')
-    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ')
-  return {
-    title: formatted || 'Custom Role',
-    description: 'Custom platform RBAC role.',
-    badgeClass: 'chip--emerald',
-    color: '#10b981',
-    permissionsSummary: ['Custom Assigned Capabilities'],
-  }
+  return ADMIN_ROLE_METADATA.admin
 }
 
 // All hardcoded placeholder/demo administrators have been removed.
@@ -224,324 +193,12 @@ export function formatRelativeTime(isoString: string): string {
 }
 
 export function generateDefaultAdminActivities(): AdminActivityLog[] {
-  const now = Date.now()
-  const offset = (ms: number) => new Date(now - ms).toISOString()
-
-  return [
-    {
-      id: 'act-01',
-      adminId: 'adm-001',
-      adminName: 'Bhumireddy Sahith',
-      adminEmail: 'bhumireddy@inferxe.com',
-      action: 'Simulated Prototype Invitation Issued',
-      category: 'Admin Accounts',
-      targetResource: 'ananya.rao@inferxe.com (Billing Admin)',
-      severity: 'info',
-      timestamp: '25m ago',
-      isoTimestamp: offset(25 * 60 * 1000),
-      description: 'Generated demonstration Supabase Auth invitation token for new financial controller.',
-      previousValue: 'None (Unregistered)',
-      newValue: 'ananya.rao@inferxe.com [Role: billing_admin, Status: invited]',
-      source: 'Super Admin Portal',
-      ipAddress: '103.21.144.62 (Bengaluru, IN)',
-      isDemo: true,
-    },
-    {
-      id: 'act-02',
-      adminId: 'adm-003',
-      adminName: 'Vikram Malhotra',
-      adminEmail: 'vikram.malhotra@inferxe.com',
-      action: 'Reallocated GPU Workload Partition',
-      category: 'Platform Operations',
-      targetResource: 'Node NM1-H100-Rack04',
-      severity: 'success',
-      timestamp: '1h ago',
-      isoTimestamp: offset(60 * 60 * 1000),
-      description: 'Migrated 8x SXM5 H100 GPU pods from batch inference pool to priority fine-tuning queue.',
-      previousValue: 'Batch Queue (8 pods)',
-      newValue: 'Priority Queue (8 pods)',
-      source: 'Infrastructure Orchestrator',
-      ipAddress: '103.21.144.63 (Bengaluru, IN)',
-      isDemo: true,
-    },
-    {
-      id: 'act-03',
-      adminId: 'adm-004',
-      adminName: 'Priya Sharma',
-      adminEmail: 'priya.sharma@inferxe.com',
-      action: 'Modified Monthly Spending Ceiling',
-      category: 'Platform Operations',
-      targetResource: 'Customer Org: Synthesia AI (₹5,00,000)',
-      severity: 'warning',
-      timestamp: '3h ago',
-      isoTimestamp: offset(3 * 60 * 60 * 1000),
-      description: 'Approved enterprise overdraft request and raised monthly credit limit from ₹3,00,000 to ₹5,00,000.',
-      previousValue: '₹3,00,000',
-      newValue: '₹5,00,000',
-      source: 'Super Admin Portal',
-      ipAddress: '103.21.144.64 (Bengaluru, IN)',
-      isDemo: true,
-    },
-    {
-      id: 'act-04',
-      adminId: 'adm-001',
-      adminName: 'Bhumireddy Sahith',
-      adminEmail: 'bhumireddy@inferxe.com',
-      action: 'Granted Permission to Role',
-      category: 'Permission Changes',
-      targetResource: 'Role: Cluster Operator → Perm: infra:telemetry:view',
-      severity: 'warning',
-      timestamp: '5h ago',
-      isoTimestamp: offset(5 * 60 * 60 * 1000),
-      description: 'Enabled real-time hardware telemetry access on Cluster Operator role for datacenter thermal monitoring.',
-      previousValue: 'Revoked',
-      newValue: 'Granted',
-      source: 'RBAC Permission Matrix',
-      ipAddress: '103.21.144.62 (Bengaluru, IN)',
-      isDemo: true,
-    },
-    {
-      id: 'act-05',
-      adminId: 'adm-009',
-      adminName: 'Devon Vance',
-      adminEmail: 'devon.vance@inferxe.com',
-      action: 'Generated SOC2 Access Review Snapshot',
-      category: 'Security',
-      targetResource: 'All Privileged Admin Roles (5 standard, 1 custom)',
-      severity: 'info',
-      timestamp: '8h ago',
-      isoTimestamp: offset(8 * 60 * 60 * 1000),
-      description: 'Generated immutable audit checkpoint for quarterly sovereign security compliance review.',
-      previousValue: 'None',
-      newValue: 'Audit Checkpoint #SOC2-2026-Q1',
-      source: 'Compliance Engine',
-      ipAddress: '103.21.144.65 (Bengaluru, IN)',
-      isDemo: true,
-    },
-    {
-      id: 'act-06',
-      adminId: 'adm-002',
-      adminName: 'Alex Chen',
-      adminEmail: 'alex.chen@inferxe.com',
-      action: 'Simulated Token Revocation Test',
-      category: 'Security',
-      targetResource: 'rohan.mehta@inferxe.com',
-      severity: 'critical',
-      timestamp: '1d ago',
-      isoTimestamp: offset(26 * 60 * 60 * 1000),
-      description: 'Terminated all active API tokens and browser sessions following account suspension drill.',
-      previousValue: 'Active Sessions: 3',
-      newValue: 'All Sessions Terminated (Revoked)',
-      source: 'Security Boundary Agent',
-      ipAddress: '103.21.144.61 (Bengaluru, IN)',
-      isDemo: true,
-    },
-    {
-      id: 'act-07',
-      adminId: 'adm-007',
-      adminName: 'Neha Deshmukh',
-      adminEmail: 'neha.deshmukh@inferxe.com',
-      action: 'Applied Warm Pool Scale Policy',
-      category: 'Platform Operations',
-      targetResource: 'L40S Sovereign Inference Nodes (Zone IN-WEST-1)',
-      severity: 'success',
-      timestamp: '1d ago',
-      isoTimestamp: offset(30 * 60 * 60 * 1000),
-      description: 'Increased pre-warmed sovereign inference standby nodes from 4 to 8 ahead of scheduled customer batch job.',
-      previousValue: 'Standby: 4 nodes',
-      newValue: 'Standby: 8 nodes',
-      source: 'Autoscaler Daemon',
-      ipAddress: '103.21.144.66 (Bengaluru, IN)',
-      isDemo: true,
-    },
-    {
-      id: 'act-08',
-      adminId: 'adm-001',
-      adminName: 'Bhumireddy Sahith',
-      adminEmail: 'bhumireddy@inferxe.com',
-      action: 'Created Custom RBAC Role',
-      category: 'Role Management',
-      targetResource: 'Role: Cluster Operator (custom_cluster_operator)',
-      severity: 'info',
-      timestamp: '2d ago',
-      isoTimestamp: offset(48 * 60 * 60 * 1000),
-      description: 'Provisioned specialized telemetry and node monitor role for sovereign datacenter field technicians.',
-      previousValue: 'Non-existent',
-      newValue: 'Cluster Operator (4 permissions)',
-      source: 'Super Admin Portal',
-      ipAddress: '103.21.144.62 (Bengaluru, IN)',
-      isDemo: true,
-    },
-    {
-      id: 'act-09',
-      adminId: 'adm-009',
-      adminName: 'Devon Vance',
-      adminEmail: 'devon.vance@inferxe.com',
-      action: 'Enforced Hardware MFA Policy',
-      category: 'Security',
-      targetResource: 'All Platform Administrators (@inferxe.com)',
-      severity: 'critical',
-      timestamp: '3d ago',
-      isoTimestamp: offset(72 * 60 * 60 * 1000),
-      description: 'Strict FIDO2 WebAuthn hardware security keys required on all administrative logins.',
-      previousValue: 'Software TOTP Allowed',
-      newValue: 'FIDO2 / WebAuthn Hardware Keys Mandatory',
-      source: 'Auth Policy Controller',
-      ipAddress: '103.21.144.65 (Bengaluru, IN)',
-      isDemo: true,
-    },
-    {
-      id: 'act-10',
-      adminId: 'adm-001',
-      adminName: 'Bhumireddy Sahith',
-      adminEmail: 'bhumireddy@inferxe.com',
-      action: 'Updated Account Status to inactive',
-      category: 'Admin Accounts',
-      targetResource: 'rohan.mehta@inferxe.com (Support Admin)',
-      severity: 'warning',
-      timestamp: '3d ago',
-      isoTimestamp: offset(75 * 60 * 60 * 1000),
-      description: 'Temporary administrative suspension pending routine credential and laptop rotation.',
-      previousValue: 'Status: active',
-      newValue: 'Status: inactive',
-      source: 'Super Admin Portal',
-      ipAddress: '103.21.144.62 (Bengaluru, IN)',
-      isDemo: true,
-    },
-    {
-      id: 'act-11',
-      adminId: 'adm-002',
-      adminName: 'Alex Chen',
-      adminEmail: 'alex.chen@inferxe.com',
-      action: 'Rotated Fabric TLS Certificates',
-      category: 'Security',
-      targetResource: 'RoCE Fabric Interconnect Cluster (Mumbai Zone A)',
-      severity: 'success',
-      timestamp: '5d ago',
-      isoTimestamp: offset(120 * 60 * 60 * 1000),
-      description: 'Successfully re-keyed mutual TLS mTLS certificates for all 64 NVLink switches without traffic drop.',
-      previousValue: 'Cert Exp: 2026-02-28',
-      newValue: 'Cert Exp: 2027-02-28',
-      source: 'PKI Certificate Authority',
-      ipAddress: '103.21.144.61 (Bengaluru, IN)',
-      isDemo: true,
-    },
-    {
-      id: 'act-12',
-      adminId: 'adm-004',
-      adminName: 'Priya Sharma',
-      adminEmail: 'priya.sharma@inferxe.com',
-      action: 'Approved Compute Provider Settlement',
-      category: 'Platform Operations',
-      targetResource: 'Batch #SETTLE-2026-03A (₹48,20,000)',
-      severity: 'success',
-      timestamp: '6d ago',
-      isoTimestamp: offset(144 * 60 * 60 * 1000),
-      description: 'Disbursement batch authorized for Tier-1 datacenter partners hosting sovereign H100 pods.',
-      previousValue: 'Pending Approval',
-      newValue: 'Settled & Transferred',
-      source: 'FinOps Settlement Ledger',
-      ipAddress: '103.21.144.64 (Bengaluru, IN)',
-      isDemo: true,
-    },
-    {
-      id: 'act-13',
-      adminId: 'adm-001',
-      adminName: 'Bhumireddy Sahith',
-      adminEmail: 'bhumireddy@inferxe.com',
-      action: 'Updated Role Permission Matrix',
-      category: 'Permission Changes',
-      targetResource: 'Role: Security Auditor',
-      severity: 'info',
-      timestamp: '8d ago',
-      isoTimestamp: offset(192 * 60 * 60 * 1000),
-      description: 'Mapped new platform permission "api:keys:view" to Security Auditor role.',
-      previousValue: '6 permissions',
-      newValue: '7 permissions',
-      source: 'RBAC Engine',
-      ipAddress: '103.21.144.62 (Bengaluru, IN)',
-      isDemo: true,
-    },
-    {
-      id: 'act-14',
-      adminId: 'adm-001',
-      adminName: 'Bhumireddy Sahith',
-      adminEmail: 'bhumireddy@inferxe.com',
-      action: 'Provisioned Administrator Account',
-      category: 'Admin Accounts',
-      targetResource: 'devon.vance@inferxe.com (Security Auditor)',
-      severity: 'info',
-      timestamp: '12d ago',
-      isoTimestamp: offset(288 * 60 * 60 * 1000),
-      description: 'Onboarded Lead Security Auditor with perimeter compliance and audit privileges.',
-      previousValue: 'None',
-      newValue: 'devon.vance@inferxe.com [Role: security_auditor]',
-      source: 'Super Admin Portal',
-      ipAddress: '103.21.144.62 (Bengaluru, IN)',
-      isDemo: true,
-    },
-  ]
+  return []
 }
 
-export const DEFAULT_ADMIN_ACTIVITIES: AdminActivityLog[] = generateDefaultAdminActivities()
+export const DEFAULT_ADMIN_ACTIVITIES: AdminActivityLog[] = []
 
-export const DEFAULT_SECURITY_EVENTS: AdminSecurityEvent[] = [
-  {
-    id: 'sec-1',
-    eventType: 'Hardware MFA Authentication Verification',
-    actor: 'bhumireddy@inferxe.com',
-    ipAddress: '103.21.144.62 (Bengaluru, IN)',
-    location: 'Corporate HQ Gateway',
-    status: 'allowed',
-    timestamp: 'Sample Event · 14m ago',
-    details: 'Demonstration FIDO2 WebAuthn hardware token verification test.',
-    isDemo: true,
-  },
-  {
-    id: 'sec-2',
-    eventType: 'Inactive Account Access Boundary Check',
-    actor: 'rohan.mehta@inferxe.com',
-    ipAddress: '49.207.182.11 (Mumbai, IN)',
-    location: 'Public Endpoint',
-    status: 'blocked',
-    timestamp: 'Sample Event · 2h ago',
-    details: 'Demonstration test: Access denied as expected for suspended administrative account.',
-    isDemo: true,
-  },
-  {
-    id: 'sec-3',
-    eventType: 'Cryptographic Key Rotation Simulated Probe',
-    actor: 'devon.vance@inferxe.com',
-    ipAddress: '103.21.144.65 (Bengaluru, IN)',
-    location: 'Corporate HQ Gateway',
-    status: 'allowed',
-    timestamp: 'Sample Event · 4h ago',
-    details: 'Demonstration routine periodic session credential refresh verification.',
-    isDemo: true,
-  },
-  {
-    id: 'sec-4',
-    eventType: 'Perimeter Rate Limiting Probe',
-    actor: 'probe-test@security-sim.internal',
-    ipAddress: '185.220.101.5 (Simulated Tor Exit)',
-    location: 'External Boundary',
-    status: 'blocked',
-    timestamp: 'Sample Event · 6h ago',
-    details: 'Demonstration probe: Threshold exceeded, perimeter rate-limiting triggered.',
-    isDemo: true,
-  },
-  {
-    id: 'sec-5',
-    eventType: 'Sovereign Node Telemetry Authorization',
-    actor: 'vikram.malhotra@inferxe.com',
-    ipAddress: '103.21.144.63 (Bengaluru, IN)',
-    location: 'Corporate HQ Gateway',
-    status: 'allowed',
-    timestamp: 'Sample Event · 7h ago',
-    details: 'Demonstration test: Direct SSH tunnel authorization verified via MeitY sovereign policy.',
-    isDemo: true,
-  },
-]
+export const DEFAULT_SECURITY_EVENTS: AdminSecurityEvent[] = []
 
 const STORAGE_KEY = 'inferxe_live_admin_accounts_v3'
 const LEGACY_STORAGE_KEYS = ['inferxe_dev_admin_accounts_v2', 'inferxe_super_admin_accounts_v1']
@@ -594,22 +251,46 @@ export function saveAdminAccounts(accounts: AdminAccount[]): void {
   }
 }
 
-export async function syncAdminAccountsFromBackend(): Promise<{
+let syncInFlight: Promise<{ ok: boolean; accounts: AdminAccount[]; error?: string }> | null = null
+let lastSyncTimestamp = 0
+const SYNC_CACHE_TTL_MS = 20000 // 20s TTL
+
+export async function syncAdminAccountsFromBackend(force = false): Promise<{
   ok: boolean
   accounts: AdminAccount[]
   error?: string
 }> {
-  const result = await fetchSuperadminAdmins()
-  if (!result.ok || !result.admins) {
-    return {
-      ok: false,
-      accounts: getAdminAccounts(),
-      error: result.error || 'Failed to load administrator accounts from backend.',
+  if (!force && Date.now() - lastSyncTimestamp < SYNC_CACHE_TTL_MS) {
+    const existing = getAdminAccounts()
+    if (existing.length > 0) {
+      return { ok: true, accounts: existing }
     }
   }
-  const mapped = result.admins.map(mapBackendAdminToAccount)
-  saveAdminAccounts(mapped)
-  return { ok: true, accounts: mapped }
+
+  if (!force && syncInFlight) {
+    return syncInFlight
+  }
+
+  syncInFlight = (async () => {
+    try {
+      const result = await fetchSuperadminAdmins(force)
+      if (!result.ok || !result.admins) {
+        return {
+          ok: false,
+          accounts: getAdminAccounts(),
+          error: result.error || 'Failed to load administrator accounts from backend.',
+        }
+      }
+      const mapped = result.admins.map(mapBackendAdminToAccount)
+      saveAdminAccounts(mapped)
+      lastSyncTimestamp = Date.now()
+      return { ok: true, accounts: mapped }
+    } finally {
+      syncInFlight = null
+    }
+  })()
+
+  return syncInFlight
 }
 
 export function resetToDefaultAccounts(): AdminAccount[] {
@@ -619,12 +300,14 @@ export function resetToDefaultAccounts(): AdminAccount[] {
 
 export function getAdminActivities(): AdminActivityLog[] {
   const stored = getStored<AdminActivityLog[]>(ACTIVITIES_STORAGE_KEY, [])
-  if (!stored || stored.length === 0 || !stored[0]?.category) {
-    const fresh = generateDefaultAdminActivities()
-    setStored(ACTIVITIES_STORAGE_KEY, fresh)
-    return fresh
+  if (!stored || !Array.isArray(stored)) {
+    return []
   }
-  return stored
+  const real = stored.filter((a) => !a.isDemo && !a.id.startsWith('act-'))
+  if (real.length !== stored.length) {
+    setStored(ACTIVITIES_STORAGE_KEY, real)
+  }
+  return real
 }
 
 export function saveAdminActivities(activities: AdminActivityLog[]): void {
@@ -635,9 +318,49 @@ export function saveAdminActivities(activities: AdminActivityLog[]): void {
 }
 
 export function resetToDefaultActivities(): AdminActivityLog[] {
-  const fresh = generateDefaultAdminActivities()
-  saveAdminActivities(fresh)
-  return fresh
+  saveAdminActivities([])
+  return []
+}
+
+export async function syncAdminActivitiesFromBackend(): Promise<{
+  ok: boolean
+  activities: AdminActivityLog[]
+  error?: string
+}> {
+  const result = await fetchSuperadminActivity({ limit: 100 })
+  if (!result.ok || !result.activities) {
+    return {
+      ok: false,
+      activities: getAdminActivities(),
+      error: result.error || 'Failed to load activities from backend.',
+    }
+  }
+  const mapped: AdminActivityLog[] = result.activities.map((a: any) => ({
+    id: String(a.id),
+    adminId: String(a.adminId || a.details?.actor_admin_id || ''),
+    adminName: String(a.adminName || a.details?.actor_name || a.adminEmail?.split('@')[0] || 'Administrator'),
+    adminEmail: String(a.adminEmail || a.admin_email || 'system'),
+    action: String(a.action || 'admin.action'),
+    category: (a.category as ActivityCategory) || 'Platform Operations',
+    targetResource: String(a.targetResource || a.target_id || a.target_type || ''),
+    severity: (a.severity as ActivitySeverity) || 'info',
+    timestamp: a.timestamp || formatRelativeTime(a.created_at || a.isoTimestamp),
+    isoTimestamp: a.isoTimestamp || a.created_at || new Date().toISOString(),
+    description: a.description || undefined,
+    previousValue: a.previousValue || undefined,
+    newValue: a.newValue || undefined,
+    source: a.source || 'Super Admin Portal',
+    ipAddress: a.ipAddress || a.ip_address || '',
+    userAgent: a.userAgent || a.user_agent || '',
+    targetType: a.target_type || a.targetType || '',
+    targetId: a.target_id || a.targetId || '',
+    details: a.details || {},
+    isDemo: false,
+  }))
+  if (mapped.length > 0) {
+    saveAdminActivities(mapped)
+  }
+  return { ok: true, activities: mapped.length > 0 ? mapped : getAdminActivities() }
 }
 
 export function logAdminActivity(
@@ -862,12 +585,9 @@ export function getAdminSummaryStats() {
   const pending = accounts.filter((a) => a.status === 'invited').length
 
   const roleDistribution: Record<AdminRole, number> = {
+    superadmin: 0,
     super_admin: 0,
     admin: 0,
-    infrastructure_admin: 0,
-    billing_admin: 0,
-    support_admin: 0,
-    security_auditor: 0,
   }
 
   accounts.forEach((a) => {

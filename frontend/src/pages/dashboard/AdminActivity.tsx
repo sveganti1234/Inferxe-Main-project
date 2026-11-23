@@ -27,20 +27,30 @@ import {
   ChevronUp,
   BarChart3,
   Layers,
-  Sparkles,
+  Laptop,
+  Radio,
+  LogOut,
+  AlertOctagon,
 } from 'lucide-react'
 import { DashboardLayout } from '../../components/dashboard/DashboardLayout'
 import { usePageMeta } from '../../lib/hooks'
 import {
   getAdminAccounts,
   getAdminActivities,
-  resetToDefaultActivities,
   getAdminRoleMeta,
+  syncAdminAccountsFromBackend,
+  formatRelativeTime,
   type AdminActivityLog,
   type ActivityCategory,
   type ActivitySeverity,
   type AdminAccount,
 } from '../../lib/adminAccountStore'
+import {
+  fetchSuperadminActivity,
+  fetchSuperadminSessions,
+  revokeSuperadminSession,
+  type SuperadminSessionRecord,
+} from '../../lib/authStore'
 
 const ALL_CATEGORIES: ActivityCategory[] = [
   'Admin Accounts',
@@ -118,6 +128,32 @@ export default function AdminActivity() {
     'Real-time immutable audit trail, administrative lifecycle operations, and security telemetry.'
   )
 
+  // Navigation View Tab: 'activity' | 'sessions'
+  const [activeTab, setActiveTab] = useState<'activity' | 'sessions'>('activity')
+
+  // Live Sessions State
+  const [sessions, setSessions] = useState<SuperadminSessionRecord[]>([])
+  const [sessionStats, setSessionStats] = useState({
+    total: 0,
+    activeCount: 0,
+    expiredCount: 0,
+    revokedCount: 0,
+  })
+  const [sessionLoading, setSessionLoading] = useState(false)
+  const [sessionSearch, setSessionSearch] = useState('')
+  const [sessionStatusFilter, setSessionStatusFilter] = useState<'all' | 'active' | 'expired' | 'revoked'>('all')
+  const [sessionAdminFilter, setSessionAdminFilter] = useState<string>('all')
+  const [sessionPage, setSessionPage] = useState(1)
+  const sessionPageSize = 10
+
+  // Session Revocation Modal State
+  const [sessionToRevoke, setSessionToRevoke] = useState<SuperadminSessionRecord | null>(null)
+  const [revokeReason, setRevokeReason] = useState('')
+  const [isRevoking, setIsRevoking] = useState(false)
+
+  // Backend Sync State
+  const [isLoadingBackend, setIsLoadingBackend] = useState(false)
+
   // Data State
   const [activities, setActivities] = useState<AdminActivityLog[]>(() => getAdminActivities())
   const [adminAccounts, setAdminAccounts] = useState<AdminAccount[]>(() => getAdminAccounts())
@@ -138,7 +174,6 @@ export default function AdminActivity() {
   // Modals & Drawers
   const [selectedEvent, setSelectedEvent] = useState<AdminActivityLog | null>(null)
   const [profileAdminEmail, setProfileAdminEmail] = useState<string | null>(null)
-  const [resetModalOpen, setResetModalOpen] = useState(false)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' | 'error' } | null>(null)
 
@@ -151,6 +186,91 @@ export default function AdminActivity() {
     const timer = setTimeout(() => setToast(null), 3600)
     return () => clearTimeout(timer)
   }, [toast])
+
+  // Backend Data Loading from Supabase
+  const loadBackendData = useCallback(async (force = false) => {
+    if (activities.length === 0) setIsLoadingBackend(true)
+    try {
+      await Promise.all([
+        syncAdminAccountsFromBackend(force).then((res) => {
+          if (res.ok && res.accounts) {
+            setAdminAccounts(res.accounts)
+          }
+        }).catch(() => {}),
+        (async () => {
+          const actRes = await fetchSuperadminActivity({ limit: 150 }, force)
+          if (actRes.ok && actRes.activities && actRes.activities.length > 0) {
+            const mapped: AdminActivityLog[] = actRes.activities.map((a: any) => ({
+              id: String(a.id),
+              adminId: String(a.adminId || a.details?.actor_admin_id || ''),
+              adminName: String(a.adminName || a.details?.actor_name || a.adminEmail?.split('@')[0] || 'Administrator'),
+              adminEmail: String(a.adminEmail || a.admin_email || 'system'),
+              action: String(a.action || 'admin.action'),
+              category: (a.category as ActivityCategory) || 'Platform Operations',
+              targetResource: String(a.targetResource || a.target_id || a.target_type || ''),
+              severity: (a.severity as ActivitySeverity) || 'info',
+              timestamp: a.timestamp || formatRelativeTime(a.created_at || a.isoTimestamp),
+              isoTimestamp: a.isoTimestamp || a.created_at || new Date().toISOString(),
+              description: a.description || undefined,
+              previousValue: a.previousValue || undefined,
+              newValue: a.newValue || undefined,
+              source: a.source || 'Super Admin Portal',
+              ipAddress: a.ipAddress || a.ip_address || '',
+              isDemo: false,
+            }))
+            setActivities(mapped)
+          }
+        })(),
+        (async () => {
+          if (sessions.length === 0) setSessionLoading(true)
+          try {
+            const sessRes = await fetchSuperadminSessions({ limit: 150 }, force)
+            if (sessRes.ok && sessRes.sessions) {
+              setSessions(sessRes.sessions)
+              setSessionStats({
+                total: sessRes.totalCount || sessRes.total || sessRes.sessions.length,
+                activeCount: sessRes.activeCount || 0,
+                expiredCount: sessRes.expiredCount || 0,
+                revokedCount: sessRes.revokedCount || 0,
+              })
+            }
+          } finally {
+            setSessionLoading(false)
+          }
+        })(),
+      ])
+    } finally {
+      setIsLoadingBackend(false)
+    }
+  }, [activities.length, sessions.length])
+
+  useEffect(() => {
+    void loadBackendData()
+  }, [loadBackendData])
+
+  // Session Revocation Action
+  const handleConfirmRevokeSession = async () => {
+    if (!sessionToRevoke) return
+    setIsRevoking(true)
+    try {
+      const res = await revokeSuperadminSession(
+        sessionToRevoke.id,
+        revokeReason.trim() || 'Revoked by Super Admin in Active Session Management',
+      )
+      if (res.ok) {
+        showToast(`Session for ${sessionToRevoke.admin_email} has been revoked successfully.`, 'success')
+        setSessionToRevoke(null)
+        setRevokeReason('')
+        await loadBackendData(true)
+      } else {
+        showToast(res.error || 'Failed to revoke administrator session.', 'error')
+      }
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : 'Error revoking session.', 'error')
+    } finally {
+      setIsRevoking(false)
+    }
+  }
 
   // Cross-component and localStorage synchronization
   const reloadData = useCallback(() => {
@@ -170,7 +290,7 @@ export default function AdminActivity() {
   }, [reloadData])
 
   // Prevent background scroll when modals are open
-  const isAnyModalOpen = Boolean(selectedEvent || profileAdminEmail || resetModalOpen)
+  const isAnyModalOpen = Boolean(selectedEvent || profileAdminEmail || sessionToRevoke)
   useEffect(() => {
     if (isAnyModalOpen) {
       document.body.style.overflow = 'hidden'
@@ -181,6 +301,33 @@ export default function AdminActivity() {
       document.body.style.overflow = ''
     }
   }, [isAnyModalOpen])
+
+  // Filtered Sessions
+  const filteredSessions = useMemo(() => {
+    const query = sessionSearch.trim().toLowerCase()
+    return sessions.filter((s) => {
+      if (query) {
+        const matchEmail = s.admin_email.toLowerCase().includes(query)
+        const matchName = s.admin_name?.toLowerCase().includes(query) || false
+        const matchId = s.id.toLowerCase().includes(query)
+        const matchRole = s.role.toLowerCase().includes(query)
+        if (!matchEmail && !matchName && !matchId && !matchRole) return false
+      }
+      if (sessionStatusFilter !== 'all' && s.status !== sessionStatusFilter) {
+        return false
+      }
+      if (sessionAdminFilter !== 'all' && s.admin_email.toLowerCase() !== sessionAdminFilter.toLowerCase()) {
+        return false
+      }
+      return true
+    })
+  }, [sessions, sessionSearch, sessionStatusFilter, sessionAdminFilter])
+
+  const totalSessionPages = Math.ceil(filteredSessions.length / sessionPageSize) || 1
+  const paginatedSessions = useMemo(() => {
+    const start = (sessionPage - 1) * sessionPageSize
+    return filteredSessions.slice(start, start + sessionPageSize)
+  }, [filteredSessions, sessionPage, sessionPageSize])
 
   // Copy helper
   const copyToClipboard = (text: string, id: string) => {
@@ -220,15 +367,17 @@ export default function AdminActivity() {
     }).length
 
     const uniqueActors = new Set(activities.map((a) => a.adminEmail.toLowerCase())).size
+    const activeAdmins = adminAccounts.filter((a) => a.status === 'active').length || uniqueActors
     const criticalCount = activities.filter((a) => a.severity === 'critical').length
 
     return {
       totalEvents,
       eventsToday,
       uniqueActors,
+      activeAdmins,
       criticalCount,
     }
-  }, [activities])
+  }, [activities, adminAccounts])
 
   // ── Filtered and Sorted Activities ──────────────────────────────────
   const filteredActivities = useMemo(() => {
@@ -472,14 +621,6 @@ export default function AdminActivity() {
     showToast(`Exported ${filteredActivities.length} activity records to CSV`, 'success')
   }
 
-  // ── Reset Demo Activities ────────────────────────────────────────────
-  const handleConfirmReset = () => {
-    const fresh = resetToDefaultActivities()
-    setActivities(fresh)
-    setResetModalOpen(false)
-    showToast('Activity stream successfully reset to initial demonstration dataset', 'success')
-  }
-
   // ── Selected Profile Admin Details ──────────────────────────────────
   const profileAdminData = useMemo(() => {
     if (!profileAdminEmail) return null
@@ -549,19 +690,11 @@ export default function AdminActivity() {
                 <ShieldCheck size={12} />
                 Super Admin
               </span>
-              <span className="sa-meta-badge sa-meta-badge--lime">
-                <Sparkles size={12} />
-                Phase 3
-              </span>
-              <span className="sa-meta-badge sa-meta-badge--purple">
-                <Layers size={12} />
-                Audit Stream
-              </span>
-              <span className="sa-meta-badge sa-meta-badge--amber">
-                <span className="sa-meta-badge__dot" />
-                Prototype RBAC Sandbox
-              </span>
               <span className="sa-meta-badge sa-meta-badge--emerald">
+                <span className="sa-meta-badge__dot" />
+                Live Supabase Telemetry
+              </span>
+              <span className="sa-meta-badge sa-meta-badge--cyan">
                 {activities.length} Recorded Events
               </span>
             </div>
@@ -587,17 +720,95 @@ export default function AdminActivity() {
           <button
             type="button"
             className="sa-btn-secondary"
-            onClick={() => setResetModalOpen(true)}
-            title="Restore demonstration activities"
+            onClick={() => void loadBackendData(true)}
+            disabled={isLoadingBackend}
+            title="Refresh live activity events from Supabase"
           >
-            <RotateCcw size={14} />
-            Reset Demo Log
+            <RotateCcw size={14} className={isLoadingBackend ? 'sa-spin' : undefined} />
+            <span>{isLoadingBackend ? 'Refreshing...' : 'Refresh'}</span>
           </button>
         </div>
       </motion.div>
 
-      {/* ── 2. Overview KPI Cards ────────────────────────────────────────── */}
-      <div className="sa-kpi-grid">
+      {/* ── View Mode Switcher: Activity Stream vs Active Sessions ── */}
+      <div
+        style={{
+          display: 'flex',
+          gap: 10,
+          margin: '20px 0 16px 0',
+          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+          paddingBottom: 14,
+          alignItems: 'center',
+          flexWrap: 'wrap',
+        }}
+      >
+        <button
+          type="button"
+          className={activeTab === 'activity' ? 'sa-btn-primary' : 'sa-btn-secondary'}
+          onClick={() => setActiveTab('activity')}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '9px 18px', fontSize: '0.86rem' }}
+        >
+          <Activity size={15} />
+          <span>Activity Stream & Audit Logs</span>
+          <span
+            style={{
+              background: activeTab === 'activity' ? 'rgba(0, 0, 0, 0.3)' : 'rgba(255, 255, 255, 0.1)',
+              borderRadius: 10,
+              padding: '2px 8px',
+              fontSize: '0.72rem',
+              fontWeight: 700,
+            }}
+          >
+            {activities.length}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          className={activeTab === 'sessions' ? 'sa-btn-primary' : 'sa-btn-secondary'}
+          onClick={() => setActiveTab('sessions')}
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '9px 18px', fontSize: '0.86rem' }}
+        >
+          <Laptop size={15} />
+          <span>Active Sessions & Login History</span>
+          <span
+            style={{
+              background: activeTab === 'sessions' ? 'rgba(0, 0, 0, 0.3)' : 'rgba(80, 227, 150, 0.18)',
+              color: activeTab === 'sessions' ? 'inherit' : '#50e396',
+              borderRadius: 10,
+              padding: '2px 8px',
+              fontSize: '0.72rem',
+              fontWeight: 700,
+            }}
+          >
+            {sessionStats.activeCount} Active
+          </span>
+        </button>
+
+        <button
+          type="button"
+          className="sa-btn-secondary"
+          onClick={() => void loadBackendData(true)}
+          disabled={isLoadingBackend}
+          style={{
+            marginLeft: 'auto',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 6,
+            padding: '7px 14px',
+            fontSize: '0.78rem',
+          }}
+          title="Refresh data directly from Supabase"
+        >
+          <RotateCcw size={13} className={isLoadingBackend ? 'spin' : ''} />
+          <span>{isLoadingBackend ? 'Syncing...' : 'Sync Live Data'}</span>
+        </button>
+      </div>
+
+      {activeTab === 'activity' ? (
+        <>
+          {/* ── 2. Overview KPI Cards ────────────────────────────────────────── */}
+          <div className="sa-kpi-grid">
         <motion.div
           className="sa-kpi-card sa-kpi-card--primary"
           initial={{ opacity: 0, y: 12 }}
@@ -648,10 +859,10 @@ export default function AdminActivity() {
               <UserCheck size={18} />
             </div>
           </div>
-          <div className="sa-kpi-val">{kpiStats.uniqueActors}</div>
+          <div className="sa-kpi-val">{kpiStats.activeAdmins}</div>
           <div className="sa-kpi-sub">
-            <span className="sa-stat-trend sa-stat-trend--neutral">Actors</span>
-            <span>Distinct privileged accounts</span>
+            <span className="sa-stat-trend sa-stat-trend--neutral">Active</span>
+            <span>Live admin_users & sessions</span>
           </div>
         </motion.div>
 
@@ -688,9 +899,6 @@ export default function AdminActivity() {
           <div className="sa-analytics-title">
             <BarChart3 size={18} style={{ color: '#50e396' }} />
             <span>Activity Telemetry & Breakdown</span>
-            <span className="sa-demo-chip" style={{ fontSize: '0.65rem' }}>
-              Zero-Dependency SVG/CSS
-            </span>
           </div>
           <button
             type="button"
@@ -1027,14 +1235,26 @@ export default function AdminActivity() {
       </div>
 
       {/* ── 6. Activity Timeline Feed ─────────────────────────────────────── */}
-      {paginatedActivities.length === 0 ? (
+      {isLoadingBackend && activities.length === 0 ? (
+        <div className="sa-empty-state">
+          <div className="sa-empty-icon-wrap" style={{ background: 'rgba(80, 227, 150, 0.1)', color: '#50e396' }}>
+            <Activity size={24} style={{ animation: 'spin 1.2s linear infinite' }} />
+          </div>
+          <h3 className="sa-empty-title">Loading Activity Stream...</h3>
+          <p className="sa-empty-desc">
+            Querying live Supabase audit logs and administrator events...
+          </p>
+        </div>
+      ) : paginatedActivities.length === 0 ? (
         <div className="sa-empty-state">
           <div className="sa-empty-icon-wrap" style={{ background: 'rgba(80, 227, 150, 0.1)', color: '#50e396' }}>
             <Activity size={24} />
           </div>
           <h3 className="sa-empty-title">No Activity Events Found</h3>
           <p className="sa-empty-desc">
-            No events match your current filter parameters. Try clearing your search query or selecting a broader date range.
+            {activities.length === 0
+              ? 'No activity events recorded yet. Platform mutations and administrator actions will log here in real-time.'
+              : 'No events match your current filter parameters. Try clearing your search query or selecting a broader date range.'}
           </p>
           {activeFiltersCount > 0 && (
             <button type="button" className="sa-btn-primary" onClick={handleClearFilters}>
@@ -1202,6 +1422,394 @@ export default function AdminActivity() {
             <span>Next</span>
             <ChevronRight size={15} />
           </button>
+        </div>
+      )}
+        </>
+      ) : (
+        <div className="sa-sessions-view">
+          {/* Sessions KPI Grid */}
+          <div className="sa-kpi-grid">
+            <motion.div
+              className="sa-kpi-card sa-kpi-card--primary"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.05 }}
+            >
+              <div className="sa-kpi-header">
+                <span className="sa-kpi-label">Total Recorded Sessions</span>
+                <div className="sa-kpi-icon-wrap sa-stat-icon--cyan">
+                  <Laptop size={18} />
+                </div>
+              </div>
+              <div className="sa-kpi-val">{sessionStats.total}</div>
+              <div className="sa-kpi-sub">
+                <span className="sa-stat-trend sa-stat-trend--neutral">All Time</span>
+                <span>Database sessions</span>
+              </div>
+            </motion.div>
+
+            <motion.div
+              className="sa-kpi-card sa-kpi-card--primary"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.1 }}
+            >
+              <div className="sa-kpi-header">
+                <span className="sa-kpi-label">Active Sessions</span>
+                <div className="sa-kpi-icon-wrap sa-stat-icon--lime">
+                  <Radio size={18} />
+                </div>
+              </div>
+              <div className="sa-kpi-val" style={{ color: '#50e396' }}>
+                {sessionStats.activeCount}
+              </div>
+              <div className="sa-kpi-sub">
+                <span className="sa-stat-trend sa-stat-trend--up">Authorized</span>
+                <span>Currently active</span>
+              </div>
+            </motion.div>
+
+            <motion.div
+              className="sa-kpi-card sa-kpi-card--primary"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.15 }}
+            >
+              <div className="sa-kpi-header">
+                <span className="sa-kpi-label">Expired Sessions</span>
+                <div className="sa-kpi-icon-wrap sa-stat-icon--amber" style={{ color: '#f59e0b', background: 'rgba(245, 158, 11, 0.15)' }}>
+                  <Clock size={18} />
+                </div>
+              </div>
+              <div className="sa-kpi-val" style={{ color: '#fbbf24' }}>
+                {sessionStats.expiredCount}
+              </div>
+              <div className="sa-kpi-sub">
+                <span className="sa-stat-trend sa-stat-trend--neutral">TTL Elapsed</span>
+                <span>Natural expiration</span>
+              </div>
+            </motion.div>
+
+            <motion.div
+              className="sa-kpi-card sa-kpi-card--red"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: 0.2 }}
+            >
+              <div className="sa-kpi-header">
+                <span className="sa-kpi-label">Revoked Sessions</span>
+                <div className="sa-kpi-icon-wrap sa-stat-icon--red">
+                  <AlertOctagon size={18} />
+                </div>
+              </div>
+              <div className="sa-kpi-val" style={{ color: '#ef4444' }}>
+                {sessionStats.revokedCount}
+              </div>
+              <div className="sa-kpi-sub">
+                <span className="sa-stat-trend sa-stat-trend--down">Terminated</span>
+                <span>Super Admin revoked</span>
+              </div>
+            </motion.div>
+          </div>
+
+          {/* Sessions Filter & Search Bar */}
+          <div className="sa-filter-bar" style={{ marginBottom: 18 }}>
+            <div className="sa-search-wrap" style={{ flex: '1 1 240px' }}>
+              <Search size={15} className="sa-search-icon" aria-hidden="true" />
+              <input
+                type="text"
+                className="sa-search-input"
+                placeholder="Search sessions by administrator email, name, role, ID..."
+                value={sessionSearch}
+                onChange={(e) => {
+                  setSessionSearch(e.target.value)
+                  setSessionPage(1)
+                }}
+              />
+              {sessionSearch && (
+                <button
+                  type="button"
+                  className="sa-search-clear-btn"
+                  onClick={() => setSessionSearch('')}
+                  aria-label="Clear search"
+                >
+                  <X size={13} />
+                </button>
+              )}
+            </div>
+
+            {/* Filter by Status */}
+            <select
+              className="sa-select"
+              value={sessionStatusFilter}
+              onChange={(e) => {
+                setSessionStatusFilter(e.target.value as any)
+                setSessionPage(1)
+              }}
+              title="Filter by Session Status"
+              style={{ minWidth: 150 }}
+            >
+              <option value="all">All Statuses ({sessions.length})</option>
+              <option value="active">Active Only ({sessionStats.activeCount})</option>
+              <option value="expired">Expired Only ({sessionStats.expiredCount})</option>
+              <option value="revoked">Revoked Only ({sessionStats.revokedCount})</option>
+            </select>
+
+            {/* Filter by Administrator */}
+            <select
+              className="sa-select"
+              value={sessionAdminFilter}
+              onChange={(e) => {
+                setSessionAdminFilter(e.target.value)
+                setSessionPage(1)
+              }}
+              title="Filter by Administrator"
+              style={{ minWidth: 160 }}
+            >
+              <option value="all">All Administrators</option>
+              {adminAccounts.map((acc) => (
+                <option key={acc.id} value={acc.email}>
+                  {acc.fullName} ({acc.email.split('@')[0]})
+                </option>
+              ))}
+            </select>
+
+            {(sessionSearch || sessionStatusFilter !== 'all' || sessionAdminFilter !== 'all') && (
+              <button
+                type="button"
+                className="sa-btn-secondary"
+                onClick={() => {
+                  setSessionSearch('')
+                  setSessionStatusFilter('all')
+                  setSessionAdminFilter('all')
+                  setSessionPage(1)
+                }}
+                style={{ padding: '7px 12px', fontSize: '0.78rem' }}
+              >
+                <X size={13} />
+                Reset Filters
+              </button>
+            )}
+          </div>
+
+          {/* Sessions Table */}
+          <div className="sa-table-container">
+            <table className="sa-table">
+              <thead>
+                <tr>
+                  <th style={{ width: '26%' }}>Administrator</th>
+                  <th style={{ width: '22%' }}>Session ID</th>
+                  <th style={{ width: '12%' }}>Status</th>
+                  <th style={{ width: '13%' }}>Created</th>
+                  <th style={{ width: '13%' }}>Expires</th>
+                  <th style={{ width: '14%', textAlign: 'right' }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sessionLoading ? (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: 'center', padding: '48px 16px', color: '#94a3b8' }}>
+                      <RotateCcw size={22} className="spin" style={{ margin: '0 auto 10px', display: 'block', color: '#50e396' }} />
+                      Loading live administrator sessions from Supabase...
+                    </td>
+                  </tr>
+                ) : filteredSessions.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} style={{ textAlign: 'center', padding: '48px 16px', color: '#94a3b8' }}>
+                      <Laptop size={32} style={{ margin: '0 auto 10px', opacity: 0.4, display: 'block' }} />
+                      <div style={{ fontWeight: 600, color: '#e2e8f0' }}>No Administrator Sessions Found</div>
+                      <div style={{ fontSize: '0.8rem', marginTop: 4 }}>
+                        {sessions.length === 0
+                          ? 'No session records found in Supabase admin_sessions table.'
+                          : 'No sessions match your filter criteria.'}
+                      </div>
+                    </td>
+                  </tr>
+                ) : (
+                  paginatedSessions.map((s) => {
+                    const acc = adminAccountMap.get(s.admin_email.toLowerCase())
+                    const isSuper = s.role === 'superadmin' || s.role === 'super_admin'
+
+                    return (
+                      <tr key={s.id} className={s.status === 'revoked' ? 'sa-row--inactive' : ''}>
+                        <td>
+                          <div className="sa-user-cell">
+                            <div
+                              className="sa-avatar sa-avatar--sm"
+                              style={{
+                                background: acc?.avatarGradient || (isSuper ? 'linear-gradient(135deg, #50e396, #0e3820)' : 'linear-gradient(135deg, #06b6d4, #083344)'),
+                                borderRadius: '50%',
+                              }}
+                            >
+                              {acc?.avatarInitials || (s.admin_name || s.admin_email).substring(0, 2).toUpperCase()}
+                            </div>
+                            <div className="sa-user-meta" style={{ minWidth: 0 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <span className="sa-user-meta__name" style={{ color: '#ffffff', fontWeight: 600 }}>
+                                  {s.admin_name || acc?.fullName || s.admin_email.split('@')[0]}
+                                </span>
+                                <span className={isSuper ? 'chip chip--lime' : 'chip chip--cyan'} style={{ fontSize: '0.62rem', padding: '1px 6px' }}>
+                                  {isSuper ? 'SUPER ADMIN' : 'ADMIN'}
+                                </span>
+                              </div>
+                              <span className="sa-user-meta__dept" style={{ color: '#94a3b8', fontSize: '0.74rem' }}>
+                                {s.admin_email}
+                              </span>
+                            </div>
+                          </div>
+                        </td>
+
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <code style={{ fontSize: '0.74rem', color: '#cbd5e1', background: 'rgba(0,0,0,0.3)', padding: '2px 6px', borderRadius: 4 }}>
+                              {s.id.slice(0, 8)}...{s.id.slice(-6)}
+                            </code>
+                            <button
+                              type="button"
+                              className="sa-copy-btn"
+                              onClick={() => copyToClipboard(s.id, s.id)}
+                              title="Copy Session ID"
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: 2 }}
+                            >
+                              {copiedId === s.id ? <Check size={12} style={{ color: '#50e396' }} /> : <Copy size={12} />}
+                            </button>
+                            <span style={{ fontSize: '0.68rem', color: '#64748b' }}>v{s.session_version}</span>
+                          </div>
+                        </td>
+
+                        <td>
+                          {s.status === 'active' ? (
+                            <span
+                              className="chip chip--lime"
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: '0.72rem' }}
+                            >
+                              <span
+                                style={{
+                                  width: 6,
+                                  height: 6,
+                                  borderRadius: '50%',
+                                  background: '#50e396',
+                                  boxShadow: '0 0 8px #50e396',
+                                }}
+                              />
+                              ACTIVE
+                            </span>
+                          ) : s.status === 'revoked' ? (
+                            <span
+                              className="chip chip--red"
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: '0.72rem' }}
+                            >
+                              <span
+                                style={{
+                                  width: 6,
+                                  height: 6,
+                                  borderRadius: '50%',
+                                  background: '#ef4444',
+                                }}
+                              />
+                              REVOKED
+                            </span>
+                          ) : (
+                            <span
+                              className="chip chip--amber"
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: '0.72rem' }}
+                            >
+                              <span
+                                style={{
+                                  width: 6,
+                                  height: 6,
+                                  borderRadius: '50%',
+                                  background: '#f59e0b',
+                                }}
+                              />
+                              EXPIRED
+                            </span>
+                          )}
+                        </td>
+
+                        <td title={s.created_at} style={{ fontSize: '0.78rem', color: '#cbd5e1' }}>
+                          {formatRelativeTime(s.created_at)}
+                        </td>
+
+                        <td title={s.expires_at} style={{ fontSize: '0.78rem', color: '#cbd5e1' }}>
+                          {formatRelativeTime(s.expires_at)}
+                        </td>
+
+                        <td style={{ textAlign: 'right' }}>
+                          {s.status === 'active' ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSessionToRevoke(s)
+                                setRevokeReason('')
+                              }}
+                              className="sa-btn-danger"
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: 5,
+                                padding: '4px 10px',
+                                fontSize: '0.74rem',
+                                color: '#f87171',
+                                border: '1px solid rgba(239, 68, 68, 0.4)',
+                                background: 'rgba(239, 68, 68, 0.1)',
+                                borderRadius: 6,
+                                cursor: 'pointer',
+                              }}
+                              title="Immediately invalidate this session token"
+                            >
+                              <LogOut size={12} />
+                              <span>Revoke Session</span>
+                            </button>
+                          ) : (
+                            <span style={{ fontSize: '0.74rem', color: '#64748b' }}>
+                              {s.status === 'revoked' ? (
+                                <span title={s.revoked_at || undefined}>Revoked</span>
+                              ) : (
+                                <span>Expired</span>
+                              )}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Sessions Pagination Footer */}
+          {totalSessionPages > 1 && (
+            <div className="sa-pagination-container" style={{ marginTop: 16 }}>
+              <button
+                type="button"
+                className="sa-pagination-btn"
+                disabled={sessionPage === 1}
+                onClick={() => setSessionPage((p) => Math.max(1, p - 1))}
+                aria-label="Previous Page"
+              >
+                <ChevronLeft size={15} />
+                <span>Previous</span>
+              </button>
+
+              <div className="sa-pagination-indicator">
+                Page <strong className="sa-pagination-current">{sessionPage}</strong> of{' '}
+                <span className="sa-pagination-total">{totalSessionPages}</span>
+              </div>
+
+              <button
+                type="button"
+                className="sa-pagination-btn"
+                disabled={sessionPage === totalSessionPages}
+                onClick={() => setSessionPage((p) => Math.min(totalSessionPages, p + 1))}
+                aria-label="Next Page"
+              >
+                <span>Next</span>
+                <ChevronRight size={15} />
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -1668,18 +2276,20 @@ export default function AdminActivity() {
         )}
       </AnimatePresence>
 
-      {/* ── 10. Modal: Reset Demonstration Activities Confirmation ────────── */}
+      {/* ── 10b. Modal: Revoke Session Confirmation ────────────────────────── */}
       <AnimatePresence>
-        {resetModalOpen && (
+        {sessionToRevoke && (
           <div
             className="sa-modal-overlay"
-            onClick={() => setResetModalOpen(false)}
+            onClick={() => {
+              if (!isRevoking) setSessionToRevoke(null)
+            }}
             role="dialog"
             aria-modal="true"
           >
             <motion.div
               className="sa-modal-container"
-              style={{ maxWidth: 480 }}
+              style={{ maxWidth: 500 }}
               onClick={(e) => e.stopPropagation()}
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -1688,40 +2298,107 @@ export default function AdminActivity() {
             >
               <div className="sa-modal-header">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div className="sa-shield-icon-wrap" style={{ width: 34, height: 34, color: '#f59e0b', borderColor: 'rgba(245, 158, 11, 0.4)', background: 'rgba(245, 158, 11, 0.12)' }}>
-                    <RotateCcw size={17} />
+                  <div
+                    className="sa-shield-icon-wrap"
+                    style={{
+                      width: 36,
+                      height: 36,
+                      color: '#ef4444',
+                      borderColor: 'rgba(239, 68, 68, 0.4)',
+                      background: 'rgba(239, 68, 68, 0.12)',
+                    }}
+                  >
+                    <AlertOctagon size={18} />
                   </div>
-                  <h3 className="sa-modal-title">Reset Activity Demonstration Log?</h3>
+                  <h3 className="sa-modal-title">Revoke Administrator Session?</h3>
                 </div>
                 <button
                   type="button"
                   className="sa-modal-close"
-                  onClick={() => setResetModalOpen(false)}
+                  onClick={() => {
+                    if (!isRevoking) setSessionToRevoke(null)
+                  }}
                   aria-label="Close"
+                  disabled={isRevoking}
                 >
                   <X size={18} />
                 </button>
               </div>
 
               <div className="sa-modal-body">
-                <p style={{ fontSize: '0.85rem', color: '#cbd5e1', lineHeight: 1.5, margin: 0 }}>
-                  This will restore the activity monitoring stream to the 14 seeded platform demonstration records, resetting all custom mutation logs created during this browser session.
+                <p style={{ fontSize: '0.86rem', color: '#cbd5e1', lineHeight: 1.5, margin: 0 }}>
+                  You are about to revoke the active session for{' '}
+                  <strong style={{ color: '#ffffff' }}>{sessionToRevoke.admin_email}</strong>.
                 </p>
+
+                <div
+                  style={{
+                    padding: '12px',
+                    background: 'rgba(0, 0, 0, 0.4)',
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    borderRadius: 8,
+                    fontSize: '0.78rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 6,
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#64748b' }}>Administrator:</span>
+                    <span style={{ color: '#ffffff', fontWeight: 600 }}>{sessionToRevoke.admin_email}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#64748b' }}>Role:</span>
+                    <span style={{ color: '#38bdf8', textTransform: 'uppercase' }}>{sessionToRevoke.role}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#64748b' }}>Session ID:</span>
+                    <code style={{ color: '#50e396', fontFamily: 'monospace' }}>
+                      {sessionToRevoke.id.slice(0, 8)}...{sessionToRevoke.id.slice(-6)}
+                    </code>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#64748b' }}>Created:</span>
+                    <span style={{ color: '#cbd5e1' }}>{formatRelativeTime(sessionToRevoke.created_at)}</span>
+                  </div>
+                </div>
+
                 <div
                   style={{
                     padding: '10px 12px',
-                    background: 'rgba(245, 158, 11, 0.08)',
-                    border: '1px solid rgba(245, 158, 11, 0.25)',
+                    background: 'rgba(239, 68, 68, 0.08)',
+                    border: '1px solid rgba(239, 68, 68, 0.25)',
                     borderRadius: 8,
                     fontSize: '0.78rem',
-                    color: '#fbbf24',
+                    color: '#fca5a5',
                     display: 'flex',
                     alignItems: 'center',
                     gap: 8,
                   }}
                 >
-                  <AlertTriangle size={15} flex-shrink="0" />
-                  <span>Seed demonstration records will be refreshed with current timestamps.</span>
+                  <AlertTriangle size={16} style={{ flexShrink: 0 }} />
+                  <span>
+                    Revoking will immediately terminate this session in Supabase. Subsequent requests using this session token will fail with HTTP 401 Unauthorized immediately.
+                  </span>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="revoke-reason-input"
+                    style={{ display: 'block', fontSize: '0.78rem', color: '#94a3b8', marginBottom: 6 }}
+                  >
+                    Revocation Reason (Optional):
+                  </label>
+                  <input
+                    id="revoke-reason-input"
+                    type="text"
+                    className="sa-search-input"
+                    style={{ width: '100%', borderRadius: 6 }}
+                    placeholder="e.g., Routine credential rotation, Suspicious access pattern, etc."
+                    value={revokeReason}
+                    onChange={(e) => setRevokeReason(e.target.value)}
+                    disabled={isRevoking}
+                  />
                 </div>
               </div>
 
@@ -1729,16 +2406,33 @@ export default function AdminActivity() {
                 <button
                   type="button"
                   className="sa-btn-secondary"
-                  onClick={() => setResetModalOpen(false)}
+                  onClick={() => setSessionToRevoke(null)}
+                  disabled={isRevoking}
                 >
                   Cancel
                 </button>
                 <button
                   type="button"
                   className="sa-btn-primary"
-                  onClick={handleConfirmReset}
+                  onClick={handleConfirmRevokeSession}
+                  disabled={isRevoking}
+                  style={{
+                    background: '#ef4444',
+                    borderColor: '#dc2626',
+                    color: '#ffffff',
+                  }}
                 >
-                  Yes, Reset Demo Log
+                  {isRevoking ? (
+                    <>
+                      <RotateCcw size={14} className="spin" />
+                      <span>Revoking...</span>
+                    </>
+                  ) : (
+                    <>
+                      <LogOut size={14} />
+                      <span>Confirm Revocation</span>
+                    </>
+                  )}
                 </button>
               </div>
             </motion.div>

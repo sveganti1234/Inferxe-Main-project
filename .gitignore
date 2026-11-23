@@ -31,6 +31,8 @@ database/*.db
 database/*.db-wal
 database/*.db-shm
 database/backups/
+database/chroma_db/
+*.sqlite3
 
 #backend 
 backend/.env

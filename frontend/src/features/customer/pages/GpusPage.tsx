@@ -26,6 +26,8 @@ import {
   selectUnavailableSaved,
   sortListings,
   SAMPLE_GPU_LISTINGS,
+  getLocalWishlistIds,
+  toggleLocalWishlistId,
   type GpuArchOrStatusFilter,
   type ListingSort,
   type ListingView,
@@ -195,10 +197,16 @@ export default function GpusPage() {
 
   // Local overlay so a save/unsave is reflected immediately; cleared whenever fresh workspace data arrives.
   const [overrides, setOverrides] = useState<Record<string, boolean>>({})
+  const [localWishlist, setLocalWishlist] = useState<string[]>(() => getLocalWishlistIds())
   const [busyId, setBusyId] = useState<string | null>(null)
   const [message, setMessage] = useState<{ tone: 'success' | 'error'; text: string } | null>(null)
 
   useEffect(() => setOverrides({}), [workspace])
+  useEffect(() => {
+    const onWishlistChange = () => setLocalWishlist(getLocalWishlistIds())
+    window.addEventListener('inferxe_wishlist_change', onWishlistChange)
+    return () => window.removeEventListener('inferxe_wishlist_change', onWishlistChange)
+  }, [])
 
   const liveListings = useMemo(() => (workspace ? selectListings(workspace) : []), [workspace])
   const orphans = useMemo(() => (workspace ? selectUnavailableSaved(workspace) : []), [workspace])
@@ -226,7 +234,11 @@ export default function GpusPage() {
 
   const options = useMemo(() => selectFilterOptions(listings), [listings])
 
-  const isSaved = (l: ListingView) => overrides[l.id] ?? l.saved
+  const isSaved = (l: ListingView) => {
+    if (overrides[l.id] !== undefined) return overrides[l.id]
+    if (l.isSample) return localWishlist.includes(l.id)
+    return l.saved
+  }
   const withSaved = listings.map((l) => ({ ...l, saved: isSaved(l) }))
   const savedCount = withSaved.filter((l) => l.saved).length
   const visible = sortListings(
@@ -240,6 +252,7 @@ export default function GpusPage() {
     setMessage(null)
     if (listing.isSample) {
       // Development sample data wishlist toggle (persisted locally)
+      toggleLocalWishlistId(listing.id)
       setOverrides((o) => ({ ...o, [listing.id]: !currentlySaved }))
       setBusyId(null)
       return

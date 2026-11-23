@@ -160,8 +160,9 @@ export async function fetchInferenceHealth(signal?: AbortSignal): Promise<Infere
   return {
     status: body.status,
     providerStatus,
-    // 8001 reports nvidia_provider as 'configured' or 'missing_api_key'; only the former can serve requests.
-    inferenceAvailable: providerStatus === 'configured',
+    // 8001 reports nvidia_provider as 'configured', 'demo' (simulated replies) or 'missing_api_key'.
+    inferenceAvailable: providerStatus === 'configured' || providerStatus === 'demo',
+    simulated: providerStatus === 'demo',
   }
 }
 

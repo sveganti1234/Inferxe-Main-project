@@ -2,7 +2,7 @@
 Pydantic data validation schemas for the Inferxe Inference API.
 """
 
-from typing import Optional, List, Any, Dict
+from typing import Literal, Optional, List, Any, Dict
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -252,4 +252,29 @@ class NotebookTelemetryResponse(BaseModel):
     telemetry: Dict[str, Any]
     is_simulated: bool = True
 
+
+class RecommendRequest(BaseModel):
+    """Structured workload profile for GPU compatibility and routing (DPR §8)."""
+    model_id: Literal[
+        "qwen2.5-7b", "llama-3.1-8b", "mistral-7b", "qwen2.5-14b",
+        "mistral-small-24b", "qwen2.5-32b", "llama-3.1-70b",
+    ]
+    quant: Literal["fp16", "fp8", "int4"] = "fp16"
+    context: int = Field(default=8192, ge=256, le=131072)
+    concurrency: int = Field(default=1, ge=1, le=512)
+    mode: Literal["cost", "speed", "balanced"] = "cost"
+    max_hourly_inr: Optional[float] = Field(default=None, gt=0)
+    min_tokens_per_sec: Optional[float] = Field(default=None, gt=0)
+    providers: Optional[List[str]] = Field(default=None, max_length=20, description="Provider id allow-list")
+    region: Optional[str] = Field(default=None, max_length=64, description="Substring the offer region must contain")
+    sovereign_only: bool = False
+
+
+class PricingEstimateRequest(BaseModel):
+    """Estimated infrastructure cost for one catalogue offer."""
+    offer_id: str = Field(..., max_length=128)
+    gpu_count: int = Field(default=1, ge=1, le=8)
+    hours: float = Field(..., gt=0, le=8760)
+    storage_gb: float = Field(default=0, ge=0, le=100000)
+    spot: bool = False
 

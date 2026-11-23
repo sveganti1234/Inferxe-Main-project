@@ -11,17 +11,21 @@
 import {
   Activity,
   BellRing,
+  Bookmark,
   BrainCircuit,
   CreditCard,
   Cpu,
   FlaskConical,
+  Gift,
+  HelpCircle,
   KeyRound,
   LayoutDashboard,
-  LifeBuoy,
   Receipt,
   Rocket,
   Settings2,
+  ShieldCheck,
   SquareTerminal,
+  UserRound,
   Wallet,
   type LucideIcon,
 } from 'lucide-react'
@@ -37,13 +41,17 @@ export type SectionId =
   | 'gpus'
   | 'playground'
   | 'deployments'
+  | 'wishlist'
   | 'orders'
   | 'api-keys'
+  | 'ssh-keys'
   | 'usage'
   | 'developer'
   | 'billing'
   | 'checkout'
+  | 'rewards'
   | 'notifications'
+  | 'profile'
   | 'settings'
   | 'help'
 
@@ -78,7 +86,7 @@ export const CONSOLE_SECTIONS: ConsoleSection[] = [
   },
   {
     id: 'models',
-    label: 'Model marketplace',
+    label: 'LLM catalog',
     path: 'models',
     icon: BrainCircuit,
     group: 'Compute & AI',
@@ -121,6 +129,21 @@ export const CONSOLE_SECTIONS: ConsoleSection[] = [
     capabilities: ['Read-only view of your deployment records', 'Provisioning controls once the backend supports them'],
   },
   {
+    id: 'wishlist',
+    label: 'Wishlist',
+    path: 'wishlist',
+    icon: Bookmark,
+    group: 'Compute & AI',
+    availability: 'live',
+    description: 'Review your bookmarked GPU listings for quick deployment.',
+    availabilityNote: 'Bookmarked GPU instances saved for instant comparison and deployment.',
+    capabilities: [
+      'Saved GPU instances inventory and specifications',
+      'One-click deployment navigation',
+      'Remove and toggle bookmarks in sync with GPU Marketplace',
+    ],
+  },
+  {
     id: 'api-keys',
     label: 'API keys',
     path: 'api-keys',
@@ -130,6 +153,21 @@ export const CONSOLE_SECTIONS: ConsoleSection[] = [
     description: 'Create and revoke keys for the Inferxe inference API.',
     availabilityNote: 'Manages your real API keys.',
     capabilities: ['Create keys (secret shown once)', 'Revoke keys', 'Quick-start code for the inference API'],
+  },
+  {
+    id: 'ssh-keys',
+    label: 'SSH Keys',
+    path: 'ssh-keys',
+    icon: ShieldCheck,
+    group: 'Developer Tools',
+    availability: 'live',
+    description: 'Configure demo SSH credentials for compute cluster access.',
+    availabilityNote: 'Register public keys to enable secure terminal and container shell pairing.',
+    capabilities: [
+      'Register OpenSSH public keys (ed25519, RSA)',
+      'Display key fingerprints and public snippets',
+      'One-click copy and secure removal',
+    ],
   },
   {
     id: 'developer',
@@ -203,26 +241,68 @@ export const CONSOLE_SECTIONS: ConsoleSection[] = [
     ],
   },
   {
+    id: 'rewards',
+    label: 'Rewards & Discounts',
+    path: 'rewards',
+    icon: Gift,
+    group: 'Billing & Payments',
+    availability: 'live',
+    description: 'Referral discounts, coupon codes and creator trial codes.',
+    availabilityNote: 'Referral tracking, promotional discount coupons, and 1-hour creator trials.',
+    capabilities: [
+      'Personal referral link and tracking counter',
+      'Earned referral compute discount tracker',
+      'Creator and YouTuber 1-hour trial activation',
+      'Active coupon codes directory',
+    ],
+  },
+  {
+    id: 'profile',
+    label: 'Profile and Settings',
+    path: 'profile',
+    icon: UserRound,
+    group: 'Settings',
+    availability: 'live',
+    description: 'Manage your personal account details, avatar, and role.',
+    availabilityNote: 'Real customer profile, organization details, and session security.',
+    capabilities: [
+      'Personal profile details and dynamic avatar initials',
+      'Corporate SSO-managed email and organization preferences',
+      'Change account password with real-time strength validation',
+      'Sovereign tenant security enclave status and JWT token inspection',
+    ],
+  },
+  {
     id: 'settings',
-    label: 'Settings',
+    label: 'Workspace Settings',
     path: 'settings',
     icon: Settings2,
     group: 'Settings',
     availability: 'live',
-    description: 'Profile, security and organization details.',
-    availabilityNote: 'Your real account settings.',
-    capabilities: ['Edit your display name', 'Change your password', 'Organization and access limits'],
+    description: 'Configure demo preferences, quotas and workspace details.',
+    availabilityNote: 'Workspace preferences, quota limits, and security controls.',
+    capabilities: [
+      'Monthly spending limits and quota configurations',
+      'API CORS origins and security settings',
+      'Spending over-quota notifications and telemetry reports',
+      'Account password updates and credential management',
+    ],
   },
   {
     id: 'help',
-    label: 'Help',
+    label: 'Chatbot and Help',
     path: 'help',
-    icon: LifeBuoy,
+    icon: HelpCircle,
     group: 'Support',
     availability: 'reference',
-    description: 'Guides, answers and the Inferxe assistant.',
-    availabilityNote: 'Reference documentation.',
-    capabilities: ['Answers to common questions', 'Developer documentation', 'Ask the Inferxe assistant'],
+    description: 'Frequently asked questions, architecture guidelines, and support.',
+    availabilityNote: 'Technical architecture, pricing guarantees, hardware specifications, and API documentation.',
+    capabilities: [
+      'Technical architecture and sovereign compute guidelines',
+      'Frequently asked questions and support',
+      'Developer documentation and OpenAI SDK reference',
+      'Interactive AI Chatbot assistant',
+    ],
   },
 ]
 
