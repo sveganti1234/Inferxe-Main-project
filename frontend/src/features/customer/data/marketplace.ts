@@ -132,6 +132,35 @@ export const SAMPLE_GPU_LISTINGS: ListingView[] = [
   },
 ]
 
+export const WISHLIST_STORAGE_KEY = 'inferxe_demo_wishlist_v1'
+export const DEFAULT_WISHLIST_IDS = ['sample-gpu-101', 'sample-gpu-104']
+
+export function getLocalWishlistIds(): string[] {
+  try {
+    const raw = localStorage.getItem(WISHLIST_STORAGE_KEY)
+    if (!raw) return DEFAULT_WISHLIST_IDS
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed : DEFAULT_WISHLIST_IDS
+  } catch {
+    return DEFAULT_WISHLIST_IDS
+  }
+}
+
+export function setLocalWishlistIds(ids: string[]): void {
+  try {
+    localStorage.setItem(WISHLIST_STORAGE_KEY, JSON.stringify(ids))
+    window.dispatchEvent(new CustomEvent('inferxe_wishlist_change'))
+  } catch {}
+}
+
+export function toggleLocalWishlistId(id: string): boolean {
+  const current = getLocalWishlistIds()
+  const exists = current.includes(id)
+  const next = exists ? current.filter((item) => item !== id) : [...current, id]
+  setLocalWishlistIds(next)
+  return !exists
+}
+
 const text = (value: unknown): string | null => {
   if (value === null || value === undefined) return null
   const s = String(value).trim()
@@ -139,9 +168,9 @@ const text = (value: unknown): string | null => {
 }
 
 export function selectListings(ws: CustomerWorkspace): ListingView[] {
-  const providers = new Map(ws.gpu_providers.map((p) => [p.id, p]))
-  const saved = new Map(ws.saved_gpu_listings.map((s) => [s.listing_id, s]))
-  return ws.gpu_listings.map((l): ListingView => {
+  const providers = new Map((ws.gpu_providers ?? []).map((p) => [p.id, p]))
+  const saved = new Map((ws.saved_gpu_listings ?? []).map((s) => [s.listing_id, s]))
+  return (ws.gpu_listings ?? []).map((l): ListingView => {
     const provider = l.provider_id ? providers.get(l.provider_id) : undefined
     const quantity = toFiniteNumber(l.quantity)
     return {

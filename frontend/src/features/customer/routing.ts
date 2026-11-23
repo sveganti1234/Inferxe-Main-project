@@ -52,6 +52,7 @@ const LEGACY_WORKSPACE_PAGES: Record<string, string> = {
   gpus: 'gpus',
   models: 'models',
   deployments: 'deployments',
+  wishlist: 'wishlist',
   orders: 'orders',
   'api-keys': 'api-keys',
   analytics: 'usage',
