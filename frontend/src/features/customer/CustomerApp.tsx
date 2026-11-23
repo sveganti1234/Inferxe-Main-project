@@ -79,6 +79,10 @@ export default function CustomerApp() {
             const Page = IMPLEMENTED[section.id]
             return <Route key={section.id} path={section.path} element={Page ? <Page /> : <SectionPreview id={section.id} />} />
           })}
+          <Route path="faq" element={<HelpPage />} />
+          <Route path="chatbot" element={<HelpPage />} />
+          <Route path="workspace" element={<SettingsPage />} />
+          <Route path="quotas" element={<SettingsPage />} />
           <Route path="*" element={<ConsoleNotFound />} />
         </Route>
       </Routes>

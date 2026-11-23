@@ -1,5 +1,5 @@
 /**
- * Model marketplace — a REFERENCE catalogue.
+ * LLM catalog — a REFERENCE catalogue.
  * Specifications come from the static catalogue (`src/data/gpus.ts`) and the existing memory
  * calculator (`lib/calc.ts`). Nothing here reflects what Inferxe is serving or what anything
  * costs: no prices, no availability, no roadmap status. The page says so, next to the data.
@@ -196,7 +196,7 @@ export default function ModelsPage() {
   return (
     <>
       <PageHeader
-        title="Model marketplace"
+        title="LLM catalog"
         description="Browse open-weight models and estimate the GPU memory they need."
       />
 

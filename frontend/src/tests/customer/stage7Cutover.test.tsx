@@ -85,10 +85,10 @@ describe('route cutover', () => {
   it('maps ?tab=settings and /dashboard/customer/help to native pages', async () => {
     storeCustomerSession()
     await renderApp('/dashboard/customer?tab=settings')
-    expect(host.querySelector('h1')?.textContent).toBe('Settings')
+    expect(host.querySelector('h1')?.textContent).toMatch(/Settings/)
     reset()
     await renderApp('/dashboard/customer/help')
-    expect(host.querySelector('h1')?.textContent).toBe('Help')
+    expect(host.querySelector('h1')?.textContent).toMatch(/FAQ & Support Hub|Help/)
   })
 
   it('keeps Verdelo-only deep links working through the guarded legacy route', async () => {

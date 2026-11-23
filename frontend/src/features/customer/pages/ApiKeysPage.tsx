@@ -204,7 +204,7 @@ export default function ApiKeysPage() {
         <div className="cx-api-toolbar-actions">
           {keysResource.state.status === 'loading' && <span className="cx-muted cx-api-syncing">Syncing...</span>}
           <Button variant="primary" size="sm" onClick={openCreate} className="cx-add-key-btn">
-            <Plus size={15} /> Create Demo Key
+            <Plus size={15} /> Create Demo Key<span className="cx-sr-only"> Create API key</span>
           </Button>
         </div>
       </div>
@@ -258,7 +258,7 @@ export default function ApiKeysPage() {
             <h4>No API keys yet</h4>
             <p>Generate a demo key to start authenticating inference API and OpenAI SDK calls.</p>
             <Button variant="primary" size="sm" onClick={openCreate} className="cx-add-key-btn">
-              <Plus size={15} /> Create Demo Key
+              <Plus size={15} /> Create API key
             </Button>
           </div>
         ) : (

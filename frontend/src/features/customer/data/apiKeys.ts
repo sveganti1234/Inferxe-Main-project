@@ -4,6 +4,7 @@
  * Provides resilient fallback to demo credentials when backend authentication
  * fails or is unavailable in local demonstration sessions (media_1795415386682_3d3f521e.jpg).
  */
+import { ensureFreshSession } from '../../../lib/authStore'
 import {
   createBackendApiKey,
   fetchBackendApiKeys,
@@ -104,11 +105,12 @@ export function toApiKeyView(key: BackendApiKey): ApiKeyView {
       ? 'test'
       : 'live'
   const prefix = key.key_prefix ?? (environment === 'test' ? 'inf_demo_test_' : 'inf_demo_live_')
+  const maskedToken = prefix.startsWith('inf_demo_') ? `${prefix}••••••••` : `${prefix}…`
   return {
     id: key.id,
     name: key.name,
     prefix,
-    maskedToken: `${prefix}…`,
+    maskedToken,
     environment,
     active: Boolean(key.is_active) && !key.revoked_at,
     createdAt: key.created_at ?? null,
@@ -131,25 +133,30 @@ export function sortApiKeys(keys: ApiKeyView[]): ApiKeyView[] {
  */
 export async function listApiKeys(): Promise<ApiKeyView[]> {
   try {
+    const session = await ensureFreshSession()
+    if (!session?.token) {
+      return getLocalApiKeys()
+    }
     const result = await fetchBackendApiKeys()
-    if (result && result.ok && Array.isArray(result.keys)) {
+    if (result.unauthorized) {
+      throw new CustomerApiError('unauthenticated', result.error ?? 'Your session has expired', 401)
+    }
+    if (!result.ok) {
+      throw new CustomerApiError('server', result.error ?? 'Failed to fetch API keys from backend.', 500)
+    }
+    if (result.ok && Array.isArray(result.keys)) {
       const views = sortApiKeys(result.keys.map(toApiKeyView))
       if (views.length > 0) {
         saveLocalApiKeys(views)
       }
       return views
     }
-    if (result && !result.ok) {
-      if ((result as any).expired) {
-        throw new CustomerApiError('unauthenticated', 'Your session has expired')
-      }
-      if (!result.unauthorized) {
-        throw new CustomerApiError('server', result.error || 'Failed to fetch API keys')
-      }
-    }
   } catch (err) {
-    if (err instanceof CustomerApiError) throw err
-    // Backend unavailable or database unauthenticated -> fallback smoothly to local demo keys
+    if (err instanceof CustomerApiError) {
+      throw err
+    }
+    // Network failure or unmocked in test without fetch handler -> fallback to getLocalApiKeys()
+  }
   }
   return getLocalApiKeys()
 }
@@ -170,27 +177,38 @@ export async function createApiKey(
   const now = new Date().toISOString()
   const localId = `key-${Date.now().toString().slice(-4)}`
 
-  // Try backend first if available
+  // Try backend first if authenticated session is present
   try {
-    const result = await createBackendApiKey(trimmed, environment)
-    if (result && result.ok && result.data?.api_key) {
-      const { api_key: backendSecret, ...rest } = result.data
-      const newKey = toApiKeyView({
-        id: rest.id,
-        name: rest.name,
-        key_prefix: rest.key_prefix,
-        environment: rest.environment === 'test' ? 'test' : 'live',
-        is_active: true,
-        created_at: rest.created_at,
-        last_used_at: null,
-        revoked_at: null,
-      })
-      // Do not store secretToken in localStorage for real backend keys (security requirement)
-      const current = getLocalApiKeys()
-      saveLocalApiKeys([newKey, ...current])
-      return { secret: backendSecret, key: newKey }
+    const session = await ensureFreshSession()
+    if (session?.token) {
+      const result = await createBackendApiKey(trimmed, environment)
+      if (result.unauthorized) {
+        throw new CustomerApiError('unauthenticated', result.error ?? 'Session expired or unauthenticated.', 401)
+      }
+      if (!result.ok) {
+        throw new CustomerApiError('server', result.error ?? 'Failed to generate API key.', 500)
+      }
+      if (result.data?.api_key) {
+        const { api_key: backendSecret, ...rest } = result.data
+        const newKey = toApiKeyView({
+          id: rest.id,
+          name: rest.name,
+          key_prefix: rest.key_prefix,
+          environment: rest.environment === 'test' ? 'test' : 'live',
+          is_active: true,
+          created_at: rest.created_at,
+          last_used_at: null,
+          revoked_at: null,
+        })
+        // Secret is never persisted to localStorage for backend-managed keys
+        const current = getLocalApiKeys()
+        saveLocalApiKeys([newKey, ...current])
+        return { secret: backendSecret, key: newKey }
+      }
     }
-  } catch {
+    }
+  } catch (err) {
+    if (err instanceof CustomerApiError) throw err
     // Continue with resilient local generation
   }
 
@@ -215,8 +233,19 @@ export async function createApiKey(
 
 export async function revokeApiKey(id: string): Promise<void> {
   try {
-    await revokeBackendApiKey(id)
-  } catch {
+    const session = await ensureFreshSession()
+    if (session?.token) {
+      const result = await revokeBackendApiKey(id)
+      if (result.unauthorized) {
+        throw new CustomerApiError('unauthenticated', result.error ?? 'Session expired or unauthenticated.', 401)
+      }
+      if (!result.ok) {
+        throw new CustomerApiError('server', result.error ?? 'Failed to revoke API key.', 500)
+      }
+      return
+    }
+  } catch (err) {
+    if (err instanceof CustomerApiError) throw err
     // Continue with resilient local revocation
   }
 
