@@ -25,6 +25,7 @@ import DeploymentsPage from './pages/DeploymentsPage'
 import OrdersPage from './pages/OrdersPage'
 import CheckoutPage from './pages/CheckoutPage'
 import RewardsPage from './pages/RewardsPage'
+import ProfilePage from './pages/ProfilePage'
 import HelpPage from './pages/HelpPage'
 import SectionPreview from './pages/SectionPreview'
 import type { SectionId } from './navigation'
@@ -45,6 +46,7 @@ const IMPLEMENTED: Partial<Record<SectionId, () => ReactElement>> = {
   orders: () => <OrdersPage />,
   checkout: () => <CheckoutPage />,
   rewards: () => <RewardsPage />,
+  profile: () => <ProfilePage />,
   help: () => <HelpPage />,
 }
 import { ButtonLink, Card } from './ui/primitives'

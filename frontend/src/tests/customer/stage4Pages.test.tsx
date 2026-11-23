@@ -361,6 +361,14 @@ describe('Usage & analytics', () => {
     expect(byText('a', /Create an API key/)).toBeTruthy()
   })
 
+  it('points to the playground instead of key creation when an active key exists', async () => {
+    handlers['GET /api/customer/workspace'] = () =>
+      jsonResponse(200, workspaceEnvelope(emptyWorkspace({ api_keys: [{ id: 'k1', name: 'k', status: 'active' }] as never })))
+    await render('/dashboard/app/usage')
+    expect(byText('a', /Create an API key/)).toBeFalsy()
+    expect(byText('a', /Send a request in the playground/)).toBeTruthy()
+  })
+
   it('distinguishes "none in this period" from "none ever"', async () => {
     handlers['GET /api/customer/workspace'] = () =>
       jsonResponse(200, workspaceEnvelope(emptyWorkspace({ inference_requests: [reqRec({ created_at: ago(60 * DAY) })] })))

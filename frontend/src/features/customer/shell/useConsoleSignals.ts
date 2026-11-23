@@ -11,6 +11,7 @@ import { useAsyncResource } from '../data/useAsyncResource'
 export interface ConsoleSignals {
   unreadCount: number | null
   inferenceAvailable: boolean | null
+  inferenceSimulated?: boolean
   inferenceChecked: boolean
 }
 
@@ -32,6 +33,7 @@ export function useConsoleSignals(): ConsoleSignals {
   return {
     unreadCount: unread.state.status === 'ready' ? unread.state.data : null,
     inferenceAvailable: health.state.status === 'ready' ? health.state.data.inferenceAvailable : null,
+    inferenceSimulated: health.state.status === 'ready' && health.state.data.simulated,
     inferenceChecked: health.state.status !== 'loading',
   }
 }

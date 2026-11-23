@@ -338,5 +338,7 @@ export interface WalletBalance {
 export interface InferenceServiceHealth {
   status: string
   inferenceAvailable: boolean
+  /** True when the server answers with simulated (demo) replies instead of a real model. */
+  simulated: boolean
   providerStatus: Nullable<string>
 }
