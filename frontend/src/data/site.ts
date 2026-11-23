@@ -101,7 +101,7 @@ export const PAGE_INDEX = [
   { to: '/dashboard', title: 'Admin Console · Dashboard', kw: 'dashboard console telemetry clusters deployments admin' },
   { to: '/dashboard/app', title: 'Customer Console', kw: 'customer console dashboard overview usage api keys billing' },
   { to: '/dashboard/app/gpus', title: 'GPU Marketplace · Dashboard', kw: 'gpu marketplace buy reserve l4 l40s h100 vram' },
-  { to: '/dashboard/app/models', title: 'Model Marketplace · Dashboard', kw: 'models llm llama qwen mistral deepseek vram weights' },
+  { to: '/dashboard/app/models', title: 'LLM Catalog · Dashboard', kw: 'models llm catalog llama qwen mistral deepseek vram weights' },
   { to: '/dashboard/app/deployments', title: 'Deployments · Dashboard', kw: 'deployments active running endpoints endpoints' },
   { to: '/dashboard/app/api-keys', title: 'API Keys · Dashboard', kw: 'api keys credentials tokens generate secret' },
   { to: '/dashboard/app/usage', title: 'Usage & Analytics · Dashboard', kw: 'analytics usage tokens requests latency metrics' },

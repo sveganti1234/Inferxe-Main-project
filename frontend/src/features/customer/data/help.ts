@@ -66,10 +66,10 @@ export const FAQ: FaqEntry[] = [
   {
     id: 'catalogue',
     category: 'Inference & models',
-    question: 'Are the models in the Model marketplace available to run?',
+    question: 'Are the models in the LLM catalog available to run?',
     answer:
-      'No. The Model marketplace is a reference catalogue of open-weight model specifications plus a GPU memory estimator. It does not show what Inferxe is serving, and it shows no prices or availability.',
-    links: [{ label: 'Model marketplace', to: 'models' }],
+      'No. The LLM catalog is a reference catalogue of open-weight model specifications plus a GPU memory estimator. It does not show what Inferxe is serving, and it shows no prices or availability.',
+    links: [{ label: 'LLM catalog', to: 'models' }],
   },
   {
     id: 'estimator',

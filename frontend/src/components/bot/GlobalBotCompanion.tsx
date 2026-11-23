@@ -251,7 +251,7 @@ export function getBotReply(query: string, currentPath: string = '/'): string {
   ) {
     return "### Customer Console Guide:\n\n" +
       "• [Overview](/dashboard/app): your account at a glance, built from your real records.\n" +
-      "• [Model marketplace](/dashboard/app/models): a reference catalogue of open-weight models and a GPU memory estimator. Reference specs only, not live availability or pricing.\n" +
+      "• [LLM catalog](/dashboard/app/models): a reference catalogue of open-weight models and a GPU memory estimator. Reference specs only, not live availability or pricing.\n" +
       "• [GPU marketplace](/dashboard/app/gpus): GPU capacity listed by providers. You can save listings; ordering is not available yet.\n" +
       "• [Inference playground](/dashboard/app/playground): send a prompt with your API key when the inference service is available.\n" +
       "• [Deployments](/dashboard/app/deployments): read-only records. Provisioning is not available yet.\n" +
@@ -284,7 +284,7 @@ export function getBotReply(query: string, currentPath: string = '/'): string {
       "   • Create an API key in [API keys](/dashboard/app/api-keys).\n" +
       "   • Send your inference requests to `POST /api/v1/inference` with your bearer token.\n" +
       "   • Test prompts in real time via the [Inference playground](/dashboard/app/playground).\n" +
-      "5. **Size Memory Before Renting**: Open the [Model marketplace](/dashboard/app/models) to calculate exact VRAM and KV-cache requirements for your target model and context length."
+      "5. **Size Memory Before Renting**: Open the [LLM catalog](/dashboard/app/models) to calculate exact VRAM and KV-cache requirements for your target model and context length."
     )
   }
 
@@ -343,7 +343,7 @@ export function getBotReply(query: string, currentPath: string = '/'): string {
       "1. Create an API key on [API keys](/dashboard/app/api-keys) and copy it when it is shown (it is displayed only once).\n" +
       "2. Send a request with `POST /api/v1/inference`, using your key as a bearer token and a JSON body with a `prompt` (optionally `max_tokens` and `temperature`). The server chooses the model.\n" +
       "3. Try it in the [Inference playground](/dashboard/app/playground) when the inference service reports that its provider is configured.\n" +
-      "4. Size a model for a GPU with the [Model marketplace](/dashboard/app/models) estimator (reference estimates only)."
+      "4. Size a model for a GPU with the [LLM catalog](/dashboard/app/models) estimator (reference estimates only)."
   }
 
   // 3j. Model Catalog & Supported Models
@@ -353,18 +353,19 @@ export function getBotReply(query: string, currentPath: string = '/'): string {
     q.includes('what models') ||
     q.includes('available models') ||
     q.includes('model catalog') ||
+    q.includes('llm catalog') ||
     q.includes('model marketplace') ||
     q.includes('list models')
   ) {
     return (
       "### Supported Models in Inferxe Reference Catalog:\n\n" +
-      "You can explore open-weight models and run memory sizing in the [Model marketplace](/dashboard/app/models):\n" +
+      "You can explore open-weight models and run memory sizing in the [LLM catalog](/dashboard/app/models):\n" +
       "• **Llama 3.3 / 3.1 (8B, 70B)**: Meta's flagship language models for general reasoning, conversation, and code.\n" +
       "• **Qwen 2.5 / Coder (7B, 14B, 32B, 72B)**: High-capability multilingual and coding models.\n" +
       "• **Mistral & Mixtral (7B, 8x7B, 8x22B MoE)**: High-efficiency MoE architectures optimized for fast inference.\n" +
       "• **DeepSeek-R1 / V3 (671B MoE / distilled 7B–70B)**: Premier open reasoning models.\n" +
       "• **Gemma 2 (2B, 9B, 27B)**: Google's lightweight open-weight models.\n\n" +
-      "Visit the [Model marketplace](/dashboard/app/models) to calculate exact VRAM (weights + KV cache) for your target context length."
+      "Visit the [LLM catalog](/dashboard/app/models) to calculate exact VRAM (weights + KV cache) for your target context length."
     )
   }
 
@@ -508,7 +509,7 @@ export function getBotReply(query: string, currentPath: string = '/'): string {
     "I am your Inferxe GPU & AI Assistant. Here is how I can help:\n\n" +
     "• **Rent & Reserve GPUs**: Browse live provider capacity on the [GPU marketplace](/dashboard/app/gpus).\n" +
     "• **Pricing & Rates**: Hourly rates starting at ₹60/hr for L4, ₹100/hr for L40S, and ₹250–₹300/hr for H100 SXM.\n" +
-    "• **Model Sizing**: Calculate required VRAM and KV cache memory on the [Model marketplace](/dashboard/app/models).\n" +
+    "• **Model Sizing**: Calculate required VRAM and KV cache memory on the [LLM catalog](/dashboard/app/models).\n" +
     "• **Inference API**: Generate keys on [API keys](/dashboard/app/api-keys) and call `POST /api/v1/inference`.\n" +
     "• **Billing & Wallet**: View account credits and demo top-ups at [Billing & wallet](/dashboard/app/billing).\n\n" +
     "Ask me about any specific GPU (e.g. 'H100 specs', 'L4 vs L40S'), pricing, or model sizing (e.g. 'GPU for 70B model')."

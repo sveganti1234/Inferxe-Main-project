@@ -86,7 +86,7 @@ export const CONSOLE_SECTIONS: ConsoleSection[] = [
   },
   {
     id: 'models',
-    label: 'Model marketplace',
+    label: 'LLM catalog',
     path: 'models',
     icon: BrainCircuit,
     group: 'Compute & AI',
