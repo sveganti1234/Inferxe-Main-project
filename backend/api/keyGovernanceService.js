@@ -421,11 +421,22 @@ export async function revokeSuperadminCredential({
         )
       }
 
-      throw new KeyGovernanceError(
-        'Concurrent API key state change detected; please retry revocation.',
-        503,
-        'CONCURRENT_STATE_CHANGE',
-      )
+      // Fallback direct revocation by key ID
+      const fallbackResult = await supabase
+        .from('api_keys')
+        .update({ status: 'revoked', revoked_at: nowIso })
+        .eq('id', cleanKeyId)
+        .select(API_KEY_METADATA_SELECT)
+
+      if (Array.isArray(fallbackResult?.data) && fallbackResult.data.length > 0) {
+        revokedRow = fallbackResult.data[0]
+      } else {
+        throw new KeyGovernanceError(
+          'Concurrent API key state change detected; please retry revocation.',
+          503,
+          'CONCURRENT_STATE_CHANGE',
+        )
+      }
     }
 
     const ownerProfile = await lookupOwnerEmail(supabase, revokedRow.user_id)

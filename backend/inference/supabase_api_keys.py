@@ -765,6 +765,27 @@ class SupabaseAPIKeyRepository:
         if existing.is_revoked_or_inactive:
             return existing, True
 
+        # Fallback direct revocation by key ID and authenticated user ID
+        fallback_updated = self._request_json(
+            "PATCH",
+            "api_keys",
+            query_params={
+                "id": f"eq.{key_uuid}",
+                "user_id": f"eq.{clean_user_id}",
+                "select": API_KEY_METADATA_COLUMNS,
+            },
+            payload={
+                "status": "revoked",
+                "revoked_at": now_iso,
+            },
+            prefer="return=representation",
+        )
+        if isinstance(fallback_updated, list) and len(fallback_updated) > 0:
+            revoked_record = SupabaseAPIKeyRecord.from_row(fallback_updated[0])
+            if revoked_record.user_id != clean_user_id:
+                raise SupabaseAPIKeyServiceUnavailableError("Revoked API key ownership mismatch.")
+            return revoked_record, False
+
         raise SupabaseAPIKeyServiceUnavailableError(
             "Concurrent API key state change detected; please retry revocation."
         )

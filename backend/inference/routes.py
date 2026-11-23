@@ -1,4 +1,4 @@
-﻿"""
+"""
 FastAPI route definitions for the Inferxe Inference API.
 Endpoints:
   - POST /api/v1/inference: Authenticated model execution
@@ -64,6 +64,10 @@ from inference.schemas import (
     NotebookResponse,
     NotebookListResponse,
     NotebookActionResponse,
+    RoutingRecommendRequest,
+    RoutingRecommendResponse,
+    NotebookLogsResponse,
+    NotebookTelemetryResponse,
 )
 from inference.ssh_key_service import (
     SSHKeyValidationError,
@@ -76,10 +80,17 @@ from inference.notebook_service import (
     start_notebook,
     stop_notebook,
     terminate_notebook,
+    get_notebook_logs,
+    get_notebook_telemetry,
     serialize_notebook,
     NotebookNotFoundError,
     NotebookValidationError,
     InvalidStateTransitionError,
+)
+from inference.routing_engine import (
+    evaluate_placement,
+    REFERENCE_MODELS,
+    REFERENCE_HARDWARE,
 )
 from inference.auth import (
     test_mode_enabled,
@@ -947,4 +958,227 @@ def delete_notebook_instance(
         message="Notebook terminated successfully.",
         notebook=serialize_notebook(notebook),
     )
+
+
+@router.post(
+    "/routing/recommend",
+    response_model=RoutingRecommendResponse,
+    summary="Recommend GPU Placement",
+    description="Automated DPR Placement & Routing decision engine evaluating VRAM footprint, KV cache, and provider hardware catalogue.",
+)
+def recommend_gpu_placement(request: RoutingRecommendRequest):
+    result = evaluate_placement(
+        model_id=request.model_id,
+        quantization=request.quantization,
+        context_tokens=request.context_tokens,
+        concurrency=request.concurrency,
+        priority=request.priority,
+        budget_inr_hr=request.budget_inr_hr,
+        min_tokens_per_sec=request.min_tokens_per_sec,
+    )
+    return RoutingRecommendResponse(
+        success=True,
+        workload=result["workload"],
+        memory_breakdown=result["memory_breakdown"],
+        recommended_placement=result["recommended_placement"],
+        candidates=result["candidates"],
+        note=result["note"],
+    )
+
+
+@router.get(
+    "/routing/catalogue",
+    summary="List GPU Routing Catalogue",
+    description="Lists all reference hardware offerings with memory bandwidth, VRAM, and planning rates.",
+)
+def get_routing_catalogue():
+    return {
+        "success": True,
+        "models": [
+            {
+                "id": m.id,
+                "family": m.family,
+                "name": m.name,
+                "params_billion": m.params_billion,
+                "architecture": m.architecture,
+            }
+            for m in REFERENCE_MODELS.values()
+        ],
+        "hardware": [
+            {
+                "gpu_id": h.gpu_id,
+                "name": h.name,
+                "vram_gb": h.vram_gb,
+                "memory_bandwidth_gbps": h.memory_bandwidth_gbps,
+                "hourly_rate_inr": h.hourly_rate_inr,
+                "hourly_rate_usd": h.hourly_rate_usd,
+                "architecture": h.architecture,
+                "is_available": True,
+            }
+            for h in REFERENCE_HARDWARE.values()
+        ],
+    }
+
+
+@router.get(
+    "/notebooks/{id}/logs",
+    response_model=NotebookLogsResponse,
+    summary="Get Notebook Runtime Logs",
+    description="Returns container initialization, CUDA boot, and runtime logs for a notebook instance.",
+)
+def get_notebook_runtime_logs(
+    id: str,
+    user_id: str = Depends(require_cognito_user),
+    repo: SupabaseNotebookRepository = Depends(get_notebook_repository),
+):
+    try:
+        nb_uuid = uuid.UUID(id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid notebook ID format. Expected UUID.",
+        )
+    try:
+        res = get_notebook_logs(repo=repo, notebook_id=nb_uuid, user_id=user_id)
+        return NotebookLogsResponse(
+            success=True,
+            notebook_id=res["notebook_id"],
+            name=res["name"],
+            status=res["status"],
+            logs=res["logs"],
+            is_simulated=True,
+        )
+    except NotebookNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Notebook not found.",
+        )
+    except Exception as e:
+        logger.error("Error retrieving notebook logs: %s", str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to load notebook logs.",
+        )
+
+
+@router.get(
+    "/notebooks/{id}/telemetry",
+    response_model=NotebookTelemetryResponse,
+    summary="Get Notebook Runtime Telemetry",
+    description="Returns live hardware metrics (power, temp, VRAM, fan speed) for an active instance.",
+)
+def get_notebook_instance_telemetry(
+    id: str,
+    user_id: str = Depends(require_cognito_user),
+    repo: SupabaseNotebookRepository = Depends(get_notebook_repository),
+):
+    try:
+        nb_uuid = uuid.UUID(id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid notebook ID format. Expected UUID.",
+        )
+    try:
+        res = get_notebook_telemetry(repo=repo, notebook_id=nb_uuid, user_id=user_id)
+        return NotebookTelemetryResponse(
+            success=True,
+            notebook_id=res["notebook_id"],
+            name=res["name"],
+            status=res["status"],
+            telemetry=res["telemetry"],
+            is_simulated=True,
+        )
+    except NotebookNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Notebook not found.",
+        )
+    except Exception as e:
+        logger.error("Error retrieving notebook telemetry: %s", str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to load notebook telemetry.",
+        )
+
+
+@router.get(
+    "/telemetry/hardware",
+    summary="Get Live Sovereign GPU Telemetry",
+    description="Returns real-time cluster telemetry across Indian sovereign nodes with realistic dynamic variance.",
+)
+def get_live_hardware_telemetry():
+    import time, math
+    from datetime import datetime, timezone
+    t = time.time()
+    phase = (t % 3600) / 15.0
+
+    return {
+        "success": True,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "is_simulated": True,
+        "clusters": [
+            {
+                "id": "cl-jarvis-in-01",
+                "name": "JarvisLabs Bangalore (IN-South)",
+                "provider": "JarvisLabs",
+                "region": "India (Bangalore)",
+                "status": "healthy",
+                "uptime": "99.98%",
+                "total_nodes": 16,
+                "active_nodes": 16,
+                "gpus": [
+                    {
+                        "type": "NVIDIA H100 80GB SXM5",
+                        "total": 32,
+                        "allocated": 28,
+                        "avg_temp_c": round(56.0 + 4.0 * math.sin(phase), 1),
+                        "power_w": round(480.0 + 20.0 * math.cos(phase), 1),
+                        "vram_used_gb": round(2120.0 + 45.0 * math.sin(phase * 0.5), 1),
+                        "vram_total_gb": 2560.0,
+                    },
+                    {
+                        "type": "NVIDIA A100 80GB PCIe",
+                        "total": 64,
+                        "allocated": 58,
+                        "avg_temp_c": round(62.0 + 3.0 * math.sin(phase + 1), 1),
+                        "power_w": round(340.0 + 15.0 * math.cos(phase), 1),
+                        "vram_used_gb": round(4480.0 + 60.0 * math.cos(phase * 0.4), 1),
+                        "vram_total_gb": 5120.0,
+                    },
+                ],
+            },
+            {
+                "id": "cl-e2e-in-02",
+                "name": "E2E Cloud Mumbai (IN-West)",
+                "provider": "E2E Cloud",
+                "region": "India (Mumbai)",
+                "status": "healthy",
+                "uptime": "99.95%",
+                "total_nodes": 24,
+                "active_nodes": 23,
+                "gpus": [
+                    {
+                        "type": "NVIDIA L40S 48GB",
+                        "total": 48,
+                        "allocated": 41,
+                        "avg_temp_c": round(58.0 + 4.0 * math.sin(phase * 1.2), 1),
+                        "power_w": round(310.0 + 18.0 * math.sin(phase), 1),
+                        "vram_used_gb": round(1880.0 + 35.0 * math.sin(phase), 1),
+                        "vram_total_gb": 2304.0,
+                    },
+                    {
+                        "type": "NVIDIA L4 24GB",
+                        "total": 32,
+                        "allocated": 26,
+                        "avg_temp_c": round(51.0 + 2.5 * math.cos(phase), 1),
+                        "power_w": round(72.0 + 4.0 * math.cos(phase * 0.8), 1),
+                        "vram_used_gb": round(610.0 + 20.0 * math.cos(phase), 1),
+                        "vram_total_gb": 768.0,
+                    },
+                ],
+            },
+        ],
+    }
+
 

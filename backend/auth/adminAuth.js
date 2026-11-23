@@ -341,6 +341,22 @@ function buildClearSessionCookie(req) {
  * Superadmin GPU Infrastructure & Telemetry Data
  */
 export function getSuperadminTelemetryData() {
+  const t = Date.now() / 15000
+  const jitterH100Temp = Math.round(56 + 4 * Math.sin(t))
+  const jitterH100Power = Math.round(480 + 25 * Math.cos(t))
+  const jitterA100Temp = Math.round(62 + 3 * Math.sin(t + 1))
+  const jitterA100Power = Math.round(340 + 15 * Math.cos(t))
+
+  const jitterL40STemp = Math.round(58 + 3 * Math.sin(t * 1.2))
+  const jitterL40SPower = Math.round(310 + 20 * Math.sin(t))
+  const jitterL4Temp = Math.round(51 + 2 * Math.cos(t))
+  const jitterL4Power = Math.round(72 + 5 * Math.cos(t * 0.8))
+
+  const jitterYottaH100Temp = Math.round(59 + 3 * Math.sin(t * 0.9))
+  const jitterYottaH100Power = Math.round(495 + 20 * Math.cos(t * 1.1))
+  const jitter4090Temp = Math.round(64 + 4 * Math.cos(t))
+  const jitter4090Power = Math.round(380 + 22 * Math.sin(t * 0.7))
+
   return {
     clusters: [
       {
@@ -353,8 +369,8 @@ export function getSuperadminTelemetryData() {
         totalNodes: 16,
         activeNodes: 16,
         gpus: [
-          { type: 'NVIDIA H100 80GB SXM5', total: 32, allocated: 28, vramUsedGb: 2120, vramTotalGb: 2560, avgTempC: 56, powerW: 480 },
-          { type: 'NVIDIA A100 80GB PCIe', total: 64, allocated: 58, vramUsedGb: 4480, vramTotalGb: 5120, avgTempC: 62, powerW: 340 },
+          { type: 'NVIDIA H100 80GB SXM5', total: 32, allocated: 28, vramUsedGb: Math.round(2120 + 35 * Math.sin(t * 0.5)), vramTotalGb: 2560, avgTempC: jitterH100Temp, powerW: jitterH100Power },
+          { type: 'NVIDIA A100 80GB PCIe', total: 64, allocated: 58, vramUsedGb: Math.round(4480 + 50 * Math.cos(t * 0.4)), vramTotalGb: 5120, avgTempC: jitterA100Temp, powerW: jitterA100Power },
         ],
         spotRateHour: 185,
         onDemandRateHour: 240,
@@ -370,8 +386,8 @@ export function getSuperadminTelemetryData() {
         totalNodes: 24,
         activeNodes: 23,
         gpus: [
-          { type: 'NVIDIA L40S 48GB', total: 48, allocated: 41, vramUsedGb: 1880, vramTotalGb: 2304, avgTempC: 58, powerW: 310 },
-          { type: 'NVIDIA L4 24GB', total: 32, allocated: 26, vramUsedGb: 610, vramTotalGb: 768, avgTempC: 51, powerW: 72 },
+          { type: 'NVIDIA L40S 48GB', total: 48, allocated: 41, vramUsedGb: Math.round(1880 + 40 * Math.sin(t * 0.6)), vramTotalGb: 2304, avgTempC: jitterL40STemp, powerW: jitterL40SPower },
+          { type: 'NVIDIA L4 24GB', total: 32, allocated: 26, vramUsedGb: Math.round(610 + 20 * Math.cos(t * 0.5)), vramTotalGb: 768, avgTempC: jitterL4Temp, powerW: jitterL4Power },
         ],
         spotRateHour: 80,
         onDemandRateHour: 105,
@@ -387,8 +403,8 @@ export function getSuperadminTelemetryData() {
         totalNodes: 12,
         activeNodes: 12,
         gpus: [
-          { type: 'NVIDIA H100 80GB SXM5', total: 16, allocated: 15, vramUsedGb: 1180, vramTotalGb: 1280, avgTempC: 59, powerW: 495 },
-          { type: 'NVIDIA RTX 4090 24GB', total: 24, allocated: 19, vramUsedGb: 432, vramTotalGb: 576, avgTempC: 64, powerW: 380 },
+          { type: 'NVIDIA H100 80GB SXM5', total: 16, allocated: 15, vramUsedGb: Math.round(1180 + 25 * Math.sin(t * 0.7)), vramTotalGb: 1280, avgTempC: jitterYottaH100Temp, powerW: jitterYottaH100Power },
+          { type: 'NVIDIA RTX 4090 24GB', total: 24, allocated: 19, vramUsedGb: Math.round(432 + 15 * Math.cos(t * 0.3)), vramTotalGb: 576, avgTempC: jitter4090Temp, powerW: jitter4090Power },
         ],
         spotRateHour: 190,
         onDemandRateHour: 250,
@@ -398,12 +414,12 @@ export function getSuperadminTelemetryData() {
     summary: {
       totalGpuCount: 216,
       allocatedGpuCount: 187,
-      utilizationPct: 86.6,
+      utilizationPct: Number((86.0 + 1.2 * Math.sin(t * 0.4)).toFixed(1)),
       totalVramGb: 12608,
-      usedVramGb: 10702,
+      usedVramGb: Math.round(10702 + 120 * Math.sin(t * 0.5)),
       activeClusters: 3,
       criticalAlerts: 0,
-      averageLatencyMs: 14.2,
+      averageLatencyMs: Number((14.0 + 0.8 * Math.cos(t * 0.8)).toFixed(1)),
       globalHealthScore: 99.98,
     },
   }

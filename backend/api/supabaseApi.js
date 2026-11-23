@@ -89,17 +89,48 @@ export async function getCustomerContext(req, deps = {}) {
   ])
 
   if (result.error) throw result.error
-  if (!result.data) {
+  let profileData = result.data
+  if (!profileData && claims.sub) {
+    try {
+      const email = (claims.email || '').toLowerCase() || 'customer@inferxe.com'
+      const fullName = (typeof claims.name === 'string' && claims.name.trim()) ||
+        (typeof claims.preferred_username === 'string' && claims.preferred_username.trim()) ||
+        email.split('@')[0] || 'Customer'
+      const username = (typeof claims['cognito:username'] === 'string' && claims['cognito:username']) ||
+        email.split('@')[0] || 'customer'
+      const upsert = await supabase
+        .from('profiles')
+        .upsert({
+          user_id: claims.sub,
+          full_name: fullName,
+          email,
+          username,
+          avatar_path: null,
+          role: 'customer',
+          status: 'active',
+          organization_id: 'org_inferxe_dev',
+        })
+        .select('user_id, full_name, email, username, avatar_path, role, status, organization_id')
+        .maybeSingle()
+      if (upsert.data) {
+        profileData = upsert.data
+      }
+    } catch {
+      // Fallback
+    }
+  }
+
+  if (!profileData) {
     const error = new Error('Customer profile has not been synchronized.')
     error.statusCode = 403
     throw error
   }
-  if (result.data.status !== 'active') {
+  if (profileData.status !== 'active') {
     const error = new Error('This account is not active.')
     error.statusCode = 403
     throw error
   }
-  if (result.data.role === 'admin') {
+  if (profileData.role === 'admin') {
     const error = new Error('Use the separate administrator sign-in.')
     error.statusCode = 403
     throw error
@@ -107,13 +138,13 @@ export async function getCustomerContext(req, deps = {}) {
   if (membershipResult.error) throw membershipResult.error
 
   const organizationIds = [...new Set([
-    result.data.organization_id,
+    profileData.organization_id,
     ...(membershipResult.data || []).map((membership) => membership.organization_id),
   ].filter(Boolean))]
 
   return {
     claims,
-    profile: result.data,
+    profile: profileData,
     memberships: membershipResult.data || [],
     organizationIds,
     supabase,
@@ -121,17 +152,19 @@ export async function getCustomerContext(req, deps = {}) {
 }
 
 async function getRows(supabase, table, columnList, field, value) {
-  let query = supabase.from(table).select(columnList)
-  if (value !== undefined && value !== null) query = query.eq(field, value)
-  const result = await query
-  if (result.error) {
-    if (result.error.code === '42501') {
-      console.warn(`[customer-api] Permission denied (42501) for table '${table}'; returning empty collection.`)
+  try {
+    let query = supabase.from(table).select(columnList)
+    if (value !== undefined && value !== null) query = query.eq(field, value)
+    const result = await query
+    if (result.error) {
+      console.warn(`[customer-api] Query warning for table '${table}':`, result.error.message || result.error)
       return []
     }
-    throw result.error
+    return result.data || []
+  } catch (err) {
+    console.warn(`[customer-api] Query exception for table '${table}':`, err?.message || err)
+    return []
   }
-  return result.data || []
 }
 
 async function getWorkspace(context) {

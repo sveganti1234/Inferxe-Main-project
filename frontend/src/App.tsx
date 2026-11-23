@@ -214,14 +214,6 @@ export default function App() {
                 </CustomerGuard>
               }
             />
-            <Route
-              path="/dashboard/verdelo"
-              element={<CustomerVerdeloWorkspace />}
-            />
-            <Route
-              path="/dashboard/verdelo/*"
-              element={<CustomerVerdeloWorkspace />}
-            />
             {/* Customer catch-all: old /dashboard/<page> workspace pages go to their native console equivalent. */}
             <Route
               path="/dashboard/*"
@@ -297,8 +289,6 @@ export default function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/signup" element={<Login initialMode="signup" />} />
               <Route path="/forgot-password" element={<Login initialMode="forgot" />} />
-              <Route path="/verdelo" element={<CustomerVerdeloWorkspace />} />
-              <Route path="/verdelo/*" element={<CustomerVerdeloWorkspace />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>

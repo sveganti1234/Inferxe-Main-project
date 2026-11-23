@@ -1,8 +1,8 @@
-﻿"""
+"""
 Pydantic data validation schemas for the Inferxe Inference API.
 """
 
-from typing import Optional, List
+from typing import Optional, List, Any, Dict
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -210,4 +210,46 @@ class NotebookActionResponse(BaseModel):
     success: bool = True
     message: str
     notebook: NotebookResponse
+
+
+class RoutingRecommendRequest(BaseModel):
+    """Payload to request GPU placement recommendation."""
+    model_id: str = Field(default="llama-3.1-8b", description="Model identifier")
+    quantization: str = Field(default="fp16", description="Quantization precision (fp16, fp8, int8, int4)")
+    context_tokens: int = Field(default=4096, ge=128, le=131072, description="Sequence context length")
+    concurrency: int = Field(default=1, ge=1, le=256, description="Concurrent request streams")
+    priority: str = Field(default="cost", description="Routing optimization goal ('cost', 'speed', 'policy')")
+    budget_inr_hr: Optional[float] = Field(default=None, ge=0.0, description="Max budget cap in INR per hour")
+    min_tokens_per_sec: float = Field(default=0.0, ge=0.0, description="Minimum tokens/sec per stream")
+
+
+class RoutingRecommendResponse(BaseModel):
+    """Response containing optimal GPU placement recommendation and candidate rankings."""
+    success: bool = True
+    workload: Dict[str, Any]
+    memory_breakdown: Dict[str, float]
+    recommended_placement: Optional[Dict[str, Any]] = None
+    candidates: List[Dict[str, Any]]
+    note: str = ""
+
+
+class NotebookLogsResponse(BaseModel):
+    """Response returning container initialization and runtime logs."""
+    success: bool = True
+    notebook_id: str
+    name: str
+    status: str
+    logs: List[Dict[str, Any]]
+    is_simulated: bool = True
+
+
+class NotebookTelemetryResponse(BaseModel):
+    """Response returning dynamic hardware telemetry for a notebook instance."""
+    success: bool = True
+    notebook_id: str
+    name: str
+    status: str
+    telemetry: Dict[str, Any]
+    is_simulated: bool = True
+
 

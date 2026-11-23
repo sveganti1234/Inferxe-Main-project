@@ -498,6 +498,11 @@ async function readJson(req) {
   }
 }
 
+function extractItemBody(body) {
+  if (Array.isArray(body)) return body[0] || {}
+  return body || {}
+}
+
 function sendResponse(res, status, data, headers = {}) {
   res.statusCode = status
   res.setHeader('Content-Type', 'application/json; charset=utf-8')
@@ -667,6 +672,25 @@ export function createMockSupabaseMiddleware() {
         }
         if (eqEmail) {
           matched = matched.filter((p) => (p.email || '').toLowerCase() === eqEmail)
+        }
+
+        if (matched.length === 0 && eqUserId) {
+          const autoProfile = {
+            user_id: eqUserId,
+            full_name: 'Vegantisahith',
+            email: 'sahith490522mnp@gmail.com',
+            username: 'sahith490522mnp',
+            avatar_path: null,
+            role: 'customer',
+            status: 'active',
+            organization_id: 'org_inferxe_dev',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            login_count: 1,
+            last_login_at: new Date().toISOString(),
+          }
+          store.profiles.set(eqUserId, autoProfile)
+          matched = [autoProfile]
         }
 
         if (isSingleObject) {
@@ -1033,13 +1057,13 @@ export function createMockSupabaseMiddleware() {
         if (eqUserId) results = results.filter((k) => (k.user_id || '').toLowerCase() === eqUserId.toLowerCase())
         if (eqStatus) results = results.filter((k) => (k.status || '').toLowerCase() === eqStatus.toLowerCase())
         if (eqHash) results = results.filter((k) => (k.secret_hash || '').toLowerCase() === eqHash.toLowerCase())
-        if (eqRevokedAt === 'is.null') results = results.filter((k) => k.revoked_at == null)
+        if (eqRevokedAt === 'is.null') results = results.filter((k) => k.revoked_at == null || k.revoked_at === '' || k.revoked_at === 'null')
         if (limit > 0) results = results.slice(0, limit)
         return sendResponse(res, 200, isSingleObject ? (results[0] || null) : results)
       }
 
       if (req.method === 'POST') {
-        const body = await readJson(req)
+        const body = extractItemBody(await readJson(req))
         const row = {
           id: body.id || crypto.randomUUID(),
           status: 'active',
@@ -1047,17 +1071,19 @@ export function createMockSupabaseMiddleware() {
           created_at: new Date().toISOString(),
           ...body,
         }
+        row.status = row.status || 'active'
+        row.revoked_at = row.revoked_at || null
         store.api_keys.push(row)
         return sendResponse(res, 201, isSingleObject ? row : [row])
       }
 
       if (req.method === 'PATCH') {
-        const body = await readJson(req)
+        const body = extractItemBody(await readJson(req))
         const matched = store.api_keys.filter((k) => {
           if (eqId && (k.id || '').toLowerCase() !== eqId.toLowerCase()) return false
           if (eqUserId && (k.user_id || '').toLowerCase() !== eqUserId.toLowerCase()) return false
           if (eqStatus && (k.status || '').toLowerCase() !== eqStatus.toLowerCase()) return false
-          if (eqRevokedAt === 'is.null' && k.revoked_at != null) return false
+          if (eqRevokedAt === 'is.null' && k.revoked_at != null && k.revoked_at !== '' && k.revoked_at !== 'null') return false
           return true
         })
         for (const m of matched) {
