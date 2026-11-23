@@ -81,6 +81,8 @@ export default function CustomerApp() {
           })}
           <Route path="faq" element={<HelpPage />} />
           <Route path="chatbot" element={<HelpPage />} />
+          <Route path="workspace" element={<SettingsPage />} />
+          <Route path="quotas" element={<SettingsPage />} />
           <Route path="*" element={<ConsoleNotFound />} />
         </Route>
       </Routes>

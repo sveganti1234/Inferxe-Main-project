@@ -7221,4 +7221,110 @@
   gap: 6px;
 }
 
+/* ────────────────────────────────────────────────────────────
+   Workspace Settings & Quotas Page (media_1795424859722_922e09bd.jpg)
+   ──────────────────────────────────────────────────────────── */
+.cx-settings-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.cx-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
+  gap: 20px;
+}
+
+.cx-settings-card {
+  background: #0d1211 !important;
+  border: 1px solid rgba(255, 255, 255, 0.07) !important;
+  border-radius: var(--cx-radius-lg, 12px) !important;
+  padding: 24px !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35) !important;
+}
+
+.cx-settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.cx-settings-row-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 640px) {
+  .cx-settings-row-2col {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cx-settings-check-box {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  gap: 14px;
+}
+
+.cx-settings-check-info h4 {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.cx-settings-check-info p {
+  margin: 3px 0 0 0;
+  font-size: 0.78rem;
+  color: var(--cx-muted, #7e9a8b);
+  line-height: 1.4;
+}
+
+.cx-settings-checkbox {
+  width: 18px;
+  height: 18px;
+  accent-color: #10b981;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.cx-settings-notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  color: var(--cx-muted, #7e9a8b);
+  padding: 6px 0;
+  line-height: 1.4;
+}
+
+.cx-link-underlined {
+  color: #10b981;
+  text-decoration: underline;
+  font-weight: 600;
+}
+
+.cx-link-underlined:hover {
+  color: #34d399;
+}
+
+.cx-save-prefs-btn {
+  background: #10b981 !important;
+  color: #052e16 !important;
+  font-weight: 700 !important;
+}
+
+.cx-save-prefs-btn:hover {
+  background: #34d399 !important;
+}
+
+
 

@@ -67,6 +67,8 @@ const LEGACY_WORKSPACE_PAGES: Record<string, string> = {
   profile: 'profile',
   organization: 'profile',
   settings: 'settings',
+  workspace: 'settings',
+  quotas: 'settings',
   help: 'help',
   faq: 'help',
   chatbot: 'help',

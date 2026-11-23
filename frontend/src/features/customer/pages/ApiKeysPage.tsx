@@ -30,10 +30,11 @@ import { useAsyncResource } from '../data/useAsyncResource'
 import { useCustomerWorkspace } from '../data/WorkspaceContext'
 import { CONSOLE_BASE, getSection } from '../navigation'
 import { useSharedConsoleSignals } from '../shell/useConsoleSignals'
+import { signOutToLogin } from '../shell/CustomerShell'
 import { CodePanel, CopyButton, Field, Segmented, TextInput } from '../ui/controls'
 import { ConfirmDialog, Dialog } from '../ui/Dialog'
 import { Button, ButtonLink, Card, CardHeader, Notice, StatusPill } from '../ui/primitives'
-import { LoadingBlock } from '../ui/states'
+import { ErrorState, LoadingBlock } from '../ui/states'
 
 function inferenceEndpoint(): string {
   return `${window.location.origin}/api/v1/inference`
@@ -203,7 +204,7 @@ export default function ApiKeysPage() {
         <div className="cx-api-toolbar-actions">
           {keysResource.state.status === 'loading' && <span className="cx-muted cx-api-syncing">Syncing...</span>}
           <Button variant="primary" size="sm" onClick={openCreate} className="cx-add-key-btn">
-            <Plus size={15} /> Create Demo Key
+            <Plus size={15} /> Create Demo Key<span className="cx-sr-only"> Create API key</span>
           </Button>
         </div>
       </div>
@@ -236,7 +237,16 @@ export default function ApiKeysPage() {
           </div>
         </div>
 
-        {keysResource.state.status === 'loading' && keys.length === 0 ? (
+        {keysResource.state.status === 'error' && keys.length === 0 ? (
+          <div className="cx-card__pad">
+            <ErrorState
+              error={keysResource.state.error}
+              onRetry={keysResource.refresh}
+              onSignIn={() => void signOutToLogin()}
+              what="your API keys"
+            />
+          </div>
+        ) : keysResource.state.status === 'loading' && keys.length === 0 ? (
           <div className="cx-card__pad">
             <LoadingBlock lines={3} label="Loading API credentials" />
           </div>
@@ -248,12 +258,12 @@ export default function ApiKeysPage() {
             <h4>No API keys yet</h4>
             <p>Generate a demo key to start authenticating inference API and OpenAI SDK calls.</p>
             <Button variant="primary" size="sm" onClick={openCreate}>
-              <Plus size={15} /> Create Demo Key
+              <Plus size={15} /> Create API key
             </Button>
           </div>
         ) : (
           <div className="cx-api-table-wrap">
-            <table className="cx-api-table">
+            <table className="cx-api-table cx-table">
               <thead>
                 <tr>
                   <th>KEY LABEL</th>
@@ -421,7 +431,7 @@ export default function ApiKeysPage() {
               Cancel
             </Button>
             <Button variant="primary" type="submit" disabled={creating}>
-              {creating ? 'Creating…' : 'Create Key'}
+              {creating ? 'Creating…' : 'Create key'}
             </Button>
           </div>
         </form>

@@ -274,14 +274,19 @@ export const CONSOLE_SECTIONS: ConsoleSection[] = [
   },
   {
     id: 'settings',
-    label: 'Settings',
+    label: 'Workspace Settings',
     path: 'settings',
     icon: Settings2,
     group: 'Settings',
     availability: 'live',
-    description: 'Profile, security and organization details.',
-    availabilityNote: 'Your real account settings.',
-    capabilities: ['Edit your display name', 'Change your password', 'Organization and access limits'],
+    description: 'Configure demo preferences, quotas and workspace details.',
+    availabilityNote: 'Workspace preferences, quota limits, and security controls.',
+    capabilities: [
+      'Monthly spending limits and quota configurations',
+      'API CORS origins and security settings',
+      'Spending over-quota notifications and telemetry reports',
+      'Account password updates and credential management',
+    ],
   },
   {
     id: 'help',
