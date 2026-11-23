@@ -6376,5 +6376,332 @@
   font-family: var(--font-mono, monospace);
 }
 
+/* ───────────────────────────────────────────────────────────────────────────
+   SSH Public Keys Vault Restoration (media_1795414421427_3bc02d13.jpg)
+   ─────────────────────────────────────────────────────────────────────────── */
+
+.cx-ssh-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.cx-ssh-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 18px 20px;
+  background: var(--cx-surface-2, rgba(16, 26, 20, 0.65));
+  border: 1px solid var(--cx-border, rgba(34, 197, 94, 0.12));
+  border-radius: 12px;
+}
+
+.cx-ssh-toolbar h2 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--cx-text, #ffffff);
+  margin: 0 0 4px;
+}
+
+.cx-ssh-toolbar p {
+  font-size: 0.84rem;
+  color: var(--cx-muted, #7e9a8b);
+  margin: 0;
+}
+
+.cx-ssh-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cx-ssh-syncing {
+  font-size: 0.78rem;
+  color: var(--cx-muted, #7e9a8b);
+}
+
+.cx-add-ssh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cx-ssh-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 14px 18px;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  border-radius: 10px;
+  color: #e5e7eb;
+  font-size: 0.84rem;
+  line-height: 1.5;
+}
+
+.cx-ssh-notice__icon {
+  color: #10b981;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.cx-ssh-notice__text strong {
+  color: #ffffff;
+}
+
+.cx-ssh-table-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.cx-ssh-table-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 22px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.cx-ssh-table-head h3 {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: #ffffff;
+  margin: 0;
+}
+
+.cx-ssh-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.cx-ssh-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+  text-align: left;
+}
+
+.cx-ssh-table th {
+  padding: 12px 22px;
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--cx-muted, #7e9a8b);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  white-space: nowrap;
+}
+
+.cx-ssh-table td {
+  padding: 16px 22px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  vertical-align: middle;
+}
+
+.cx-ssh-table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.cx-ssh-table tbody tr:hover td {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.cx-ssh-key-name {
+  display: block;
+  font-weight: 600;
+  color: #ffffff;
+  font-size: 0.88rem;
+}
+
+.cx-ssh-key-id {
+  display: block;
+  font-size: 0.74rem;
+  color: var(--cx-muted, #7e9a8b);
+  font-family: var(--font-mono, monospace);
+  margin-top: 2px;
+}
+
+.cx-ssh-mono {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.76rem;
+}
+
+.cx-ssh-fingerprint {
+  color: #10b981;
+  white-space: nowrap;
+}
+
+.cx-ssh-snippet {
+  color: var(--cx-muted, #7e9a8b);
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cx-ssh-date {
+  color: #d1d5db;
+  white-space: nowrap;
+  font-size: 0.8rem;
+}
+
+.cx-ssh-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cx-ssh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 11px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+}
+
+.cx-ssh-btn--copy {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #e5e7eb;
+}
+
+.cx-ssh-btn--copy:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
+.cx-ssh-btn--remove {
+  background: rgba(239, 68, 68, 0.1);
+  border-color: rgba(239, 68, 68, 0.25);
+  color: #ef4444;
+}
+
+.cx-ssh-btn--remove:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.4);
+}
+
+.cx-ssh-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 48px 24px;
+  gap: 12px;
+}
+
+.cx-ssh-empty__icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  color: #10b981;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+.cx-ssh-empty h4 {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+}
+
+.cx-ssh-empty p {
+  font-size: 0.85rem;
+  color: var(--cx-muted, #7e9a8b);
+  max-width: 360px;
+  margin: 0 0 8px;
+}
+
+/* ── Modal Dialog Styles ── */
+.cx-ssh-modal-panel {
+  max-width: 520px;
+  width: 90vw;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.cx-ssh-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.cx-ssh-modal-head h3 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0;
+}
+
+.cx-ssh-modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.cx-ssh-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cx-ssh-form-group label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #e5e7eb;
+}
+
+.cx-ssh-textarea {
+  font-family: var(--font-mono, monospace);
+  font-size: 0.78rem;
+  resize: vertical;
+}
+
+.cx-ssh-help-text {
+  font-size: 0.72rem;
+  color: var(--cx-muted, #7e9a8b);
+}
+
+.cx-ssh-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.cx-ssh-del-body {
+  font-size: 0.86rem;
+  color: #e5e7eb;
+  line-height: 1.5;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cx-ssh-del-body code {
+  font-family: var(--font-mono, monospace);
+  background: rgba(0, 0, 0, 0.3);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #10b981;
+}
+
+
 
 

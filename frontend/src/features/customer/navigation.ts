@@ -23,6 +23,7 @@ import {
   Receipt,
   Rocket,
   Settings2,
+  ShieldCheck,
   SquareTerminal,
   UserRound,
   Wallet,
@@ -43,6 +44,7 @@ export type SectionId =
   | 'wishlist'
   | 'orders'
   | 'api-keys'
+  | 'ssh-keys'
   | 'usage'
   | 'developer'
   | 'billing'
@@ -151,6 +153,21 @@ export const CONSOLE_SECTIONS: ConsoleSection[] = [
     description: 'Create and revoke keys for the Inferxe inference API.',
     availabilityNote: 'Manages your real API keys.',
     capabilities: ['Create keys (secret shown once)', 'Revoke keys', 'Quick-start code for the inference API'],
+  },
+  {
+    id: 'ssh-keys',
+    label: 'SSH Keys',
+    path: 'ssh-keys',
+    icon: ShieldCheck,
+    group: 'Developer Tools',
+    availability: 'live',
+    description: 'Configure demo SSH credentials for compute cluster access.',
+    availabilityNote: 'Register public keys to enable secure terminal and container shell pairing.',
+    capabilities: [
+      'Register OpenSSH public keys (ed25519, RSA)',
+      'Display key fingerprints and public snippets',
+      'One-click copy and secure removal',
+    ],
   },
   {
     id: 'developer',
