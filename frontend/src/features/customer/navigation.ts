@@ -23,6 +23,7 @@ import {
   Rocket,
   Settings2,
   SquareTerminal,
+  UserRound,
   Wallet,
   type LucideIcon,
 } from 'lucide-react'
@@ -46,6 +47,7 @@ export type SectionId =
   | 'checkout'
   | 'rewards'
   | 'notifications'
+  | 'profile'
   | 'settings'
   | 'help'
 
@@ -218,6 +220,22 @@ export const CONSOLE_SECTIONS: ConsoleSection[] = [
       'Earned referral compute discount tracker',
       'Creator and YouTuber 1-hour trial activation',
       'Active coupon codes directory',
+    ],
+  },
+  {
+    id: 'profile',
+    label: 'Profile and Settings',
+    path: 'profile',
+    icon: UserRound,
+    group: 'Settings',
+    availability: 'live',
+    description: 'Manage your personal account details, avatar, and role.',
+    availabilityNote: 'Real customer profile, organization details, and session security.',
+    capabilities: [
+      'Personal profile details and dynamic avatar initials',
+      'Corporate SSO-managed email and organization preferences',
+      'Change account password with real-time strength validation',
+      'Sovereign tenant security enclave status and JWT token inspection',
     ],
   },
   {
