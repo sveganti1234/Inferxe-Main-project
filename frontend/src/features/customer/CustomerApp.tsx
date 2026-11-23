@@ -22,6 +22,7 @@ import ModelsPage from './pages/ModelsPage'
 import GpusPage from './pages/GpusPage'
 import PlaygroundPage from './pages/PlaygroundPage'
 import DeploymentsPage from './pages/DeploymentsPage'
+import WishlistPage from './pages/WishlistPage'
 import OrdersPage from './pages/OrdersPage'
 import CheckoutPage from './pages/CheckoutPage'
 import RewardsPage from './pages/RewardsPage'
@@ -43,6 +44,7 @@ const IMPLEMENTED: Partial<Record<SectionId, () => ReactElement>> = {
   gpus: () => <GpusPage />,
   playground: () => <PlaygroundPage />,
   deployments: () => <DeploymentsPage />,
+  wishlist: () => <WishlistPage />,
   orders: () => <OrdersPage />,
   checkout: () => <CheckoutPage />,
   rewards: () => <RewardsPage />,

@@ -11,6 +11,7 @@
 import {
   Activity,
   BellRing,
+  Bookmark,
   BrainCircuit,
   CreditCard,
   Cpu,
@@ -39,6 +40,7 @@ export type SectionId =
   | 'gpus'
   | 'playground'
   | 'deployments'
+  | 'wishlist'
   | 'orders'
   | 'api-keys'
   | 'usage'
@@ -123,6 +125,21 @@ export const CONSOLE_SECTIONS: ConsoleSection[] = [
     description: 'Dedicated model deployments on reserved GPU capacity.',
     availabilityNote: 'Deployment provisioning is not available yet.',
     capabilities: ['Read-only view of your deployment records', 'Provisioning controls once the backend supports them'],
+  },
+  {
+    id: 'wishlist',
+    label: 'Wishlist',
+    path: 'wishlist',
+    icon: Bookmark,
+    group: 'Compute & AI',
+    availability: 'live',
+    description: 'Review your bookmarked GPU listings for quick deployment.',
+    availabilityNote: 'Bookmarked GPU instances saved for instant comparison and deployment.',
+    capabilities: [
+      'Saved GPU instances inventory and specifications',
+      'One-click deployment navigation',
+      'Remove and toggle bookmarks in sync with GPU Marketplace',
+    ],
   },
   {
     id: 'api-keys',
