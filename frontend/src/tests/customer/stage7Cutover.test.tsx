@@ -125,7 +125,7 @@ describe('route cutover', () => {
 
   it('sends old customer workspace pages to their native console equivalents (no demo workspace for customers)', async () => {
     storeCustomerSession()
-    for (const [path, h1] of [['/dashboard/gpus', 'GPU marketplace'], ['/dashboard/wallet', 'Billing & wallet'], ['/dashboard/api-keys', 'API keys'], ['/dashboard/analytics', 'Usage & analytics'], ['/dashboard/anything-else', null]] as const) {
+    for (const [path, h1] of [['/dashboard/gpus', 'GPU marketplace'], ['/dashboard/wallet', 'Billing & wallet'], ['/dashboard/api-keys', 'API Keys & JWT Tokens'], ['/dashboard/analytics', 'Usage & Analytics'], ['/dashboard/anything-else', null]] as const) {
       await renderApp(path)
       expect(host.querySelector('.cx-app'), path).not.toBeNull()
       expect(host.querySelector('iframe'), path).toBeNull()

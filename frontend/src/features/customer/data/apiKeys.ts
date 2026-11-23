@@ -108,7 +108,7 @@ export function toApiKeyView(key: BackendApiKey): ApiKeyView {
     id: key.id,
     name: key.name,
     prefix,
-    maskedToken: `${prefix}••••••••`,
+    maskedToken: `${prefix}…`,
     environment,
     active: Boolean(key.is_active) && !key.revoked_at,
     createdAt: key.created_at ?? null,
@@ -132,12 +132,23 @@ export function sortApiKeys(keys: ApiKeyView[]): ApiKeyView[] {
 export async function listApiKeys(): Promise<ApiKeyView[]> {
   try {
     const result = await fetchBackendApiKeys()
-    if (result && result.ok && Array.isArray(result.keys) && result.keys.length > 0) {
+    if (result && result.ok && Array.isArray(result.keys)) {
       const views = sortApiKeys(result.keys.map(toApiKeyView))
-      saveLocalApiKeys(views)
+      if (views.length > 0) {
+        saveLocalApiKeys(views)
+      }
       return views
     }
-  } catch {
+    if (result && !result.ok) {
+      if ((result as any).expired) {
+        throw new CustomerApiError('unauthenticated', 'Your session has expired')
+      }
+      if (!result.unauthorized) {
+        throw new CustomerApiError('server', result.error || 'Failed to fetch API keys')
+      }
+    }
+  } catch (err) {
+    if (err instanceof CustomerApiError) throw err
     // Backend unavailable or database unauthenticated -> fallback smoothly to local demo keys
   }
   return getLocalApiKeys()
@@ -174,8 +185,7 @@ export async function createApiKey(
         last_used_at: null,
         revoked_at: null,
       })
-      newKey.secretToken = backendSecret
-      newKey.maskedToken = `${newKey.prefix}••••••••`
+      // Do not store secretToken in localStorage for real backend keys (security requirement)
       const current = getLocalApiKeys()
       saveLocalApiKeys([newKey, ...current])
       return { secret: backendSecret, key: newKey }

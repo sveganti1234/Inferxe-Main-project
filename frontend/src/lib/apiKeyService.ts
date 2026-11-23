@@ -65,6 +65,7 @@ export async function fetchBackendApiKeys(): Promise<{
   keys?: BackendApiKey[]
   error?: string
   unauthorized?: boolean
+  expired?: boolean
 }> {
   try {
     const session = await ensureFreshSession()
@@ -82,7 +83,7 @@ export async function fetchBackendApiKeys(): Promise<{
     })
 
     if (res.status === 401) {
-      return { ok: false, unauthorized: true, error: 'Session expired or unauthenticated.' }
+      return { ok: false, unauthorized: true, expired: true, error: 'Session expired or unauthenticated.' }
     }
 
     const data = await res.json().catch(() => ({}))

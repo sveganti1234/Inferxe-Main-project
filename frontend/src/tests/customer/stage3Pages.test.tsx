@@ -214,7 +214,7 @@ describe('API keys', () => {
     }
     const logs = [vi.spyOn(console, 'log'), vi.spyOn(console, 'info'), vi.spyOn(console, 'warn'), vi.spyOn(console, 'error'), vi.spyOn(console, 'debug')]
     await render('/dashboard/app/api-keys')
-    await click(byText('button', /Create API key/))
+    await click(byText('button', /Create (API|Demo) key/i))
     const input = document.querySelector<HTMLInputElement>('.cx-dialog input.cx-input')!
     await type(input, 'Backend')
     await click(byText('.cx-dialog button', /^Create key$/))
@@ -240,7 +240,7 @@ describe('API keys', () => {
 
   it('validates the key name before calling the API', async () => {
     await render('/dashboard/app/api-keys')
-    await click(byText('button', /Create API key/))
+    await click(byText('button', /Create (API|Demo) key/i))
     await click(byText('.cx-dialog button', /^Create key$/))
     expect(text()).toContain('Give the key a name')
     expect(calls().some((c) => c.startsWith('POST'))).toBe(false)

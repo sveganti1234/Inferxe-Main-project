@@ -317,6 +317,8 @@ export default function UsagePage() {
                   key={pt.label}
                   className={`cx-analytics-bar-col ${isHovered ? 'is-active' : ''}`}
                   onMouseEnter={() => setHoveredIdx(i)}
+                  onMouseOver={() => setHoveredIdx(i)}
+                  onFocus={() => setHoveredIdx(i)}
                   tabIndex={0}
                   role="button"
                   aria-label={`${pt.fullDate}: ${pt.reqs} requests`}
