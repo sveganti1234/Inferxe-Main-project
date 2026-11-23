@@ -70,7 +70,8 @@ const LEGACY_WORKSPACE_PAGES: Record<string, string> = {
   help: 'help',
   playground: 'playground',
   notebooks: 'developer',
-  'ssh-keys': 'developer',
+  'ssh-keys': 'ssh-keys',
+  ssh: 'ssh-keys',
   developer: 'developer',
 }
 
