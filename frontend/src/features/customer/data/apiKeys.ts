@@ -157,7 +157,6 @@ export async function listApiKeys(): Promise<ApiKeyView[]> {
     }
     // Network failure or unmocked in test without fetch handler -> fallback to getLocalApiKeys()
   }
-  }
   return getLocalApiKeys()
 }
 
@@ -205,7 +204,6 @@ export async function createApiKey(
         saveLocalApiKeys([newKey, ...current])
         return { secret: backendSecret, key: newKey }
       }
-    }
     }
   } catch (err) {
     if (err instanceof CustomerApiError) throw err
