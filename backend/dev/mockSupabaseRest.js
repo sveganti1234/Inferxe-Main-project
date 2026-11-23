@@ -270,7 +270,163 @@ const store = {
       updated_at: '2026-02-05T00:00:00Z',
     },
   ],
-  orders: [],
+  orders: [
+    {
+      id: 'd9a494cb-1e8d-4bca-8142-19687fa91301',
+      user_id: '',
+      organization_id: 'org_inferxe_dev',
+      deployment_id: 'dep_1',
+      order_number: 'ORD-8492',
+      item_name: 'Qwen 2.5 7B · 1x NVIDIA L4',
+      provider_name: 'Yotta NM1 (Mumbai)',
+      order_date: '2026-10-10T14:30:00Z',
+      duration_minutes: 1440,
+      total_cost: 1440,
+      currency: 'INR',
+      status: 'running',
+      details: {
+        gpu_model: '1x NVIDIA L4',
+        workload: 'Qwen 2.5 7B',
+        datacenter: 'Yotta NM1 (Mumbai)',
+        specs: '24GB VRAM · 300 GB/s · PCIe Gen 4',
+        start_date: '10 Oct 2026, 14:30',
+        end_date: '11 Oct 2026, 14:30',
+        duration: '24 hours',
+        estimated_cost: '₹1,440',
+        actual_cost: '₹1,440',
+        payment_method: 'Prepaid Wallet',
+        payment_status: 'Active Debit',
+        transaction_id: 'TX-1048',
+        invoice_number: 'INV-2026-08492',
+      },
+      created_at: '2026-10-10T14:30:00Z',
+      updated_at: '2026-10-10T14:30:00Z',
+    },
+    {
+      id: 'd9a494cb-1e8d-4bca-8142-19687fa91302',
+      user_id: '',
+      organization_id: 'org_inferxe_dev',
+      deployment_id: 'dep_2',
+      order_number: 'ORD-8431',
+      item_name: 'Llama 3.1 8B · 1x NVIDIA L40S',
+      provider_name: 'E2E Cloud (Noida)',
+      order_date: '2026-10-08T09:15:00Z',
+      duration_minutes: 720,
+      total_cost: 1200,
+      currency: 'INR',
+      status: 'completed',
+      details: {
+        gpu_model: '1x NVIDIA L40S',
+        workload: 'Llama 3.1 8B',
+        datacenter: 'E2E Cloud (Noida)',
+        specs: '48GB VRAM · 864 GB/s · Ada Lovelace',
+        start_date: '08 Oct 2026, 09:15',
+        end_date: '08 Oct 2026, 21:15',
+        duration: '12 hours',
+        estimated_cost: '₹1,200',
+        actual_cost: '₹1,200',
+        payment_method: 'Prepaid Wallet',
+        payment_status: 'Paid & Settled',
+        transaction_id: 'TX-1032',
+        invoice_number: 'INV-2026-08431',
+      },
+      created_at: '2026-10-08T09:15:00Z',
+      updated_at: '2026-10-08T21:15:00Z',
+    },
+    {
+      id: 'd9a494cb-1e8d-4bca-8142-19687fa91303',
+      user_id: '',
+      organization_id: 'org_inferxe_dev',
+      deployment_id: null,
+      order_number: 'ORD-8390',
+      item_name: 'DeepSeek R1 671B · 8x NVIDIA H100',
+      provider_name: 'CtrlS Datacenters (Hyderabad)',
+      order_date: '2026-10-04T16:00:00Z',
+      duration_minutes: 240,
+      total_cost: 8800,
+      currency: 'INR',
+      status: 'completed',
+      details: {
+        gpu_model: '8x NVIDIA H100',
+        workload: 'DeepSeek R1 671B',
+        datacenter: 'CtrlS Datacenters (Hyderabad)',
+        specs: '640GB SXM5 · 3.35 TB/s · NVLink 4',
+        start_date: '04 Oct 2026, 16:00',
+        end_date: '04 Oct 2026, 20:00',
+        duration: '4 hours',
+        estimated_cost: '₹8,800',
+        actual_cost: '₹8,800',
+        payment_method: 'Prepaid Wallet',
+        payment_status: 'Paid & Settled',
+        transaction_id: 'TX-1011',
+        invoice_number: 'INV-2026-08390',
+      },
+      created_at: '2026-10-04T16:00:00Z',
+      updated_at: '2026-10-04T20:00:00Z',
+    },
+    {
+      id: 'd9a494cb-1e8d-4bca-8142-19687fa91304',
+      user_id: '',
+      organization_id: 'org_inferxe_dev',
+      deployment_id: null,
+      order_number: 'ORD-8312',
+      item_name: 'Mistral 7B · 1x NVIDIA L4',
+      provider_name: 'Yotta NM1 (Mumbai)',
+      order_date: '2026-10-01T11:00:00Z',
+      duration_minutes: 480,
+      total_cost: 480,
+      currency: 'INR',
+      status: 'cancelled',
+      details: {
+        gpu_model: '1x NVIDIA L4',
+        workload: 'Mistral 7B',
+        datacenter: 'Yotta NM1 (Mumbai)',
+        specs: '24GB VRAM · 300 GB/s · PCIe Gen 4',
+        start_date: '01 Oct 2026, 11:00',
+        end_date: '01 Oct 2026, 11:05',
+        duration: '8 hours (Cancelled after 5m)',
+        estimated_cost: '₹480',
+        actual_cost: '₹0',
+        payment_method: 'Prepaid Wallet',
+        payment_status: 'Refunded',
+        transaction_id: 'TX-998',
+        invoice_number: 'INV-2026-08312',
+      },
+      created_at: '2026-10-01T11:00:00Z',
+      updated_at: '2026-10-01T11:05:00Z',
+    },
+    {
+      id: 'd9a494cb-1e8d-4bca-8142-19687fa91305',
+      user_id: '',
+      organization_id: 'org_inferxe_dev',
+      deployment_id: null,
+      order_number: 'ORD-8201',
+      item_name: 'CodeQwen 7B · 1x NVIDIA L40S',
+      provider_name: 'Sify Infinit (Chennai)',
+      order_date: '2026-09-25T08:00:00Z',
+      duration_minutes: 4320,
+      total_cost: 7200,
+      currency: 'INR',
+      status: 'archived',
+      details: {
+        gpu_model: '1x NVIDIA L40S',
+        workload: 'CodeQwen 7B',
+        datacenter: 'Sify Infinit (Chennai)',
+        specs: '48GB VRAM · 864 GB/s · Ada Lovelace',
+        start_date: '25 Sep 2026, 08:00',
+        end_date: '28 Sep 2026, 08:00',
+        duration: '72 hours',
+        estimated_cost: '₹7,200',
+        actual_cost: '₹7,200',
+        payment_method: 'Prepaid Wallet',
+        payment_status: 'Paid & Archived',
+        transaction_id: 'TX-942',
+        invoice_number: 'INV-2026-08201',
+      },
+      created_at: '2026-09-25T08:00:00Z',
+      updated_at: '2026-09-28T08:00:00Z',
+    },
+  ],
   usage_records: [
     {
       id: 'usage_1',
@@ -655,6 +811,61 @@ export function createMockSupabaseMiddleware() {
         const id = searchParams.get('id')?.replace(/^eq\./, '')
         if (id) {
           store.deployments = store.deployments.filter((d) => d.id !== id)
+        }
+        return sendResponse(res, 200, [])
+      }
+    }
+
+    // ORDERS
+    if (table === 'orders') {
+      const eqId = searchParams.get('id')?.replace(/^eq\./, '')
+      const eqUserId = searchParams.get('user_id')?.replace(/^eq\./, '')
+      const eqStatus = searchParams.get('status')?.replace(/^eq\./, '')
+
+      if (req.method === 'GET') {
+        let results = store.orders
+        if (eqId) {
+          results = results.filter((o) => (o.id || '').toLowerCase() === eqId.toLowerCase())
+        }
+        if (eqUserId) {
+          results = results.filter((o) => !o.user_id || o.user_id === eqUserId)
+        }
+        if (eqStatus) {
+          results = results.filter((o) => (o.status || '').toLowerCase() === eqStatus.toLowerCase())
+        }
+        return sendResponse(res, 200, isSingleObject ? (results[0] || null) : results)
+      }
+
+      if (req.method === 'POST') {
+        const body = await readJson(req)
+        const row = {
+          id: body.id || crypto.randomUUID(),
+          order_number: body.order_number || `ORD-${Math.floor(1000 + Math.random() * 9000)}`,
+          status: body.status || 'running',
+          currency: body.currency || 'INR',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          ...body,
+        }
+        store.orders.unshift(row)
+        return sendResponse(res, 201, isSingleObject ? row : [row])
+      }
+
+      if (req.method === 'PATCH') {
+        const body = await readJson(req)
+        const id = eqId || body.id
+        const item = store.orders.find((o) => o.id === id)
+        if (item) {
+          Object.assign(item, body, { updated_at: new Date().toISOString() })
+          return sendResponse(res, 200, isSingleObject ? item : [item])
+        }
+        return sendResponse(res, 404, { message: 'Order not found' })
+      }
+
+      if (req.method === 'DELETE') {
+        const id = eqId
+        if (id) {
+          store.orders = store.orders.filter((o) => o.id !== id)
         }
         return sendResponse(res, 200, [])
       }

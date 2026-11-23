@@ -213,3 +213,49 @@ export async function deleteDeployment(id: string): Promise<void> {
   }
 }
 
+/* ── Orders & Purchase History (Customer API) ── */
+
+export interface CreateOrderPayload {
+  order_number?: string
+  item_name: string
+  provider_name: string
+  duration_minutes?: number
+  total_cost?: number
+  currency?: string
+  status?: 'running' | 'completed' | 'cancelled' | 'archived'
+  deployment_id?: string
+  details?: Record<string, unknown>
+}
+
+export async function createOrder(payload: CreateOrderPayload): Promise<Record<string, unknown> | undefined> {
+  const body = await customerRequest<{ ok?: boolean; order?: Record<string, unknown> }>(
+    '/api/customer/orders',
+    {
+      method: 'POST',
+      body: payload,
+    },
+  )
+  if (!body?.ok) {
+    throw new CustomerApiError('invalid_response', defaultMessage('invalid_response'))
+  }
+  return body.order
+}
+
+export async function updateOrderStatus(
+  id: string,
+  status: 'running' | 'completed' | 'cancelled' | 'archived',
+  details?: Record<string, unknown>,
+): Promise<void> {
+  if (!id) throw new CustomerApiError('bad_request', 'Order ID is required.')
+  const body = await customerRequest<{ ok?: boolean; order?: Record<string, unknown> }>(
+    `/api/customer/orders/${encodeURIComponent(id)}`,
+    {
+      method: 'PATCH',
+      body: { status, ...(details ? { details } : {}) },
+    },
+  )
+  if (!body?.ok) {
+    throw new CustomerApiError('invalid_response', defaultMessage('invalid_response'))
+  }
+}
+

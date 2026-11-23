@@ -12,11 +12,14 @@ import {
   Activity,
   BellRing,
   BrainCircuit,
+  CreditCard,
   Cpu,
   FlaskConical,
+  Gift,
   KeyRound,
   LayoutDashboard,
   LifeBuoy,
+  Receipt,
   Rocket,
   Settings2,
   SquareTerminal,
@@ -35,10 +38,13 @@ export type SectionId =
   | 'gpus'
   | 'playground'
   | 'deployments'
+  | 'orders'
   | 'api-keys'
   | 'usage'
   | 'developer'
   | 'billing'
+  | 'checkout'
+  | 'rewards'
   | 'notifications'
   | 'settings'
   | 'help'
@@ -139,6 +145,17 @@ export const CONSOLE_SECTIONS: ConsoleSection[] = [
     capabilities: ['Add and remove SSH public keys', 'Create, start and stop notebook sessions (simulated runtime)'],
   },
   {
+    id: 'orders',
+    label: 'Orders & Purchase History',
+    path: 'orders',
+    icon: Receipt,
+    group: 'Orders & Activity',
+    availability: 'live',
+    description: 'Track active, completed, cancelled, and archived compute orders.',
+    availabilityNote: 'Real-time compute order records and lifecycle tracking.',
+    capabilities: ['Complete compute order history', 'Filter by status: Running, Completed, Cancelled, Archived', 'View hardware, datacenter, and payment details', 'Archive and invoice inspection'],
+  },
+  {
     id: 'usage',
     label: 'Usage & analytics',
     path: 'usage',
@@ -170,6 +187,38 @@ export const CONSOLE_SECTIONS: ConsoleSection[] = [
     description: 'Wallet balance and transaction history.',
     availabilityNote: 'Real balance and transactions. Adding funds is not available yet.',
     capabilities: ['Wallet balance', 'Transaction ledger'],
+  },
+  {
+    id: 'checkout',
+    label: 'Payment & Checkout',
+    path: 'checkout',
+    icon: CreditCard,
+    group: 'Billing & Payments',
+    availability: 'live',
+    description: 'Simulated payment processing with demo coupon discounts.',
+    availabilityNote: 'Simulated payment processing with demo coupon discounts and sovereign GPU capacity reservation.',
+    capabilities: [
+      'Dedicated compute reservation by duration',
+      'Promotional coupon codes and discount calculations',
+      'Prepaid wallet and corporate credit card payment methods',
+      'Instant order registration in orders ledger',
+    ],
+  },
+  {
+    id: 'rewards',
+    label: 'Rewards & Discounts',
+    path: 'rewards',
+    icon: Gift,
+    group: 'Billing & Payments',
+    availability: 'live',
+    description: 'Referral discounts, coupon codes and creator trial codes.',
+    availabilityNote: 'Referral tracking, promotional discount coupons, and 1-hour creator trials.',
+    capabilities: [
+      'Personal referral link and tracking counter',
+      'Earned referral compute discount tracker',
+      'Creator and YouTuber 1-hour trial activation',
+      'Active coupon codes directory',
+    ],
   },
   {
     id: 'settings',

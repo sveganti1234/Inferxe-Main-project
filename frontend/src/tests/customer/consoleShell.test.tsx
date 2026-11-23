@@ -39,12 +39,12 @@ beforeEach(() => {
 
 /* ── Navigation config ── */
 describe('console navigation', () => {
-  it('defines the 12 approved sections with unique paths', () => {
+  it('defines the approved sections with unique paths', () => {
     expect(CONSOLE_SECTIONS.map((s) => s.id)).toEqual([
       'overview', 'models', 'gpus', 'playground', 'deployments', 'api-keys',
-      'developer', 'usage', 'notifications', 'billing', 'settings', 'help',
+      'developer', 'orders', 'usage', 'notifications', 'billing', 'checkout', 'rewards', 'settings', 'help',
     ])
-    expect(new Set(CONSOLE_SECTIONS.map((s) => s.path)).size).toBe(12)
+    expect(new Set(CONSOLE_SECTIONS.map((s) => s.path)).size).toBe(15)
   })
 
   it('labels availability honestly', () => {
@@ -170,7 +170,7 @@ describe('console shell', () => {
   it('renders the sidebar, real identity and live signals on the home page', async () => {
     const view = await renderConsole('/dashboard/app', okHandlers())
     const navItems = view.host.querySelectorAll('.cx-nav__item')
-    expect(navItems).toHaveLength(12)
+    expect(navItems).toHaveLength(15)
     expect(view.host.querySelector('.cx-org')).toBeNull() // display-only organization card removed
     expect(view.host.querySelector('.cx-quota__sub')?.textContent).toContain('Acme Research')
     expect(view.host.querySelector('.cx-account__name')?.textContent).toBe('Ada Lovelace')
@@ -245,7 +245,7 @@ describe('console shell', () => {
     }))
     expect(view.host.querySelector('.cx-iconbtn__count')).toBeNull()
     expect(view.text()).toContain('Inference status unknown')
-    expect(view.host.querySelectorAll('.cx-nav__item')).toHaveLength(12)
+    expect(view.host.querySelectorAll('.cx-nav__item')).toHaveLength(15)
     view.unmount()
   })
 
