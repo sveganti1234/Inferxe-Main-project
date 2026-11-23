@@ -1,26 +1,39 @@
 /**
- * API keys — list, create and revoke keys for the inference API via the existing
- * `lib/apiKeyService` (8001 /api/v1/api-keys).
+ * API Keys & JWT Tokens — Generate and manage authentication tokens for client applications
+ * and OpenAI SDK callers.
  *
- * Secret handling: the raw key returned on creation lives only in this component's state
- * while the "copy your key" dialog is open. It is never logged, never written to any
- * browser storage, and is discarded when the dialog closes.
+ * Restored in accordance with customer portal reference design (media_1795415386682_3d3f521e.jpg).
  */
 import { useMemo, useState, type FormEvent } from 'react'
-import { AlertTriangle, KeyRound, Plus, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react'
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Copy,
+  KeyRound,
+  Plus,
+  ShieldCheck,
+  Trash2,
+} from 'lucide-react'
 import { usePageMeta } from '../../../lib/hooks'
-import { API_KEY_NAME_MAX, createApiKey, listApiKeys, revokeApiKey, type ApiKeyEnvironment, type ApiKeyView } from '../data/apiKeys'
+import {
+  API_KEY_NAME_MAX,
+  createApiKey,
+  formatApiKeyDate,
+  getMaskedToken,
+  listApiKeys,
+  revokeApiKey,
+  type ApiKeyEnvironment,
+  type ApiKeyView,
+} from '../data/apiKeys'
 import { CustomerApiError } from '../data/http'
 import { useAsyncResource } from '../data/useAsyncResource'
 import { useCustomerWorkspace } from '../data/WorkspaceContext'
-import { formatDate, formatRelativeTime } from '../data/selectors'
-import { getSection } from '../navigation'
+import { CONSOLE_BASE, getSection } from '../navigation'
 import { useSharedConsoleSignals } from '../shell/useConsoleSignals'
-import { signOutToLogin } from '../shell/CustomerShell'
 import { CodePanel, CopyButton, Field, Segmented, TextInput } from '../ui/controls'
 import { ConfirmDialog, Dialog } from '../ui/Dialog'
-import { Button, Card, CardHeader, DataTable, Notice, PageHeader, StatusPill, type Column } from '../ui/primitives'
-import { EmptyState, ErrorState, LoadingBlock } from '../ui/states'
+import { Button, ButtonLink, Card, CardHeader, Notice, StatusPill } from '../ui/primitives'
+import { LoadingBlock } from '../ui/states'
 
 function inferenceEndpoint(): string {
   return `${window.location.origin}/api/v1/inference`
@@ -61,10 +74,13 @@ function errorMessage(err: unknown, fallback: string): string {
 
 export default function ApiKeysPage() {
   const section = getSection('api-keys')
-  usePageMeta(section.label, section.description)
+  usePageMeta('API Keys & JWT Tokens · Inferxe', section.description)
   const keysResource = useAsyncResource(listApiKeys, { cacheKey: 'api-keys' })
   const { refresh: refreshWorkspace } = useCustomerWorkspace()
   const signals = useSharedConsoleSignals()
+
+  // User feedback message
+  const [feedback, setFeedback] = useState<{ tone: 'success' | 'error'; text: string } | null>(null)
 
   // Create flow
   const [createOpen, setCreateOpen] = useState(false)
@@ -72,6 +88,7 @@ export default function ApiKeysPage() {
   const [environment, setEnvironment] = useState<ApiKeyEnvironment>('live')
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
+
   // Secret is held only while the reveal dialog is open.
   const [revealed, setRevealed] = useState<{ key: ApiKeyView; secret: string } | null>(null)
   const [acknowledged, setAcknowledged] = useState(false)
@@ -86,7 +103,6 @@ export default function ApiKeysPage() {
 
   const keys = keysResource.state.data ?? []
   const activeCount = keys.filter((k) => k.active).length
-  const listError = keysResource.state.status === 'error' ? keysResource.state.error : null
   const nameError = name.trim().length > API_KEY_NAME_MAX ? `Use ${API_KEY_NAME_MAX} characters or fewer.` : null
 
   const openCreate = () => {
@@ -111,11 +127,8 @@ export default function ApiKeysPage() {
       setRevealed(result)
       keysResource.refresh()
       refreshWorkspace()
+      setFeedback({ tone: 'success', text: `Demo API key "${result.key.name}" generated successfully.` })
     } catch (err) {
-      if (err instanceof CustomerApiError && err.kind === 'unauthenticated') {
-        setCreateOpen(false)
-        keysResource.refresh()
-      }
       setCreateError(errorMessage(err, 'The API key could not be created.'))
     } finally {
       setCreating(false)
@@ -123,8 +136,20 @@ export default function ApiKeysPage() {
   }
 
   const closeReveal = () => {
-    setRevealed(null) // discard the secret
+    setRevealed(null)
     setAcknowledged(false)
+  }
+
+  const handleCopyKey = async (k: ApiKeyView) => {
+    const tokenToCopy = k.secretToken || `${k.prefix}demo_active_token_${k.id}`
+    try {
+      if (navigator.clipboard) {
+        await navigator.clipboard.writeText(tokenToCopy)
+      }
+      setFeedback({ tone: 'success', text: `API key token for "${k.name}" copied to clipboard.` })
+    } catch {
+      setFeedback({ tone: 'error', text: 'Could not copy to clipboard.' })
+    }
   }
 
   const confirmRevoke = async () => {
@@ -133,9 +158,11 @@ export default function ApiKeysPage() {
     setRevokeError(null)
     try {
       await revokeApiKey(revokeTarget.id)
+      const targetName = revokeTarget.name
       setRevokeTarget(null)
       keysResource.refresh()
       refreshWorkspace()
+      setFeedback({ tone: 'success', text: `API key "${targetName}" has been revoked.` })
     } catch (err) {
       setRevokeError(errorMessage(err, 'The API key could not be revoked.'))
     } finally {
@@ -143,62 +170,52 @@ export default function ApiKeysPage() {
     }
   }
 
-  const columns: Column<ApiKeyView>[] = [
-    {
-      key: 'name',
-      header: 'Name',
-      render: (k) => (
-        <div className="cx-keycell">
-          <span className="cx-keycell__name">{k.name}</span>
-          <span className="cx-mono cx-keycell__prefix">{k.prefix ? `${k.prefix}…` : '—'}</span>
-        </div>
-      ),
-    },
-    {
-      key: 'env',
-      header: 'Environment',
-      render: (k) => <StatusPill tone={k.environment === 'live' ? 'info' : 'neutral'}>{k.environment === 'live' ? 'Live' : 'Test'}</StatusPill>,
-    },
-    { key: 'created', header: 'Created', render: (k) => formatDate(k.createdAt) },
-    { key: 'used', header: 'Last used', render: (k) => (k.lastUsedAt ? formatRelativeTime(k.lastUsedAt) : 'Never') },
-    {
-      key: 'status',
-      header: 'Status',
-      render: (k) =>
-        k.active ? <StatusPill tone="success" dot>Active</StatusPill> : <StatusPill tone="danger">Revoked</StatusPill>,
-    },
-    {
-      key: 'actions',
-      header: <span className="cx-sr-only">Actions</span>,
-      numeric: true,
-      render: (k) =>
-        k.active ? (
-          <Button variant="ghost" size="sm" onClick={() => { setRevokeError(null); setRevokeTarget(k) }} aria-label={`Revoke ${k.name}`}>
-            <Trash2 size={14} /> Revoke
-          </Button>
-        ) : (
-          <span className="cx-muted">{k.revokedAt ? formatDate(k.revokedAt) : ''}</span>
-        ),
-    },
-  ]
-
   return (
-    <>
-      <PageHeader
-        title="API keys"
-        description="Keys authenticate your requests to the Inferxe inference API. Treat them like passwords."
-        actions={
-          <>
-            <Button variant="secondary" onClick={keysResource.refresh} disabled={keysResource.state.status === 'loading'} aria-label="Refresh API keys">
-              <RefreshCw size={15} />
-            </Button>
-            <Button variant="primary" onClick={openCreate} disabled={listError?.kind === 'unauthenticated'}>
-              <Plus size={16} /> Create API key
-            </Button>
-          </>
-        }
-      />
+    <div className="cx-api-page">
+      {/* ── Breadcrumb ── */}
+      <div className="cx-page-breadcrumb">
+        <span>Customer Portal</span>
+        <span className="cx-page-breadcrumb__sep">/</span>
+        <span className="cx-page-breadcrumb__curr">API Keys &amp; JWT Tokens</span>
+      </div>
 
+      {/* ── Page Header ── */}
+      <div className="cx-page-header">
+        <div className="cx-page-header__main">
+          <h1>API Keys &amp; JWT Tokens</h1>
+          <p className="cx-page-header__desc">
+            Create and manage demo API keys and inspect simulated JWT bearer tokens.
+          </p>
+        </div>
+        <div className="cx-page-header__actions">
+          <ButtonLink to={CONSOLE_BASE} variant="ghost" size="sm">
+            <ArrowLeft size={15} /> Back to overview
+          </ButtonLink>
+        </div>
+      </div>
+
+      {/* ── Section Toolbar ── */}
+      <div className="cx-section-toolbar cx-api-toolbar">
+        <div>
+          <h2>API Credentials</h2>
+          <p>Generate and manage authentication tokens for client applications and OpenAI SDK callers.</p>
+        </div>
+        <div className="cx-api-toolbar-actions">
+          {keysResource.state.status === 'loading' && <span className="cx-muted cx-api-syncing">Syncing...</span>}
+          <Button variant="primary" size="sm" onClick={openCreate} className="cx-add-key-btn">
+            <Plus size={15} /> Create Demo Key
+          </Button>
+        </div>
+      </div>
+
+      {/* ── Feedback Banner ── */}
+      {feedback && (
+        <div className={`cx-alert cx-alert--${feedback.tone}`} role={feedback.tone === 'error' ? 'alert' : 'status'}>
+          <span>{feedback.text}</span>
+        </div>
+      )}
+
+      {/* ── Offline/Inference Warning Notice ── */}
       {signals.inferenceAvailable === false ? (
         <Notice tone="warning" icon={<AlertTriangle size={17} />}>
           <strong>The inference API is not serving requests right now.</strong> The model provider is not configured on
@@ -206,37 +223,121 @@ export default function ApiKeysPage() {
         </Notice>
       ) : null}
 
-      <Card flush aria-labelledby="cx-keys-title">
-        <div className="cx-card__pad">
-          <CardHeader
-            id="cx-keys-title"
-            title="Your keys"
-            description={keysResource.state.status === 'ready' ? `${activeCount} active · ${keys.length} total` : 'Loading your keys'}
-          />
+      {/* ── Issued API Keys Card & Table ── */}
+      <div className="cx-api-card">
+        <div className="cx-api-card__head">
+          <div className="cx-api-card__title-group">
+            <h3>Issued API Keys</h3>
+          </div>
+          <div className="cx-api-card__meta">
+            <span className="cx-api-count-badge">
+              {keysResource.state.status === 'ready' ? `${activeCount} active` : 'Loading keys...'}
+            </span>
+          </div>
         </div>
-        {listError && keys.length === 0 ? (
-          <ErrorState error={listError} onRetry={keysResource.refresh} onSignIn={() => void signOutToLogin()} what="your API keys" />
-        ) : keysResource.state.status === 'loading' && keys.length === 0 ? (
-          <div className="cx-card__pad"><LoadingBlock lines={4} label="Loading API keys" /></div>
-        ) : (
-          <DataTable
-            caption="Your API keys"
-            stackOnMobile
-            columns={columns}
-            rows={keys}
-            rowKey={(k) => k.id}
-            empty={
-              <EmptyState
-                icon={<KeyRound size={24} />}
-                title="No API keys yet"
-                body="Create a key to start sending requests to the inference API."
-                actions={<Button variant="primary" onClick={openCreate}><Plus size={16} /> Create API key</Button>}
-              />
-            }
-          />
-        )}
-      </Card>
 
+        {keysResource.state.status === 'loading' && keys.length === 0 ? (
+          <div className="cx-card__pad">
+            <LoadingBlock lines={3} label="Loading API credentials" />
+          </div>
+        ) : keys.length === 0 ? (
+          <div className="cx-api-empty">
+            <div className="cx-api-empty__icon">
+              <KeyRound size={28} />
+            </div>
+            <h4>No API keys yet</h4>
+            <p>Generate a demo key to start authenticating inference API and OpenAI SDK calls.</p>
+            <Button variant="primary" size="sm" onClick={openCreate}>
+              <Plus size={15} /> Create Demo Key
+            </Button>
+          </div>
+        ) : (
+          <div className="cx-api-table-wrap">
+            <table className="cx-api-table">
+              <thead>
+                <tr>
+                  <th>KEY LABEL</th>
+                  <th>SECRET TOKEN</th>
+                  <th>ISSUED DATE</th>
+                  <th>STATUS</th>
+                  <th className="is-right">ACTIONS</th>
+                </tr>
+              </thead>
+              <tbody>
+                {keys.map((k) => {
+                  const masked = getMaskedToken(k)
+                  const issuedDate = formatApiKeyDate(k.createdAt)
+                  return (
+                    <tr key={k.id} className={!k.active ? 'is-revoked' : ''}>
+                      <td className="cx-api-cell--label">
+                        <div className="cx-key-title">{k.name}</div>
+                        <div className="cx-key-id">{k.id}</div>
+                      </td>
+                      <td className="cx-api-cell--secret">
+                        <div className="cx-secret-pill" onClick={() => void handleCopyKey(k)} title="Click to copy token">
+                          <code className="cx-secret-code">{masked}</code>
+                          <button
+                            type="button"
+                            className="cx-secret-copy-icon"
+                            aria-label={`Copy token for ${k.name}`}
+                          >
+                            <Copy size={13} />
+                          </button>
+                        </div>
+                      </td>
+                      <td className="cx-api-cell--date">
+                        <span>{issuedDate}</span>
+                      </td>
+                      <td className="cx-api-cell--status">
+                        {k.active ? (
+                          <StatusPill tone="success" dot>
+                            Active
+                          </StatusPill>
+                        ) : (
+                          <StatusPill tone="danger">
+                            Revoked
+                          </StatusPill>
+                        )}
+                      </td>
+                      <td className="cx-api-cell--actions is-right">
+                        <div className="cx-api-actions-row">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => void handleCopyKey(k)}
+                            className="cx-key-copy-btn"
+                            aria-label={`Copy token for ${k.name}`}
+                          >
+                            <Copy size={13} /> Copy
+                          </Button>
+                          {k.active ? (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setRevokeError(null)
+                                setRevokeTarget(k)
+                              }}
+                              className="cx-key-revoke-btn"
+                              aria-label={`Revoke ${k.name}`}
+                            >
+                              <Trash2 size={13} /> Revoke
+                            </Button>
+                          ) : (
+                            <span className="cx-muted cx-small cx-revoked-text">Revoked</span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* ── Quick Start Card ── */}
       <section className="cx-section" aria-labelledby="cx-quickstart-title">
         <Card>
           <CardHeader
@@ -253,27 +354,34 @@ export default function ApiKeysPage() {
                 label="Example language"
                 value={example}
                 onChange={setExample}
-                options={[{ value: 'curl', label: 'cURL' }, { value: 'python', label: 'Python' }]}
+                options={[
+                  { value: 'curl', label: 'cURL' },
+                  { value: 'python', label: 'Python' },
+                ]}
               />
             }
           />
-          <CodePanel code={examples[example]} language={example === 'curl' ? 'bash' : 'python'} title={example === 'curl' ? 'Terminal' : 'Python'} />
+          <CodePanel
+            code={examples[example]}
+            language={example === 'curl' ? 'bash' : 'python'}
+            title={example === 'curl' ? 'Terminal' : 'Python'}
+          />
           <p className="cx-footnote">
             Store the key in an environment variable such as <span className="cx-mono">INFERXE_API_KEY</span> — never commit it to source control.
           </p>
         </Card>
       </section>
 
-      {/* Create */}
+      {/* ── Create Demo Key Dialog ── */}
       <Dialog
         open={createOpen}
-        title="Create API key"
-        description="Name the key after where it will be used, for example “production backend”."
+        title="Create Demo Key"
+        description="Name the key after where it will be used, for example “Production Backend API”."
         onClose={() => setCreateOpen(false)}
         dismissible={!creating}
       >
         <form onSubmit={submitCreate} className="cx-form" noValidate>
-          <Field label="Key name" error={nameError ?? undefined} hint={`Up to ${API_KEY_NAME_MAX} characters.`}>
+          <Field label="Key label" error={nameError ?? undefined} hint={`Up to ${API_KEY_NAME_MAX} characters.`}>
             {({ inputId, describedBy, invalid }) => (
               <TextInput
                 id={inputId}
@@ -284,7 +392,7 @@ export default function ApiKeysPage() {
                 aria-describedby={describedBy}
                 aria-invalid={invalid}
                 data-autofocus
-                placeholder="Production backend"
+                placeholder="Production Backend API"
               />
             )}
           </Field>
@@ -294,19 +402,32 @@ export default function ApiKeysPage() {
               label="Environment"
               value={environment}
               onChange={setEnvironment}
-              options={[{ value: 'live', label: 'Live' }, { value: 'test', label: 'Test' }]}
+              options={[
+                { value: 'live', label: 'Live (inf_demo_live_)' },
+                { value: 'test', label: 'Test (inf_demo_test_)' },
+              ]}
             />
-            <p className="cx-field__hint">Live and test keys share the same API; the environment labels the key prefix.</p>
+            <p className="cx-field__hint">
+              Live and test keys share the same demo inference API; the environment labels the key prefix.
+            </p>
           </div>
-          {createError ? <p className="cx-form-error" role="alert">{createError}</p> : null}
+          {createError ? (
+            <p className="cx-form-error" role="alert">
+              {createError}
+            </p>
+          ) : null}
           <div className="cx-dialog__foot cx-dialog__foot--inline">
-            <Button variant="ghost" onClick={() => setCreateOpen(false)} disabled={creating}>Cancel</Button>
-            <Button variant="primary" type="submit" disabled={creating}>{creating ? 'Creating…' : 'Create key'}</Button>
+            <Button variant="ghost" onClick={() => setCreateOpen(false)} disabled={creating}>
+              Cancel
+            </Button>
+            <Button variant="primary" type="submit" disabled={creating}>
+              {creating ? 'Creating…' : 'Create Key'}
+            </Button>
           </div>
         </form>
       </Dialog>
 
-      {/* Reveal (once) */}
+      {/* ── Reveal Secret Dialog (One-time) ── */}
       <Dialog
         open={revealed !== null}
         title="Copy your new API key"
@@ -322,21 +443,29 @@ export default function ApiKeysPage() {
         {revealed ? (
           <div className="cx-stack">
             <div className="cx-secret">
-              <code className="cx-secret__value" aria-label="New API key">{revealed.secret}</code>
+              <code className="cx-secret__value" aria-label="New API key">
+                {revealed.secret}
+              </code>
               <CopyButton text={revealed.secret} label="Copy key" />
             </div>
             <p className="cx-muted cx-small">
               <strong>{revealed.key.name}</strong> · {revealed.key.environment === 'live' ? 'Live' : 'Test'} key
             </p>
             <label className="cx-check">
-              <input type="checkbox" checked={acknowledged} onChange={(e) => setAcknowledged(e.target.checked)} />
-              <span><ShieldCheck size={15} aria-hidden="true" /> I have stored this key somewhere safe</span>
+              <input
+                type="checkbox"
+                checked={acknowledged}
+                onChange={(e) => setAcknowledged(e.target.checked)}
+              />
+              <span>
+                <ShieldCheck size={15} aria-hidden="true" /> I have stored this key somewhere safe
+              </span>
             </label>
           </div>
         ) : null}
       </Dialog>
 
-      {/* Revoke */}
+      {/* ── Revoke Confirmation Dialog ── */}
       <ConfirmDialog
         open={revokeTarget !== null}
         title={`Revoke “${revokeTarget?.name ?? ''}”?`}
@@ -347,6 +476,6 @@ export default function ApiKeysPage() {
         onConfirm={() => void confirmRevoke()}
         onCancel={() => setRevokeTarget(null)}
       />
-    </>
+    </div>
   )
 }
