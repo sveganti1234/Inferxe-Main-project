@@ -47,4 +47,8 @@ test('unknown admin routes still return 404 without calling next', async () => {
 test('non-admin paths are untouched', async () => {
   const { nextCalled } = await run('GET', '/api/customer/workspace')
   assert.equal(nextCalled, true)
+  const loginGet = await run('GET', '/login')
+  assert.equal(loginGet.nextCalled, true, 'GET /login must reach frontend SPA routing')
+  const logoutGet = await run('GET', '/logout')
+  assert.equal(logoutGet.nextCalled, true, 'GET /logout must reach frontend SPA routing')
 })
