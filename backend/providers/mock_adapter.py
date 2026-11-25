@@ -28,9 +28,13 @@ from .types import (
 class MockGpuProvider(BaseGpuProvider):
     """Deterministic in-memory GPU provider adapter."""
 
+    supports_ssh_keys = True
+
     def __init__(self):
         self._instances: Dict[str, InstanceHandle] = {}
         self._start_times: Dict[str, float] = {}
+        # What a real host would hold in ~/.ssh/authorized_keys; lets tests assert key delivery.
+        self.authorized_keys: Dict[str, List[str]] = {}
 
     @property
     def provider_id(self) -> str:
@@ -155,6 +159,7 @@ class MockGpuProvider(BaseGpuProvider):
             status=InstanceStatusEnum.RUNNING,
             host_ip=mock_ip,
             ssh_port=2222,
+            ssh_username="ubuntu",
             service_url=f"http://{mock_ip}:8000/v1",
             created_at=now,
             hourly_price_inr=offering.hourly_price_inr,
@@ -163,6 +168,7 @@ class MockGpuProvider(BaseGpuProvider):
 
         self._instances[provider_id_str] = handle
         self._start_times[provider_id_str] = time.time()
+        self.authorized_keys[provider_id_str] = list(request.ssh_public_keys)
         return handle
 
     async def get_instance_status(self, provider_instance_id: str) -> InstanceStatus:
@@ -186,6 +192,8 @@ class MockGpuProvider(BaseGpuProvider):
             temperature_celsius=65.0 if handle.status == InstanceStatusEnum.RUNNING else 35.0,
             power_draw_watts=185.0 if handle.status == InstanceStatusEnum.RUNNING else 20.0,
             service_healthy=handle.status == InstanceStatusEnum.RUNNING,
+            host_ip=handle.host_ip,
+            ssh_port=handle.ssh_port,
         )
 
     async def pause_instance(self, provider_instance_id: str) -> bool:

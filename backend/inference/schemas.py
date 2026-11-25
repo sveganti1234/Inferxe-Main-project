@@ -2,6 +2,7 @@
 Pydantic data validation schemas for the Inferxe Inference API.
 """
 
+import uuid
 from typing import Literal, Optional, List, Any, Dict
 from pydantic import BaseModel, Field, field_validator
 
@@ -278,3 +279,74 @@ class PricingEstimateRequest(BaseModel):
     storage_gb: float = Field(default=0, ge=0, le=100000)
     spot: bool = False
 
+
+
+class GpuDeploymentCreateRequest(BaseModel):
+    """Launch a GPU instance. Price and provider details are decided by the server, never the client."""
+    name: str = Field(..., min_length=1, max_length=100)
+    model_name: str = Field(..., min_length=1, max_length=255, description="Model to serve on the instance")
+    gpu_id: str = Field(..., min_length=1, max_length=64, description="GPU id from GET /api/v1/gpu/offerings")
+    provider_id: Optional[str] = Field(default=None, max_length=64, description="Omit to pick the cheapest enabled provider")
+    region: Optional[str] = Field(default=None, max_length=64)
+    ssh_key_ids: List[uuid.UUID] = Field(default_factory=list, max_length=10, description="IDs of the customer's registered SSH keys")
+    idempotency_key: Optional[str] = Field(default=None, min_length=8, max_length=128,
+                                           description="Retries with the same key return the same deployment")
+
+    @field_validator("name", "model_name", "gpu_id")
+    @classmethod
+    def strip_required(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("must not be blank")
+        return v.strip()
+
+
+class GpuDeploymentSsh(BaseModel):
+    host: str
+    port: int
+    username: Optional[str] = None
+    command: str
+
+
+class GpuDeploymentResponse(BaseModel):
+    id: str
+    name: str
+    model_name: str
+    gpu_id: Optional[str] = None
+    gpu_model: str
+    provider_id: Optional[str] = None
+    provider_instance_id: Optional[str] = None
+    region: Optional[str] = None
+    status: str
+    hourly_rate: float
+    currency: str
+    endpoint_url: Optional[str] = None
+    ssh: Optional[GpuDeploymentSsh] = None
+    ssh_key_ids: List[str] = Field(default_factory=list)
+    error_message: Optional[str] = None
+    started_at: Optional[str] = None
+    stopped_at: Optional[str] = None
+    last_status_sync_at: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+    @classmethod
+    def from_row(cls, row: Dict[str, Any]) -> "GpuDeploymentResponse":
+        meta = row.get("metadata") or {}
+        ssh = None
+        # Connection details only make sense while the instance is up.
+        if row.get("status") == "running" and row.get("ssh_host") and row.get("ssh_port"):
+            user = row.get("ssh_username")
+            target = f"{user}@{row['ssh_host']}" if user else row["ssh_host"]
+            ssh = GpuDeploymentSsh(host=row["ssh_host"], port=row["ssh_port"], username=user,
+                                   command=f"ssh -p {row['ssh_port']} {target}")
+        text = lambda k: str(row[k]) if row.get(k) is not None else None  # noqa: E731
+        return cls(
+            id=str(row["id"]), name=row["name"], model_name=row["model_name"], gpu_id=meta.get("gpu_id"),
+            gpu_model=row["gpu_model"], provider_id=row.get("provider_id"),
+            provider_instance_id=row.get("provider_instance_id"), region=row.get("region"), status=row["status"],
+            hourly_rate=float(row.get("hourly_rate") or 0), currency=(row.get("currency") or "INR").strip(),
+            endpoint_url=row.get("endpoint_url"), ssh=ssh,
+            ssh_key_ids=[k["id"] for k in meta.get("ssh_keys", [])], error_message=row.get("error_message"),
+            started_at=text("started_at"), stopped_at=text("stopped_at"),
+            last_status_sync_at=text("last_status_sync_at"), created_at=text("created_at"), updated_at=text("updated_at"),
+        )

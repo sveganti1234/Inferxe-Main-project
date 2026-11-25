@@ -9,7 +9,7 @@
  * - Token values are never logged or included in error messages.
  */
 import { ensureFreshSession } from '../../../lib/authStore'
-import { NOTIFICATIONS_API_BASE } from '../../../lib/apiConfig'
+import { INFERENCE_API_BASE, NOTIFICATIONS_API_BASE } from '../../../lib/apiConfig'
 
 export type CustomerApiErrorKind =
   | 'unauthenticated' // no session, or the backend rejected the token (401)
@@ -66,7 +66,9 @@ export function defaultMessage(kind: CustomerApiErrorKind): string {
 function serverMessage(body: unknown): string | null {
   if (!body || typeof body !== 'object') return null
   const record = body as Record<string, unknown>
-  const candidate = record.error ?? record.detail ?? record.message
+  let candidate = record.error ?? record.detail ?? record.message
+  // FastAPI can return a structured detail, e.g. { message, deployment } when GPU provisioning fails.
+  if (candidate && typeof candidate === 'object') candidate = (candidate as Record<string, unknown>).message
   if (typeof candidate !== 'string') return null
   const text = candidate.trim()
   if (!text || text.length > 240 || /eyJ[A-Za-z0-9_-]{10,}/.test(text)) return null
@@ -82,12 +84,15 @@ export interface CustomerRequestOptions {
 
 /**
  * Same-origin by default. The notifications and wallet services (8002) honour the existing
- * VITE_NOTIFICATIONS_API_ENDPOINT override, exactly like the legacy services do. `/api/customer/*`
- * has no override: it must be served from the same origin as the app.
+ * VITE_NOTIFICATIONS_API_ENDPOINT override, exactly like the legacy services do; the inference service
+ * (8001, `/api/v1/*`) honours VITE_INFERENCE_API_ENDPOINT. `/api/customer/*` has no override: it must be
+ * served from the same origin as the app.
  */
 export function resolveApiPath(path: string): string {
   const onNotificationsService = path.startsWith('/api/notifications') || path.startsWith('/api/wallet')
-  return onNotificationsService && NOTIFICATIONS_API_BASE ? `${NOTIFICATIONS_API_BASE}${path}` : path
+  if (onNotificationsService && NOTIFICATIONS_API_BASE) return `${NOTIFICATIONS_API_BASE}${path}`
+  if (path.startsWith('/api/v1/') && INFERENCE_API_BASE) return `${INFERENCE_API_BASE}${path}`
+  return path
 }
 
 function buildUrl(path: string, query?: CustomerRequestOptions['query']): string {

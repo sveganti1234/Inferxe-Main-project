@@ -60,6 +60,7 @@ class ProvisionRequest(BaseModel):
     pricing_type: PricingTypeEnum = Field(default=PricingTypeEnum.ON_DEMAND)
     region_preference: Optional[str] = Field(default=None, description="Preferred datacenter region")
     auto_stop_minutes: Optional[int] = Field(default=60, description="Inactivity timeout before auto-stop")
+    ssh_public_keys: List[str] = Field(default_factory=list, description="Validated OpenSSH public keys to authorize on the instance")
 
 
 class InstanceHandle(BaseModel):
@@ -71,6 +72,7 @@ class InstanceHandle(BaseModel):
     status: InstanceStatusEnum = Field(..., description="Current lifecycle state")
     host_ip: Optional[str] = Field(default=None, description="Public IP address of instance")
     ssh_port: Optional[int] = Field(default=None, description="Public SSH port for direct access")
+    ssh_username: Optional[str] = Field(default=None, description="Login user for SSH access")
     service_url: Optional[str] = Field(default=None, description="Base HTTP URL for model inference")
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     hourly_price_inr: float = Field(..., description="Agreed hourly rate in INR")
@@ -89,4 +91,6 @@ class InstanceStatus(BaseModel):
     temperature_celsius: Optional[float] = Field(default=None, description="GPU core temperature")
     power_draw_watts: Optional[float] = Field(default=None, description="Current power draw in Watts")
     service_healthy: bool = Field(default=False, description="Whether the inference HTTP port responds ok")
+    host_ip: Optional[str] = Field(default=None, description="Public IP, when the provider reports it (often only once running)")
+    ssh_port: Optional[int] = Field(default=None, description="Public SSH port, when reported")
     error_message: Optional[str] = Field(default=None)

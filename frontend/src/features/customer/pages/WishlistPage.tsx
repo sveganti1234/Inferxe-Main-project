@@ -81,11 +81,7 @@ export default function WishlistPage() {
   }
 
   const handleDeploy = (listing: ListingView) => {
-    navigate(
-      `/dashboard/app/deployments?model=${encodeURIComponent(listing.gpuModel)}&region=${encodeURIComponent(
-        listing.region || ''
-      )}`
-    )
+    navigate(`/dashboard/app/deployments?gpu=${encodeURIComponent(listing.gpuModel)}`)
   }
 
   return (

@@ -26,8 +26,10 @@
     "dataset:expand": "py -3 database/scripts/expand_inferxe_dataset.py"
   },
   "dependencies": {
+    "@node-rs/argon2": "^2.2.2",
     "@supabase/supabase-js": "^2.119.0",
-    "aws-jwt-verify": "^5.2.1"
+    "aws-jwt-verify": "^5.2.1",
+    "hash-wasm": "^4.13.0"
   },
   "devDependencies": {
     "concurrently": "^10.0.7"

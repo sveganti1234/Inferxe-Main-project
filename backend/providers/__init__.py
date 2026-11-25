@@ -20,6 +20,7 @@ from .base import (
     ProviderQuotaExceededError,
     ProviderCapacityUnavailableError,
     ProviderInstanceNotFoundError,
+    ProviderTimeoutError,
 )
 from .mock_adapter import MockGpuProvider
 from .jarvislabs.adapter import JarvisLabsGpuProvider
@@ -38,6 +39,7 @@ __all__ = [
     "ProviderQuotaExceededError",
     "ProviderCapacityUnavailableError",
     "ProviderInstanceNotFoundError",
+    "ProviderTimeoutError",
     "MockGpuProvider",
     "JarvisLabsGpuProvider",
     "ProviderRegistry",

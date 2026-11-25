@@ -537,16 +537,24 @@ def protect_service_tables(cur, tables=SERVICE_ONLY_TABLES) -> List[str]:
         "WHERE n.nspname = 'public' AND c.relkind IN ('r', 'p') AND c.relname = ANY(%s);",
         (list(tables),),
     )
-    rls_state = dict(cur.fetchall())
+    raw_rls = cur.fetchall()
+    rls_state = {}
+    for r in raw_rls:
+        if isinstance(r, dict):
+            rls_state[r["relname"]] = r["relrowsecurity"]
+        else:
+            rls_state[r[0]] = r[1]
     cur.execute("SELECT rolname FROM pg_roles WHERE rolname = ANY(%s);", (list(PUBLIC_API_ROLES),))
-    roles = [r[0] for r in cur.fetchall()]  # absent on plain PostgreSQL (local/test): nothing to revoke
+    roles = [r["rolname"] if isinstance(r, dict) else r[0] for r in cur.fetchall()]  # absent on plain PostgreSQL (local/test): nothing to revoke
     in_transaction = not cur.connection.autocommit
     changed = []
     for table, rls_enabled in sorted(rls_state.items()):
         exposed = []
         for role in roles:
             cur.execute("SELECT has_table_privilege(%s, %s, %s);", (role, f"public.{table}", _TABLE_PRIVILEGES))
-            if cur.fetchone()[0]:
+            row = cur.fetchone()
+            has_priv = (row["has_table_privilege"] if isinstance(row, dict) else row[0]) if row else False
+            if has_priv:
                 exposed.append(role)
         if rls_enabled and not exposed:
             continue
