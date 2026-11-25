@@ -49,8 +49,18 @@ class ProviderInstanceNotFoundError(ProviderError):
         super().__init__(message, provider_id=provider_id, status_code=404)
 
 
+class ProviderTimeoutError(ProviderError):
+    """Raised when a provider call does not finish within the allowed time."""
+    def __init__(self, message: str, provider_id: str = ""):
+        super().__init__(message, provider_id=provider_id, status_code=504)
+
+
 class BaseGpuProvider(ABC):
     """Abstract interface defining required operations for GPU cloud providers."""
+
+    # True when provision_instance() installs ProvisionRequest.ssh_public_keys on the instance.
+    # Providers that cannot must leave this False so callers refuse keys instead of silently dropping them.
+    supports_ssh_keys: bool = False
 
     @property
     @abstractmethod

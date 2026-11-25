@@ -197,6 +197,11 @@ class JarvisLabsGpuProvider(BaseGpuProvider):
         return True
 
     async def provision_instance(self, request: ProvisionRequest) -> InstanceHandle:
+        if request.ssh_public_keys:
+            # shortcut: JarvisLabs' SSH key mechanism is unverified, so keys are refused rather than dropped;
+            # set supports_ssh_keys = True once the create payload carries them.
+            raise ProviderError("JarvisLabs adapter does not support SSH key delivery yet",
+                                provider_id=self.provider_id, status_code=400)
         clean_gpu_id = request.gpu_id.replace("-spot", "")
         meta = JARVISLABS_HARDWARE_CATALOG.get(clean_gpu_id)
         if not meta:
@@ -239,7 +244,14 @@ class JarvisLabsGpuProvider(BaseGpuProvider):
         except Exception as ex:
             raise ProviderError(f"Failed to provision JarvisLabs instance: {str(ex)}", provider_id=self.provider_id)
 
-        provider_inst_id = str(res.get("instance_id") or res.get("machine_id") or uuid.uuid4().hex[:12])
+        provider_inst_id = res.get("instance_id") or res.get("machine_id")
+        if not provider_inst_id:
+            # A made-up id could never be stopped or terminated, leaving a billed GPU running untracked.
+            raise ProviderError(
+                f"JarvisLabs did not return an instance id for {payload['name']}; check the console and clean up manually",
+                provider_id=self.provider_id,
+            )
+        provider_inst_id = str(provider_inst_id)
         ip = res.get("ip") or res.get("url") or None
         ssh_port = res.get("ssh_port") or 22
 
@@ -289,32 +301,27 @@ class JarvisLabsGpuProvider(BaseGpuProvider):
             temperature_celsius=float(res.get("temperature", 0.0)) if "temperature" in res else None,
             power_draw_watts=float(res.get("power_draw", 0.0)) if "power_draw" in res else None,
             service_healthy=status_enum == InstanceStatusEnum.RUNNING,
+            host_ip=res.get("ip") or None,
+            ssh_port=res.get("ssh_port") or None,
             error_message=res.get("error_message"),
         )
 
-    async def pause_instance(self, provider_instance_id: str) -> bool:
+    async def _lifecycle_call(self, action: str, call, provider_instance_id: str) -> bool:
         if not self.client.is_configured:
             raise ProviderAuthenticationError("JARVISLABS_API_KEY is not configured", provider_id=self.provider_id)
         try:
-            await self.client.pause_instance(provider_instance_id)
+            await call(provider_instance_id)
             return True
         except httpx.HTTPStatusError as e:
             raise self._map_http_error(e)
+        except Exception as ex:  # timeouts and connection errors must not escape as raw httpx errors
+            raise ProviderError(f"Failed to {action} JarvisLabs instance: {type(ex).__name__}", provider_id=self.provider_id)
+
+    async def pause_instance(self, provider_instance_id: str) -> bool:
+        return await self._lifecycle_call("pause", self.client.pause_instance, provider_instance_id)
 
     async def resume_instance(self, provider_instance_id: str) -> bool:
-        if not self.client.is_configured:
-            raise ProviderAuthenticationError("JARVISLABS_API_KEY is not configured", provider_id=self.provider_id)
-        try:
-            await self.client.resume_instance(provider_instance_id)
-            return True
-        except httpx.HTTPStatusError as e:
-            raise self._map_http_error(e)
+        return await self._lifecycle_call("resume", self.client.resume_instance, provider_instance_id)
 
     async def terminate_instance(self, provider_instance_id: str) -> bool:
-        if not self.client.is_configured:
-            raise ProviderAuthenticationError("JARVISLABS_API_KEY is not configured", provider_id=self.provider_id)
-        try:
-            await self.client.destroy_instance(provider_instance_id)
-            return True
-        except httpx.HTTPStatusError as e:
-            raise self._map_http_error(e)
+        return await self._lifecycle_call("terminate", self.client.destroy_instance, provider_instance_id)

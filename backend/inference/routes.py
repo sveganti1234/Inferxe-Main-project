@@ -48,7 +48,23 @@ from inference.supabase_telemetry import (
     SupabaseTelemetryServiceUnavailableError,
     get_telemetry_repository,
 )
+from inference.supabase_deployments import (
+    DeploymentStoreError,
+    DeploymentStoreUnavailableError,
+    SupabaseDeploymentRepository,
+    get_deployment_repository,
+)
+from inference.gpu_deployment_service import (
+    DeploymentNotFoundError,
+    DeploymentProvisioningError,
+    DeploymentRequestError,
+    DeploymentStateError,
+    GpuDeploymentService,
+)
+from providers.base import ProviderCapacityUnavailableError, ProviderError, ProviderTimeoutError
 from inference.schemas import (
+    GpuDeploymentCreateRequest,
+    GpuDeploymentResponse,
     InferenceRequest,
     InferenceResponse,
     HealthResponse,
@@ -1292,3 +1308,117 @@ def usage_summary(
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Upstream usage database rejected the request.")
     return {"success": True, **summarize_usage(records)}
 
+
+
+# ── GPU deployments (provider adapter framework) ─────────────────────────────────────────────────────
+
+def get_gpu_deployment_service(
+    repo: SupabaseDeploymentRepository = Depends(get_deployment_repository),
+    ssh_repo: SupabaseSSHKeyRepository = Depends(get_ssh_key_repository),
+) -> GpuDeploymentService:
+    return GpuDeploymentService(repo=repo, ssh_repo=ssh_repo)
+
+
+def _gpu_http_error(err: Exception) -> HTTPException:
+    """Map service, provider and store errors to HTTP. Provider messages are not echoed (they can carry upstream text)."""
+    if isinstance(err, DeploymentNotFoundError):
+        return HTTPException(status.HTTP_404_NOT_FOUND, "Deployment not found.")
+    if isinstance(err, (DeploymentRequestError, SupabaseSSHKeyValidationError, SSHKeyValidationError)):
+        return HTTPException(status.HTTP_400_BAD_REQUEST, str(err))
+    if isinstance(err, DeploymentStateError):
+        return HTTPException(status.HTTP_409_CONFLICT, str(err))
+    if isinstance(err, ProviderTimeoutError):
+        return HTTPException(status.HTTP_504_GATEWAY_TIMEOUT, "The GPU provider did not respond in time.")
+    if isinstance(err, ProviderCapacityUnavailableError):
+        return HTTPException(status.HTTP_409_CONFLICT, "The requested GPU is not available right now.")
+    if isinstance(err, ProviderError):
+        if err.status_code == 400:
+            return HTTPException(status.HTTP_400_BAD_REQUEST, "The GPU provider rejected the request.")
+        return HTTPException(status.HTTP_502_BAD_GATEWAY, "The GPU provider returned an error.")
+    if isinstance(err, (DeploymentStoreUnavailableError, SupabaseSSHKeyServiceUnavailableError)):
+        return HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Deployment database is temporarily unavailable.")
+    if isinstance(err, (DeploymentStoreError, SupabaseSSHKeyError)):
+        return HTTPException(status.HTTP_502_BAD_GATEWAY, "Deployment database rejected the request.")
+    logger.error("Unexpected GPU deployment error (%s).", type(err).__name__)
+    return HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "GPU deployment request failed.")
+
+
+_GPU_ERRORS = (DeploymentNotFoundError, DeploymentRequestError, DeploymentStateError, ProviderError,
+               DeploymentStoreError, SupabaseSSHKeyError, SSHKeyValidationError)
+
+
+@router.get("/gpu/offerings", summary="GPU offerings from enabled providers",
+            description="Normalized GPU models, live pricing and availability across enabled providers (GPU_PROVIDERS).")
+def list_gpu_offerings(service: GpuDeploymentService = Depends(get_gpu_deployment_service)):
+    try:
+        offerings = service.list_offerings()
+    except ProviderError as err:
+        raise _gpu_http_error(err)
+    return {"success": True, "count": len(offerings), "offerings": [o.model_dump(mode="json") for o in offerings]}
+
+
+@router.post("/gpu/deployments", response_model=GpuDeploymentResponse, status_code=status.HTTP_201_CREATED,
+             summary="Launch a GPU instance")
+def create_gpu_deployment(
+    req: GpuDeploymentCreateRequest,
+    user_id: str = Depends(require_cognito_user),
+    service: GpuDeploymentService = Depends(get_gpu_deployment_service),
+):
+    try:
+        row = service.create(user_id=user_id, name=req.name, model_name=req.model_name, gpu_id=req.gpu_id,
+                             provider_id=req.provider_id, region=req.region, ssh_key_ids=req.ssh_key_ids,
+                             idempotency_key=req.idempotency_key)
+    except DeploymentProvisioningError as err:
+        http = _gpu_http_error(err.cause)
+        # The failed deployment is kept so the customer can see it; return it with the error.
+        raise HTTPException(http.status_code, {
+            "message": http.detail,
+            "deployment": GpuDeploymentResponse.from_row(err.deployment).model_dump(mode="json"),
+        })
+    except _GPU_ERRORS as err:
+        raise _gpu_http_error(err)
+    return GpuDeploymentResponse.from_row(row)
+
+
+@router.get("/gpu/deployments", summary="List GPU deployments")
+def list_gpu_deployments(
+    user_id: str = Depends(require_cognito_user),
+    service: GpuDeploymentService = Depends(get_gpu_deployment_service),
+):
+    try:
+        rows = service.list(user_id)
+    except _GPU_ERRORS as err:
+        raise _gpu_http_error(err)
+    return {"success": True, "deployments": [GpuDeploymentResponse.from_row(r) for r in rows]}
+
+
+def _gpu_action(action, user_id: str, deployment_id: str) -> GpuDeploymentResponse:
+    try:
+        return GpuDeploymentResponse.from_row(action(user_id, deployment_id))
+    except _GPU_ERRORS as err:
+        raise _gpu_http_error(err)
+
+
+@router.get("/gpu/deployments/{deployment_id}", response_model=GpuDeploymentResponse,
+            summary="Get a GPU deployment (refreshes status from the provider)")
+def get_gpu_deployment(deployment_id: str, user_id: str = Depends(require_cognito_user),
+                       service: GpuDeploymentService = Depends(get_gpu_deployment_service)):
+    return _gpu_action(service.get, user_id, deployment_id)
+
+
+@router.post("/gpu/deployments/{deployment_id}/stop", response_model=GpuDeploymentResponse, summary="Stop a GPU instance")
+def stop_gpu_deployment(deployment_id: str, user_id: str = Depends(require_cognito_user),
+                        service: GpuDeploymentService = Depends(get_gpu_deployment_service)):
+    return _gpu_action(service.stop, user_id, deployment_id)
+
+
+@router.post("/gpu/deployments/{deployment_id}/resume", response_model=GpuDeploymentResponse, summary="Resume a GPU instance")
+def resume_gpu_deployment(deployment_id: str, user_id: str = Depends(require_cognito_user),
+                          service: GpuDeploymentService = Depends(get_gpu_deployment_service)):
+    return _gpu_action(service.resume, user_id, deployment_id)
+
+
+@router.delete("/gpu/deployments/{deployment_id}", response_model=GpuDeploymentResponse, summary="Terminate a GPU instance")
+def terminate_gpu_deployment(deployment_id: str, user_id: str = Depends(require_cognito_user),
+                             service: GpuDeploymentService = Depends(get_gpu_deployment_service)):
+    return _gpu_action(service.terminate, user_id, deployment_id)
