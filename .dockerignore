@@ -1,0 +1,37 @@
+# Local dependencies & virtual environments
+node_modules/
+**/node_modules/
+.venv/
+.venv311/
+venv/
+venv311/
+**/venv/
+__pycache__/
+*.py[cod]
+
+# Frontend (deployed separately on Vercel)
+frontend/
+dist/
+**/dist/
+build/
+
+# Secrets & local runtime files
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+
+# Local databases, logs, archives & scratch files
+database/*.db
+database/*.db-*
+database/*.sqlite3*
+database/backups/
+database/chroma_db/
+*.log
+*.zip
+scratch/
+.git/
+.githooks/
+.vscode/

@@ -1,0 +1,66 @@
+# Render Blueprint for Inferxe Unified Backend
+# Deploy via Render Dashboard -> New + -> Blueprint -> Select Repository
+services:
+  - type: web
+    name: inferxe-backend
+    runtime: docker
+    plan: free
+    region: singapore
+    branch: main
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /healthz
+    envVars:
+      - key: PORT
+        value: "10000"
+      - key: NODE_ENV
+        value: production
+      - key: INFERENCE_PORT
+        value: "8001"
+      - key: NOTIFICATIONS_PORT
+        value: "8002"
+      - key: INFERENCE_DEMO_MODE
+        value: "true"
+      - key: GPU_PROVIDERS
+        value: "mock"
+      - key: WALLET_SELF_RECHARGE_ENABLED
+        value: "false"
+      - key: ADMIN_DEV_FALLBACK
+        value: "false"
+      - key: ALLOW_VERCEL_PREVIEW_ORIGINS
+        value: "true"
+      - key: FRONTEND_URL
+        value: "https://inferxe-main-project-ouf1.vercel.app"
+      - key: CORS_ALLOWED_ORIGINS
+        value: "https://inferxe-main-project-ouf1.vercel.app"
+      - key: COGNITO_REGION
+        value: "ap-south-1"
+      - key: AWS_COGNITO_REGION
+        value: "ap-south-1"
+      - key: AWS_REGION
+        value: "ap-south-1"
+      - key: NVIDIA_BASE_URL
+        value: "https://integrate.api.nvidia.com/v1"
+      - key: NVIDIA_MODEL
+        value: "nvidia/nemotron-3.5-bolt-e4b"
+      - key: ADMIN_SESSION_SECRET
+        generateValue: true
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: SUPABASE_DATABASE_URL
+        sync: false
+      - key: COGNITO_USER_POOL_ID
+        sync: false
+      - key: COGNITO_CLIENT_ID
+        sync: false
+      - key: AWS_COGNITO_USER_POOL_ID
+        sync: false
+      - key: AWS_COGNITO_CLIENT_ID
+        sync: false
+      - key: NVIDIA_API_KEY
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
