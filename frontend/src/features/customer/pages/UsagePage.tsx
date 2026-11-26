@@ -116,8 +116,8 @@ export default function UsagePage() {
   // Deployments calculation for running models / burn
   const deployments = workspace?.deployments ?? []
   const runningDeployments = deployments.filter((d) => (d.status ?? '').toLowerCase() === 'running')
-  const runningCount = runningDeployments.length > 0 ? runningDeployments.length : 2
-  const totalDeploymentsCount = deployments.length > 0 ? deployments.length : 3
+  const runningCount = runningDeployments.length
+  const totalDeploymentsCount = deployments.length
 
   // 24 hourly points for GPU utilization curve (matching the exact visual wave in reference)
   const gpuUsagePoints = useMemo(() => {

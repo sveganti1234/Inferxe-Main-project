@@ -4,6 +4,7 @@ GPU Provider Registry
 Centralized registry for discovering, instantiating, and caching GPU cloud provider adapters.
 """
 
+import logging
 import os
 from typing import Dict, Iterable, List, Optional, Tuple
 
@@ -15,9 +16,20 @@ from .types import GpuOffering
 DEFAULT_ENABLED_PROVIDERS = "mock"
 
 
+PRODUCTION_ENV_VALUES = {"production", "prod"}  # same values as inference.auth
+
+logger = logging.getLogger("inferxe.providers")
+
+
 def _enabled_from_env() -> List[str]:
     raw = os.getenv("GPU_PROVIDERS", DEFAULT_ENABLED_PROVIDERS)
-    return [p.strip().lower() for p in raw.split(",") if p.strip()]
+    enabled = [p.strip().lower() for p in raw.split(",") if p.strip()]
+    env_name = (os.getenv("INFERXE_ENV") or os.getenv("APP_ENV") or os.getenv("ENVIRONMENT") or "").strip().lower()
+    if env_name in PRODUCTION_ENV_VALUES and "mock" in enabled:
+        # The mock provider fabricates instances; customers must never be sold one.
+        logger.error("GPU_PROVIDERS includes 'mock' in production; mock is disabled for new deployments.")
+        enabled.remove("mock")
+    return enabled
 
 
 class ProviderRegistry:
