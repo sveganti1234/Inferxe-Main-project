@@ -19,13 +19,11 @@ const WORKSPACE_SELECTS = {
   saved_gpu_listings: 'id, user_id, listing_id, created_at',
   deployments: 'id, user_id, organization_id, listing_id, name, model_name, gpu_model, region, status, hourly_rate, currency, endpoint_url, started_at, stopped_at, metadata, created_at, updated_at',
   orders: 'id, user_id, organization_id, deployment_id, order_number, item_name, provider_name, order_date, duration_minutes, total_cost, currency, status, details, created_at, updated_at',
-  usage_records: 'id, user_id, organization_id, deployment_id, order_id, model_name, gpu_model, input_tokens, output_tokens, duration_seconds, amount, currency, recorded_at, metadata',
   wallets: 'user_id, balance, currency, low_balance_alert_level, updated_at',
   wallet_transactions: 'id, user_id, amount, balance_after, currency, status, idempotency_key, description, created_at, updated_at, transaction_type, direction',
   api_keys: 'id, user_id, organization_id, name, key_prefix, created_at, last_used_at, expires_at, revoked_at, status',
   ssh_public_keys: 'id, user_id, name, public_key, fingerprint, created_at, revoked_at',
   notifications: 'id, user_id, title, detail, notification_type, is_read, created_at, read_at',
-  order_reviews: 'id, order_id, user_id, rating, note, created_at, updated_at',
   notebook_sessions: 'id, user_id, deployment_id, name, status, session_url, storage_path, bot_access_enabled, started_at, stopped_at, created_at, updated_at',
   inference_requests: 'id, user_id, organization_id, api_key_id, deployment_id, model_name, provider_name, input_tokens, output_tokens, latency_ms, status, error_message, cost, created_at',
 }
@@ -89,37 +87,9 @@ export async function getCustomerContext(req, deps = {}) {
   ])
 
   if (result.error) throw result.error
-  let profileData = result.data
-  if (!profileData && claims.sub) {
-    try {
-      const email = (claims.email || '').toLowerCase() || 'customer@inferxe.com'
-      const fullName = (typeof claims.name === 'string' && claims.name.trim()) ||
-        (typeof claims.preferred_username === 'string' && claims.preferred_username.trim()) ||
-        email.split('@')[0] || 'Customer'
-      const username = (typeof claims['cognito:username'] === 'string' && claims['cognito:username']) ||
-        email.split('@')[0] || 'customer'
-      const upsert = await supabase
-        .from('profiles')
-        .upsert({
-          user_id: claims.sub,
-          full_name: fullName,
-          email,
-          username,
-          avatar_path: null,
-          role: 'customer',
-          status: 'active',
-          organization_id: 'org_inferxe_dev',
-        })
-        .select('user_id, full_name, email, username, avatar_path, role, status, organization_id')
-        .maybeSingle()
-      if (upsert.data) {
-        profileData = upsert.data
-      }
-    } catch {
-      // Fallback
-    }
-  }
-
+  // A profile is created only by the Cognito profile sync (customerAuth.js), which enforces identity
+  // linking and account status; it is never invented here from token claims.
+  const profileData = result.data
   if (!profileData) {
     const error = new Error('Customer profile has not been synchronized.')
     error.statusCode = 403
@@ -152,39 +122,79 @@ export async function getCustomerContext(req, deps = {}) {
 }
 
 async function getRows(supabase, table, columnList, field, value) {
-  try {
-    let query = supabase.from(table).select(columnList)
-    if (value !== undefined && value !== null) query = query.eq(field, value)
-    const result = await query
-    if (result.error) {
-      console.warn(`[customer-api] Query warning for table '${table}':`, result.error.message || result.error)
+  let query = supabase.from(table).select(columnList)
+  if (value !== undefined && value !== null) query = query.eq(field, value)
+  const result = await query
+  if (result.error) {
+    if (result.error.code === '42501') {
+      console.warn(`[customer-api] Permission denied (42501) for table '${table}'; returning empty collection.`)
       return []
     }
-    return result.data || []
-  } catch (err) {
-    console.warn(`[customer-api] Query exception for table '${table}':`, err?.message || err)
-    return []
+    throw result.error  // any other failure fails the request instead of showing an empty workspace
   }
+  return result.data || []
+}
+
+// The GPU catalogue (active providers, available listings) is the same for every customer and is edited
+// outside this service, so it is cached briefly per Supabase client instead of re-read on every load.
+// shortcut: per-process TTL cache; edits show up within CATALOG_TTL_MS. Add explicit invalidation if this
+// service ever writes gpu_listings/gpu_providers.
+const CATALOG_TTL_MS = 30_000
+const catalogCache = new WeakMap()
+
+function getGpuCatalog(supabase) {
+  const cached = catalogCache.get(supabase)
+  if (cached && Date.now() - cached.at < CATALOG_TTL_MS) return cached.promise
+  const promise = Promise.all([
+    supabase.from('gpu_providers').select(WORKSPACE_SELECTS.gpu_providers).eq('status', 'active'),
+    supabase.from('gpu_listings').select(WORKSPACE_SELECTS.gpu_listings).eq('status', 'available'),
+  ]).then((results) => {
+    for (const result of results) {
+      if (result?.error && result.error.code !== '42501') throw result.error
+    }
+    return results
+  })
+  catalogCache.set(supabase, { at: Date.now(), promise })
+  promise.catch(() => catalogCache.delete(supabase))  // never keep a failure
+  return promise
+}
+
+// The console's usage views cover at most the last 90 days (UsageWindow 7 | 30 | 90), so only that
+// window of inference requests is sent; the all-time number is a database count, not every row.
+const USAGE_HISTORY_DAYS = 90
+
+async function getRecentInferenceRequests(supabase, userId) {
+  const since = new Date(Date.now() - (USAGE_HISTORY_DAYS + 1) * 86400000).toISOString()
+  const [rows, total] = await Promise.all([
+    supabase.from('inference_requests').select(WORKSPACE_SELECTS.inference_requests)
+      .eq('user_id', userId).gte('created_at', since).order('created_at', { ascending: false }),
+    supabase.from('inference_requests').select('id', { count: 'exact', head: true }).eq('user_id', userId),
+  ])
+  for (const result of [rows, total]) {
+    if (result?.error) {
+      if (result.error.code === '42501') return { rows: [], total: 0 }
+      throw result.error
+    }
+  }
+  return { rows: rows.data || [], total: typeof total.count === 'number' ? total.count : (rows.data || []).length }
 }
 
 async function getWorkspace(context) {
   const { claims, profile, memberships, organizationIds, supabase } = context
   const queries = [
-    supabase.from('gpu_providers').select(WORKSPACE_SELECTS.gpu_providers).eq('status', 'active'),
-    supabase.from('gpu_listings').select(WORKSPACE_SELECTS.gpu_listings).eq('status', 'available'),
+    getGpuCatalog(supabase).then(([providers]) => providers),
+    getGpuCatalog(supabase).then(([, listings]) => listings),
     getRows(supabase, 'saved_gpu_listings', WORKSPACE_SELECTS.saved_gpu_listings, 'user_id', claims.sub),
     getRows(supabase, 'deployments', WORKSPACE_SELECTS.deployments, 'user_id', claims.sub),
     getRows(supabase, 'orders', WORKSPACE_SELECTS.orders, 'user_id', claims.sub),
-    getRows(supabase, 'usage_records', WORKSPACE_SELECTS.usage_records, 'user_id', claims.sub),
     getRows(supabase, 'wallets', WORKSPACE_SELECTS.wallets, 'user_id', claims.sub)
       .catch(() => []),
     getRows(supabase, 'wallet_transactions', WORKSPACE_SELECTS.wallet_transactions, 'user_id', claims.sub),
     getRows(supabase, 'api_keys', WORKSPACE_SELECTS.api_keys, 'user_id', claims.sub),
     getRows(supabase, 'ssh_public_keys', WORKSPACE_SELECTS.ssh_public_keys, 'user_id', claims.sub),
     getRows(supabase, 'notifications', WORKSPACE_SELECTS.notifications, 'user_id', claims.sub),
-    getRows(supabase, 'order_reviews', WORKSPACE_SELECTS.order_reviews, 'user_id', claims.sub),
     getRows(supabase, 'notebook_sessions', WORKSPACE_SELECTS.notebook_sessions, 'user_id', claims.sub),
-    getRows(supabase, 'inference_requests', WORKSPACE_SELECTS.inference_requests, 'user_id', claims.sub),
+    getRecentInferenceRequests(supabase, claims.sub),
     getRows(supabase, 'user_access_policies', WORKSPACE_SELECTS.user_access_policies, 'user_id', claims.sub),
     getRows(supabase, 'customer_plans', WORKSPACE_SELECTS.customer_plans, 'user_id', claims.sub),
   ]
@@ -204,15 +214,13 @@ async function getWorkspace(context) {
     savedListings,
     deployments,
     orders,
-    usageRecords,
     walletRows,
     walletTransactions,
     apiKeys,
     sshKeys,
     notifications,
-    reviews,
     notebookSessions,
-    inferenceRequests,
+    inferenceUsage,
     accessPolicies,
     customerPlans,
     organizationsResult,
@@ -244,15 +252,14 @@ async function getWorkspace(context) {
     saved_gpu_listings: savedListings,
     deployments,
     orders,
-    usage_records: usageRecords,
     wallet: walletRows?.[0] || null,
     wallet_transactions: walletTransactions,
     api_keys: apiKeys,
     ssh_public_keys: sshKeys,
     notifications,
-    order_reviews: reviews,
     notebook_sessions: notebookSessions,
-    inference_requests: inferenceRequests,
+    inference_requests: inferenceUsage.rows,
+    inference_requests_total: inferenceUsage.total,
     customer_plans: customerPlans,
   }
 }
@@ -382,10 +389,10 @@ function calculateSshFingerprint(publicKey) {
   }
 }
 
-async function handleCustomerApi(req, res, path) {
+async function handleCustomerApi(req, res, path, deps = {}) {
   let context
   try {
-    context = await getCustomerContext(req)
+    context = await getCustomerContext(req, deps)
   } catch (error) {
     return sendJson(res, error.statusCode || 401, {
       ok: false,
@@ -959,10 +966,11 @@ async function handleAdminApi(req, res, path) {
   }
 }
 
-export function createSupabaseApiMiddleware() {
+// deps: test-only injection forwarded to getCustomerContext (production passes nothing).
+export function createSupabaseApiMiddleware(deps = {}) {
   return async function supabaseApiMiddleware(req, res, next) {
     const path = (req.url || '/').split('?')[0]
-    if (path.startsWith('/api/customer/')) return handleCustomerApi(req, res, path)
+    if (path.startsWith('/api/customer/')) return handleCustomerApi(req, res, path, deps)
     if (path.startsWith('/api/admin/data/') || path === '/api/admin/customers' || path.startsWith('/api/admin/customers/')) {
       return handleAdminApi(req, res, path)
     }
