@@ -41,6 +41,8 @@ export function normaliseWorkspace(envelope: unknown): CustomerWorkspace {
     const value = raw[key]
     ;(workspace as unknown as Record<string, unknown>)[key] = Array.isArray(value) ? value : []
   }
+  const total = (raw as Record<string, unknown>).inference_requests_total
+  if (typeof total === 'number' && Number.isFinite(total) && total >= 0) workspace.inference_requests_total = total
   return workspace
 }
 

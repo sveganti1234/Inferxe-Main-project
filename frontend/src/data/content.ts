@@ -372,30 +372,9 @@ export const DATA_ENTITIES: { name: string; info: string }[] = [
   { name: 'Audit / events', info: 'Provisioning, lifecycle, security and operational events.' },
 ]
 
-/* ── API (DPR §9) ─────────────────────────────────────── */
-export interface Endpoint {
-  id: string
-  group: string
-  method: 'GET' | 'POST' | 'DELETE'
-  path: string
-  summary: string
-}
-export const ENDPOINTS: Endpoint[] = [
-  { id: 'register', group: 'Authentication', method: 'POST', path: '/api/auth/register', summary: 'Register a customer account' },
-  { id: 'login', group: 'Authentication', method: 'POST', path: '/api/auth/login', summary: 'Authenticate and obtain tokens' },
-  { id: 'gpus', group: 'GPU catalogue', method: 'GET', path: '/api/gpus', summary: 'List supported GPU configurations' },
-  { id: 'recommend', group: 'GPU catalogue', method: 'POST', path: '/api/gpus/recommend', summary: 'Recommend a compatible GPU for a workload' },
-  { id: 'models', group: 'Models', method: 'GET', path: '/api/models', summary: 'List supported models and deployment metadata' },
-  { id: 'create-dep', group: 'Deployments', method: 'POST', path: '/api/deployments', summary: 'Create a deployment' },
-  { id: 'get-dep', group: 'Deployments', method: 'GET', path: '/api/deployments/{id}', summary: 'Inspect a deployment' },
-  { id: 'stop-dep', group: 'Deployments', method: 'DELETE', path: '/api/deployments/{id}', summary: 'Stop and release a deployment' },
-  { id: 'inference', group: 'Inference', method: 'POST', path: '/api/inference', summary: 'Submit an inference request to an active deployment' },
-  { id: 'usage', group: 'Usage', method: 'GET', path: '/api/usage', summary: 'Retrieve request, runtime and usage information' },
-  { id: 'pricing', group: 'Pricing', method: 'GET', path: '/api/pricing', summary: 'Pricing references and estimated cost' },
-  { id: 'health', group: 'Monitoring', method: 'GET', path: '/api/health', summary: 'Service and provider health' },
-  { id: 'metrics', group: 'Monitoring', method: 'GET', path: '/api/metrics', summary: 'Service and performance metrics' },
-]
-
+/* ── API ──────────────────────────────────────────────── */
+// The public API reference is the Developers page (pages/Developers.tsx), which documents the real routes
+// (POST /api/v1/inference, GET /api/v1/health). The full contract is the inference service's OpenAPI schema.
 export const ERRORS: { code: string; meaning: string }[] = [
   { code: '400', meaning: 'Invalid requirement, model, GPU or request data.' },
   { code: '401 / 403', meaning: 'Authentication or authorization failure.' },

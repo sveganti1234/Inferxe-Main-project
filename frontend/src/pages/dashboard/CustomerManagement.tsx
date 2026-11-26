@@ -441,9 +441,9 @@ export default function CustomerManagement() {
         }}
       >
         {[
-          { id: 'real' as const, label: 'Real Customers', count: summary.total_real ?? 7, icon: UserCheck },
-          { id: 'all' as const, label: 'All Customers', count: summary.total ?? 26, icon: Users },
-          { id: 'test' as const, label: 'Test Accounts', count: summary.total_test ?? 19, icon: UserX },
+          { id: 'real' as const, label: 'Real Customers', count: summary.total_real ?? 0, icon: UserCheck },
+          { id: 'all' as const, label: 'All Customers', count: summary.total, icon: Users },
+          { id: 'test' as const, label: 'Test Accounts', count: summary.total_test ?? 0, icon: UserX },
         ].map((tab) => {
           const isActive = accountTypeTab === tab.id
           const Icon = tab.icon

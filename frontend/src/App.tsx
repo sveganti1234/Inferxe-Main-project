@@ -25,28 +25,29 @@ const Roadmap = lazy(() => import('./pages/Roadmap'))
 const NotFound = lazy(() => import('./pages/NotFound'))
 
 // Dashboard pages — statically imported for instantaneous 0ms tab switching without suspension or skeleton flicker
-import AddUser from './pages/dashboard/AddUser'
-import UsersList from './pages/dashboard/UsersList'
-import DashboardOverview from './pages/dashboard/DashboardOverview'
-import MarketplaceWorkspace from './pages/dashboard/MarketplaceWorkspace'
-import CustomerManagement from './pages/dashboard/CustomerManagement'
-import AdminKeyMonitoring from './pages/dashboard/AdminKeyMonitoring'
+// Admin/superadmin pages load on demand: they are not part of the public entry bundle.
+const AddUser = lazy(() => import('./pages/dashboard/AddUser'))
+const UsersList = lazy(() => import('./pages/dashboard/UsersList'))
+const DashboardOverview = lazy(() => import('./pages/dashboard/DashboardOverview'))
+const MarketplaceWorkspace = lazy(() => import('./pages/dashboard/MarketplaceWorkspace'))
+const CustomerManagement = lazy(() => import('./pages/dashboard/CustomerManagement'))
+const AdminKeyMonitoring = lazy(() => import('./pages/dashboard/AdminKeyMonitoring'))
 const CustomerVerdeloWorkspace = lazy(() => import('./components/dashboard/CustomerVerdeloWorkspace'))
 const CustomerApp = lazy(() => import('./features/customer/CustomerApp'))
 const CustomerEntryRedirect = lazy(() => import('./features/customer/CustomerEntryRedirect'))
 const LegacyWorkspaceRedirect = lazy(() => import('./features/customer/LegacyWorkspaceRedirect'))
-import SuperadminOverview from './pages/dashboard/superadmin/SuperadminOverview'
-import AdminManagement from './pages/dashboard/superadmin/AdminManagement'
-import AuditLogs from './pages/dashboard/superadmin/AuditLogs'
-import InfrastructureTelemetry from './pages/dashboard/superadmin/InfrastructureTelemetry'
-import KeyManagement from './pages/dashboard/superadmin/KeyManagement'
-import SuperAdminOverview from './pages/dashboard/SuperAdminOverview'
-import AdminAccounts from './pages/dashboard/AdminAccounts'
-import AdminRoles from './pages/dashboard/AdminRoles'
-import AdminPermissions from './pages/dashboard/AdminPermissions'
-import AdminActivity from './pages/dashboard/AdminActivity'
-import AdminAudit from './pages/dashboard/AdminAudit'
-import SuperAdminFutureModule from './pages/dashboard/SuperAdminFutureModule'
+const SuperadminOverview = lazy(() => import('./pages/dashboard/superadmin/SuperadminOverview'))
+const AdminManagement = lazy(() => import('./pages/dashboard/superadmin/AdminManagement'))
+const AuditLogs = lazy(() => import('./pages/dashboard/superadmin/AuditLogs'))
+const InfrastructureTelemetry = lazy(() => import('./pages/dashboard/superadmin/InfrastructureTelemetry'))
+const KeyManagement = lazy(() => import('./pages/dashboard/superadmin/KeyManagement'))
+const SuperAdminOverview = lazy(() => import('./pages/dashboard/SuperAdminOverview'))
+const AdminAccounts = lazy(() => import('./pages/dashboard/AdminAccounts'))
+const AdminRoles = lazy(() => import('./pages/dashboard/AdminRoles'))
+const AdminPermissions = lazy(() => import('./pages/dashboard/AdminPermissions'))
+const AdminActivity = lazy(() => import('./pages/dashboard/AdminActivity'))
+const AdminAudit = lazy(() => import('./pages/dashboard/AdminAudit'))
+const SuperAdminFutureModule = lazy(() => import('./pages/dashboard/SuperAdminFutureModule'))
 import { CustomerHeartbeat } from './components/dashboard/CustomerHeartbeat'
 // Admin-only chrome: kept out of the public entry bundle (rendered inside the route Suspense boundary).
 const AdminShell = lazy(() => import('./components/dashboard/AdminShell').then((m) => ({ default: m.AdminShell })))

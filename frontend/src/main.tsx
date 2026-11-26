@@ -28,7 +28,6 @@ import './styles/dashboard.css'
 import './styles/auth.css'
 import './styles/bot.css'
 import './styles/dashboard-extra.css'
-import './styles/super-admin.css'
 import './styles/index.css'
 
 import App from './App'

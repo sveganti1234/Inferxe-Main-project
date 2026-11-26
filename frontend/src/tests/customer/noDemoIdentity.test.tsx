@@ -2,7 +2,7 @@
  * The native console shows the authenticated customer's real profile on every one of its 12
  * sections and never any demo identity or banking-demo content ("Sahith", Verdelo, household...).
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
@@ -10,6 +10,9 @@ import { ensureFreshSession, getSession } from '../../lib/authStore'
 import CustomerApp from '../../features/customer/CustomerApp'
 import { CONSOLE_SECTIONS } from '../../features/customer/navigation'
 import { emptyWorkspace, jsonResponse, workspaceEnvelope } from './fixtures'
+import { preloadCustomerPages } from './preloadPages'
+
+beforeAll(preloadCustomerPages)
 
 vi.mock('../../lib/authStore', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../lib/authStore')>()),

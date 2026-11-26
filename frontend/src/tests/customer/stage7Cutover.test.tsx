@@ -2,12 +2,15 @@
  * Stage 7 cutover routing through the real <App/>: /dashboard/customer lands in the native console, Verdelo-only
  * tabs and /dashboard/legacy keep the old iframe, and everything stays guarded. All network calls are mocked.
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { MemoryRouter } from 'react-router-dom'
 import App from '../../App'
 import { emptyWorkspace, jsonResponse, workspaceEnvelope } from './fixtures'
+import { preloadCustomerPages } from './preloadPages'
+
+beforeAll(preloadCustomerPages)
 
 const mockFetch = vi.mocked(globalThis.fetch)
 const CLIENT_ID = '334trhnhmim8v42gq4bgk7umst'
