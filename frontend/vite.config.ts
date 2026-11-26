@@ -5,16 +5,6 @@ import path from 'path'
 // @ts-ignore
 import fs from 'fs'
 // @ts-ignore
-import { createAdminAuthMiddleware } from '../backend/auth/adminAuth.js'
-// @ts-ignore
-import { createCustomerAuthMiddleware } from '../backend/auth/customerAuth.js'
-// @ts-ignore
-import { createSupabaseApiMiddleware } from '../backend/api/supabaseApi.js'
-// @ts-ignore
-import { createSSOAuthMiddleware } from '../backend/auth/ssoAuth.js'
-// @ts-ignore
-import { createMockSupabaseMiddleware } from '../backend/dev/mockSupabaseRest.js'
-// @ts-ignore
 import { FRONTEND_DIR, ROOT_DIR, loadBackendEnv, assertNoFrontendSupabaseSecrets, collectFrontendEnvForSecurityCheck } from '../backend/auth/envLoader.js'
 declare const process: any
 declare const __dirname: any
@@ -71,21 +61,75 @@ export default defineConfig(({ command, mode }) => {
 
   const authPlugin = {
     name: 'inferxe-auth-middleware',
-    configureServer(server: { middlewares: { use: (fn: any) => void } }) {
+    async configureServer(server: { middlewares: { use: (fn: any) => void } }) {
       server.middlewares.use(verdeloMiddleware)
-      server.middlewares.use(createMockSupabaseMiddleware())
-      server.middlewares.use(createSSOAuthMiddleware())
-      server.middlewares.use(createCustomerAuthMiddleware())
-      server.middlewares.use(createAdminAuthMiddleware())
-      server.middlewares.use(createSupabaseApiMiddleware())
+      try {
+        const [
+          // @ts-ignore
+          mockMod,
+          // @ts-ignore
+          ssoMod,
+          // @ts-ignore
+          custMod,
+          // @ts-ignore
+          adminMod,
+          // @ts-ignore
+          sbMod,
+        ] = await Promise.all([
+          // @ts-ignore
+          import('../backend/dev/mockSupabaseRest.js'),
+          // @ts-ignore
+          import('../backend/auth/ssoAuth.js'),
+          // @ts-ignore
+          import('../backend/auth/customerAuth.js'),
+          // @ts-ignore
+          import('../backend/auth/adminAuth.js'),
+          // @ts-ignore
+          import('../backend/api/supabaseApi.js'),
+        ]) as any[]
+        server.middlewares.use(mockMod.createMockSupabaseMiddleware())
+        server.middlewares.use(ssoMod.createSSOAuthMiddleware())
+        server.middlewares.use(custMod.createCustomerAuthMiddleware())
+        server.middlewares.use(adminMod.createAdminAuthMiddleware())
+        server.middlewares.use(sbMod.createSupabaseApiMiddleware())
+      } catch (err) {
+        // Backend dev middlewares are only needed during local development
+      }
     },
-    configurePreviewServer(server: { middlewares: { use: (fn: any) => void } }) {
+    async configurePreviewServer(server: { middlewares: { use: (fn: any) => void } }) {
       server.middlewares.use(verdeloMiddleware)
-      server.middlewares.use(createMockSupabaseMiddleware())
-      server.middlewares.use(createSSOAuthMiddleware())
-      server.middlewares.use(createCustomerAuthMiddleware())
-      server.middlewares.use(createAdminAuthMiddleware())
-      server.middlewares.use(createSupabaseApiMiddleware())
+      try {
+        const [
+          // @ts-ignore
+          mockMod,
+          // @ts-ignore
+          ssoMod,
+          // @ts-ignore
+          custMod,
+          // @ts-ignore
+          adminMod,
+          // @ts-ignore
+          sbMod,
+        ] = await Promise.all([
+          // @ts-ignore
+          import('../backend/dev/mockSupabaseRest.js'),
+          // @ts-ignore
+          import('../backend/auth/ssoAuth.js'),
+          // @ts-ignore
+          import('../backend/auth/customerAuth.js'),
+          // @ts-ignore
+          import('../backend/auth/adminAuth.js'),
+          // @ts-ignore
+          import('../backend/api/supabaseApi.js'),
+        ]) as any[]
+        server.middlewares.use(mockMod.createMockSupabaseMiddleware())
+        server.middlewares.use(ssoMod.createSSOAuthMiddleware())
+        server.middlewares.use(custMod.createCustomerAuthMiddleware())
+        server.middlewares.use(adminMod.createAdminAuthMiddleware())
+        server.middlewares.use(sbMod.createSupabaseApiMiddleware())
+      } catch (err) {
+        // Backend dev middlewares are only needed during local development
+      }
     },
   }
 
