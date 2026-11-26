@@ -59,83 +59,58 @@ export default defineConfig(({ command, mode }) => {
     next()
   }
 
-  const authPlugin = {
-    name: 'inferxe-auth-middleware',
-    async configureServer(server: { middlewares: { use: (fn: any) => void } }) {
-      server.middlewares.use(verdeloMiddleware)
-      try {
-        const [
-          // @ts-ignore
-          mockMod,
-          // @ts-ignore
-          ssoMod,
-          // @ts-ignore
-          custMod,
-          // @ts-ignore
-          adminMod,
-          // @ts-ignore
-          sbMod,
-        ] = await Promise.all([
-          // @ts-ignore
-          import('../backend/dev/mockSupabaseRest.js'),
-          // @ts-ignore
-          import('../backend/auth/ssoAuth.js'),
-          // @ts-ignore
-          import('../backend/auth/customerAuth.js'),
-          // @ts-ignore
-          import('../backend/auth/adminAuth.js'),
-          // @ts-ignore
-          import('../backend/api/supabaseApi.js'),
-        ]) as any[]
-        server.middlewares.use(mockMod.createMockSupabaseMiddleware())
-        server.middlewares.use(ssoMod.createSSOAuthMiddleware())
-        server.middlewares.use(custMod.createCustomerAuthMiddleware())
-        server.middlewares.use(adminMod.createAdminAuthMiddleware())
-        server.middlewares.use(sbMod.createSupabaseApiMiddleware())
-      } catch (err) {
-        // Backend dev middlewares are only needed during local development
-      }
-    },
-    async configurePreviewServer(server: { middlewares: { use: (fn: any) => void } }) {
-      server.middlewares.use(verdeloMiddleware)
-      try {
-        const [
-          // @ts-ignore
-          mockMod,
-          // @ts-ignore
-          ssoMod,
-          // @ts-ignore
-          custMod,
-          // @ts-ignore
-          adminMod,
-          // @ts-ignore
-          sbMod,
-        ] = await Promise.all([
-          // @ts-ignore
-          import('../backend/dev/mockSupabaseRest.js'),
-          // @ts-ignore
-          import('../backend/auth/ssoAuth.js'),
-          // @ts-ignore
-          import('../backend/auth/customerAuth.js'),
-          // @ts-ignore
-          import('../backend/auth/adminAuth.js'),
-          // @ts-ignore
-          import('../backend/api/supabaseApi.js'),
-        ]) as any[]
-        server.middlewares.use(mockMod.createMockSupabaseMiddleware())
-        server.middlewares.use(ssoMod.createSSOAuthMiddleware())
-        server.middlewares.use(custMod.createCustomerAuthMiddleware())
-        server.middlewares.use(adminMod.createAdminAuthMiddleware())
-        server.middlewares.use(sbMod.createSupabaseApiMiddleware())
-      } catch (err) {
-        // Backend dev middlewares are only needed during local development
-      }
-    },
+  const plugins: any[] = [react()]
+
+  if (command === 'serve') {
+    // @ts-ignore
+    const loadDevModule = (specifier: string) => import(/* @vite-ignore */ specifier)
+    const authPlugin = {
+      name: 'inferxe-auth-middleware',
+      async configureServer(server: { middlewares: { use: (fn: any) => void } }) {
+        server.middlewares.use(verdeloMiddleware)
+        try {
+          const [mockMod, ssoMod, custMod, adminMod, sbMod] = await Promise.all([
+            loadDevModule('../backend/dev/mockSupabaseRest.js'),
+            loadDevModule('../backend/auth/ssoAuth.js'),
+            loadDevModule('../backend/auth/customerAuth.js'),
+            loadDevModule('../backend/auth/adminAuth.js'),
+            loadDevModule('../backend/api/supabaseApi.js'),
+          ]) as any[]
+          server.middlewares.use(mockMod.createMockSupabaseMiddleware())
+          server.middlewares.use(ssoMod.createSSOAuthMiddleware())
+          server.middlewares.use(custMod.createCustomerAuthMiddleware())
+          server.middlewares.use(adminMod.createAdminAuthMiddleware())
+          server.middlewares.use(sbMod.createSupabaseApiMiddleware())
+        } catch {
+          // Backend dev middlewares are only needed during local development
+        }
+      },
+      async configurePreviewServer(server: { middlewares: { use: (fn: any) => void } }) {
+        server.middlewares.use(verdeloMiddleware)
+        try {
+          const [mockMod, ssoMod, custMod, adminMod, sbMod] = await Promise.all([
+            loadDevModule('../backend/dev/mockSupabaseRest.js'),
+            loadDevModule('../backend/auth/ssoAuth.js'),
+            loadDevModule('../backend/auth/customerAuth.js'),
+            loadDevModule('../backend/auth/adminAuth.js'),
+            loadDevModule('../backend/api/supabaseApi.js'),
+          ]) as any[]
+          server.middlewares.use(mockMod.createMockSupabaseMiddleware())
+          server.middlewares.use(ssoMod.createSSOAuthMiddleware())
+          server.middlewares.use(custMod.createCustomerAuthMiddleware())
+          server.middlewares.use(adminMod.createAdminAuthMiddleware())
+          server.middlewares.use(sbMod.createSupabaseApiMiddleware())
+        } catch {
+          // Backend dev middlewares are only needed during local development
+        }
+      },
+    }
+    plugins.push(authPlugin)
   }
 
   return {
     envPrefix: 'VITE_',
-    plugins: [react(), authPlugin],
+    plugins,
     server: {
       host: '127.0.0.1',
       port: 5173,
