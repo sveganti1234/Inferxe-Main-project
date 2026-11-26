@@ -6,57 +6,64 @@ import {
   FileText,
   Cpu,
   Key,
-  Activity,
-  Server,
+  Building2,
   AlertTriangle,
   ArrowRight,
   RefreshCw,
   ExternalLink,
+  RotateCcw,
 } from 'lucide-react'
 import { DashboardLayout } from '../../../components/dashboard/DashboardLayout'
 import { usePageMeta } from '../../../lib/hooks'
 import {
   fetchSuperadminAdmins,
   fetchSuperadminAuditLogs,
-  fetchSuperadminTelemetry,
+  fetchSuperadminDashboardOverview,
+  getCachedSuperadminDashboardOverview,
+  getCachedSuperadminAdmins,
   type SuperadminAdminRecord,
   type SuperadminAuditLog,
-  type SuperadminTelemetryData,
+  type SuperadminDashboardOverview,
 } from '../../../lib/authStore'
 
 export default function SuperadminOverview() {
   usePageMeta(
     'Superadmin Console · Inferxe Platform Governance',
-    'Global infrastructure oversight, admin activity monitoring, GPU telemetry, and platform security control plane.',
+    'Global infrastructure oversight, admin activity monitoring, sovereign telemetry, and platform security control plane.',
   )
 
   const navigate = useNavigate()
-  const [admins, setAdmins] = useState<SuperadminAdminRecord[]>([])
+  const [overview, setOverview] = useState<SuperadminDashboardOverview | null>(() => getCachedSuperadminDashboardOverview())
+  const [admins, setAdmins] = useState<SuperadminAdminRecord[]>(() => getCachedSuperadminAdmins() || [])
   const [auditLogs, setAuditLogs] = useState<SuperadminAuditLog[]>([])
-  const [telemetry, setTelemetry] = useState<SuperadminTelemetryData | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState<boolean>(() => !getCachedSuperadminDashboardOverview())
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const loadAllData = async (isManual = false) => {
     if (isManual) setRefreshing(true)
+    if (!getCachedSuperadminDashboardOverview()) setLoading(true)
     setError(null)
 
     try {
-      const [adminsRes, logsRes, telemRes] = await Promise.all([
-        fetchSuperadminAdmins(),
-        fetchSuperadminAuditLogs({ limit: 10 }),
-        fetchSuperadminTelemetry(),
+      const [overviewRes, adminsRes, logsRes] = await Promise.all([
+        fetchSuperadminDashboardOverview(isManual),
+        fetchSuperadminAdmins(isManual),
+        fetchSuperadminAuditLogs({ limit: 15 }, isManual),
       ])
+
+      if (overviewRes.ok && overviewRes.overview) {
+        setOverview(overviewRes.overview)
+      } else if (!overviewRes.ok && overviewRes.error) {
+        setError(overviewRes.error)
+      }
 
       if (adminsRes.ok && adminsRes.admins) {
         setAdmins(adminsRes.admins)
       }
+
       if (logsRes.ok && logsRes.logs) {
         setAuditLogs(logsRes.logs)
-      }
-      if (telemRes.ok && telemRes.telemetry) {
-        setTelemetry(telemRes.telemetry)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load Superadmin console data.')
@@ -70,8 +77,15 @@ export default function SuperadminOverview() {
     void loadAllData()
   }, [])
 
-  const activeAdminsCount = admins.filter((a) => a.status === 'active').length
-  const suspendedAdminsCount = admins.filter((a) => a.status === 'suspended').length
+  const activeAdminsCount = overview?.adminStats?.active ?? admins.filter((a) => a.status === 'active').length
+  const totalAdminsCount = overview?.adminStats?.total ?? admins.length
+  const suspendedAdminsCount = overview?.adminStats?.inactive ?? admins.filter((a) => a.status === 'suspended').length
+
+  const totalAuditCount = overview?.activityStats?.totalActivities ?? (auditLogs.length > 0 ? auditLogs.length : 0)
+  const totalCustomersCount = overview?.customerStats?.total ?? 0
+  const activeCustomersCount = overview?.customerStats?.active ?? 0
+  const activeKeysCount = overview?.platformStats?.activeApiKeys ?? 0
+  const totalOrgsCount = overview?.platformStats?.totalOrganizations ?? 0
 
   return (
     <DashboardLayout
@@ -117,7 +131,7 @@ export default function SuperadminOverview() {
                 <ShieldCheck size={13} /> Platform Master Governance
               </span>
               <span style={{ color: '#6EE7B7', fontSize: '0.78rem', fontFamily: 'var(--font-mono)' }}>
-                Role: Superadmin
+                Role: Superadmin · Live Supabase Auth
               </span>
             </div>
             <h1
@@ -132,7 +146,7 @@ export default function SuperadminOverview() {
               Superadmin Command Center
             </h1>
             <p style={{ margin: '6px 0 0', color: '#9CA3AF', fontSize: '0.88rem' }}>
-              Full authority oversight of registered administrators, audit trails, sovereign GPU telemetry, and platform security keys.
+              Full authority oversight of registered administrators, audit trails, platform tenants, and security keys.
             </p>
           </div>
 
@@ -141,7 +155,7 @@ export default function SuperadminOverview() {
               type="button"
               className="dash-btn-ghost"
               onClick={() => void loadAllData(true)}
-              disabled={refreshing}
+              disabled={refreshing || loading}
               style={{
                 background: '#121C16',
                 border: '1px solid #1B2E24',
@@ -192,11 +206,50 @@ export default function SuperadminOverview() {
               marginBottom: '20px',
               display: 'flex',
               alignItems: 'center',
+              justifyContent: 'space-between',
               gap: '10px',
             }}
           >
-            <AlertTriangle size={16} />
-            <span>{error}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <AlertTriangle size={16} />
+              <span>{error}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => void loadAllData(true)}
+              style={{
+                background: 'rgba(239, 68, 68, 0.2)',
+                border: '1px solid #7F1D1D',
+                color: '#FCA5A5',
+                borderRadius: '6px',
+                padding: '4px 10px',
+                fontSize: '0.76rem',
+                cursor: 'pointer',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+              }}
+            >
+              <RotateCcw size={12} />
+              Retry
+            </button>
+          </div>
+        )}
+
+        {/* ── Loading Skeleton / State ── */}
+        {loading && !overview && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              color: '#9CA3AF',
+              fontSize: '0.82rem',
+              marginBottom: '16px',
+            }}
+          >
+            <RefreshCw size={14} style={{ color: '#10B981', animation: 'spin 1.2s linear infinite' }} />
+            <span>Syncing telemetry from Supabase...</span>
           </div>
         )}
 
@@ -227,7 +280,7 @@ export default function SuperadminOverview() {
               <Users size={18} style={{ color: '#10B981' }} />
             </div>
             <div style={{ fontSize: '2rem', fontWeight: 700, color: '#FFFFFF', lineHeight: 1.1, marginBottom: '6px' }}>
-              {admins.length}
+              {loading ? '...' : totalAdminsCount}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.78rem' }}>
               <span style={{ color: '#10B981', fontWeight: 600 }}>{activeAdminsCount} Active</span>
@@ -244,7 +297,7 @@ export default function SuperadminOverview() {
             </div>
           </div>
 
-          {/* KPI 2: GPU Clusters */}
+          {/* KPI 2: Platform Customers */}
           <div
             style={{
               background: '#0F1612',
@@ -257,22 +310,22 @@ export default function SuperadminOverview() {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
               <span style={{ fontSize: '0.74rem', fontFamily: 'var(--font-mono)', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
-                Monitored GPU Nodes
+                Registered Customers
               </span>
-              <Cpu size={18} style={{ color: '#00FF88' }} />
+              <Building2 size={18} style={{ color: '#00FF88' }} />
             </div>
             <div style={{ fontSize: '2rem', fontWeight: 700, color: '#FFFFFF', lineHeight: 1.1, marginBottom: '6px' }}>
-              {telemetry?.summary.totalGpuCount ?? 216} GPUs
+              {loading ? '...' : totalCustomersCount}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.78rem' }}>
               <span style={{ color: '#00FF88', fontWeight: 600 }}>
-                {telemetry?.summary.allocatedGpuCount ?? 187} Allocated ({telemetry?.summary.utilizationPct ?? 86.6}%)
+                {activeCustomersCount} Active Accounts
               </span>
               <Link
-                to="/dashboard/superadmin/telemetry"
+                to="/dashboard/customers"
                 style={{ marginLeft: 'auto', color: '#00FF88', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}
               >
-                Telemetry <ArrowRight size={12} />
+                Customers <ArrowRight size={12} />
               </Link>
             </div>
           </div>
@@ -295,10 +348,10 @@ export default function SuperadminOverview() {
               <FileText size={18} style={{ color: '#38BDF8' }} />
             </div>
             <div style={{ fontSize: '2rem', fontWeight: 700, color: '#FFFFFF', lineHeight: 1.1, marginBottom: '6px' }}>
-              {auditLogs.length > 0 ? `${auditLogs.length}+` : '0'} Logged
+              {loading ? '...' : totalAuditCount > 0 ? `${totalAuditCount}+` : '0'} Logged
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.78rem' }}>
-              <span style={{ color: '#38BDF8', fontWeight: 600 }}>Immutable SQLite WAL</span>
+              <span style={{ color: '#38BDF8', fontWeight: 600 }}>Live Supabase Audit Trail</span>
               <Link
                 to="/dashboard/superadmin/audit-logs"
                 style={{ marginLeft: 'auto', color: '#38BDF8', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}
@@ -308,7 +361,7 @@ export default function SuperadminOverview() {
             </div>
           </div>
 
-          {/* KPI 4: Infrastructure Health */}
+          {/* KPI 4: Security & API Keys */}
           <div
             style={{
               background: '#0F1612',
@@ -321,26 +374,32 @@ export default function SuperadminOverview() {
           >
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
               <span style={{ fontSize: '0.74rem', fontFamily: 'var(--font-mono)', color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
-                Platform Availability
+                Active API Keys
               </span>
-              <Activity size={18} style={{ color: '#10B981' }} />
+              <Key size={18} style={{ color: '#FBBF24' }} />
             </div>
             <div style={{ fontSize: '2rem', fontWeight: 700, color: '#FFFFFF', lineHeight: 1.1, marginBottom: '6px' }}>
-              {telemetry?.summary.globalHealthScore ?? 99.98}%
+              {loading ? '...' : activeKeysCount} Active Keys
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.78rem' }}>
-              <span style={{ color: '#10B981', fontWeight: 600 }}>
-                Avg Latency: {telemetry?.summary.averageLatencyMs ?? 14.2}ms
+              <span style={{ color: '#FBBF24', fontWeight: 600 }}>
+                {totalOrgsCount} Organizations
               </span>
               <span style={{ color: '#4B5563' }}>•</span>
-              <span style={{ color: '#9CA3AF' }}>Zero degraded</span>
+              <span style={{ color: '#10B981' }}>Zero Breaches</span>
+              <Link
+                to="/dashboard/superadmin/keys"
+                style={{ marginLeft: 'auto', color: '#FBBF24', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '4px' }}
+              >
+                Manage <ArrowRight size={12} />
+              </Link>
             </div>
           </div>
         </div>
 
         {/* ── Main Two Column Grid ── */}
         <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.3fr) minmax(0, 1fr)', gap: '20px', marginBottom: '24px' }}>
-          {/* Left Column: Admin Oversight & GPU Clusters */}
+          {/* Left Column: Admin Oversight & Infrastructure */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             {/* Registered Admins Summary Table */}
             <div
@@ -408,79 +467,86 @@ export default function SuperadminOverview() {
                           Loading administrator telemetry...
                         </td>
                       </tr>
+                    ) : admins.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} style={{ textAlign: 'center', padding: '24px', color: '#9CA3AF' }}>
+                          No registered administrators found.
+                        </td>
+                      </tr>
                     ) : (
                       admins.map((adm) => (
                         <tr key={adm.id} style={{ borderBottom: '1px solid #152219' }}>
-                        <td style={{ padding: '12px', color: '#FFFFFF' }}>
-                          <div style={{ fontWeight: 600 }}>{adm.full_name}</div>
-                          <div style={{ color: '#9CA3AF', fontSize: '0.76rem' }}>{adm.email}</div>
-                        </td>
-                        <td style={{ padding: '12px' }}>
-                          <span
-                            style={{
-                              background: adm.role === 'superadmin' ? 'rgba(0, 255, 136, 0.12)' : 'rgba(56, 189, 248, 0.12)',
-                              color: adm.role === 'superadmin' ? '#00FF88' : '#38BDF8',
-                              border: `1px solid ${adm.role === 'superadmin' ? 'rgba(0, 255, 136, 0.3)' : 'rgba(56, 189, 248, 0.3)'}`,
-                              borderRadius: '4px',
-                              padding: '2px 8px',
-                              fontSize: '0.72rem',
-                              fontWeight: 600,
-                              textTransform: 'uppercase',
-                            }}
-                          >
-                            {adm.role === 'superadmin' ? 'Superadmin' : 'Admin'}
-                          </span>
-                        </td>
-                        <td style={{ padding: '12px' }}>
-                          <span
-                            style={{
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '6px',
-                              color: adm.status === 'active' ? '#10B981' : adm.status === 'suspended' ? '#EF4444' : '#F59E0B',
-                              fontSize: '0.78rem',
-                              fontWeight: 600,
-                            }}
-                          >
+                          <td style={{ padding: '12px', color: '#FFFFFF' }}>
+                            <div style={{ fontWeight: 600 }}>{adm.full_name}</div>
+                            <div style={{ color: '#9CA3AF', fontSize: '0.76rem' }}>{adm.email}</div>
+                          </td>
+                          <td style={{ padding: '12px' }}>
                             <span
                               style={{
-                                width: '6px',
-                                height: '6px',
-                                borderRadius: '50%',
-                                background: adm.status === 'active' ? '#10B981' : adm.status === 'suspended' ? '#EF4444' : '#F59E0B',
+                                background: adm.role === 'superadmin' ? 'rgba(0, 255, 136, 0.12)' : 'rgba(56, 189, 248, 0.12)',
+                                color: adm.role === 'superadmin' ? '#00FF88' : '#38BDF8',
+                                border: `1px solid ${adm.role === 'superadmin' ? 'rgba(0, 255, 136, 0.3)' : 'rgba(56, 189, 248, 0.3)'}`,
+                                borderRadius: '4px',
+                                padding: '2px 8px',
+                                fontSize: '0.72rem',
+                                fontWeight: 600,
+                                textTransform: 'uppercase',
                               }}
-                            />
-                            {adm.status.charAt(0).toUpperCase() + adm.status.slice(1)}
-                          </span>
-                        </td>
-                        <td style={{ padding: '12px', color: '#E5E7EB', fontFamily: 'var(--font-mono)' }}>
-                          {adm.activity_count ?? 0} actions
-                        </td>
-                        <td style={{ padding: '12px', textAlign: 'right' }}>
-                          <button
-                            type="button"
-                            onClick={() => navigate('/dashboard/superadmin/admins')}
-                            style={{
-                              background: '#121C16',
-                              border: '1px solid #1B2E24',
-                              color: '#E5E7EB',
-                              borderRadius: '6px',
-                              padding: '4px 10px',
-                              fontSize: '0.74rem',
-                              cursor: 'pointer',
-                            }}
-                          >
-                            Configure
-                          </button>
-                        </td>
-                      </tr>
-                    )))}
+                            >
+                              {adm.role === 'superadmin' ? 'Superadmin' : 'Admin'}
+                            </span>
+                          </td>
+                          <td style={{ padding: '12px' }}>
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                color: adm.status === 'active' ? '#10B981' : adm.status === 'suspended' ? '#EF4444' : '#F59E0B',
+                                fontSize: '0.78rem',
+                                fontWeight: 600,
+                              }}
+                            >
+                              <span
+                                style={{
+                                  width: '6px',
+                                  height: '6px',
+                                  borderRadius: '50%',
+                                  background: adm.status === 'active' ? '#10B981' : adm.status === 'suspended' ? '#EF4444' : '#F59E0B',
+                                }}
+                              />
+                              {adm.status.charAt(0).toUpperCase() + adm.status.slice(1)}
+                            </span>
+                          </td>
+                          <td style={{ padding: '12px', color: '#E5E7EB', fontFamily: 'var(--font-mono)' }}>
+                            {adm.activity_count ?? 0} actions
+                          </td>
+                          <td style={{ padding: '12px', textAlign: 'right' }}>
+                            <button
+                              type="button"
+                              onClick={() => navigate('/dashboard/superadmin/admins')}
+                              style={{
+                                background: '#121C16',
+                                border: '1px solid #1B2E24',
+                                color: '#E5E7EB',
+                                borderRadius: '6px',
+                                padding: '4px 10px',
+                                fontSize: '0.74rem',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              Configure
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
                   </tbody>
                 </table>
               </div>
             </div>
 
-            {/* GPU Infrastructure Telemetry Overview */}
+            {/* Platform Ecosystem & GPU Compute Infrastructure (Clean Placeholder) */}
             <div
               style={{
                 background: '#0F1612',
@@ -492,10 +558,10 @@ export default function SuperadminOverview() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                 <div>
                   <h2 style={{ fontSize: '1.05rem', fontWeight: 700, color: '#FFFFFF', margin: 0 }}>
-                    Global Cloud & GPU Infrastructure
+                    GPU Compute & Platform Ecosystem
                   </h2>
                   <p style={{ margin: '4px 0 0', color: '#9CA3AF', fontSize: '0.78rem' }}>
-                    Live status of sovereign Indian datacenter clusters.
+                    Sovereign compute orchestrator and platform tenant infrastructure.
                   </p>
                 </div>
                 <Link
@@ -513,55 +579,94 @@ export default function SuperadminOverview() {
                     gap: '6px',
                   }}
                 >
-                  <span>Detailed Telemetry</span>
+                  <span>Telemetry Module</span>
                   <ArrowRight size={12} />
                 </Link>
               </div>
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {(telemetry?.clusters || []).map((cluster) => (
-                  <div
-                    key={cluster.id}
+              {/* Clean Placeholder Notice */}
+              <div
+                style={{
+                  background: 'rgba(16, 185, 129, 0.05)',
+                  border: '1px solid rgba(16, 185, 129, 0.25)',
+                  borderRadius: '10px',
+                  padding: '16px 20px',
+                  marginBottom: '16px',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                  <Cpu size={16} style={{ color: '#10B981' }} />
+                  <span
                     style={{
-                      background: '#121C16',
-                      border: '1px solid #1B2E24',
-                      borderRadius: '8px',
-                      padding: '14px 16px',
+                      fontSize: '0.74rem',
+                      fontFamily: 'var(--font-mono)',
+                      color: '#10B981',
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.06em',
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Server size={15} style={{ color: '#10B981' }} />
-                        <span style={{ fontWeight: 600, color: '#FFFFFF', fontSize: '0.88rem' }}>
-                          {cluster.name}
-                        </span>
-                        <span style={{ fontSize: '0.72rem', color: '#9CA3AF', fontFamily: 'var(--font-mono)' }}>
-                          ({cluster.provider})
-                        </span>
-                      </div>
-                      <span
-                        style={{
-                          background: 'rgba(16, 185, 129, 0.15)',
-                          color: '#10B981',
-                          padding: '2px 8px',
-                          borderRadius: '4px',
-                          fontSize: '0.72rem',
-                          fontWeight: 600,
-                        }}
-                      >
-                        {cluster.uptime} Uptime
-                      </span>
-                    </div>
+                    GPU Compute Telemetry · Planned for Phase 2 integration
+                  </span>
+                </div>
+                <p style={{ margin: 0, color: '#9CA3AF', fontSize: '0.82rem', lineHeight: 1.5 }}>
+                  Bare-metal GPU node telemetry, cluster utilization metrics, and hardware health telemetry will connect directly to the compute orchestrator upon Phase 2 cluster onboarding. All platform governance, administrative RBAC, customer tenant accounts, and API key services are fully operational.
+                </p>
+              </div>
 
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', fontSize: '0.78rem', color: '#D1D5DB' }}>
-                      {cluster.gpus.map((gpu, idx) => (
-                        <div key={idx} style={{ background: '#0B120E', padding: '6px 10px', borderRadius: '6px', border: '1px solid #152219' }}>
-                          <span style={{ color: '#FFFFFF', fontWeight: 600 }}>{gpu.type}</span>: {gpu.allocated}/{gpu.total} allocated • {gpu.vramUsedGb}GB / {gpu.vramTotalGb}GB VRAM • {gpu.avgTempC}°C
-                        </div>
-                      ))}
-                    </div>
+              {/* Live Platform Ecosystem Highlights */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+                <div style={{ background: '#121C16', border: '1px solid #1B2E24', borderRadius: '8px', padding: '14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#9CA3AF', fontSize: '0.74rem', marginBottom: '4px' }}>
+                    <Building2 size={13} style={{ color: '#10B981' }} />
+                    <span>Tenants & Orgs</span>
                   </div>
-                ))}
+                  <div style={{ fontSize: '1.3rem', fontWeight: 700, color: '#FFFFFF' }}>
+                    {totalOrgsCount} Organizations
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: '#6EE7B7', marginTop: '2px' }}>
+                    Live platform workspaces
+                  </div>
+                </div>
+
+                <div style={{ background: '#121C16', border: '1px solid #1B2E24', borderRadius: '8px', padding: '14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#9CA3AF', fontSize: '0.74rem', marginBottom: '4px' }}>
+                    <Key size={13} style={{ color: '#FBBF24' }} />
+                    <span>Platform API Keys</span>
+                  </div>
+                  <div style={{ fontSize: '1.3rem', fontWeight: 700, color: '#FFFFFF' }}>
+                    {activeKeysCount} Active Keys
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: '#FBBF24', marginTop: '2px' }}>
+                    Authenticated endpoints
+                  </div>
+                </div>
+
+                <div style={{ background: '#121C16', border: '1px solid #1B2E24', borderRadius: '8px', padding: '14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#9CA3AF', fontSize: '0.74rem', marginBottom: '4px' }}>
+                    <Users size={13} style={{ color: '#38BDF8' }} />
+                    <span>Customer Profiles</span>
+                  </div>
+                  <div style={{ fontSize: '1.3rem', fontWeight: 700, color: '#FFFFFF' }}>
+                    {totalCustomersCount} Accounts
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: '#38BDF8', marginTop: '2px' }}>
+                    {activeCustomersCount} Active users
+                  </div>
+                </div>
+
+                <div style={{ background: '#121C16', border: '1px solid #1B2E24', borderRadius: '8px', padding: '14px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: '#9CA3AF', fontSize: '0.74rem', marginBottom: '4px' }}>
+                    <ShieldCheck size={13} style={{ color: '#00FF88' }} />
+                    <span>Admin Tier</span>
+                  </div>
+                  <div style={{ fontSize: '1.3rem', fontWeight: 700, color: '#FFFFFF' }}>
+                    {totalAdminsCount} Administrators
+                  </div>
+                  <div style={{ fontSize: '0.72rem', color: '#00FF88', marginTop: '2px' }}>
+                    Two-role strict RBAC
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -634,8 +739,8 @@ export default function SuperadminOverview() {
                   }}
                 >
                   <Cpu size={16} style={{ color: '#00FF88' }} />
-                  <span style={{ fontSize: '0.84rem', fontWeight: 600 }}>GPU Clusters</span>
-                  <span style={{ fontSize: '0.72rem', color: '#9CA3AF' }}>Telemetry & dynamic pricing</span>
+                  <span style={{ fontSize: '0.84rem', fontWeight: 600 }}>GPU Telemetry</span>
+                  <span style={{ fontSize: '0.72rem', color: '#9CA3AF' }}>Cluster integration phase</span>
                 </Link>
 
                 <Link
@@ -681,9 +786,13 @@ export default function SuperadminOverview() {
                 </Link>
               </div>
 
-              {auditLogs.length === 0 ? (
+              {loading && auditLogs.length === 0 ? (
                 <div style={{ color: '#9CA3AF', fontSize: '0.82rem', padding: '24px 0', textAlign: 'center' }}>
-                  No audit logs recorded yet.
+                  Loading recent audit events...
+                </div>
+              ) : auditLogs.length === 0 ? (
+                <div style={{ color: '#9CA3AF', fontSize: '0.82rem', padding: '24px 0', textAlign: 'center' }}>
+                  No audit logs recorded yet. Events will appear here as administrative actions occur.
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>

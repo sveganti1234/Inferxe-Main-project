@@ -60,7 +60,7 @@ VALID_TELEMETRY_STATUSES = frozenset({"pending", "success", "failed", "timeout"}
 INT32_MAX = 2_147_483_647
 
 TRUSTED_HTTP_METHODS = frozenset({"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"})
-TRUSTED_TELEMETRY_RESOURCES = frozenset({"inference_requests"})
+TRUSTED_TELEMETRY_RESOURCES = frozenset({"inference_requests", "routing_decisions"})
 _SAFE_ERROR_CODE_RE = re.compile(r"^[A-Za-z0-9_]{1,32}$")
 _HEX_TOKEN_RE = re.compile(r"^[0-9a-fA-F]{32,}$")
 
@@ -723,6 +723,42 @@ class SupabaseTelemetryRepository:
 
         records = [SupabaseInferenceTelemetryRecord.from_row(row) for row in data]
         return [r for r in records if r.user_id == clean_user_id]
+
+    def record_routing_decision(
+        self,
+        *,
+        user_id: str,
+        workload: Dict[str, Any],
+        mode: str,
+        selected_offer_id: Optional[str],
+        candidates: List[Dict[str, Any]],
+        api_key_id: Optional[Union[str, uuid.UUID]] = None,
+        organization_id: Optional[Union[str, uuid.UUID]] = None,
+    ) -> str:
+        """Persist a routing decision (DPR §14.1) in `routing_decisions`; returns the decision id.
+
+        Tenant attribution comes from the authenticated API key, never from the request payload.
+        """
+        clean_user_id = user_id.strip() if isinstance(user_id, str) else ""
+        if not clean_user_id:
+            raise SupabaseTelemetryValidationError("Authenticated user identity is required.")
+        decision_id = str(uuid.uuid4())
+        payload: Dict[str, Any] = {
+            "id": decision_id,
+            "user_id": clean_user_id,
+            "workload": workload,
+            "mode": mode,
+            "selected_offer_id": selected_offer_id,
+            "candidates": candidates,
+        }
+        key_uuid = _parse_optional_uuid(api_key_id)
+        org_uuid = _parse_optional_uuid(organization_id)
+        if key_uuid is not None:
+            payload["api_key_id"] = str(key_uuid)
+        if org_uuid is not None:
+            payload["organization_id"] = str(org_uuid)
+        self._request_json("POST", "routing_decisions", payload=payload, prefer="return=minimal")
+        return decision_id
 
 
 def get_telemetry_repository() -> SupabaseTelemetryRepository:

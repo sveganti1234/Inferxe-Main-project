@@ -6,6 +6,7 @@ import {
   clearSession,
   verifyAdminSessionWithDetails,
   isDevelopmentBypassToken,
+  isSessionVerifiedRecently,
 } from '../../lib/authStore'
 
 interface AdminGuardProps {
@@ -16,6 +17,7 @@ interface AdminGuardProps {
  * Route guard that protects admin routes.
  * Enforces both client-side role validation and server-side DB-backed session verification.
  * Prevents unauthenticated users, revoked sessions, and customer accounts from accessing the Admin Portal.
+ * Uses optimistic rendering and cached session verification to prevent blank screens and flickering during navigation.
  */
 export function AdminGuard({ children }: AdminGuardProps) {
   const location = useLocation()
@@ -24,7 +26,8 @@ export function AdminGuard({ children }: AdminGuardProps) {
     if (!session || !session.token || isDevelopmentBypassToken(session.token)) return 'unauthorized'
     const portalRole = getPortalRole(session.user?.role)
     if (portalRole !== 'admin' && portalRole !== 'superadmin') return 'unauthorized'
-    return 'checking'
+    // If claims are valid, authorize immediately for smooth rendering while background check confirms
+    return 'authorized'
   })
 
   useEffect(() => {
@@ -43,6 +46,12 @@ export function AdminGuard({ children }: AdminGuardProps) {
       const portalRole = getPortalRole(session.user?.role)
       if (portalRole !== 'admin' && portalRole !== 'superadmin') {
         if (isMounted) setAuthState('unauthorized')
+        return
+      }
+
+      // If already verified within TTL, skip redundant network round-trip on every route change
+      if (isSessionVerifiedRecently(session.token)) {
+        if (isMounted) setAuthState('authorized')
         return
       }
 

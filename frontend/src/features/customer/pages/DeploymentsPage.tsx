@@ -1,6 +1,6 @@
 /**
- * Deployments — Model endpoints and deployment lifecycle management.
- * Connected directly to customer workspace, Supabase records, and backend lifecycle APIs.
+ * Deployments — launch and manage GPU instances through the provider adapter API (8001 `/api/v1/gpu/*`).
+ * Prices, providers and connection details come from the server; this page never sets them.
  */
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
@@ -25,25 +25,19 @@ import {
 } from 'lucide-react'
 import { usePageMeta } from '../../../lib/hooks'
 import { MODELS } from '../../../data/gpus'
+import { listSshKeys } from '../data/developer'
+import { CustomerApiError } from '../data/http'
+import { filterDeployments, selectBurn, toDeploymentView, type DeploymentView } from '../data/marketplace'
+import { formatCurrency, formatDateTime, formatInteger, humaniseCode } from '../data/selectors'
 import {
-  filterDeployments,
-  SAMPLE_GPU_LISTINGS,
-  selectBurn,
-  selectDeployments,
-  type DeploymentView,
-} from '../data/marketplace'
-import {
-  formatCurrency,
-  formatDateTime,
-  formatInteger,
-  humaniseCode,
-} from '../data/selectors'
-import {
-  createDeployment,
-  deleteDeployment,
-  updateDeploymentStatus,
+  createGpuDeployment,
+  fetchGpuDeployments,
+  fetchGpuOfferings,
+  runGpuDeploymentAction,
+  type GpuDeploymentAction,
+  type GpuOffering,
 } from '../data/serviceClients'
-import { useCustomerWorkspace } from '../data/WorkspaceContext'
+import { useAsyncResource } from '../data/useAsyncResource'
 import { getSection, sectionHref } from '../navigation'
 import { signOutToLogin } from '../shell/CustomerShell'
 import { ConfirmDialog, Dialog } from '../ui/Dialog'
@@ -62,13 +56,30 @@ import { EmptyState, ErrorState, LoadingBlock } from '../ui/states'
 
 type StatusFilter = 'all' | 'running' | 'provisioning' | 'stopped'
 
+const offerKey = (o: GpuOffering) => `${o.provider_id}:${o.gpu_id}`
+const newIdempotencyKey = () =>
+  globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
+
+/** Best offering for a GPU hint from a link (gpu id or display name such as "NVIDIA L40S"). */
+function matchOffer(offers: GpuOffering[], hint: string): GpuOffering | undefined {
+  const q = hint.trim().toLowerCase()
+  if (!q) return undefined
+  return offers.find((o) => o.gpu_id === q) ?? offers.find((o) => o.name.toLowerCase().includes(q))
+}
+
+const ACTION_DONE: Record<GpuDeploymentAction, string> = {
+  stop: 'stopped',
+  resume: 'resumed',
+  terminate: 'terminated',
+}
+
 export default function DeploymentsPage() {
   const section = getSection('deployments')
   usePageMeta(section.label, section.description)
-  const { state, workspace, refresh } = useCustomerWorkspace()
   const [searchParams, setSearchParams] = useSearchParams()
 
-  const rows = useMemo(() => (workspace ? selectDeployments(workspace) : []), [workspace])
+  const deployments = useAsyncResource(fetchGpuDeployments, { cacheKey: 'gpu-deployments' })
+  const rows = useMemo(() => (deployments.state.data ?? []).map(toDeploymentView), [deployments.state.data])
 
   // Filter & Search states
   const [searchQuery, setSearchQuery] = useState('')
@@ -82,40 +93,36 @@ export default function DeploymentsPage() {
   // Dialog states
   const [createOpen, setCreateOpen] = useState(false)
   const [selectedDeployment, setSelectedDeployment] = useState<DeploymentView | null>(null)
-  const [deleteTarget, setDeleteTarget] = useState<DeploymentView | null>(null)
+  const [terminateTarget, setTerminateTarget] = useState<DeploymentView | null>(null)
   const [copiedText, setCopiedText] = useState<string | null>(null)
 
-  // Create form state
-  const [formData, setFormData] = useState({
-    name: '',
-    modelName: 'Llama 3.1 8B Instruct',
-    gpuModel: 'NVIDIA L4',
-    region: 'Mumbai, IN',
-    hourlyRate: 60,
-  })
+  // Create form: offerings and SSH keys load only while the dialog is open.
+  const offerings = useAsyncResource(fetchGpuOfferings, { cacheKey: 'gpu-offerings', enabled: createOpen })
+  const sshKeys = useAsyncResource(listSshKeys, { cacheKey: 'ssh-keys', enabled: createOpen })
+  const offers = useMemo(
+    () => (offerings.state.data ?? []).filter((o) => o.is_available && o.available_quantity > 0),
+    [offerings.state.data],
+  )
+  const [formData, setFormData] = useState({ name: '', modelName: MODELS[1].name, offerKey: '', sshKeyIds: [] as string[] })
+  const [gpuHint, setGpuHint] = useState('')
+  const [idempotencyKey, setIdempotencyKey] = useState(newIdempotencyKey)
   const [createSubmitting, setCreateSubmitting] = useState(false)
+  const selectedOffer =
+    offers.find((o) => offerKey(o) === formData.offerKey) ?? matchOffer(offers, gpuHint) ?? offers[0]
 
   // Pre-fill from URL query params (e.g. from GPU Marketplace "Select & Deploy →")
   useEffect(() => {
-    const modelParam = searchParams.get('model')
-    const regionParam = searchParams.get('region')
     const gpuParam = searchParams.get('gpu')
-    const actionParam = searchParams.get('action')
-
-    if (modelParam || gpuParam || regionParam || actionParam === 'new') {
-      const matchedGpu = gpuParam || modelParam || 'NVIDIA L4'
-      const matchedListing = SAMPLE_GPU_LISTINGS.find(
-        (l) => l.gpuModel.toLowerCase().includes(matchedGpu.toLowerCase()) || l.name.toLowerCase().includes(matchedGpu.toLowerCase()),
-      )
-      const matchedModel = MODELS.find((m) => m.name.toLowerCase().includes((modelParam || '').toLowerCase())) || MODELS[1]
-
-      setFormData({
-        name: `${matchedModel.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-endpoint`,
-        modelName: matchedModel.name,
-        gpuModel: matchedListing ? matchedListing.gpuModel : matchedGpu,
-        region: regionParam || (matchedListing?.region ?? 'Mumbai, IN'),
-        hourlyRate: matchedListing?.hourlyPrice ?? 60,
-      })
+    const modelParam = searchParams.get('model')
+    if (gpuParam || modelParam || searchParams.get('action') === 'new') {
+      const model = (modelParam && MODELS.find((m) => m.name.toLowerCase().includes(modelParam.toLowerCase()))) || MODELS[1]
+      setFormData((f) => ({
+        ...f,
+        name: f.name || `${model.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-endpoint`,
+        modelName: model.name,
+        offerKey: '',
+      }))
+      setGpuHint(gpuParam ?? '')
       setCreateOpen(true)
     }
   }, [searchParams])
@@ -152,61 +159,27 @@ export default function DeploymentsPage() {
     [rows, searchQuery, statusFilter],
   )
 
-  // Status Change handlers
-  const handleStatusChange = async (id: string, newStatus: 'running' | 'stopped' | 'provisioning') => {
-    setBusyId(id)
+  const handleAction = async (d: DeploymentView, action: GpuDeploymentAction) => {
+    setBusyId(d.id)
     setActionError(null)
     setActionSuccess(null)
     try {
-      await updateDeploymentStatus(id, newStatus)
-      setActionSuccess(`Deployment status updated to ${newStatus}.`)
-      refresh()
+      const updated = await runGpuDeploymentAction(d.id, action)
+      setActionSuccess(`Deployment "${d.name}" ${ACTION_DONE[action]} (now ${humaniseCode(updated.status)}).`)
+      if (action === 'terminate') setTerminateTarget(null)
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Could not update deployment status.')
+      setActionError(err instanceof Error ? err.message : `Could not ${action} the deployment.`)
     } finally {
       setBusyId(null)
+      deployments.refresh()
     }
   }
 
-  const handleRestart = async (id: string) => {
-    setBusyId(id)
-    setActionError(null)
-    setActionSuccess(null)
-    try {
-      await updateDeploymentStatus(id, 'provisioning')
-      setTimeout(async () => {
-        try {
-          await updateDeploymentStatus(id, 'running')
-          refresh()
-        } catch {
-          // background state transition
-        }
-      }, 1500)
-      setActionSuccess('Restart sequence initiated.')
-      refresh()
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Could not restart deployment.')
-    } finally {
-      setBusyId(null)
-    }
-  }
-
-  const handleDelete = async () => {
-    if (!deleteTarget) return
-    setBusyId(deleteTarget.id)
-    setActionError(null)
-    setActionSuccess(null)
-    try {
-      await deleteDeployment(deleteTarget.id)
-      setActionSuccess(`Deployment "${deleteTarget.name}" deleted.`)
-      setDeleteTarget(null)
-      refresh()
-    } catch (err) {
-      setActionError(err instanceof Error ? err.message : 'Could not delete deployment.')
-    } finally {
-      setBusyId(null)
-    }
-  }
+  const toggleSshKey = (id: string) =>
+    setFormData((f) => ({
+      ...f,
+      sshKeyIds: f.sshKeyIds.includes(id) ? f.sshKeyIds.filter((k) => k !== id) : [...f.sshKeyIds, id],
+    }))
 
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -214,24 +187,33 @@ export default function DeploymentsPage() {
       setActionError('Endpoint name cannot be empty.')
       return
     }
+    if (!selectedOffer) {
+      setActionError('Choose an available GPU.')
+      return
+    }
     setCreateSubmitting(true)
     setActionError(null)
     try {
-      await createDeployment({
+      const created = await createGpuDeployment({
         name: formData.name.trim(),
         model_name: formData.modelName,
-        gpu_model: formData.gpuModel,
-        region: formData.region,
-        hourly_rate: formData.hourlyRate,
-        currency: 'INR',
+        gpu_id: selectedOffer.gpu_id,
+        provider_id: selectedOffer.provider_id,
+        ssh_key_ids: formData.sshKeyIds,
+        idempotency_key: idempotencyKey,
       })
-      setActionSuccess(`Endpoint "${formData.name.trim()}" deployment initiated.`)
+      setActionSuccess(`Deployment "${created.name}" launched (${humaniseCode(created.status)}).`)
+      setIdempotencyKey(newIdempotencyKey())
+      setFormData((f) => ({ ...f, name: '', sshKeyIds: [] }))
       handleCloseCreate()
-      refresh()
     } catch (err) {
+      // A server answer means this attempt is finished (a failed launch is kept as a "failed" record),
+      // so the next try needs a new key. Network errors keep the key: the request may have gone through.
+      if (err instanceof CustomerApiError && err.status !== null) setIdempotencyKey(newIdempotencyKey())
       setActionError(err instanceof Error ? err.message : 'Failed to create deployment.')
     } finally {
       setCreateSubmitting(false)
+      deployments.refresh()
     }
   }
 
@@ -314,40 +296,28 @@ export default function DeploymentsPage() {
         return (
           <div className="cx-deploy-actions">
             {s === 'running' ? (
-              <>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => handleStatusChange(d.id, 'stopped')}
-                  disabled={isBusy}
-                  aria-label={`Stop deployment ${d.name}`}
-                  title="Stop endpoint"
-                >
-                  <Square size={13} style={{ fill: 'currentColor' }} />
-                  <span className="cx-btn-text">Stop</span>
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => handleRestart(d.id)}
-                  disabled={isBusy}
-                  aria-label={`Restart deployment ${d.name}`}
-                  title="Restart endpoint"
-                >
-                  <RefreshCw size={13} className={isBusy ? 'cx-spin' : undefined} />
-                </Button>
-              </>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => handleAction(d, 'stop')}
+                disabled={isBusy}
+                aria-label={`Stop deployment ${d.name}`}
+                title="Stop instance (billing for compute pauses)"
+              >
+                <Square size={13} style={{ fill: 'currentColor' }} />
+                <span className="cx-btn-text">Stop</span>
+              </Button>
             ) : s === 'stopped' ? (
               <Button
                 variant="secondary"
                 size="sm"
-                onClick={() => handleStatusChange(d.id, 'running')}
+                onClick={() => handleAction(d, 'resume')}
                 disabled={isBusy}
-                aria-label={`Start deployment ${d.name}`}
-                title="Start endpoint"
+                aria-label={`Resume deployment ${d.name}`}
+                title="Resume instance"
               >
                 <Play size={13} style={{ fill: 'currentColor' }} />
-                <span className="cx-btn-text">Start</span>
+                <span className="cx-btn-text">Resume</span>
               </Button>
             ) : null}
             <Button
@@ -359,22 +329,27 @@ export default function DeploymentsPage() {
             >
               <Eye size={13} />
             </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setDeleteTarget(d)}
-              disabled={isBusy}
-              aria-label={`Delete deployment ${d.name}`}
-              title="Delete deployment"
-              className="cx-btn--danger-ghost"
-            >
-              <Trash2 size={13} />
-            </Button>
+            {s !== 'terminated' ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setTerminateTarget(d)}
+                disabled={isBusy}
+                aria-label={`Terminate deployment ${d.name}`}
+                title="Terminate instance"
+                className="cx-btn--danger-ghost"
+              >
+                <Trash2 size={13} />
+              </Button>
+            ) : null}
           </div>
         )
       },
     },
   ]
+
+  const listState = deployments.state
+  const endpointUrl = selectedDeployment?.endpointUrl ?? null
 
   return (
     <>
@@ -398,11 +373,11 @@ export default function DeploymentsPage() {
             </Button>
             <Button
               variant="secondary"
-              onClick={refresh}
-              disabled={state.status === 'loading'}
+              onClick={deployments.refresh}
+              disabled={listState.status === 'loading'}
               aria-label="Refresh deployments"
             >
-              <RefreshCw size={15} className={state.status === 'loading' ? 'cx-spin' : undefined} />
+              <RefreshCw size={15} className={listState.status === 'loading' ? 'cx-spin' : undefined} />
             </Button>
           </div>
         }
@@ -539,15 +514,15 @@ export default function DeploymentsPage() {
         </div>
 
         {/* Content States */}
-        {state.status === 'error' && !workspace ? (
+        {listState.status === 'error' && !listState.data ? (
           <ErrorState
-            error={state.error}
-            onRetry={refresh}
+            error={listState.error}
+            onRetry={deployments.refresh}
             onSignIn={() => void signOutToLogin()}
-            what="your deployment records"
+            what="your deployments"
             compact
           />
-        ) : !workspace ? (
+        ) : !listState.data ? (
           <div className="cx-card__pad">
             <LoadingBlock lines={4} label="Loading deployments" />
           </div>
@@ -601,7 +576,7 @@ export default function DeploymentsPage() {
       <Dialog
         open={createOpen}
         title="Deploy New Model Endpoint"
-        description="Configure and launch a dedicated sovereign LLM inference endpoint."
+        description="Launch a dedicated GPU instance. The price is set by the provider and shown before you deploy."
         onClose={handleCloseCreate}
         dismissible={!createSubmitting}
         footer={
@@ -612,7 +587,7 @@ export default function DeploymentsPage() {
             <Button
               variant="primary"
               onClick={handleCreateSubmit}
-              disabled={createSubmitting || !formData.name.trim()}
+              disabled={createSubmitting || !formData.name.trim() || !selectedOffer}
             >
               {createSubmitting ? (
                 <>
@@ -636,11 +611,12 @@ export default function DeploymentsPage() {
               className="cx-input"
               placeholder="e.g. llama3-70b-customer-service"
               value={formData.name}
+              maxLength={100}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               required
               autoFocus
             />
-            <span className="cx-hint">Alphanumeric identifier for your dedicated model endpoint URL.</span>
+            <span className="cx-hint">A name to recognise this deployment by.</span>
           </div>
 
           <div className="cx-form-group">
@@ -661,60 +637,72 @@ export default function DeploymentsPage() {
             </select>
           </div>
 
-          <div className="cx-form-row">
-            <div className="cx-form-group" style={{ flex: 1 }}>
-              <label className="cx-label" htmlFor="cx-deploy-gpu">
-                GPU Hardware
-              </label>
+          <div className="cx-form-group">
+            <label className="cx-label" htmlFor="cx-deploy-gpu">
+              GPU Hardware
+            </label>
+            {offerings.state.status === 'error' ? (
+              <span className="cx-hint" role="alert">
+                Could not load available GPUs: {offerings.state.error.message}
+              </span>
+            ) : !offerings.state.data ? (
+              <span className="cx-hint">Loading available GPUs…</span>
+            ) : offers.length === 0 ? (
+              <span className="cx-hint" role="alert">No GPUs are available right now.</span>
+            ) : (
               <select
                 id="cx-deploy-gpu"
                 className="cx-input cx-select"
-                value={formData.gpuModel}
-                onChange={(e) => {
-                  const val = e.target.value
-                  const listing = SAMPLE_GPU_LISTINGS.find((l) => l.gpuModel === val)
-                  setFormData({
-                    ...formData,
-                    gpuModel: val,
-                    hourlyRate: listing?.hourlyPrice ?? formData.hourlyRate,
-                  })
-                }}
+                value={selectedOffer ? offerKey(selectedOffer) : ''}
+                onChange={(e) => setFormData({ ...formData, offerKey: e.target.value })}
               >
-                {SAMPLE_GPU_LISTINGS.map((gpu) => (
-                  <option key={gpu.id} value={gpu.gpuModel}>
-                    {gpu.gpuModel} ({gpu.vram}) — ₹{gpu.hourlyPrice}/hr
+                {offers.map((o) => (
+                  <option key={offerKey(o)} value={offerKey(o)}>
+                    {o.name} ({o.vram_gb} GB) · {o.provider_id} · {o.region} — ₹{o.hourly_price_inr}/hr
+                    {o.pricing_type === 'spot' ? ' (spot)' : ''}
                   </option>
                 ))}
               </select>
-            </div>
-
-            <div className="cx-form-group" style={{ flex: 1 }}>
-              <label className="cx-label" htmlFor="cx-deploy-region">
-                Datacenter Region
-              </label>
-              <select
-                id="cx-deploy-region"
-                className="cx-input cx-select"
-                value={formData.region}
-                onChange={(e) => setFormData({ ...formData, region: e.target.value })}
-              >
-                <option value="Mumbai, IN">Mumbai, IN (Yotta NM1)</option>
-                <option value="Hyderabad, IN">Hyderabad, IN (CtrlS)</option>
-                <option value="Chennai, IN">Chennai, IN (Sify Infinit)</option>
-                <option value="Noida, IN">Noida, IN (JarvisLabs)</option>
-                <option value="Pune, IN">Pune, IN (Azure Central)</option>
-              </select>
-            </div>
+            )}
           </div>
+
+          <fieldset className="cx-form-group">
+            <legend className="cx-label">SSH Keys (optional)</legend>
+            {sshKeys.state.status === 'error' ? (
+              <span className="cx-hint" role="alert">Could not load your SSH keys: {sshKeys.state.error.message}</span>
+            ) : !sshKeys.state.data ? (
+              <span className="cx-hint">Loading your SSH keys…</span>
+            ) : sshKeys.state.data.length === 0 ? (
+              <span className="cx-hint">
+                No SSH keys yet. <Link to={sectionHref(getSection('ssh-keys'))}>Add one</Link> to get shell access.
+              </span>
+            ) : (
+              sshKeys.state.data.map((k) => (
+                <label key={k.id} className="cx-check">
+                  <input
+                    type="checkbox"
+                    checked={formData.sshKeyIds.includes(k.id)}
+                    onChange={() => toggleSshKey(k.id)}
+                  />
+                  <span>
+                    {k.name} <span className="cx-mono cx-muted">{k.fingerprint}</span>
+                  </span>
+                </label>
+              ))
+            )}
+            <span className="cx-hint">Selected public keys are installed on the instance for SSH login.</span>
+          </fieldset>
 
           <div className="cx-deploy-calc-summary">
             <div className="cx-deploy-calc-row">
               <span className="cx-muted">Estimated Hourly Burn:</span>
-              <span className="cx-mono cx-deploy-rate-bold">₹{formData.hourlyRate}/hr</span>
+              <span className="cx-mono cx-deploy-rate-bold">
+                {selectedOffer ? `₹${selectedOffer.hourly_price_inr}/hr` : '—'}
+              </span>
             </div>
             <div className="cx-deploy-calc-row">
-              <span className="cx-muted">Currency:</span>
-              <span className="cx-mono">INR (Sovereign Cloud)</span>
+              <span className="cx-muted">Provider · Region:</span>
+              <span className="cx-mono">{selectedOffer ? `${selectedOffer.provider_id} · ${selectedOffer.region}` : '—'}</span>
             </div>
             <div className="cx-deploy-calc-row">
               <span className="cx-muted">Initial State:</span>
@@ -728,7 +716,7 @@ export default function DeploymentsPage() {
       <Dialog
         open={selectedDeployment !== null}
         title={selectedDeployment?.name || 'Deployment Details'}
-        description="Endpoint connectivity and runtime telemetry specifications."
+        description="Endpoint connectivity and instance details."
         onClose={() => setSelectedDeployment(null)}
         footer={
           <div style={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
@@ -740,6 +728,11 @@ export default function DeploymentsPage() {
       >
         {selectedDeployment ? (
           <div className="cx-deploy-details-content">
+            {selectedDeployment.errorMessage ? (
+              <Notice tone="danger" icon={<X size={16} />}>
+                {selectedDeployment.errorMessage}
+              </Notice>
+            ) : null}
             <dl className="cx-deploy-details-dl">
               <div>
                 <dt>DEPLOYMENT ID</dt>
@@ -760,43 +753,73 @@ export default function DeploymentsPage() {
               <div>
                 <dt>ENDPOINT URL</dt>
                 <dd className="cx-deploy-details-copy-row">
-                  <span className="cx-mono">
-                    {`https://${selectedDeployment.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.endpoints.inferxe.com/v1`}
-                  </span>
-                  <button
-                    type="button"
-                    className="cx-iconbtn-sm"
-                    onClick={() =>
-                      copyToClipboard(
-                        `https://${selectedDeployment.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.endpoints.inferxe.com/v1`,
-                        'url',
-                      )
-                    }
-                    title="Copy URL"
-                    aria-label="Copy endpoint URL"
-                  >
-                    {copiedText === 'url' ? <Check size={13} /> : <Copy size={13} />}
-                  </button>
+                  {endpointUrl ? (
+                    <>
+                      <span className="cx-mono">{endpointUrl}</span>
+                      <button
+                        type="button"
+                        className="cx-iconbtn-sm"
+                        onClick={() => copyToClipboard(endpointUrl, 'url')}
+                        title="Copy URL"
+                        aria-label="Copy endpoint URL"
+                      >
+                        {copiedText === 'url' ? <Check size={13} /> : <Copy size={13} />}
+                      </button>
+                    </>
+                  ) : (
+                    <span className="cx-muted">Not available yet</span>
+                  )}
+                </dd>
+              </div>
+
+              <div>
+                <dt>SSH ACCESS</dt>
+                <dd className="cx-deploy-details-copy-row">
+                  {selectedDeployment.ssh ? (
+                    <>
+                      <span className="cx-mono">{selectedDeployment.ssh.command}</span>
+                      <button
+                        type="button"
+                        className="cx-iconbtn-sm"
+                        onClick={() => copyToClipboard(selectedDeployment.ssh!.command, 'ssh')}
+                        title="Copy SSH command"
+                        aria-label="Copy SSH command"
+                      >
+                        {copiedText === 'ssh' ? <Check size={13} /> : <Copy size={13} />}
+                      </button>
+                    </>
+                  ) : (
+                    <span className="cx-muted">Available while the instance is running</span>
+                  )}
                 </dd>
               </div>
 
               <div>
                 <dt>MODEL</dt>
-                <dd>{selectedDeployment.model || 'Custom Model'}</dd>
+                <dd>{selectedDeployment.model || '—'}</dd>
               </div>
 
               <div>
                 <dt>GPU ACCELERATOR</dt>
-                <dd>{selectedDeployment.gpu || 'Sovereign GPU'}</dd>
+                <dd>{selectedDeployment.gpu || '—'}</dd>
               </div>
 
               <div>
-                <dt>REGION</dt>
-                <dd>{selectedDeployment.region || 'Mumbai, IN'}</dd>
+                <dt>PROVIDER · REGION</dt>
+                <dd>
+                  {selectedDeployment.providerId || '—'} · {selectedDeployment.region || '—'}
+                </dd>
               </div>
 
+              {selectedDeployment.providerInstanceId ? (
+                <div>
+                  <dt>INSTANCE ID</dt>
+                  <dd className="cx-mono">{selectedDeployment.providerInstanceId}</dd>
+                </div>
+              ) : null}
+
               <div>
-                <dt>RECORDED STATUS</dt>
+                <dt>STATUS</dt>
                 <dd>
                   <StatusPill
                     tone={
@@ -842,45 +865,46 @@ export default function DeploymentsPage() {
               ) : null}
             </dl>
 
-            <div className="cx-deploy-quickstart">
-              <div className="cx-deploy-quickstart-header">
-                <span className="cx-label">QUICK START (cURL)</span>
-                <button
-                  type="button"
-                  className="cx-iconbtn-sm"
-                  onClick={() =>
-                    copyToClipboard(
-                      `curl -X POST "https://${selectedDeployment.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}.endpoints.inferxe.com/v1/chat/completions" \\\n  -H "Content-Type: application/json" \\\n  -H "Authorization: Bearer $INFERXE_API_KEY" \\\n  -d '{"model": "${selectedDeployment.model || 'default'}", "messages": [{"role": "user", "content": "Hello!"}]}'`,
-                      'curl',
-                    )
-                  }
-                  title="Copy cURL command"
-                  aria-label="Copy cURL command"
-                >
-                  {copiedText === 'curl' ? <Check size={13} /> : <Copy size={13} />}
-                </button>
-              </div>
-              <pre className="cx-deploy-curl-code">
-{`curl -X POST "https://${selectedDeployment.name.toLowerCase().replace(/[^a-z0-9]/g, '-')}.endpoints.inferxe.com/v1/chat/completions" \\
+            {endpointUrl ? (
+              <div className="cx-deploy-quickstart">
+                <div className="cx-deploy-quickstart-header">
+                  <span className="cx-label">QUICK START (cURL)</span>
+                  <button
+                    type="button"
+                    className="cx-iconbtn-sm"
+                    onClick={() =>
+                      copyToClipboard(
+                        `curl -X POST "${endpointUrl}/chat/completions" \\\n  -H "Content-Type: application/json" \\\n  -d '{"model": "${selectedDeployment.model || 'default'}", "messages": [{"role": "user", "content": "Hello!"}]}'`,
+                        'curl',
+                      )
+                    }
+                    title="Copy cURL command"
+                    aria-label="Copy cURL command"
+                  >
+                    {copiedText === 'curl' ? <Check size={13} /> : <Copy size={13} />}
+                  </button>
+                </div>
+                <pre className="cx-deploy-curl-code">
+{`curl -X POST "${endpointUrl}/chat/completions" \\
   -H "Content-Type: application/json" \\
-  -H "Authorization: Bearer $INFERXE_API_KEY" \\
   -d '{"model": "${selectedDeployment.model || 'default'}", "messages": [{"role": "user", "content": "Hello!"}]}'`}
-              </pre>
-            </div>
+                </pre>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </Dialog>
 
-      {/* Confirmation Dialog for Delete */}
+      {/* Confirmation Dialog for Terminate */}
       <ConfirmDialog
-        open={deleteTarget !== null}
-        title={`Delete deployment "${deleteTarget?.name}"?`}
-        description="This will permanently delete the deployment record from your sovereign workspace. This action cannot be undone."
-        confirmLabel="Delete deployment"
-        onConfirm={handleDelete}
-        onCancel={() => setDeleteTarget(null)}
+        open={terminateTarget !== null}
+        title={`Terminate deployment "${terminateTarget?.name}"?`}
+        description="This permanently shuts down the GPU instance and releases it at the provider. The record stays in your history. This cannot be undone."
+        confirmLabel="Terminate deployment"
+        onConfirm={() => terminateTarget && handleAction(terminateTarget, 'terminate')}
+        onCancel={() => setTerminateTarget(null)}
         danger
-        busy={busyId === deleteTarget?.id}
+        busy={busyId === terminateTarget?.id}
       />
     </>
   )

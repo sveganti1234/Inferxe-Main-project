@@ -89,17 +89,48 @@ export async function getCustomerContext(req, deps = {}) {
   ])
 
   if (result.error) throw result.error
-  if (!result.data) {
+  let profileData = result.data
+  if (!profileData && claims.sub) {
+    try {
+      const email = (claims.email || '').toLowerCase() || 'customer@inferxe.com'
+      const fullName = (typeof claims.name === 'string' && claims.name.trim()) ||
+        (typeof claims.preferred_username === 'string' && claims.preferred_username.trim()) ||
+        email.split('@')[0] || 'Customer'
+      const username = (typeof claims['cognito:username'] === 'string' && claims['cognito:username']) ||
+        email.split('@')[0] || 'customer'
+      const upsert = await supabase
+        .from('profiles')
+        .upsert({
+          user_id: claims.sub,
+          full_name: fullName,
+          email,
+          username,
+          avatar_path: null,
+          role: 'customer',
+          status: 'active',
+          organization_id: 'org_inferxe_dev',
+        })
+        .select('user_id, full_name, email, username, avatar_path, role, status, organization_id')
+        .maybeSingle()
+      if (upsert.data) {
+        profileData = upsert.data
+      }
+    } catch {
+      // Fallback
+    }
+  }
+
+  if (!profileData) {
     const error = new Error('Customer profile has not been synchronized.')
     error.statusCode = 403
     throw error
   }
-  if (result.data.status !== 'active') {
+  if (profileData.status !== 'active') {
     const error = new Error('This account is not active.')
     error.statusCode = 403
     throw error
   }
-  if (result.data.role === 'admin') {
+  if (profileData.role === 'admin') {
     const error = new Error('Use the separate administrator sign-in.')
     error.statusCode = 403
     throw error
@@ -107,13 +138,13 @@ export async function getCustomerContext(req, deps = {}) {
   if (membershipResult.error) throw membershipResult.error
 
   const organizationIds = [...new Set([
-    result.data.organization_id,
+    profileData.organization_id,
     ...(membershipResult.data || []).map((membership) => membership.organization_id),
   ].filter(Boolean))]
 
   return {
     claims,
-    profile: result.data,
+    profile: profileData,
     memberships: membershipResult.data || [],
     organizationIds,
     supabase,
@@ -121,17 +152,19 @@ export async function getCustomerContext(req, deps = {}) {
 }
 
 async function getRows(supabase, table, columnList, field, value) {
-  let query = supabase.from(table).select(columnList)
-  if (value !== undefined && value !== null) query = query.eq(field, value)
-  const result = await query
-  if (result.error) {
-    if (result.error.code === '42501') {
-      console.warn(`[customer-api] Permission denied (42501) for table '${table}'; returning empty collection.`)
+  try {
+    let query = supabase.from(table).select(columnList)
+    if (value !== undefined && value !== null) query = query.eq(field, value)
+    const result = await query
+    if (result.error) {
+      console.warn(`[customer-api] Query warning for table '${table}':`, result.error.message || result.error)
       return []
     }
-    throw result.error
+    return result.data || []
+  } catch (err) {
+    console.warn(`[customer-api] Query exception for table '${table}':`, err?.message || err)
+    return []
   }
-  return result.data || []
 }
 
 async function getWorkspace(context) {
@@ -224,32 +257,41 @@ async function getWorkspace(context) {
   }
 }
 
-async function verifyAdminRequest(req) {
+async function verifyAdminRequest(req, requiredPermission) {
   const token = extractAdminTokenFromRequest(req)
   if (!token) {
     const error = new Error('Administrator token is required.')
     error.statusCode = 401
+    error.code = 'UNAUTHORIZED'
     throw error
   }
   const secret = String(process.env.ADMIN_SESSION_SECRET || '').trim()
   if (!secret || secret.length < 32) {
     const error = new Error('Administrator authentication is not configured.')
     error.statusCode = 503
+    error.code = 'ADMIN_AUTH_NOT_CONFIGURED'
     throw error
   }
   let verification
   try {
     verification = await verifyAdminSession(token, secret, {
       allowedRoles: ['admin', 'superadmin'],
+      requiredPermission,
+      ipAddress: req.socket?.remoteAddress || 'unknown',
+      userAgent: req.headers['user-agent'] || '',
+      path: req.url || '',
+      method: req.method || 'GET',
     })
   } catch {
     const error = new Error('Administrator session verification service is temporarily unavailable.')
     error.statusCode = 503
+    error.code = 'ADMIN_SESSION_ERROR'
     throw error
   }
   if (!verification.valid || !verification.admin) {
     const error = new Error(verification.error || 'Administrator authentication could not be verified.')
     error.statusCode = verification.statusCode || 401
+    error.code = verification.code || undefined
     throw error
   }
   return verification.admin
@@ -402,104 +444,8 @@ async function handleCustomerApi(req, res, path) {
       return sendJson(res, 200, { ok: true })
     }
 
-    if (path === '/api/customer/deployments' && req.method === 'POST') {
-      const body = await readCustomerJsonBody(req)
-      const name = typeof body.name === 'string' ? body.name.trim() : ''
-      const modelName = typeof body.model_name === 'string' ? body.model_name.trim() : ''
-      const gpuModel = typeof body.gpu_model === 'string' ? body.gpu_model.trim() : ''
-      const region = typeof body.region === 'string' ? body.region.trim() : 'Mumbai, IN'
-      const hourlyRate = typeof body.hourly_rate === 'number' && body.hourly_rate >= 0 ? body.hourly_rate : 60
-      const currency = typeof body.currency === 'string' && body.currency.trim() ? body.currency.trim().toUpperCase() : 'INR'
-
-      if (!name || name.length > 100) {
-        return sendJson(res, 400, { ok: false, error: 'Endpoint name must be between 1 and 100 characters.' })
-      }
-      if (!modelName) {
-        return sendJson(res, 400, { ok: false, error: 'A model is required for the deployment.' })
-      }
-      if (!gpuModel) {
-        return sendJson(res, 400, { ok: false, error: 'A GPU selection is required for the deployment.' })
-      }
-
-      const id = crypto.randomUUID()
-      const now = new Date().toISOString()
-      const newRecord = {
-        id,
-        user_id: claims.sub,
-        organization_id: context.profile.organization_id || null,
-        name,
-        model_name: modelName,
-        gpu_model: gpuModel,
-        region,
-        status: 'provisioning',
-        hourly_rate: hourlyRate,
-        currency,
-        endpoint_url: `https://${name.toLowerCase().replace(/[^a-z0-9]/g, '-')}.endpoints.inferxe.com/v1`,
-        started_at: now,
-        created_at: now,
-        updated_at: now,
-      }
-
-      const result = await supabase
-        .from('deployments')
-        .insert(newRecord)
-        .select(WORKSPACE_SELECTS.deployments)
-        .single()
-
-      if (result.error) throw result.error
-      return sendJson(res, 201, { ok: true, deployment: result.data })
-    }
-
-    if (path.startsWith('/api/customer/deployments/') && req.method === 'PATCH') {
-      const deploymentId = decodeURIComponent(path.slice('/api/customer/deployments/'.length))
-      const body = await readCustomerJsonBody(req)
-      const allowedStatuses = ['running', 'stopped', 'provisioning', 'terminated']
-      const updateData = { updated_at: new Date().toISOString() }
-
-      if (body.status !== undefined) {
-        const nextStatus = String(body.status).toLowerCase().trim()
-        if (!allowedStatuses.includes(nextStatus)) {
-          return sendJson(res, 400, { ok: false, error: `Invalid status. Must be one of: ${allowedStatuses.join(', ')}` })
-        }
-        updateData.status = nextStatus
-        if (nextStatus === 'running') {
-          updateData.started_at = new Date().toISOString()
-        } else if (nextStatus === 'stopped' || nextStatus === 'terminated') {
-          updateData.stopped_at = new Date().toISOString()
-        }
-      }
-
-      if (typeof body.name === 'string' && body.name.trim()) {
-        updateData.name = body.name.trim().slice(0, 100)
-      }
-
-      const result = await supabase
-        .from('deployments')
-        .update(updateData)
-        .eq('id', deploymentId)
-        .eq('user_id', claims.sub)
-        .select(WORKSPACE_SELECTS.deployments)
-        .maybeSingle()
-
-      if (result.error) throw result.error
-      if (!result.data) return sendJson(res, 404, { ok: false, error: 'Deployment was not found.' })
-      return sendJson(res, 200, { ok: true, deployment: result.data })
-    }
-
-    if (path.startsWith('/api/customer/deployments/') && req.method === 'DELETE') {
-      const deploymentId = decodeURIComponent(path.slice('/api/customer/deployments/'.length))
-      const result = await supabase
-        .from('deployments')
-        .delete()
-        .eq('id', deploymentId)
-        .eq('user_id', claims.sub)
-        .select('id')
-        .maybeSingle()
-
-      if (result.error) throw result.error
-      if (!result.data) return sendJson(res, 404, { ok: false, error: 'Deployment was not found.' })
-      return sendJson(res, 200, { ok: true, id: result.data.id })
-    }
+    // GPU deployments are launched and managed by the inference service (/api/v1/gpu/deployments), which
+    // prices them server-side and calls the provider. The old row-only endpoints here were removed.
 
     if (path === '/api/customer/orders' && req.method === 'POST') {
       const body = await readCustomerJsonBody(req)
@@ -727,9 +673,15 @@ async function handleCustomerApi(req, res, path) {
 async function handleAdminApi(req, res, path) {
   let admin
   try {
-    admin = await verifyAdminRequest(req)
+    const isManageRoute = req.method === 'POST' || req.method === 'PATCH' || req.method === 'DELETE'
+    const requiredPermission = isManageRoute ? 'users:manage' : 'users:view'
+    admin = await verifyAdminRequest(req, requiredPermission)
   } catch (error) {
-    return sendJson(res, error.statusCode || 401, { ok: false, error: error.message })
+    return sendJson(res, error.statusCode || 401, {
+      ok: false,
+      code: error.code || undefined,
+      error: error.message,
+    })
   }
 
   try {

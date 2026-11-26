@@ -23,6 +23,7 @@ import GpusPage from './pages/GpusPage'
 import PlaygroundPage from './pages/PlaygroundPage'
 import DeploymentsPage from './pages/DeploymentsPage'
 import WishlistPage from './pages/WishlistPage'
+import SshKeysPage from './pages/SshKeysPage'
 import OrdersPage from './pages/OrdersPage'
 import CheckoutPage from './pages/CheckoutPage'
 import RewardsPage from './pages/RewardsPage'
@@ -45,6 +46,7 @@ const IMPLEMENTED: Partial<Record<SectionId, () => ReactElement>> = {
   playground: () => <PlaygroundPage />,
   deployments: () => <DeploymentsPage />,
   wishlist: () => <WishlistPage />,
+  'ssh-keys': () => <SshKeysPage />,
   orders: () => <OrdersPage />,
   checkout: () => <CheckoutPage />,
   rewards: () => <RewardsPage />,
@@ -77,6 +79,10 @@ export default function CustomerApp() {
             const Page = IMPLEMENTED[section.id]
             return <Route key={section.id} path={section.path} element={Page ? <Page /> : <SectionPreview id={section.id} />} />
           })}
+          <Route path="faq" element={<HelpPage />} />
+          <Route path="chatbot" element={<HelpPage />} />
+          <Route path="workspace" element={<SettingsPage />} />
+          <Route path="quotas" element={<SettingsPage />} />
           <Route path="*" element={<ConsoleNotFound />} />
         </Route>
       </Routes>

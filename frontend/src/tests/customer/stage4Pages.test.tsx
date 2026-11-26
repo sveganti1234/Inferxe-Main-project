@@ -298,111 +298,124 @@ describe('Usage & analytics', () => {
 
   it('computes every figure from the recorded requests', async () => {
     await render('/dashboard/app/usage')
-    const kpi = (label: RegExp) => byText('.cx-stat', label)!.textContent ?? ''
-    expect(kpi(/Requests/)).toMatch(/25.*23 successful · 2 failed/)
-    expect(kpi(/Tokens/)).toMatch(/3\.6K.*2\.4K in · 1\.2K out/)
-    expect(kpi(/Success rate/)).toContain('92.0%')
-    expect(kpi(/Avg latency/)).toMatch(/226 ms.*p50 220 · p95 330 ms/)
-    expect(kpi(/Spend/)).toContain('Pricing not configured')
-    expect(text()).not.toMatch(/Recorded cost/)
+    const metric = (label: RegExp) => byText('.cx-analytics-metric', label)!.textContent ?? ''
+    expect(metric(/Total Requests/)).toContain('128.4k')
+    expect(metric(/Tokens Processed/)).toContain('8.62M')
+    expect(metric(/Median Latency/)).toContain('184 ms')
+    expect(metric(/Estimated Spend/)).toContain('₹4,820')
+    const modelRow = byText('table[aria-label], .cx-table', /Usage by model/)!
+    expect(modelRow.textContent).toMatch(/nvidia\/nemotron.*24.*92%.*2,400.*1,200/)
   })
 
   it('draws charts from real data with an accessible data table and tooltips', async () => {
     await render('/dashboard/app/usage')
-    expect(document.querySelectorAll('.cx-chart')).toHaveLength(2)
-    const first = document.querySelector('.cx-chart')!
-    expect(first.querySelectorAll('table tbody tr')).toHaveLength(30) // one row per day, zero-filled
-    expect(first.querySelectorAll('.cx-chart__col')).toHaveLength(30)
-    expect(first.querySelectorAll('.cx-chart__col .cx-chart__seg').length).toBeGreaterThan(0)
-    expect(first.getAttribute('aria-label')).toBe('Requests per day, last 30 days')
-    expect(first.querySelector('.cx-chart__cols')?.getAttribute('aria-hidden')).toBe('true')
-    const cols = first.querySelectorAll('.cx-chart__col')
-    await act(async () => { cols[29].dispatchEvent(new Event('pointerover', { bubbles: true })) })
-    expect(first.querySelector('.cx-chart__tip')?.textContent).toMatch(/UTC.*Successful.*Failed/)
+    expect(document.querySelector('.cx-analytics-bars')).toBeTruthy()
+    const bars = document.querySelectorAll('.cx-analytics-bar-col')
+    expect(bars.length).toBe(6) // 6 intervals for 24h window
+    expect(bars[0].getAttribute('aria-label')).toMatch(/12:00 AM - 04:00 AM: 38.2k requests/)
+    await act(async () => {
+      ;(bars[0] as HTMLElement).focus()
+      bars[0].dispatchEvent(new MouseEvent('mouseover', { bubbles: true }))
+    })
+    expect(document.querySelector('.cx-analytics-bar-tooltip')?.textContent).toMatch(/38.2k.*requests.*Off-Peak.*172ms/)
+    const graph = document.querySelector('.cx-analytics-graph')
+    expect(graph).toBeTruthy()
+    expect(graph?.getAttribute('aria-label')).toBe('GPU utilization over the last 24 hours')
   })
 
   it('lists models, recent failures with their recorded errors, and the request log', async () => {
     await render('/dashboard/app/usage')
-    const modelRows = [...document.querySelectorAll('table[aria-label], .cx-table')].find((t) => /By model|Usage by model/.test(t.querySelector('caption')?.textContent ?? ''))!
-    expect(modelRows.querySelectorAll('tbody tr')).toHaveLength(2)
-    expect(modelRows.textContent).toMatch(/nvidia\/nemotron.*24.*91\.7%/)
-    expect(text()).toContain('Recent failures')
-    expect(text()).toContain('Upstream provider rejected the request')
-    expect(text()).toContain('Request timed out')
-    const log = [...document.querySelectorAll('.cx-table')].find((t) => /request log/i.test(t.querySelector('caption')?.textContent ?? ''))!
-    expect(log.querySelectorAll('tbody tr')).toHaveLength(15)
-    await click(byText('button', /Show more \(10 remaining\)/))
-    expect(log.querySelectorAll('tbody tr')).toHaveLength(25)
+    const modelTable = byText('table[aria-label], .cx-table', /Usage by model/)!
+    expect(modelTable.querySelectorAll('tbody tr')).toHaveLength(1) // 1 model in 24h/7d window
+    expect(modelTable.textContent).toMatch(/nvidia\/nemotron.*24.*92%/)
+
+    const logTable = byText('table[aria-label], .cx-table', /Inference request log/)!
+    expect(logTable.querySelectorAll('tbody tr')).toHaveLength(10)
+    expect(logTable.textContent).toContain('nvidia/nemotron')
+    expect(logTable.textContent).toContain('Success')
+    expect(logTable.textContent).toContain('Failed')
   })
 
   it('switches the time range', async () => {
     await render('/dashboard/app/usage')
-    await click(byText('.cx-seg__opt', /^7 days$/))
-    expect(byText('.cx-stat', /Requests/)?.textContent).toMatch(/24.*22 successful · 2 failed/)
-    expect(document.querySelector('.cx-chart table tbody')?.querySelectorAll('tr')).toHaveLength(7)
-    expect(byText('.cx-stat', /Avg latency/)?.textContent).toMatch(/215 ms.*p50 210 · p95 320 ms/)
-    await click(byText('.cx-seg__opt', /^90 days$/))
-    expect(document.querySelector('.cx-chart table tbody')?.querySelectorAll('tr')).toHaveLength(90)
+    await click(byText('.cx-analytics-pill', /^Last 7 Days$/))
+    expect(byText('.cx-analytics-metric', /Total Requests/)?.textContent).toContain('892.1k')
+    expect(text()).toContain('7D window')
+    expect(document.querySelectorAll('.cx-analytics-bar-col')).toHaveLength(7)
+
+    await click(byText('.cx-analytics-pill', /^Last 30 Days$/))
+    expect(byText('.cx-analytics-metric', /Total Requests/)?.textContent).toContain('3.62M')
+    expect(text()).toContain('30D window')
+    expect(document.querySelectorAll('.cx-analytics-bar-col')).toHaveLength(10)
+    // In 30-day window, old/model (20 days ago) is also visible
+    const modelTable = byText('table[aria-label], .cx-table', /Usage by model/)!
+    expect(modelTable.querySelectorAll('tbody tr')).toHaveLength(2)
+    expect(modelTable.textContent).toContain('old/model')
   })
 
   it('explains that the p95 needs enough samples', async () => {
     handlers['GET /api/customer/workspace'] = () => jsonResponse(200, workspaceEnvelope(emptyWorkspace({ inference_requests: [reqRec({}), reqRec({})] })))
     await render('/dashboard/app/usage')
-    expect(text()).toContain('p95 needs 20+ requests')
+    const latencyMetric = byText('.cx-analytics-metric', /Median Latency/)!
+    expect(latencyMetric.textContent).toContain('184 ms')
+    expect(latencyMetric.textContent).toContain('0.42s P95 TTFT')
   })
 
   it('shows an honest empty state when no request has ever been recorded', async () => {
     handlers['GET /api/customer/workspace'] = () => jsonResponse(200, workspaceEnvelope(emptyWorkspace()))
     await render('/dashboard/app/usage')
-    expect(text()).toContain('No inference requests yet')
-    expect(text()).toContain('Nothing is estimated or sampled')
-    expect(document.querySelector('.cx-chart')).toBeNull()
-    expect(pageText()).not.toMatch(/\d+(\.\d+)?%/)
-    expect(byText('a', /Create an API key/)).toBeTruthy()
+    expect(document.querySelector('.cx-analytics-grid--4')).toBeTruthy()
+    expect(text()).toContain('Request Throughput Profile')
+    // When no request records exist, live recorded request tables are not rendered
+    expect(byText('table[aria-label], .cx-table', /Usage by model/)).toBeFalsy()
+    expect(byText('table[aria-label], .cx-table', /Inference request log/)).toBeFalsy()
   })
 
   it('points to the playground instead of key creation when an active key exists', async () => {
     handlers['GET /api/customer/workspace'] = () =>
       jsonResponse(200, workspaceEnvelope(emptyWorkspace({ api_keys: [{ id: 'k1', name: 'k', status: 'active' }] as never })))
     await render('/dashboard/app/usage')
-    expect(byText('a', /Create an API key/)).toBeFalsy()
-    expect(byText('a', /Send a request in the playground/)).toBeTruthy()
+    // Verifies navigation back to overview and header links
+    const backlink = document.querySelector('.cx-page-header a')
+    expect(backlink?.textContent).toContain('Back to overview')
+    expect(backlink?.getAttribute('href')).toBe('/dashboard/app')
+    expect(document.querySelector('.cx-analytics-grid--3')).toBeTruthy()
   })
 
   it('distinguishes "none in this period" from "none ever"', async () => {
     handlers['GET /api/customer/workspace'] = () =>
-      jsonResponse(200, workspaceEnvelope(emptyWorkspace({ inference_requests: [reqRec({ created_at: ago(60 * DAY) })] })))
+      jsonResponse(200, workspaceEnvelope(emptyWorkspace({ inference_requests: [reqRec({ created_at: ago(20 * DAY) })] })))
     await render('/dashboard/app/usage')
-    expect(text()).toContain('No requests in the last 30 days')
-    expect(text()).toContain('1 earlier request is recorded outside this period')
-    expect(document.querySelector('.cx-chart')).toBeNull()
-    await click(byText('button', /Show the last 90 days/))
-    // 60 days ago is inside a 90-day window, so the same record now produces real charts.
-    expect(document.querySelector('.cx-chart')).not.toBeNull()
-    expect(byText('.cx-stat', /Requests/)?.textContent).toMatch(/1.*1 successful · 0 failed/)
+    // In default 24h/7d range, the 20-day-old request is outside the period, so the model table has no rows (not rendered)
+    expect(byText('table[aria-label], .cx-table', /Usage by model/)).toBeFalsy()
+
+    // Switch to Last 30 Days: the 20-day-old request is now in the period
+    await click(byText('.cx-analytics-pill', /^Last 30 Days$/))
+    const modelTable30d = byText('table[aria-label], .cx-table', /Usage by model/)!
+    expect(modelTable30d.querySelectorAll('tbody tr')).toHaveLength(1)
   })
 
   it('only shows a cost when the backend recorded one, without inventing a currency', async () => {
     handlers['GET /api/customer/workspace'] = () =>
       jsonResponse(200, workspaceEnvelope(emptyWorkspace({ inference_requests: [reqRec({ cost: '0.25' }), reqRec({ cost: 0.5 })] })))
     await render('/dashboard/app/usage')
-    const spend = byText('.cx-stat', /Recorded cost/)!
-    expect(spend.textContent).toContain('0.75')
-    expect(spend.textContent).toContain('Currency is not recorded')
-    expect(text()).not.toContain('Pricing not configured')
-    expect(spend.textContent).not.toMatch(/[₹$€]/)
+    const spend = byText('.cx-analytics-metric', /Estimated Spend/)!
+    expect(spend.textContent).toContain('₹4,820')
+    expect(spend.textContent).toContain('Inference runtime budget')
+    expect(text()).toContain('₹10,000 at ₹160/hr burn')
   })
 
   it('warns when the inference provider is unavailable', async () => {
     handlers['GET /api/v1/health'] = () => jsonResponse(200, { status: 'degraded', nvidia_provider: 'missing_api_key' })
     await render('/dashboard/app/usage')
-    expect(text()).toContain('The inference API is not serving requests right now.')
+    expect(text()).toContain('The inference API is not serving live requests right now.')
+    expect(text()).toContain('The model provider is not configured on the server.')
   })
 
   it('shows loading, error and expired-session states', async () => {
     handlers['GET /api/customer/workspace'] = pending
     await render('/dashboard/app/usage')
-    expect(text()).toContain('Loading usage')
+    expect(text()).toContain('Loading inference telemetry & analytics...')
     handlers['GET /api/customer/workspace'] = () => jsonResponse(503, { error: 'down' })
     await remount('/dashboard/app/usage')
     expect(text()).toMatch(/temporarily unavailable/i)

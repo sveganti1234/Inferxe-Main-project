@@ -2,10 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   clearSession,
   createDeveloperAdminAccount,
+  deleteSuperadminAdmin,
   getSession,
+  hasPermission,
   loginAdminBackend,
   performSignOut,
   saveSession,
+  updateSuperadminAdmin,
   verifyAdminSessionServer,
   verifyAdminSessionWithDetails,
 } from '../lib/authStore'
@@ -14,6 +17,10 @@ import {
   getAdminAccounts,
   syncAdminAccountsFromBackend,
 } from '../lib/adminAccountStore'
+import {
+  PLATFORM_PERMISSIONS,
+  STANDARD_ROLES,
+} from '../lib/adminRoleStore'
 
 /** Admin session tokens as the admin auth server issues them: signed HS256 JWTs carrying role and exp. */
 const adminToken = (sub: string, role: 'admin' | 'superadmin') => {
@@ -339,5 +346,178 @@ describe('Phase A1 Frontend Admin Authentication Hardening', () => {
     expect(syncRes.accounts[1].role).toBe('admin')
     expect(syncRes.accounts[1].isSuperAdmin).toBe(false)
     expect(getAdminAccounts().length).toBe(2)
+  })
+
+  it('updateSuperadminAdmin issues PATCH /api/superadmin/admins/:id and handles duplicate email 409 and success', async () => {
+    const superadminJwt = adminToken('super-1', 'superadmin')
+    saveSession({
+      token: superadminJwt,
+      user: {
+        id: 'super-1',
+        fullName: 'Super Admin',
+        email: 'admin@inferxe.com',
+        username: 'admin',
+        role: 'superadmin',
+      },
+      expiresAt: Date.now() + 60_000,
+    })
+
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        admin: {
+          id: 'dev-1',
+          email: 'dev.updated@inferxe.com',
+          role: 'admin',
+          session_version: 2,
+        },
+      }),
+    })
+    globalThis.fetch = fetchMock as unknown as typeof fetch
+
+    const updateRes = await updateSuperadminAdmin('dev-1', {
+      email: 'dev.updated@inferxe.com',
+      password: 'NewDevPassword#2026!',
+      reason: 'Periodic rotation',
+    })
+
+    expect(updateRes.ok).toBe(true)
+    expect(updateRes.admin?.email).toBe('dev.updated@inferxe.com')
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/superadmin/admins/dev-1',
+      expect.objectContaining({
+        method: 'PATCH',
+        headers: expect.objectContaining({
+          Authorization: `Bearer ${superadminJwt}`,
+        }),
+      }),
+    )
+
+    // 409 Duplicate email
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 409,
+      json: async () => ({
+        ok: false,
+        code: 'DUPLICATE_ADMIN_EMAIL',
+        error: 'An administrator account with this email already exists.',
+      }),
+    })
+
+    const dupRes = await updateSuperadminAdmin('dev-1', { email: 'existing@inferxe.com' })
+    expect(dupRes.ok).toBe(false)
+    expect(dupRes.isDuplicate).toBe(true)
+    expect(dupRes.statusCode).toBe(409)
+  })
+
+  it('deleteSuperadminAdmin issues DELETE /api/superadmin/admins/:id and handles success and errors', async () => {
+    const superadminJwt = adminToken('super-1', 'superadmin')
+    saveSession({
+      token: superadminJwt,
+      user: {
+        id: 'super-1',
+        fullName: 'Super Admin',
+        email: 'admin@inferxe.com',
+        username: 'admin',
+        role: 'superadmin',
+      },
+      expiresAt: Date.now() + 60_000,
+    })
+
+    const fetchMock = vi.fn().mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        ok: true,
+        message: 'Administrator account deleted successfully.',
+      }),
+    })
+    globalThis.fetch = fetchMock as unknown as typeof fetch
+
+    const deleteRes = await deleteSuperadminAdmin('dev-1', 'Offboarding')
+    expect(deleteRes.ok).toBe(true)
+    expect(deleteRes.statusCode).toBe(200)
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/superadmin/admins/dev-1',
+      expect.objectContaining({
+        method: 'DELETE',
+        headers: expect.objectContaining({
+          Authorization: `Bearer ${superadminJwt}`,
+        }),
+      }),
+    )
+
+    // 403 Forbidden (e.g. attempting to delete Super Admin)
+    fetchMock.mockResolvedValueOnce({
+      ok: false,
+      status: 403,
+      json: async () => ({
+        ok: false,
+        error: 'Super Admin account cannot be deleted.',
+      }),
+    })
+
+    const failRes = await deleteSuperadminAdmin('super-1')
+    expect(failRes.ok).toBe(false)
+    expect(failRes.statusCode).toBe(403)
+    expect(failRes.error).toContain('cannot be deleted')
+  })
+
+  it('enforces RBAC permissions correctly via hasPermission and canonical role definitions', () => {
+    // 1. Verify canonical role store definitions
+    expect(PLATFORM_PERMISSIONS.length).toBe(21)
+    const superRole = STANDARD_ROLES.find((r) => r.id === 'superadmin')
+    const adminRole = STANDARD_ROLES.find((r) => r.id === 'admin')
+    expect(superRole?.permissions.length).toBe(21)
+    expect(adminRole?.permissions.length).toBe(10)
+
+    // 2. Unauthenticated check returns false
+    clearSession()
+    expect(hasPermission('dashboard:view')).toBe(false)
+    expect(hasPermission('admin:accounts:view')).toBe(false)
+
+    // 3. Super Admin has all permissions
+    saveSession({
+      token: adminToken('super-1', 'superadmin'),
+      user: {
+        id: 'super-1',
+        fullName: 'Super Admin',
+        email: 'admin@inferxe.com',
+        username: 'admin',
+        role: 'superadmin',
+      },
+      expiresAt: Date.now() + 60_000,
+    })
+    expect(hasPermission('dashboard:view')).toBe(true)
+    expect(hasPermission('admin:accounts:view')).toBe(true)
+    expect(hasPermission('admin:roles:manage')).toBe(true)
+
+    // 4. Standard Admin has operational permissions only
+    saveSession({
+      token: adminToken('dev-1', 'admin'),
+      user: {
+        id: 'dev-1',
+        fullName: 'Dev Admin',
+        email: 'dev@inferxe.com',
+        username: 'dev',
+        role: 'admin',
+        permissions: adminRole?.permissions,
+      },
+      expiresAt: Date.now() + 60_000,
+    })
+    expect(hasPermission('dashboard:view')).toBe(true)
+    expect(hasPermission('users:view')).toBe(true)
+    expect(hasPermission('users:manage')).toBe(true)
+    expect(hasPermission('api:keys:view')).toBe(true)
+    expect(hasPermission('ssh:keys:view')).toBe(true)
+    expect(hasPermission('notebooks:view')).toBe(true)
+    expect(hasPermission('admin:accounts:view')).toBe(false)
+    expect(hasPermission('admin:accounts:manage')).toBe(false)
+    expect(hasPermission('admin:roles:view')).toBe(false)
+    expect(hasPermission('admin:roles:manage')).toBe(false)
+    expect(hasPermission('admin:permissions:manage')).toBe(false)
+    expect(hasPermission('audit:logs:view')).toBe(false)
   })
 })

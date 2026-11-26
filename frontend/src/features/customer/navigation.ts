@@ -17,12 +17,13 @@ import {
   Cpu,
   FlaskConical,
   Gift,
+  HelpCircle,
   KeyRound,
   LayoutDashboard,
-  LifeBuoy,
   Receipt,
   Rocket,
   Settings2,
+  ShieldCheck,
   SquareTerminal,
   UserRound,
   Wallet,
@@ -43,6 +44,7 @@ export type SectionId =
   | 'wishlist'
   | 'orders'
   | 'api-keys'
+  | 'ssh-keys'
   | 'usage'
   | 'developer'
   | 'billing'
@@ -84,7 +86,7 @@ export const CONSOLE_SECTIONS: ConsoleSection[] = [
   },
   {
     id: 'models',
-    label: 'Model marketplace',
+    label: 'LLM catalog',
     path: 'models',
     icon: BrainCircuit,
     group: 'Compute & AI',
@@ -151,6 +153,21 @@ export const CONSOLE_SECTIONS: ConsoleSection[] = [
     description: 'Create and revoke keys for the Inferxe inference API.',
     availabilityNote: 'Manages your real API keys.',
     capabilities: ['Create keys (secret shown once)', 'Revoke keys', 'Quick-start code for the inference API'],
+  },
+  {
+    id: 'ssh-keys',
+    label: 'SSH Keys',
+    path: 'ssh-keys',
+    icon: ShieldCheck,
+    group: 'Developer Tools',
+    availability: 'live',
+    description: 'Configure demo SSH credentials for compute cluster access.',
+    availabilityNote: 'Register public keys to enable secure terminal and container shell pairing.',
+    capabilities: [
+      'Register OpenSSH public keys (ed25519, RSA)',
+      'Display key fingerprints and public snippets',
+      'One-click copy and secure removal',
+    ],
   },
   {
     id: 'developer',
@@ -257,25 +274,35 @@ export const CONSOLE_SECTIONS: ConsoleSection[] = [
   },
   {
     id: 'settings',
-    label: 'Settings',
+    label: 'Workspace Settings',
     path: 'settings',
     icon: Settings2,
     group: 'Settings',
     availability: 'live',
-    description: 'Profile, security and organization details.',
-    availabilityNote: 'Your real account settings.',
-    capabilities: ['Edit your display name', 'Change your password', 'Organization and access limits'],
+    description: 'Configure demo preferences, quotas and workspace details.',
+    availabilityNote: 'Workspace preferences, quota limits, and security controls.',
+    capabilities: [
+      'Monthly spending limits and quota configurations',
+      'API CORS origins and security settings',
+      'Spending over-quota notifications and telemetry reports',
+      'Account password updates and credential management',
+    ],
   },
   {
     id: 'help',
-    label: 'Help',
+    label: 'Chatbot and Help',
     path: 'help',
-    icon: LifeBuoy,
+    icon: HelpCircle,
     group: 'Support',
     availability: 'reference',
-    description: 'Guides, answers and the Inferxe assistant.',
-    availabilityNote: 'Reference documentation.',
-    capabilities: ['Answers to common questions', 'Developer documentation', 'Ask the Inferxe assistant'],
+    description: 'Frequently asked questions, architecture guidelines, and support.',
+    availabilityNote: 'Technical architecture, pricing guarantees, hardware specifications, and API documentation.',
+    capabilities: [
+      'Technical architecture and sovereign compute guidelines',
+      'Frequently asked questions and support',
+      'Developer documentation and OpenAI SDK reference',
+      'Interactive AI Chatbot assistant',
+    ],
   },
 ]
 

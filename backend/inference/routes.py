@@ -1,4 +1,4 @@
-﻿"""
+"""
 FastAPI route definitions for the Inferxe Inference API.
 Endpoints:
   - POST /api/v1/inference: Authenticated model execution
@@ -43,10 +43,28 @@ from inference.supabase_notebooks import (
     get_notebook_repository,
 )
 from inference.supabase_telemetry import (
+    SupabaseTelemetryError,
     SupabaseTelemetryRepository,
+    SupabaseTelemetryServiceUnavailableError,
     get_telemetry_repository,
 )
+from inference.supabase_deployments import (
+    DeploymentStoreError,
+    DeploymentStoreUnavailableError,
+    SupabaseDeploymentRepository,
+    get_deployment_repository,
+)
+from inference.gpu_deployment_service import (
+    DeploymentNotFoundError,
+    DeploymentProvisioningError,
+    DeploymentRequestError,
+    DeploymentStateError,
+    GpuDeploymentService,
+)
+from providers.base import ProviderCapacityUnavailableError, ProviderError, ProviderTimeoutError
 from inference.schemas import (
+    GpuDeploymentCreateRequest,
+    GpuDeploymentResponse,
     InferenceRequest,
     InferenceResponse,
     HealthResponse,
@@ -64,7 +82,15 @@ from inference.schemas import (
     NotebookResponse,
     NotebookListResponse,
     NotebookActionResponse,
+    RoutingRecommendRequest,
+    RoutingRecommendResponse,
+    NotebookLogsResponse,
+    NotebookTelemetryResponse,
+    RecommendRequest,
+    PricingEstimateRequest,
 )
+from inference.catalog import load_catalog
+from inference.routing import recommend, estimate_price, summarize_usage
 from inference.ssh_key_service import (
     SSHKeyValidationError,
     DuplicateSSHKeyError,
@@ -76,10 +102,17 @@ from inference.notebook_service import (
     start_notebook,
     stop_notebook,
     terminate_notebook,
+    get_notebook_logs,
+    get_notebook_telemetry,
     serialize_notebook,
     NotebookNotFoundError,
     NotebookValidationError,
     InvalidStateTransitionError,
+)
+from inference.routing_engine import (
+    evaluate_placement,
+    REFERENCE_MODELS,
+    REFERENCE_HARDWARE,
 )
 from inference.auth import (
     test_mode_enabled,
@@ -948,3 +981,444 @@ def delete_notebook_instance(
         notebook=serialize_notebook(notebook),
     )
 
+
+@router.post(
+    "/routing/recommend",
+    response_model=RoutingRecommendResponse,
+    summary="Recommend GPU Placement",
+    description="Automated DPR Placement & Routing decision engine evaluating VRAM footprint, KV cache, and provider hardware catalogue.",
+)
+def recommend_gpu_placement(request: RoutingRecommendRequest):
+    result = evaluate_placement(
+        model_id=request.model_id,
+        quantization=request.quantization,
+        context_tokens=request.context_tokens,
+        concurrency=request.concurrency,
+        priority=request.priority,
+        budget_inr_hr=request.budget_inr_hr,
+        min_tokens_per_sec=request.min_tokens_per_sec,
+    )
+    return RoutingRecommendResponse(
+        success=True,
+        workload=result["workload"],
+        memory_breakdown=result["memory_breakdown"],
+        recommended_placement=result["recommended_placement"],
+        candidates=result["candidates"],
+        note=result["note"],
+    )
+
+
+@router.get(
+    "/routing/catalogue",
+    summary="List GPU Routing Catalogue",
+    description="Lists all reference hardware offerings with memory bandwidth, VRAM, and planning rates.",
+)
+def get_routing_catalogue():
+    return {
+        "success": True,
+        "models": [
+            {
+                "id": m.id,
+                "family": m.family,
+                "name": m.name,
+                "params_billion": m.params_billion,
+                "architecture": m.architecture,
+            }
+            for m in REFERENCE_MODELS.values()
+        ],
+        "hardware": [
+            {
+                "gpu_id": h.gpu_id,
+                "name": h.name,
+                "vram_gb": h.vram_gb,
+                "memory_bandwidth_gbps": h.memory_bandwidth_gbps,
+                "hourly_rate_inr": h.hourly_rate_inr,
+                "hourly_rate_usd": h.hourly_rate_usd,
+                "architecture": h.architecture,
+                "is_available": True,
+            }
+            for h in REFERENCE_HARDWARE.values()
+        ],
+    }
+
+
+@router.get(
+    "/notebooks/{id}/logs",
+    response_model=NotebookLogsResponse,
+    summary="Get Notebook Runtime Logs",
+    description="Returns container initialization, CUDA boot, and runtime logs for a notebook instance.",
+)
+def get_notebook_runtime_logs(
+    id: str,
+    user_id: str = Depends(require_cognito_user),
+    repo: SupabaseNotebookRepository = Depends(get_notebook_repository),
+):
+    try:
+        nb_uuid = uuid.UUID(id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid notebook ID format. Expected UUID.",
+        )
+    try:
+        res = get_notebook_logs(repo=repo, notebook_id=nb_uuid, user_id=user_id)
+        return NotebookLogsResponse(
+            success=True,
+            notebook_id=res["notebook_id"],
+            name=res["name"],
+            status=res["status"],
+            logs=res["logs"],
+            is_simulated=True,
+        )
+    except NotebookNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Notebook not found.",
+        )
+    except Exception as e:
+        logger.error("Error retrieving notebook logs: %s", str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to load notebook logs.",
+        )
+
+
+@router.get(
+    "/notebooks/{id}/telemetry",
+    response_model=NotebookTelemetryResponse,
+    summary="Get Notebook Runtime Telemetry",
+    description="Returns live hardware metrics (power, temp, VRAM, fan speed) for an active instance.",
+)
+def get_notebook_instance_telemetry(
+    id: str,
+    user_id: str = Depends(require_cognito_user),
+    repo: SupabaseNotebookRepository = Depends(get_notebook_repository),
+):
+    try:
+        nb_uuid = uuid.UUID(id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid notebook ID format. Expected UUID.",
+        )
+    try:
+        res = get_notebook_telemetry(repo=repo, notebook_id=nb_uuid, user_id=user_id)
+        return NotebookTelemetryResponse(
+            success=True,
+            notebook_id=res["notebook_id"],
+            name=res["name"],
+            status=res["status"],
+            telemetry=res["telemetry"],
+            is_simulated=True,
+        )
+    except NotebookNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Notebook not found.",
+        )
+    except Exception as e:
+        logger.error("Error retrieving notebook telemetry: %s", str(e))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to load notebook telemetry.",
+        )
+
+
+@router.get(
+    "/telemetry/hardware",
+    summary="Get Live Sovereign GPU Telemetry",
+    description="Returns real-time cluster telemetry across Indian sovereign nodes with realistic dynamic variance.",
+)
+def get_live_hardware_telemetry():
+    import time, math
+    from datetime import datetime, timezone
+    t = time.time()
+    phase = (t % 3600) / 15.0
+
+    return {
+        "success": True,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "is_simulated": True,
+        "clusters": [
+            {
+                "id": "cl-jarvis-in-01",
+                "name": "JarvisLabs Bangalore (IN-South)",
+                "provider": "JarvisLabs",
+                "region": "India (Bangalore)",
+                "status": "healthy",
+                "uptime": "99.98%",
+                "total_nodes": 16,
+                "active_nodes": 16,
+                "gpus": [
+                    {
+                        "type": "NVIDIA H100 80GB SXM5",
+                        "total": 32,
+                        "allocated": 28,
+                        "avg_temp_c": round(56.0 + 4.0 * math.sin(phase), 1),
+                        "power_w": round(480.0 + 20.0 * math.cos(phase), 1),
+                        "vram_used_gb": round(2120.0 + 45.0 * math.sin(phase * 0.5), 1),
+                        "vram_total_gb": 2560.0,
+                    },
+                    {
+                        "type": "NVIDIA A100 80GB PCIe",
+                        "total": 64,
+                        "allocated": 58,
+                        "avg_temp_c": round(62.0 + 3.0 * math.sin(phase + 1), 1),
+                        "power_w": round(340.0 + 15.0 * math.cos(phase), 1),
+                        "vram_used_gb": round(4480.0 + 60.0 * math.cos(phase * 0.4), 1),
+                        "vram_total_gb": 5120.0,
+                    },
+                ],
+            },
+            {
+                "id": "cl-e2e-in-02",
+                "name": "E2E Cloud Mumbai (IN-West)",
+                "provider": "E2E Cloud",
+                "region": "India (Mumbai)",
+                "status": "healthy",
+                "uptime": "99.95%",
+                "total_nodes": 24,
+                "active_nodes": 23,
+                "gpus": [
+                    {
+                        "type": "NVIDIA L40S 48GB",
+                        "total": 48,
+                        "allocated": 41,
+                        "avg_temp_c": round(58.0 + 4.0 * math.sin(phase * 1.2), 1),
+                        "power_w": round(310.0 + 18.0 * math.sin(phase), 1),
+                        "vram_used_gb": round(1880.0 + 35.0 * math.sin(phase), 1),
+                        "vram_total_gb": 2304.0,
+                    },
+                    {
+                        "type": "NVIDIA L4 24GB",
+                        "total": 32,
+                        "allocated": 26,
+                        "avg_temp_c": round(51.0 + 2.5 * math.cos(phase), 1),
+                        "power_w": round(72.0 + 4.0 * math.cos(phase * 0.8), 1),
+                        "vram_used_gb": round(610.0 + 20.0 * math.cos(phase), 1),
+                        "vram_total_gb": 768.0,
+                    },
+                ],
+            },
+        ],
+    }
+
+# --- Catalogue, Routing, Pricing & Usage (DPR §11, §9, §24.3, §13) ---
+# Catalogue and pricing are public reference data (also shown on the website); routing and usage are
+# tenant-scoped and use the developer API key, like /inference.
+
+@router.get(
+    "/gpus",
+    summary="Unified GPU Catalogue",
+    description="Normalized GPU models with their provider offers and measured benchmarks. All filters are optional.",
+)
+def list_gpus(
+    min_vram_gb: Optional[float] = None,
+    provider: Optional[str] = None,
+    region: Optional[str] = None,
+    sovereign_only: bool = False,
+):
+    catalog = load_catalog()
+    offers = [
+        o for o in catalog["offers"]
+        if (provider is None or o["provider_id"] == provider)
+        and (region is None or region.lower() in o["region"].lower())
+        and (not sovereign_only or o["sovereign_india_hosted"])
+    ]
+    gpus = []
+    for gpu in catalog["gpus"].values():
+        if min_vram_gb is not None and (gpu["vram_gb"] or 0) < min_vram_gb:
+            continue
+        gpu_offers = [o for o in offers if o["gpu_id"] == gpu["id"]]
+        # With an offer filter set, a GPU nobody offers under that filter is not a match.
+        if (provider or region or sovereign_only) and not gpu_offers:
+            continue
+        gpus.append({**gpu, "offers": gpu_offers})
+    return {"success": True, "count": len(gpus), "gpus": gpus}
+
+
+@router.get(
+    "/providers",
+    summary="GPU Providers",
+    description="Providers in the catalogue with regions, offered GPUs and integration status.",
+)
+def list_providers():
+    providers = list(load_catalog()["providers"].values())
+    return {"success": True, "count": len(providers), "providers": providers}
+
+
+@router.post(
+    "/recommend",
+    summary="Recommend GPU Placement",
+    description="Filters provider/GPU offers by memory, policy, budget and speed, then ranks them by routing mode. "
+                "The decision is recorded for the authenticated tenant.",
+)
+def recommend_placement(
+    req: RecommendRequest,
+    api_key: SupabaseAPIKeyRecord = Depends(verify_customer_api_key),
+    telemetry_repo: SupabaseTelemetryRepository = Depends(get_telemetry_repository),
+):
+    result = recommend(req.model_dump())
+    decision_id = None
+    try:
+        decision_id = telemetry_repo.record_routing_decision(
+            user_id=api_key.user_id,
+            organization_id=api_key.organization_id,
+            api_key_id=api_key.id,
+            workload=req.model_dump(),
+            mode=result["mode"],
+            selected_offer_id=result["selected"]["offer_id"] if result["selected"] else None,
+            candidates=result["candidates"][:5],
+        )
+    except Exception as e:
+        # Like inference telemetry: a recording failure must not fail the customer's request.
+        logger.error("Failed to record routing decision (%s).", type(e).__name__)
+    return {"success": True, "decision_id": decision_id, **result}
+
+
+@router.post(
+    "/pricing/estimate",
+    summary="Estimate Infrastructure Cost",
+    description="Estimated runtime cost for a catalogue offer from the reference rate card.",
+)
+def pricing_estimate(req: PricingEstimateRequest):
+    estimate = estimate_price(req.offer_id, req.gpu_count, req.hours, req.storage_gb, req.spot)
+    if estimate is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Unknown offer_id. See GET /api/v1/gpus.")
+    return {"success": True, **estimate}
+
+
+@router.get(
+    "/usage",
+    summary="Inference Usage Summary",
+    description="Requests, tokens, cost and latency for the authenticated customer's most recent inference requests.",
+)
+def usage_summary(
+    limit: int = 1000,
+    api_key: SupabaseAPIKeyRecord = Depends(verify_customer_api_key),
+    telemetry_repo: SupabaseTelemetryRepository = Depends(get_telemetry_repository),
+):
+    if limit < 1 or limit > 1000:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="limit must be between 1 and 1000.")
+    try:
+        records = telemetry_repo.list_user_inference_requests(api_key.user_id, limit=limit)
+    except SupabaseTelemetryServiceUnavailableError:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Usage database is unavailable.")
+    except SupabaseTelemetryError:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail="Upstream usage database rejected the request.")
+    return {"success": True, **summarize_usage(records)}
+
+
+
+# ── GPU deployments (provider adapter framework) ─────────────────────────────────────────────────────
+
+def get_gpu_deployment_service(
+    repo: SupabaseDeploymentRepository = Depends(get_deployment_repository),
+    ssh_repo: SupabaseSSHKeyRepository = Depends(get_ssh_key_repository),
+) -> GpuDeploymentService:
+    return GpuDeploymentService(repo=repo, ssh_repo=ssh_repo)
+
+
+def _gpu_http_error(err: Exception) -> HTTPException:
+    """Map service, provider and store errors to HTTP. Provider messages are not echoed (they can carry upstream text)."""
+    if isinstance(err, DeploymentNotFoundError):
+        return HTTPException(status.HTTP_404_NOT_FOUND, "Deployment not found.")
+    if isinstance(err, (DeploymentRequestError, SupabaseSSHKeyValidationError, SSHKeyValidationError)):
+        return HTTPException(status.HTTP_400_BAD_REQUEST, str(err))
+    if isinstance(err, DeploymentStateError):
+        return HTTPException(status.HTTP_409_CONFLICT, str(err))
+    if isinstance(err, ProviderTimeoutError):
+        return HTTPException(status.HTTP_504_GATEWAY_TIMEOUT, "The GPU provider did not respond in time.")
+    if isinstance(err, ProviderCapacityUnavailableError):
+        return HTTPException(status.HTTP_409_CONFLICT, "The requested GPU is not available right now.")
+    if isinstance(err, ProviderError):
+        if err.status_code == 400:
+            return HTTPException(status.HTTP_400_BAD_REQUEST, "The GPU provider rejected the request.")
+        return HTTPException(status.HTTP_502_BAD_GATEWAY, "The GPU provider returned an error.")
+    if isinstance(err, (DeploymentStoreUnavailableError, SupabaseSSHKeyServiceUnavailableError)):
+        return HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Deployment database is temporarily unavailable.")
+    if isinstance(err, (DeploymentStoreError, SupabaseSSHKeyError)):
+        return HTTPException(status.HTTP_502_BAD_GATEWAY, "Deployment database rejected the request.")
+    logger.error("Unexpected GPU deployment error (%s).", type(err).__name__)
+    return HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "GPU deployment request failed.")
+
+
+_GPU_ERRORS = (DeploymentNotFoundError, DeploymentRequestError, DeploymentStateError, ProviderError,
+               DeploymentStoreError, SupabaseSSHKeyError, SSHKeyValidationError)
+
+
+@router.get("/gpu/offerings", summary="GPU offerings from enabled providers",
+            description="Normalized GPU models, live pricing and availability across enabled providers (GPU_PROVIDERS).")
+def list_gpu_offerings(service: GpuDeploymentService = Depends(get_gpu_deployment_service)):
+    try:
+        offerings = service.list_offerings()
+    except ProviderError as err:
+        raise _gpu_http_error(err)
+    return {"success": True, "count": len(offerings), "offerings": [o.model_dump(mode="json") for o in offerings]}
+
+
+@router.post("/gpu/deployments", response_model=GpuDeploymentResponse, status_code=status.HTTP_201_CREATED,
+             summary="Launch a GPU instance")
+def create_gpu_deployment(
+    req: GpuDeploymentCreateRequest,
+    user_id: str = Depends(require_cognito_user),
+    service: GpuDeploymentService = Depends(get_gpu_deployment_service),
+):
+    try:
+        row = service.create(user_id=user_id, name=req.name, model_name=req.model_name, gpu_id=req.gpu_id,
+                             provider_id=req.provider_id, region=req.region, ssh_key_ids=req.ssh_key_ids,
+                             idempotency_key=req.idempotency_key)
+    except DeploymentProvisioningError as err:
+        http = _gpu_http_error(err.cause)
+        # The failed deployment is kept so the customer can see it; return it with the error.
+        raise HTTPException(http.status_code, {
+            "message": http.detail,
+            "deployment": GpuDeploymentResponse.from_row(err.deployment).model_dump(mode="json"),
+        })
+    except _GPU_ERRORS as err:
+        raise _gpu_http_error(err)
+    return GpuDeploymentResponse.from_row(row)
+
+
+@router.get("/gpu/deployments", summary="List GPU deployments")
+def list_gpu_deployments(
+    user_id: str = Depends(require_cognito_user),
+    service: GpuDeploymentService = Depends(get_gpu_deployment_service),
+):
+    try:
+        rows = service.list(user_id)
+    except _GPU_ERRORS as err:
+        raise _gpu_http_error(err)
+    return {"success": True, "deployments": [GpuDeploymentResponse.from_row(r) for r in rows]}
+
+
+def _gpu_action(action, user_id: str, deployment_id: str) -> GpuDeploymentResponse:
+    try:
+        return GpuDeploymentResponse.from_row(action(user_id, deployment_id))
+    except _GPU_ERRORS as err:
+        raise _gpu_http_error(err)
+
+
+@router.get("/gpu/deployments/{deployment_id}", response_model=GpuDeploymentResponse,
+            summary="Get a GPU deployment (refreshes status from the provider)")
+def get_gpu_deployment(deployment_id: str, user_id: str = Depends(require_cognito_user),
+                       service: GpuDeploymentService = Depends(get_gpu_deployment_service)):
+    return _gpu_action(service.get, user_id, deployment_id)
+
+
+@router.post("/gpu/deployments/{deployment_id}/stop", response_model=GpuDeploymentResponse, summary="Stop a GPU instance")
+def stop_gpu_deployment(deployment_id: str, user_id: str = Depends(require_cognito_user),
+                        service: GpuDeploymentService = Depends(get_gpu_deployment_service)):
+    return _gpu_action(service.stop, user_id, deployment_id)
+
+
+@router.post("/gpu/deployments/{deployment_id}/resume", response_model=GpuDeploymentResponse, summary="Resume a GPU instance")
+def resume_gpu_deployment(deployment_id: str, user_id: str = Depends(require_cognito_user),
+                          service: GpuDeploymentService = Depends(get_gpu_deployment_service)):
+    return _gpu_action(service.resume, user_id, deployment_id)
+
+
+@router.delete("/gpu/deployments/{deployment_id}", response_model=GpuDeploymentResponse, summary="Terminate a GPU instance")
+def terminate_gpu_deployment(deployment_id: str, user_id: str = Depends(require_cognito_user),
+                             service: GpuDeploymentService = Depends(get_gpu_deployment_service)):
+    return _gpu_action(service.terminate, user_id, deployment_id)

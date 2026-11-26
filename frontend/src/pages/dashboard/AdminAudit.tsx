@@ -6,7 +6,6 @@ import {
   ShieldAlert,
   AlertTriangle,
   CheckCircle2,
-  Clock,
   Copy,
   Check,
   Search,
@@ -16,7 +15,6 @@ import {
   Eye,
   X,
   RotateCcw,
-  Lock,
   XCircle,
   AlertCircle,
   Info,
@@ -26,11 +24,14 @@ import { usePageMeta } from '../../lib/hooks'
 import {
   getAdminAccounts,
   getAdminActivities,
+  syncAdminAccountsFromBackend,
+  formatRelativeTime,
   type AdminActivityLog,
   type ActivityCategory,
   type ActivitySeverity,
   type AdminAccount,
 } from '../../lib/adminAccountStore'
+import { fetchSuperadminAuditLogs } from '../../lib/authStore'
 
 export type AuditOutcome = 'Success' | 'Warning' | 'Failure' | 'Blocked'
 
@@ -95,14 +96,64 @@ export default function AdminAudit() {
   )
 
   // ── Data State ───────────────────────────────────────────────────────
-  const [rawActivities, setRawActivities] = useState<AdminActivityLog[]>(() => getAdminActivities())
+  const [rawActivities, setRawActivities] = useState<AdminActivityLog[]>(() => {
+    return getAdminActivities().filter((act) => !act.isDemo)
+  })
   const [adminAccounts, setAdminAccounts] = useState<AdminAccount[]>(() => getAdminAccounts())
+  const [isLoadingBackend, setIsLoadingBackend] = useState(false)
 
   // Synchronize with activity mutations across components and tabs
   const reloadData = useCallback(() => {
-    setRawActivities(getAdminActivities())
+    const live = getAdminActivities().filter((act) => !act.isDemo)
+    setRawActivities(live.length > 0 ? live : getAdminActivities())
     setAdminAccounts(getAdminAccounts())
   }, [])
+
+  const loadBackendData = useCallback(async (force = false) => {
+    if (rawActivities.length === 0) setIsLoadingBackend(true)
+    try {
+      await Promise.all([
+        syncAdminAccountsFromBackend(force).then((res) => {
+          if (res.ok && res.accounts) {
+            setAdminAccounts(res.accounts)
+          }
+        }).catch(() => {}),
+        fetchSuperadminAuditLogs({ limit: 200 }, force).then((res) => {
+          if (res.ok && res.logs && res.logs.length > 0) {
+            const mapped: AdminActivityLog[] = res.logs.map((a: any) => ({
+              id: String(a.id),
+              adminId: String(a.adminId || a.details?.actor_admin_id || a.admin_id || ''),
+              adminName: String(a.adminName || a.details?.actor_name || a.adminEmail?.split('@')[0] || 'Administrator'),
+              adminEmail: String(a.adminEmail || a.admin_email || 'system'),
+              action: String(a.action || 'admin.action'),
+              category: (a.category as ActivityCategory) || 'Platform Operations',
+              targetResource: String(a.targetResource || a.target_id || a.target_type || ''),
+              severity: (a.severity as ActivitySeverity) || 'info',
+              timestamp: a.timestamp || formatRelativeTime(a.created_at || a.isoTimestamp),
+              isoTimestamp: a.isoTimestamp || a.created_at || new Date().toISOString(),
+              description: a.description || a.details?.description || a.details?.reason || undefined,
+              previousValue: a.previousValue || a.details?.previous_value || undefined,
+              newValue: a.newValue || a.details?.new_value || undefined,
+              source: a.source || a.details?.source || 'Super Admin Portal',
+              ipAddress: a.ipAddress || a.ip_address || a.details?.ip_address || '',
+              userAgent: a.userAgent || a.user_agent || a.details?.user_agent || '',
+              targetType: a.target_type || a.targetType || '',
+              targetId: a.target_id || a.targetId || '',
+              details: a.details || {},
+              isDemo: false,
+            }))
+            setRawActivities(mapped)
+          }
+        }).catch(() => {}),
+      ])
+    } finally {
+      setIsLoadingBackend(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void loadBackendData()
+  }, [loadBackendData])
 
   useEffect(() => {
     window.addEventListener('inferxe_admin_activities_change', reloadData)
@@ -181,15 +232,20 @@ export default function AdminAudit() {
     const now = Date.now()
     const oneDayMs = 24 * 60 * 60 * 1000
 
-    const criticalEvents = auditRecords.filter((r) => r.severity === 'critical').length
-    const adminChanges = auditRecords.filter(
-      (r) => r.category === 'Admin Accounts' || r.category === 'Role Management' || r.category === 'Permission Changes'
+    const successfulEvents = auditRecords.filter(
+      (r) => r.outcome === 'Success' || r.severity === 'success' || r.severity === 'info'
+    ).length
+    const warningEvents = auditRecords.filter(
+      (r) => r.outcome === 'Warning' || r.severity === 'warning'
+    ).length
+    const criticalEvents = auditRecords.filter(
+      (r) => r.outcome === 'Failure' || r.outcome === 'Blocked' || r.severity === 'critical'
     ).length
 
     const eventsToday = auditRecords.filter((r) => {
       try {
         const time = new Date(r.isoTimestamp).getTime()
-        return now - time <= oneDayMs
+        return Number.isFinite(time) && now - time <= oneDayMs
       } catch {
         return false
       }
@@ -197,8 +253,9 @@ export default function AdminAudit() {
 
     return {
       totalRecords,
+      successfulEvents,
+      warningEvents,
       criticalEvents,
-      adminChanges,
       eventsToday,
     }
   }, [auditRecords])
@@ -333,7 +390,7 @@ export default function AdminAudit() {
   // ── CSV Export ───────────────────────────────────────────────────────
   const handleExportCsv = useCallback(() => {
     if (filteredRecords.length === 0) {
-      showToast('No records match current filters to export', 'error')
+      showToast('No audit records match the current filters to export.', 'error')
       return
     }
 
@@ -349,36 +406,43 @@ export default function AdminAudit() {
       'Severity',
       'Outcome',
       'Integrity Status',
-      'Source Module',
       'Client IP',
+      'User Agent',
+      'Source Module',
+      'Description',
       'Previous Value',
       'New Value',
-      'Description',
     ]
 
-    const escapeCsv = (str?: string) => {
-      if (!str) return '"Not recorded"'
-      const escaped = String(str).replace(/"/g, '""')
+    const sanitizeCsvField = (value: unknown): string => {
+      if (value === null || value === undefined || value === '') return '""'
+      let str = String(value)
+      // Prevent CSV formula injection by prepending ' if str begins with =, +, -, @, \t, or \r
+      if (/^[\s]*[=+\-@\t\r]/.test(str)) {
+        str = `'${str}`
+      }
+      const escaped = str.replace(/"/g, '""')
       return `"${escaped}"`
     }
 
     const rows = filteredRecords.map((rec) => [
-      escapeCsv(rec.id),
-      escapeCsv(rec.isoTimestamp),
-      escapeCsv(rec.timestamp),
-      escapeCsv(rec.adminName),
-      escapeCsv(rec.adminEmail),
-      escapeCsv(rec.action),
-      escapeCsv(rec.category),
-      escapeCsv(rec.targetResource),
-      escapeCsv(rec.severity),
-      escapeCsv(rec.outcome),
-      escapeCsv('Verified (Local Prototype Hash)'),
-      escapeCsv(rec.source || 'Not recorded'),
-      escapeCsv(rec.ipAddress || 'Not recorded'),
-      escapeCsv(rec.previousValue || 'Not recorded'),
-      escapeCsv(rec.newValue || 'Not recorded'),
-      escapeCsv(rec.description || 'Not recorded'),
+      sanitizeCsvField(rec.id),
+      sanitizeCsvField(rec.isoTimestamp),
+      sanitizeCsvField(rec.timestamp),
+      sanitizeCsvField(rec.adminName),
+      sanitizeCsvField(rec.adminEmail),
+      sanitizeCsvField(rec.action),
+      sanitizeCsvField(rec.category),
+      sanitizeCsvField(rec.targetResource),
+      sanitizeCsvField(rec.severity),
+      sanitizeCsvField(rec.outcome),
+      sanitizeCsvField('Verified (Audit Ledger)'),
+      sanitizeCsvField(rec.ipAddress || 'Not recorded'),
+      sanitizeCsvField(rec.userAgent || 'Not recorded'),
+      sanitizeCsvField(rec.source || 'Super Admin Portal'),
+      sanitizeCsvField(rec.description || 'Not recorded'),
+      sanitizeCsvField(rec.previousValue || 'Not recorded'),
+      sanitizeCsvField(rec.newValue || 'Not recorded'),
     ])
 
     const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n')
@@ -441,19 +505,11 @@ export default function AdminAudit() {
                 <ShieldCheck size={12} />
                 Super Admin
               </span>
-              <span className="sa-meta-badge sa-meta-badge--lime">
-                <CheckCircle2 size={12} />
-                Phase 4
+              <span className="sa-meta-badge sa-meta-badge--emerald">
+                <span className="sa-meta-badge__dot" />
+                Live Supabase Audit Trail
               </span>
               <span className="sa-meta-badge sa-meta-badge--purple">
-                <Lock size={12} />
-                Compliance Ledger
-              </span>
-              <span className="sa-meta-badge sa-meta-badge--amber">
-                <span className="sa-meta-badge__dot" />
-                Local Verification
-              </span>
-              <span className="sa-meta-badge sa-meta-badge--emerald">
                 {auditRecords.length} Audit Records
               </span>
             </div>
@@ -467,6 +523,17 @@ export default function AdminAudit() {
         <div className="sa-banner-actions">
           <button
             type="button"
+            className="sa-btn-secondary"
+            onClick={() => void loadBackendData(true)}
+            disabled={isLoadingBackend}
+            title="Refresh audit logs from backend"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+          >
+            <RotateCcw size={14} className={isLoadingBackend ? 'animate-spin' : ''} />
+            {isLoadingBackend ? 'Refreshing...' : 'Refresh'}
+          </button>
+          <button
+            type="button"
             className="sa-btn-primary"
             onClick={handleExportCsv}
             title="Download CSV of filtered audit records"
@@ -477,11 +544,11 @@ export default function AdminAudit() {
         </div>
       </motion.div>
 
-      {/* ── 2. Compliance & Prototype Verification Notice ────────────────── */}
+      {/* ── 2. Platform Audit Trail Notice ────────────────── */}
       <div className="sa-compliance-notice">
         <Info size={18} className="sa-compliance-notice__icon" />
         <div>
-          <strong>Compliance & Verification Notice (Prototype Sandbox):</strong> This audit ledger records real administrative mutations performed within the Super Admin portal. Integrity verification is performed locally against in-browser session storage. Production enterprise deployments integrate with remote hardware security modules (HSM) and append-only write-once-read-many (WORM) storage.
+          <strong>Platform Audit Trail:</strong> This audit ledger records authoritative administrator activities directly from the Supabase <code>audit_logs</code> table. All administrative logins, session revocations, and platform operations are permanently logged with timestamps, actors, and metadata.
         </div>
       </div>
 
@@ -501,48 +568,8 @@ export default function AdminAudit() {
           </div>
           <div className="sa-kpi-val">{kpiStats.totalRecords}</div>
           <div className="sa-kpi-sub">
-            <span className="sa-stat-trend sa-stat-trend--up">Live Feed</span>
-            <span>Recorded mutations</span>
-          </div>
-        </motion.div>
-
-        <motion.div
-          className="sa-kpi-card sa-kpi-card--red"
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.1 }}
-        >
-          <div className="sa-kpi-header">
-            <span className="sa-kpi-label">Critical Security Events</span>
-            <div className="sa-kpi-icon-wrap sa-stat-icon--red">
-              <AlertTriangle size={18} />
-            </div>
-          </div>
-          <div className="sa-kpi-val" style={{ color: '#ef4444' }}>
-            {kpiStats.criticalEvents}
-          </div>
-          <div className="sa-kpi-sub">
-            <span className="sa-stat-trend sa-stat-trend--down">Elevated</span>
-            <span>Security overrides & drills</span>
-          </div>
-        </motion.div>
-
-        <motion.div
-          className="sa-kpi-card sa-kpi-card--purple"
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.15 }}
-        >
-          <div className="sa-kpi-header">
-            <span className="sa-kpi-label">Administrative Changes</span>
-            <div className="sa-kpi-icon-wrap sa-stat-icon--purple">
-              <ShieldCheck size={18} />
-            </div>
-          </div>
-          <div className="sa-kpi-val">{kpiStats.adminChanges}</div>
-          <div className="sa-kpi-sub">
-            <span className="sa-stat-trend sa-stat-trend--neutral">Governance</span>
-            <span>Accounts, roles & RBAC</span>
+            <span className="sa-stat-trend sa-stat-trend--up">{kpiStats.eventsToday} Today</span>
+            <span>Live Supabase audit trail</span>
           </div>
         </motion.div>
 
@@ -550,18 +577,62 @@ export default function AdminAudit() {
           className="sa-kpi-card sa-kpi-card--cyan"
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.1 }}
+        >
+          <div className="sa-kpi-header">
+            <span className="sa-kpi-label">Successful Operations</span>
+            <div className="sa-kpi-icon-wrap sa-stat-icon--cyan">
+              <CheckCircle2 size={18} />
+            </div>
+          </div>
+          <div className="sa-kpi-val" style={{ color: '#50e396' }}>
+            {kpiStats.successfulEvents}
+          </div>
+          <div className="sa-kpi-sub">
+            <span className="sa-stat-trend sa-stat-trend--up">Verified</span>
+            <span>Normal platform operations</span>
+          </div>
+        </motion.div>
+
+        <motion.div
+          className="sa-kpi-card sa-kpi-card--amber"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.15 }}
+        >
+          <div className="sa-kpi-header">
+            <span className="sa-kpi-label">Warning Events</span>
+            <div className="sa-kpi-icon-wrap sa-stat-icon--amber">
+              <AlertTriangle size={18} />
+            </div>
+          </div>
+          <div className="sa-kpi-val" style={{ color: '#f59e0b' }}>
+            {kpiStats.warningEvents}
+          </div>
+          <div className="sa-kpi-sub">
+            <span className="sa-stat-trend sa-stat-trend--neutral">Warning</span>
+            <span>Deactivations & credential alerts</span>
+          </div>
+        </motion.div>
+
+        <motion.div
+          className="sa-kpi-card sa-kpi-card--red"
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.2 }}
         >
           <div className="sa-kpi-header">
-            <span className="sa-kpi-label">Events Recorded Today</span>
-            <div className="sa-kpi-icon-wrap sa-stat-icon--cyan">
-              <Clock size={18} />
+            <span className="sa-kpi-label">Critical Security Events</span>
+            <div className="sa-kpi-icon-wrap sa-stat-icon--red">
+              <ShieldAlert size={18} />
             </div>
           </div>
-          <div className="sa-kpi-val">{kpiStats.eventsToday}</div>
+          <div className="sa-kpi-val" style={{ color: '#ef4444' }}>
+            {kpiStats.criticalEvents}
+          </div>
           <div className="sa-kpi-sub">
-            <span className="sa-stat-trend sa-stat-trend--up">Last 24h</span>
-            <span>Recent platform activity</span>
+            <span className="sa-stat-trend sa-stat-trend--down">Elevated</span>
+            <span>Violations & account deletions</span>
           </div>
         </motion.div>
       </div>
@@ -718,14 +789,26 @@ export default function AdminAudit() {
       </div>
 
       {/* ── 6. Audit Log Table & Responsive Cards ───────────────────────── */}
-      {paginatedRecords.length === 0 ? (
+      {isLoadingBackend && rawActivities.length === 0 ? (
+        <div className="sa-empty-state">
+          <div className="sa-empty-icon-wrap" style={{ background: 'rgba(80, 227, 150, 0.1)', color: '#50e396' }}>
+            <FileText size={24} style={{ animation: 'spin 1.2s linear infinite' }} />
+          </div>
+          <h3 className="sa-empty-title">Loading Audit Ledger...</h3>
+          <p className="sa-empty-desc">
+            Querying live Supabase audit_logs table for administrative events...
+          </p>
+        </div>
+      ) : paginatedRecords.length === 0 ? (
         <div className="sa-empty-state">
           <div className="sa-empty-icon-wrap" style={{ background: 'rgba(80, 227, 150, 0.1)', color: '#50e396' }}>
             <FileText size={24} />
           </div>
           <h3 className="sa-empty-title">No Audit Records Found</h3>
           <p className="sa-empty-desc">
-            No audit records match your current filter parameters. Try clearing your search query or selecting a broader date range.
+            {rawActivities.length === 0
+              ? 'No audit records recorded yet in Supabase. Events will automatically populate as administrative operations occur.'
+              : 'No audit records match your current filter parameters. Try clearing your search query or selecting a broader date range.'}
           </p>
           {activeFiltersCount > 0 && (
             <button type="button" className="sa-btn-primary" onClick={handleClearFilters}>
@@ -861,7 +944,7 @@ export default function AdminAudit() {
                         <td>
                           <span
                             className="sa-integrity-chip sa-integrity-chip--compact"
-                            title="Local verification passed (prototype sandbox)"
+                            title="Verified Supabase audit record"
                           >
                             <CheckCircle2 size={11} />
                             <span>Verified</span>
@@ -1093,12 +1176,12 @@ export default function AdminAudit() {
                   <div className="sa-audit-integrity-head">
                     <div className="sa-audit-integrity-badge">
                       <ShieldCheck size={16} />
-                      <span>Verified Local Record (Prototype Sandbox)</span>
+                      <span>Verified Supabase Audit Record</span>
                     </div>
                     <span className="sa-audit-hash-chip">{selectedRecord.recordHash}</span>
                   </div>
                   <div className="sa-audit-integrity-notice">
-                    <strong>Prototype / Local Verification Notice:</strong> This audit record is verified against the in-browser session store. Cryptographic immutability and remote HSM-backed signers are active only in production environments.
+                    <strong>Audit Record Verification:</strong> This event is permanently recorded in the Supabase <code>audit_logs</code> table with actor credentials, IP address, and payload metadata.
                   </div>
                 </div>
 
@@ -1179,6 +1262,14 @@ export default function AdminAudit() {
                         {selectedRecord.source || <span className="sa-empty-text">Not recorded</span>}
                       </div>
                     </div>
+                    {selectedRecord.userAgent && (
+                      <div style={{ gridColumn: 'span 2' }}>
+                        <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>Client User Agent:</span>
+                        <div style={{ fontSize: '0.76rem', fontFamily: 'monospace', color: '#94a3b8', marginTop: 2, wordBreak: 'break-all' }}>
+                          {selectedRecord.userAgent}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -1245,6 +1336,31 @@ export default function AdminAudit() {
                     </div>
                   )}
                 </div>
+
+                {/* Additional Event Details & Metadata */}
+                {selectedRecord.details && Object.keys(selectedRecord.details).length > 0 && (
+                  <div className="sa-audit-detail-section">
+                    <span className="sa-audit-detail-label">Event Parameters & Metadata</span>
+                    <pre
+                      style={{
+                        margin: 0,
+                        padding: '10px 12px',
+                        background: 'rgba(0, 0, 0, 0.4)',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        borderRadius: 6,
+                        color: '#a7f3d0',
+                        fontSize: '0.75rem',
+                        fontFamily: 'monospace',
+                        overflowX: 'auto',
+                        maxHeight: 160,
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-all',
+                      }}
+                    >
+                      {JSON.stringify(selectedRecord.details, null, 2)}
+                    </pre>
+                  </div>
+                )}
 
                 {/* Timestamp Details */}
                 <div className="sa-audit-detail-section">

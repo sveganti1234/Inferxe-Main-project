@@ -1,8 +1,9 @@
-﻿"""
+"""
 Pydantic data validation schemas for the Inferxe Inference API.
 """
 
-from typing import Optional, List
+import uuid
+from typing import Literal, Optional, List, Any, Dict
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -211,3 +212,141 @@ class NotebookActionResponse(BaseModel):
     message: str
     notebook: NotebookResponse
 
+
+class RoutingRecommendRequest(BaseModel):
+    """Payload to request GPU placement recommendation."""
+    model_id: str = Field(default="llama-3.1-8b", description="Model identifier")
+    quantization: str = Field(default="fp16", description="Quantization precision (fp16, fp8, int8, int4)")
+    context_tokens: int = Field(default=4096, ge=128, le=131072, description="Sequence context length")
+    concurrency: int = Field(default=1, ge=1, le=256, description="Concurrent request streams")
+    priority: str = Field(default="cost", description="Routing optimization goal ('cost', 'speed', 'policy')")
+    budget_inr_hr: Optional[float] = Field(default=None, ge=0.0, description="Max budget cap in INR per hour")
+    min_tokens_per_sec: float = Field(default=0.0, ge=0.0, description="Minimum tokens/sec per stream")
+
+
+class RoutingRecommendResponse(BaseModel):
+    """Response containing optimal GPU placement recommendation and candidate rankings."""
+    success: bool = True
+    workload: Dict[str, Any]
+    memory_breakdown: Dict[str, float]
+    recommended_placement: Optional[Dict[str, Any]] = None
+    candidates: List[Dict[str, Any]]
+    note: str = ""
+
+
+class NotebookLogsResponse(BaseModel):
+    """Response returning container initialization and runtime logs."""
+    success: bool = True
+    notebook_id: str
+    name: str
+    status: str
+    logs: List[Dict[str, Any]]
+    is_simulated: bool = True
+
+
+class NotebookTelemetryResponse(BaseModel):
+    """Response returning dynamic hardware telemetry for a notebook instance."""
+    success: bool = True
+    notebook_id: str
+    name: str
+    status: str
+    telemetry: Dict[str, Any]
+    is_simulated: bool = True
+
+
+class RecommendRequest(BaseModel):
+    """Structured workload profile for GPU compatibility and routing (DPR §8)."""
+    model_id: Literal[
+        "qwen2.5-7b", "llama-3.1-8b", "mistral-7b", "qwen2.5-14b",
+        "mistral-small-24b", "qwen2.5-32b", "llama-3.1-70b",
+    ]
+    quant: Literal["fp16", "fp8", "int4"] = "fp16"
+    context: int = Field(default=8192, ge=256, le=131072)
+    concurrency: int = Field(default=1, ge=1, le=512)
+    mode: Literal["cost", "speed", "balanced"] = "cost"
+    max_hourly_inr: Optional[float] = Field(default=None, gt=0)
+    min_tokens_per_sec: Optional[float] = Field(default=None, gt=0)
+    providers: Optional[List[str]] = Field(default=None, max_length=20, description="Provider id allow-list")
+    region: Optional[str] = Field(default=None, max_length=64, description="Substring the offer region must contain")
+    sovereign_only: bool = False
+
+
+class PricingEstimateRequest(BaseModel):
+    """Estimated infrastructure cost for one catalogue offer."""
+    offer_id: str = Field(..., max_length=128)
+    gpu_count: int = Field(default=1, ge=1, le=8)
+    hours: float = Field(..., gt=0, le=8760)
+    storage_gb: float = Field(default=0, ge=0, le=100000)
+    spot: bool = False
+
+
+
+class GpuDeploymentCreateRequest(BaseModel):
+    """Launch a GPU instance. Price and provider details are decided by the server, never the client."""
+    name: str = Field(..., min_length=1, max_length=100)
+    model_name: str = Field(..., min_length=1, max_length=255, description="Model to serve on the instance")
+    gpu_id: str = Field(..., min_length=1, max_length=64, description="GPU id from GET /api/v1/gpu/offerings")
+    provider_id: Optional[str] = Field(default=None, max_length=64, description="Omit to pick the cheapest enabled provider")
+    region: Optional[str] = Field(default=None, max_length=64)
+    ssh_key_ids: List[uuid.UUID] = Field(default_factory=list, max_length=10, description="IDs of the customer's registered SSH keys")
+    idempotency_key: Optional[str] = Field(default=None, min_length=8, max_length=128,
+                                           description="Retries with the same key return the same deployment")
+
+    @field_validator("name", "model_name", "gpu_id")
+    @classmethod
+    def strip_required(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("must not be blank")
+        return v.strip()
+
+
+class GpuDeploymentSsh(BaseModel):
+    host: str
+    port: int
+    username: Optional[str] = None
+    command: str
+
+
+class GpuDeploymentResponse(BaseModel):
+    id: str
+    name: str
+    model_name: str
+    gpu_id: Optional[str] = None
+    gpu_model: str
+    provider_id: Optional[str] = None
+    provider_instance_id: Optional[str] = None
+    region: Optional[str] = None
+    status: str
+    hourly_rate: float
+    currency: str
+    endpoint_url: Optional[str] = None
+    ssh: Optional[GpuDeploymentSsh] = None
+    ssh_key_ids: List[str] = Field(default_factory=list)
+    error_message: Optional[str] = None
+    started_at: Optional[str] = None
+    stopped_at: Optional[str] = None
+    last_status_sync_at: Optional[str] = None
+    created_at: Optional[str] = None
+    updated_at: Optional[str] = None
+
+    @classmethod
+    def from_row(cls, row: Dict[str, Any]) -> "GpuDeploymentResponse":
+        meta = row.get("metadata") or {}
+        ssh = None
+        # Connection details only make sense while the instance is up.
+        if row.get("status") == "running" and row.get("ssh_host") and row.get("ssh_port"):
+            user = row.get("ssh_username")
+            target = f"{user}@{row['ssh_host']}" if user else row["ssh_host"]
+            ssh = GpuDeploymentSsh(host=row["ssh_host"], port=row["ssh_port"], username=user,
+                                   command=f"ssh -p {row['ssh_port']} {target}")
+        text = lambda k: str(row[k]) if row.get(k) is not None else None  # noqa: E731
+        return cls(
+            id=str(row["id"]), name=row["name"], model_name=row["model_name"], gpu_id=meta.get("gpu_id"),
+            gpu_model=row["gpu_model"], provider_id=row.get("provider_id"),
+            provider_instance_id=row.get("provider_instance_id"), region=row.get("region"), status=row["status"],
+            hourly_rate=float(row.get("hourly_rate") or 0), currency=(row.get("currency") or "INR").strip(),
+            endpoint_url=row.get("endpoint_url"), ssh=ssh,
+            ssh_key_ids=[k["id"] for k in meta.get("ssh_keys", [])], error_message=row.get("error_message"),
+            started_at=text("started_at"), stopped_at=text("stopped_at"),
+            last_status_sync_at=text("last_status_sync_at"), created_at=text("created_at"), updated_at=text("updated_at"),
+        )

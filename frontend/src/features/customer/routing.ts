@@ -67,10 +67,16 @@ const LEGACY_WORKSPACE_PAGES: Record<string, string> = {
   profile: 'profile',
   organization: 'profile',
   settings: 'settings',
+  workspace: 'settings',
+  quotas: 'settings',
   help: 'help',
+  faq: 'help',
+  chatbot: 'help',
+  support: 'help',
   playground: 'playground',
   notebooks: 'developer',
-  'ssh-keys': 'developer',
+  'ssh-keys': 'ssh-keys',
+  ssh: 'ssh-keys',
   developer: 'developer',
 }
 

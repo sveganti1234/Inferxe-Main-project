@@ -153,6 +153,46 @@ class SimulatedNotebookDriver(NotebookDriver):
             "notice": self.notice,
         }
 
+    def get_logs(self, runtime_reference: str, gpu_profile: str = "NVIDIA L4") -> List[Dict[str, str]]:
+        now = datetime.now(timezone.utc)
+        iso = now.strftime("%Y-%m-%d %H:%M:%S")
+        return [
+            {"timestamp": f"{iso}.102", "level": "INFO", "source": "kernel", "message": f"NVIDIA Container Toolkit v1.15.0 initialized for {gpu_profile}"},
+            {"timestamp": f"{iso}.214", "level": "INFO", "source": "cuda", "message": "CUDA driver version 550.54.15 (CUDA 12.4 runtime active)"},
+            {"timestamp": f"{iso}.340", "level": "INFO", "source": "container", "message": f"Mounting persistent home directory /workspace on {runtime_reference}"},
+            {"timestamp": f"{iso}.452", "level": "INFO", "source": "jupyter", "message": "JupyterLab server starting at http://0.0.0.0:8888/lab"},
+            {"timestamp": f"{iso}.520", "level": "INFO", "source": "jupyter", "message": "Authentication token verified; secure session established"},
+            {"timestamp": f"{iso}.610", "level": "INFO", "source": "vllm", "message": "vLLM runtime ready. Tensor Core acceleration enabled."},
+            {"timestamp": f"{iso}.700", "level": "INFO", "source": "health", "message": "Instance health check passed: status=HEALTHY, exit_code=0"},
+        ]
+
+    def get_telemetry(self, runtime_reference: str, gpu_profile: str = "NVIDIA L4") -> Dict[str, Any]:
+        import time, math
+        t = time.time()
+        phase = (t % 3600) / 10.0
+        temp_c = round(52.0 + 6.0 * math.sin(phase), 1)
+        power_w = round(68.0 + 8.0 * math.cos(phase * 1.3), 1) if "L4" in gpu_profile else round(280.0 + 35.0 * math.cos(phase), 1)
+        util_pct = round(64.0 + 18.0 * math.sin(phase * 0.7), 1)
+        vram_total_gb = 24.0 if "L4" in gpu_profile else (48.0 if "L40S" in gpu_profile else 80.0)
+        vram_used_gb = round(vram_total_gb * (0.65 + 0.12 * math.sin(phase * 0.5)), 2)
+        fan_speed_pct = round(45.0 + 12.0 * math.sin(phase), 0)
+
+        return {
+            "runtime_reference": runtime_reference,
+            "gpu_profile": gpu_profile,
+            "temperature_c": temp_c,
+            "power_draw_w": power_w,
+            "gpu_utilization_pct": util_pct,
+            "vram_used_gb": vram_used_gb,
+            "vram_total_gb": vram_total_gb,
+            "fan_speed_pct": fan_speed_pct,
+            "pcie_bandwidth_gbps": round(28.4 + 2.0 * math.cos(phase), 1),
+            "clock_speed_mhz": round(2100.0 + 120.0 * math.sin(phase), 0),
+            "status": "healthy",
+            "is_simulated": True,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+
 
 # Default driver instance
 default_driver = SimulatedNotebookDriver()
@@ -434,6 +474,56 @@ def terminate_notebook(
     )
 
 
+def get_notebook_logs(
+    repo: Optional[SupabaseNotebookRepository],
+    notebook_id: Union[str, uuid.UUID],
+    user_id: str,
+    driver: Optional[NotebookDriver] = None,
+) -> Dict[str, Any]:
+    active_repo = repo or get_notebook_repository()
+    active_driver = driver or default_driver
+    clean_user_id = _validate_user_id(user_id)
+    rec = active_repo.get_by_id(notebook_id=notebook_id, user_id=clean_user_id)
+    if not rec:
+        raise NotebookNotFoundError(f"Notebook session '{notebook_id}' not found for user.")
+    
+    logs = []
+    if hasattr(active_driver, "get_logs"):
+        logs = active_driver.get_logs(rec.runtime_reference or f"sim-{rec.id}", rec.gpu_profile)
+    return {
+        "notebook_id": str(rec.id),
+        "name": rec.name,
+        "status": rec.status,
+        "logs": logs,
+        "is_simulated": True,
+    }
+
+
+def get_notebook_telemetry(
+    repo: Optional[SupabaseNotebookRepository],
+    notebook_id: Union[str, uuid.UUID],
+    user_id: str,
+    driver: Optional[NotebookDriver] = None,
+) -> Dict[str, Any]:
+    active_repo = repo or get_notebook_repository()
+    active_driver = driver or default_driver
+    clean_user_id = _validate_user_id(user_id)
+    rec = active_repo.get_by_id(notebook_id=notebook_id, user_id=clean_user_id)
+    if not rec:
+        raise NotebookNotFoundError(f"Notebook session '{notebook_id}' not found for user.")
+    
+    telemetry = {}
+    if hasattr(active_driver, "get_telemetry"):
+        telemetry = active_driver.get_telemetry(rec.runtime_reference or f"sim-{rec.id}", rec.gpu_profile)
+    return {
+        "notebook_id": str(rec.id),
+        "name": rec.name,
+        "status": rec.status,
+        "telemetry": telemetry,
+        "is_simulated": True,
+    }
+
+
 __all__ = [
     "SIMULATION_NOTICE",
     "NotebookError",
@@ -457,4 +547,6 @@ __all__ = [
     "start_notebook",
     "stop_notebook",
     "terminate_notebook",
+    "get_notebook_logs",
+    "get_notebook_telemetry",
 ]

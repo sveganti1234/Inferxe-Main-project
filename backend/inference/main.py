@@ -1,4 +1,4 @@
-﻿"""
+"""
 FastAPI application entry point for the Inferxe Inference API service.
 Provides Swagger UI at /docs, CORS middleware, and global error handling.
 
@@ -38,6 +38,7 @@ from inference.database import (
     engine,
 )
 from inference.routes import router, _close_health_http_client
+from gpu_health.routes import router as gpu_health_router
 
 # Configure logging
 logging.basicConfig(
@@ -139,6 +140,8 @@ app.add_middleware(
 
 # Mount inference endpoints
 app.include_router(router)
+# Mount GPU Health Check Engine endpoints
+app.include_router(gpu_health_router)
 
 
 # Custom validation error handler (HTTP 422)

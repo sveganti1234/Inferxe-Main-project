@@ -7,6 +7,7 @@
  * verbatim without assuming units. There are no ratings, scores or availability estimates.
  */
 import { toFiniteNumber } from './selectors'
+import type { GpuDeployment } from './serviceClients'
 import type { CustomerWorkspace } from './types'
 
 export interface ListingView {
@@ -219,6 +220,34 @@ export interface DeploymentView {
   createdAt: string | null
   startedAt?: string | null
   stoppedAt?: string | null
+  /** Set only for deployments launched through the GPU provider API (see toDeploymentView). */
+  providerId?: string | null
+  providerInstanceId?: string | null
+  endpointUrl?: string | null
+  ssh?: GpuDeployment['ssh']
+  errorMessage?: string | null
+}
+
+/** A deployment from the GPU provider API (`/api/v1/gpu/deployments`). */
+export function toDeploymentView(d: GpuDeployment): DeploymentView {
+  return {
+    id: d.id,
+    name: d.name,
+    model: d.model_name || null,
+    gpu: d.gpu_model || null,
+    region: d.region,
+    recordedStatus: d.status,
+    hourlyRate: d.hourly_rate,
+    currency: d.currency,
+    createdAt: d.created_at,
+    startedAt: d.started_at,
+    stoppedAt: d.stopped_at,
+    providerId: d.provider_id,
+    providerInstanceId: d.provider_instance_id,
+    endpointUrl: d.endpoint_url,
+    ssh: d.ssh,
+    errorMessage: d.error_message,
+  }
 }
 
 /**

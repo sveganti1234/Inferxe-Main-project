@@ -59,6 +59,7 @@ beforeEach(() => {
     'GET /api/customer/workspace': () => jsonResponse(200, workspaceEnvelope(emptyWorkspace())),
     'GET /api/notifications/unread-count': () => jsonResponse(200, { unread_count: 0 }),
     'GET /api/v1/health': () => jsonResponse(200, { status: 'ok', nvidia_provider: 'configured' }),
+    'GET /api/v1/gpu/deployments': () => jsonResponse(200, { success: true, deployments: [] }),
   }
   mockFetch.mockImplementation(async (input, init = {}) => {
     const url = new URL(String(input), 'http://localhost')
@@ -358,41 +359,43 @@ describe('Deployments page', () => {
   })
 
   it('shows deployment records with summary stats, status pill, and action buttons', async () => {
-    handlers['GET /api/customer/workspace'] = () =>
-      jsonResponse(200, workspaceEnvelope(emptyWorkspace({
+    handlers['GET /api/v1/gpu/deployments'] = () =>
+      jsonResponse(200, {
+        success: true,
         deployments: [{
           id: 'd1',
-          user_id: 'u',
-          organization_id: null,
-          listing_id: null,
           name: 'my-dep',
           model_name: 'llama',
+          gpu_id: 'h100-sxm5',
           gpu_model: 'H100',
+          provider_id: 'mock',
+          provider_instance_id: 'mock-inst-1',
           region: 'Mumbai, IN',
           status: 'running',
           hourly_rate: 60,
           currency: 'INR',
-          endpoint_url: 'https://my-dep.endpoints.inferxe.com/v1',
+          endpoint_url: null,
+          ssh: null,
+          ssh_key_ids: [],
+          error_message: null,
           started_at: '2026-01-01T00:00:00Z',
           stopped_at: null,
-          metadata: null,
           created_at: '2026-01-01T00:00:00Z',
-          updated_at: null,
         }],
-      })))
+      })
     await render('/dashboard/app/deployments')
     expect(text()).toContain('my-dep')
     expect(text()).toContain('Running')
     expect(text()).toContain('₹60/hr')
     expect(document.querySelector('button[aria-label="Stop deployment my-dep"]')).toBeTruthy()
-    expect(document.querySelector('button[aria-label="Restart deployment my-dep"]')).toBeTruthy()
+    expect(document.querySelector('button[aria-label="Terminate deployment my-dep"]')).toBeTruthy()
   })
 
   it('shows an error state and a loading state', async () => {
-    handlers['GET /api/customer/workspace'] = () => jsonResponse(503, {})
+    handlers['GET /api/v1/gpu/deployments'] = () => jsonResponse(503, {})
     await render('/dashboard/app/deployments')
     expect(text()).toMatch(/temporarily unavailable|try again/i)
-    handlers['GET /api/customer/workspace'] = pending
+    handlers['GET /api/v1/gpu/deployments'] = pending
     await remount('/dashboard/app/deployments')
     expect(text()).toContain('Loading deployments')
   })

@@ -38,6 +38,7 @@ database/chroma_db/
 backend/.env
 backend/*_old.txt
 *_old.txt
+*.zip
 scratch/
 validation_report.json
 inferxe_finetune_clean.jsonl

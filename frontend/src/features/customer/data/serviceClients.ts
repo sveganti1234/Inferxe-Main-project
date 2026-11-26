@@ -4,6 +4,7 @@
  *
  * - Notifications & wallet balance: 8002 (`/api/notifications*`, `/api/wallet/balance`)
  * - Inference service health:       8001 (`/api/v1/health`, public)
+ * - GPU deployments:                8001 (`/api/v1/gpu/*`)
  */
 import { INFERENCE_API_BASE } from '../../../lib/apiConfig'
 import { CustomerApiError, customerRequest, defaultMessage, kindForStatus } from './http'
@@ -166,52 +167,79 @@ export async function fetchInferenceHealth(signal?: AbortSignal): Promise<Infere
   }
 }
 
-/* ── Deployments (Customer API) ── */
+/* ── GPU deployments (8001 `/api/v1/gpu/*`, provider adapter framework) ── */
 
-export interface CreateDeploymentPayload {
+/** A GPU a provider can launch now. Prices come from the provider, never from this client. */
+export interface GpuOffering {
+  gpu_id: string
+  name: string
+  provider_id: string
+  vram_gb: number
+  architecture: string
+  hourly_price_inr: number
+  pricing_type: 'on_demand' | 'spot'
+  region: string
+  available_quantity: number
+  is_available: boolean
+}
+
+export interface GpuDeployment {
+  id: string
   name: string
   model_name: string
+  gpu_id: string | null
   gpu_model: string
-  region: string
-  hourly_rate?: number
-  currency?: string
+  provider_id: string | null
+  provider_instance_id: string | null
+  region: string | null
+  status: string
+  hourly_rate: number
+  currency: string
+  endpoint_url: string | null
+  /** Present only while the instance is running. */
+  ssh: { host: string; port: number; username: string | null; command: string } | null
+  ssh_key_ids: string[]
+  error_message: string | null
+  started_at: string | null
+  stopped_at: string | null
+  created_at: string | null
 }
 
-export async function createDeployment(payload: CreateDeploymentPayload): Promise<void> {
-  const body = await customerRequest<{ ok?: boolean; deployment?: Record<string, unknown> }>(
-    '/api/customer/deployments',
-    {
-      method: 'POST',
-      body: payload,
-    },
-  )
-  if (!body?.ok) {
+export interface CreateGpuDeploymentPayload {
+  name: string
+  model_name: string
+  gpu_id: string
+  provider_id?: string
+  ssh_key_ids?: string[]
+  /** Same key on a retry returns the same deployment instead of launching a second GPU. */
+  idempotency_key: string
+}
+
+export async function fetchGpuOfferings(signal?: AbortSignal): Promise<GpuOffering[]> {
+  const body = await customerRequest<{ offerings?: GpuOffering[] }>('/api/v1/gpu/offerings', { signal })
+  return Array.isArray(body.offerings) ? body.offerings : []
+}
+
+export async function fetchGpuDeployments(signal?: AbortSignal): Promise<GpuDeployment[]> {
+  const body = await customerRequest<{ deployments?: GpuDeployment[] }>('/api/v1/gpu/deployments', { signal })
+  if (!Array.isArray(body.deployments)) {
     throw new CustomerApiError('invalid_response', defaultMessage('invalid_response'))
   }
+  return body.deployments
 }
 
-export async function updateDeploymentStatus(
-  id: string,
-  status: 'running' | 'stopped' | 'provisioning' | 'terminated',
-): Promise<void> {
+export async function createGpuDeployment(payload: CreateGpuDeploymentPayload): Promise<GpuDeployment> {
+  return customerRequest<GpuDeployment>('/api/v1/gpu/deployments', { method: 'POST', body: payload })
+}
+
+export type GpuDeploymentAction = 'stop' | 'resume' | 'terminate'
+
+export async function runGpuDeploymentAction(id: string, action: GpuDeploymentAction): Promise<GpuDeployment> {
   if (!id) throw new CustomerApiError('bad_request', 'Deployment ID is required.')
-  const body = await customerRequest<{ ok?: boolean }>(`/api/customer/deployments/${encodeURIComponent(id)}`, {
-    method: 'PATCH',
-    body: { status },
-  })
-  if (!body?.ok) {
-    throw new CustomerApiError('invalid_response', defaultMessage('invalid_response'))
-  }
-}
-
-export async function deleteDeployment(id: string): Promise<void> {
-  if (!id) throw new CustomerApiError('bad_request', 'Deployment ID is required.')
-  const body = await customerRequest<{ ok?: boolean }>(`/api/customer/deployments/${encodeURIComponent(id)}`, {
-    method: 'DELETE',
-  })
-  if (!body?.ok) {
-    throw new CustomerApiError('invalid_response', defaultMessage('invalid_response'))
-  }
+  const path = `/api/v1/gpu/deployments/${encodeURIComponent(id)}`
+  return action === 'terminate'
+    ? customerRequest<GpuDeployment>(path, { method: 'DELETE' })
+    : customerRequest<GpuDeployment>(`${path}/${action}`, { method: 'POST' })
 }
 
 /* ── Orders & Purchase History (Customer API) ── */
