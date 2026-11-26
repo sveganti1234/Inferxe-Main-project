@@ -128,3 +128,23 @@ def test_inference_protection_is_a_no_op_off_postgresql():
         assert inference_db.protect_service_tables(engine, ["ssh_keys"]) == []
     finally:
         engine.dispose()
+
+class DictRowCursor(FakeCursor):
+    """Stands in for a RealDictCursor: rows are dicts, so reading them by position would raise KeyError."""
+
+    def fetchall(self):
+        rows = super().fetchall() or []
+        keys = ("relname", "relrowsecurity") if rows and len(rows[0]) == 2 else ("rolname",)
+        return [dict(zip(keys, r)) for r in rows]
+
+    def fetchone(self):
+        row = super().fetchone()
+        return None if row is None else {"has_table_privilege": row[0]}
+
+
+def test_protect_accepts_a_dict_row_cursor_from_the_caller():
+    # get_workspace_settings passes a RealDictCursor; this used to fail with KeyError: 0 (HTTP 500).
+    cur = DictRowCursor({"workspace_settings": False}, ["anon", "authenticated"], {"workspace_settings": ["anon"]})
+    assert db.protect_service_tables(cur, ("workspace_settings",)) == ["workspace_settings"]
+    assert any(s.startswith('ALTER TABLE public."workspace_settings" ENABLE') for s in cur.statements)
+    assert any(s.startswith('REVOKE ALL ON TABLE public."workspace_settings" FROM "anon"') for s in cur.statements)
