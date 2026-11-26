@@ -5,6 +5,8 @@ import path from 'path'
 // @ts-ignore
 import fs from 'fs'
 // @ts-ignore
+import { pathToFileURL } from 'url'
+// @ts-ignore
 import { FRONTEND_DIR, ROOT_DIR, loadBackendEnv, assertNoFrontendSupabaseSecrets, collectFrontendEnvForSecurityCheck } from '../backend/auth/envLoader.js'
 declare const process: any
 declare const __dirname: any
@@ -63,7 +65,8 @@ export default defineConfig(({ command, mode }) => {
 
   if (command === 'serve') {
     // @ts-ignore
-    const loadDevModule = (specifier: string) => import(/* @vite-ignore */ specifier)
+    // Resolve from frontend/, not from the bundled config's temp folder (node_modules/.vite-temp/).
+    const loadDevModule = (specifier: string) => import(/* @vite-ignore */ pathToFileURL(path.resolve(FRONTEND_DIR, specifier)).href)
     const authPlugin = {
       name: 'inferxe-auth-middleware',
       async configureServer(server: { middlewares: { use: (fn: any) => void } }) {
@@ -81,8 +84,9 @@ export default defineConfig(({ command, mode }) => {
           server.middlewares.use(custMod.createCustomerAuthMiddleware())
           server.middlewares.use(adminMod.createAdminAuthMiddleware())
           server.middlewares.use(sbMod.createSupabaseApiMiddleware())
-        } catch {
-          // Backend dev middlewares are only needed during local development
+        } catch (err) {
+          // Without these, /api/admin, /api/superadmin and SSO routes return 404 in local development
+          console.error('[inferxe] Backend dev middleware failed to load:', err)
         }
       },
       async configurePreviewServer(server: { middlewares: { use: (fn: any) => void } }) {
@@ -100,8 +104,9 @@ export default defineConfig(({ command, mode }) => {
           server.middlewares.use(custMod.createCustomerAuthMiddleware())
           server.middlewares.use(adminMod.createAdminAuthMiddleware())
           server.middlewares.use(sbMod.createSupabaseApiMiddleware())
-        } catch {
-          // Backend dev middlewares are only needed during local development
+        } catch (err) {
+          // Without these, /api/admin, /api/superadmin and SSO routes return 404 in local development
+          console.error('[inferxe] Backend dev middleware failed to load:', err)
         }
       },
     }
