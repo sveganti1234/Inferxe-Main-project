@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useLayoutEffect } from 'react'
+import { Suspense, useEffect, useState, useRef, useLayoutEffect } from 'react'
 import { Link, useLocation, useNavigate, useOutlet } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
@@ -37,6 +37,9 @@ import { getAdminAccounts, syncAdminAccountsFromBackend } from '../../lib/adminA
 import { getAllRoles } from '../../lib/adminRoleStore'
 import { animateNavPill } from './navPillAnimation'
 import { AdminViewTransition, getAdminRouteOrder } from './AdminViewTransition'
+import { AdminContentSkeleton } from './AdminContentSkeleton'
+// Admin-only styles (all selectors scoped to .sa-* / .dash-shell): loaded with the admin chunk, not on public pages.
+import '../../styles/super-admin.css'
 import { AdminErrorBoundary } from './AdminErrorBoundary'
 import { DashboardLayoutContext } from './DashboardLayoutContext'
 import { AdminHeaderSearch, type AdminSearchSectionItem } from './AdminHeaderSearch'
@@ -1172,7 +1175,7 @@ export function AdminShell() {
                   order={getAdminRouteOrder(location.pathname)}
                   scrollContainerRef={mainPaneRef}
                 >
-                  {currentOutlet}
+                  <Suspense fallback={<AdminContentSkeleton />}>{currentOutlet}</Suspense>
                 </AdminViewTransition>
               </AdminErrorBoundary>
             </main>

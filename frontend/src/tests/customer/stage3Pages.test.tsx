@@ -2,7 +2,7 @@
  * Stage 3 — Overview, API keys, Notifications, Settings, drawer accessibility.
  * Network is mocked per "METHOD /path"; the real data layer, apiKeyService and pages run.
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
@@ -10,6 +10,9 @@ import { changeUserPassword, ensureFreshSession, getSession } from '../../lib/au
 import CustomerApp from '../../features/customer/CustomerApp'
 import type { CustomerWorkspace, InferenceRequestRecord } from '../../features/customer/data/types'
 import { emptyWorkspace, jsonResponse, workspaceEnvelope } from './fixtures'
+import { preloadCustomerPages } from './preloadPages'
+
+beforeAll(preloadCustomerPages)
 
 vi.mock('../../lib/authStore', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../lib/authStore')>()),

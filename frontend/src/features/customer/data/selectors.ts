@@ -487,7 +487,7 @@ export function selectDeveloperSummary(ws: CustomerWorkspace): DeveloperSummary 
 export function isWorkspaceEmpty(ws: CustomerWorkspace): boolean {
   return (
     ws.api_keys.length === 0 &&
-    ws.inference_requests.length === 0 &&
+    (ws.inference_requests_total ?? ws.inference_requests.length) === 0 &&
     ws.deployments.length === 0 &&
     ws.ssh_public_keys.length === 0 &&
     ws.notebook_sessions.length === 0 &&

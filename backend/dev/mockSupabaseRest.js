@@ -6,9 +6,14 @@
  * profiles, SSH keys, API keys) when Supabase cloud credentials are not configured.
  *
  * Runs strictly on local development loopback (e.g. http://127.0.0.1:5174/rest/v1).
+ * Off unless INFERXE_LOCAL_MOCK_SUPABASE=1 outside production/staging (lib/supabase.js); when off the
+ * middleware is a pass-through, so mounting it in a deployed server exposes nothing.
  */
 
 import crypto from 'node:crypto'
+import { isLocalMockSupabaseEnabled } from '../lib/supabase.js'
+
+const LOOPBACK = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1'])
 
 // Default mock providers and GPU listings for local exploration
 const DEFAULT_GPU_PROVIDERS = [
@@ -233,8 +238,8 @@ const store = {
   organizations: [
     {
       id: 'org_inferxe_dev',
-      name: 'Sahith Workspace',
-      slug: 'sahith-workspace',
+      name: 'Local Dev Workspace',
+      slug: 'local-dev-workspace',
       status: 'active',
       created_at: '2026-01-01T00:00:00Z',
       updated_at: '2026-01-01T00:00:00Z',
@@ -516,7 +521,15 @@ function sendResponse(res, status, data, headers = {}) {
 }
 
 export function createMockSupabaseMiddleware() {
+  if (!isLocalMockSupabaseEnabled()) {
+    return function mockSupabaseDisabled(_req, _res, next) {
+      return next()
+    }
+  }
+  console.warn('[mock-supabase] Local Supabase REST mock ENABLED (INFERXE_LOCAL_MOCK_SUPABASE=1); never use outside local development.')
   return async function mockSupabaseMiddleware(req, res, next) {
+    // Defence in depth: only this machine may reach the mock, even if the flag leaks into a deployment.
+    if (!LOOPBACK.has(req.socket?.remoteAddress || '')) return next()
     const parsedUrl = new URL(req.url, 'http://127.0.0.1:5174')
     const pathname = parsedUrl.pathname
 
@@ -677,9 +690,9 @@ export function createMockSupabaseMiddleware() {
         if (matched.length === 0 && eqUserId) {
           const autoProfile = {
             user_id: eqUserId,
-            full_name: 'Vegantisahith',
-            email: 'sahith490522mnp@gmail.com',
-            username: 'sahith490522mnp',
+            full_name: 'Local Developer',
+            email: 'developer@localhost.test',
+            username: 'local-developer',
             avatar_path: null,
             role: 'customer',
             status: 'active',

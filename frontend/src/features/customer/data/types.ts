@@ -275,7 +275,10 @@ export interface CustomerWorkspace {
   notifications: WorkspaceNotification[]
   order_reviews: OrderReview[]
   notebook_sessions: NotebookSession[]
+  /** Requests from the last 90 days (the longest usage window); older history is only counted. */
   inference_requests: InferenceRequestRecord[]
+  /** All-time request count from the server; absent from older backends (then the array length is used). */
+  inference_requests_total?: number
   customer_plans: CustomerPlan[]
 }
 

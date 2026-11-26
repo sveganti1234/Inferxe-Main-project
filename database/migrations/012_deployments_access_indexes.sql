@@ -1,0 +1,45 @@
+-- 012_deployments_access_indexes.sql
+-- (Was 010_deployments_access_indexes.sql before the teammate's 010_gpu_health_history.sql landed; never applied.)
+-- Index for the per-customer deployment reads:
+--   * GET /api/v1/gpu/deployments (backend/inference/supabase_deployments.py list):
+--       deployments WHERE user_id = $1 AND provider_id IS NOT NULL ORDER BY created_at DESC
+--   * customer workspace (backend/api/supabaseApi.js getWorkspace): deployments WHERE user_id = $1
+-- Depends on 009_deployment_provider_instances.sql only for the provider_id filter; the index itself
+-- uses base columns and can be applied before or after 009/011.
+--
+-- Evidence (local PostgreSQL 18, synthetic 200,000 rows / 5,000 users, best of 5 EXPLAIN ANALYZE runs;
+-- not production data): 54.8 ms -> 0.18 ms (list), 46.4 ms -> 0.48 ms (workspace). Index size there:
+-- 11 MB on a 41 MB table; every insert/update maintains it.
+--
+-- Not applied anywhere. Run the read-only checks first; skip the index if an equivalent one exists.
+--
+-- A. Read-only checks
+--   SELECT indexname, indexdef FROM pg_indexes WHERE schemaname = 'public' AND tablename = 'deployments';
+--   SELECT column_name, data_type FROM information_schema.columns
+--    WHERE table_schema = 'public' AND table_name = 'deployments'
+--      AND column_name IN ('user_id', 'created_at', 'id');                     -- expect 3 rows
+--   SELECT pg_size_pretty(pg_total_relation_size('public.deployments')), count(*) FROM public.deployments;
+--
+-- B. Index. CONCURRENTLY avoids blocking writes but cannot run inside a transaction:
+--    execute it on its own (psql, or alone in a Supabase SQL editor run).
+CREATE INDEX CONCURRENTLY IF NOT EXISTS deployments_user_created_idx
+  ON public.deployments (user_id, created_at DESC, id DESC);
+
+-- C. Verify (read-only). A failed or cancelled CONCURRENTLY build leaves an INVALID index that
+--    IF NOT EXISTS then skips on re-run, so check validity first; it must show indisvalid = true:
+--   SELECT c.relname, i.indisvalid FROM pg_index i JOIN pg_class c ON c.oid = i.indexrelid
+--    WHERE c.relname = 'deployments_user_created_idx';
+--   -- if false: DROP INDEX CONCURRENTLY IF EXISTS public.deployments_user_created_idx; then re-run B.
+--   EXPLAIN SELECT id FROM public.deployments WHERE user_id = '<a real user id>' ORDER BY created_at DESC LIMIT 20;
+--
+-- D. Optional cleanup, only after C passes (not run by this file). The database audit lists
+--    idx_deployments_user (user_id), now a prefix of deployments_user_created_idx, and idx_deployments_status
+--    (status), which had 0 scans and matches no current query. Confirm first:
+--   SELECT indexrelname, idx_scan FROM pg_stat_user_indexes WHERE relname = 'deployments';
+--   DROP INDEX CONCURRENTLY IF EXISTS public.idx_deployments_user;
+--   DROP INDEX CONCURRENTLY IF EXISTS public.idx_deployments_status;   -- skip if idx_scan has grown
+--   Rollback: CREATE INDEX CONCURRENTLY idx_deployments_user ON public.deployments (user_id);
+--             CREATE INDEX CONCURRENTLY idx_deployments_status ON public.deployments (status);
+--
+-- Rollback:
+--   DROP INDEX CONCURRENTLY IF EXISTS public.deployments_user_created_idx;

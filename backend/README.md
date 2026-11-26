@@ -74,6 +74,11 @@ npm run server:admin
 # Runs on http://127.0.0.1:5174
 ```
 
+Without `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` the backend refuses Supabase work (503). For offline
+local development only, set `INFERXE_LOCAL_MOCK_SUPABASE=1` to serve an in-memory Supabase REST mock on this
+server (`backend/dev/mockSupabaseRest.js`, loopback callers only). It is ignored whenever `INFERXE_ENV`,
+`APP_ENV` or `NODE_ENV` is `production`/`staging`.
+
 ### 3. RAG FastAPI Server
 ```bash
 cd backend/rag

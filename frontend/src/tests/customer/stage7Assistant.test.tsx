@@ -10,7 +10,7 @@
  * reflect the production cascade. @media rules are not evaluated by jsdom, so these checks cover
  * the base (desktop) cascade; the mobile fixed-position panel was verified in a real browser.
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest'
 // Node built-ins have no type declarations in this project (no @types/node); vite.config.ts does the same.
 // @ts-ignore
 import { readFileSync } from 'node:fs'
@@ -24,6 +24,9 @@ import CustomerApp from '../../features/customer/CustomerApp'
 import { GlobalBotCompanion } from '../../components/bot/GlobalBotCompanion'
 import { CUSTOMER_QUICK_PROMPTS, getInitialMessagesForScope } from '../../lib/chatStore'
 import { emptyWorkspace, jsonResponse, workspaceEnvelope } from './fixtures'
+import { preloadCustomerPages } from './preloadPages'
+
+beforeAll(preloadCustomerPages)
 
 vi.mock('../../lib/authStore', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../lib/authStore')>()),

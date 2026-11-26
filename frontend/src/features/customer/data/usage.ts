@@ -202,6 +202,6 @@ export function selectUsageReport(
       .sort((a, b) => b.requests - a.requests || a.model.localeCompare(b.model)),
     failures: log.filter((r) => !r.successful).slice(0, 5),
     log,
-    allTimeRequests: ws.inference_requests.length,
+    allTimeRequests: ws.inference_requests_total ?? ws.inference_requests.length,
   }
 }

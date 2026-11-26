@@ -92,8 +92,27 @@ export async function fetchCustomerSummary(accountType?: 'all' | 'real' | 'test'
     throw new Error(`Failed to load customer summary: ${res.statusText}`)
   }
 
-  const data = await res.json()
-  return data.summary as CustomerSummary
+  const data = await res.json().catch(() => null)
+  return normaliseCustomerSummary(data?.summary)
+}
+
+const count = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : undefined)
+
+/** Missing/null summary is an error (the page shows its error banner); missing or invalid counts become 0. */
+export function normaliseCustomerSummary(raw: unknown): CustomerSummary {
+  if (!raw || typeof raw !== 'object') throw new Error('Customer summary is unavailable.')
+  const r = raw as Record<string, unknown>
+  return {
+    total: count(r.total) ?? 0,
+    online: count(r.online) ?? 0,
+    active: count(r.active) ?? 0,
+    inactive: count(r.inactive) ?? 0,
+    total_real: count(r.total_real),
+    total_test: count(r.total_test),
+    active_count: count(r.active_count),
+    suspended: count(r.suspended),
+    onlineTrackingAvailable: r.onlineTrackingAvailable === true,
+  }
 }
 
 /**

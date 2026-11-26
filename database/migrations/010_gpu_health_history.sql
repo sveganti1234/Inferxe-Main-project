@@ -30,8 +30,9 @@ CREATE INDEX IF NOT EXISTS idx_gpu_health_history_gpu_created
 CREATE INDEX IF NOT EXISTS idx_gpu_health_history_status
     ON public.gpu_health_history (health_status);
 
-REVOKE ALL ON TABLE public.gpu_health_history FROM PUBLIC, anon;
-GRANT SELECT, INSERT ON TABLE public.gpu_health_history TO service_role, authenticated;
+-- Backend-only table (written by GpuHealthService with the service role); browsers never query it directly.
+REVOKE ALL ON TABLE public.gpu_health_history FROM PUBLIC, anon, authenticated;
+GRANT SELECT, INSERT ON TABLE public.gpu_health_history TO service_role;
 ALTER TABLE public.gpu_health_history ENABLE ROW LEVEL SECURITY;
 
 DO $migration$
