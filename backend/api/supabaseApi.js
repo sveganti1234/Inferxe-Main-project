@@ -121,9 +121,14 @@ export async function getCustomerContext(req, deps = {}) {
   }
 }
 
-async function getRows(supabase, table, columnList, field, value) {
+// PostgREST silently truncates at its max-rows cap (1000 by default), so append-only history is read newest first:
+// past the cap the customer sees their latest rows, not an arbitrary subset.
+const HISTORY_ROW_LIMIT = 1000
+
+async function getRows(supabase, table, columnList, field, value, { newestFirst = false } = {}) {
   let query = supabase.from(table).select(columnList)
   if (value !== undefined && value !== null) query = query.eq(field, value)
+  if (newestFirst) query = query.order('created_at', { ascending: false }).limit(HISTORY_ROW_LIMIT)
   const result = await query
   if (result.error) {
     if (result.error.code === '42501') {
@@ -185,15 +190,15 @@ async function getWorkspace(context) {
     getGpuCatalog(supabase).then(([providers]) => providers),
     getGpuCatalog(supabase).then(([, listings]) => listings),
     getRows(supabase, 'saved_gpu_listings', WORKSPACE_SELECTS.saved_gpu_listings, 'user_id', claims.sub),
-    getRows(supabase, 'deployments', WORKSPACE_SELECTS.deployments, 'user_id', claims.sub),
-    getRows(supabase, 'orders', WORKSPACE_SELECTS.orders, 'user_id', claims.sub),
+    getRows(supabase, 'deployments', WORKSPACE_SELECTS.deployments, 'user_id', claims.sub, { newestFirst: true }),
+    getRows(supabase, 'orders', WORKSPACE_SELECTS.orders, 'user_id', claims.sub, { newestFirst: true }),
     getRows(supabase, 'wallets', WORKSPACE_SELECTS.wallets, 'user_id', claims.sub)
       .catch(() => []),
-    getRows(supabase, 'wallet_transactions', WORKSPACE_SELECTS.wallet_transactions, 'user_id', claims.sub),
+    getRows(supabase, 'wallet_transactions', WORKSPACE_SELECTS.wallet_transactions, 'user_id', claims.sub, { newestFirst: true }),
     getRows(supabase, 'api_keys', WORKSPACE_SELECTS.api_keys, 'user_id', claims.sub),
     getRows(supabase, 'ssh_public_keys', WORKSPACE_SELECTS.ssh_public_keys, 'user_id', claims.sub),
-    getRows(supabase, 'notifications', WORKSPACE_SELECTS.notifications, 'user_id', claims.sub),
-    getRows(supabase, 'notebook_sessions', WORKSPACE_SELECTS.notebook_sessions, 'user_id', claims.sub),
+    getRows(supabase, 'notifications', WORKSPACE_SELECTS.notifications, 'user_id', claims.sub, { newestFirst: true }),
+    getRows(supabase, 'notebook_sessions', WORKSPACE_SELECTS.notebook_sessions, 'user_id', claims.sub, { newestFirst: true }),
     getRecentInferenceRequests(supabase, claims.sub),
     getRows(supabase, 'user_access_policies', WORKSPACE_SELECTS.user_access_policies, 'user_id', claims.sub),
     getRows(supabase, 'customer_plans', WORKSPACE_SELECTS.customer_plans, 'user_id', claims.sub),
@@ -458,7 +463,7 @@ async function handleCustomerApi(req, res, path, deps = {}) {
       const body = await readCustomerJsonBody(req)
       const orderNumber = typeof body.order_number === 'string' && body.order_number.trim()
         ? body.order_number.trim()
-        : `ORD-${Math.floor(1000 + Math.random() * 9000)}`
+        : `ORD-${crypto.randomBytes(4).toString('hex').toUpperCase()}` // order_number is UNIQUE; 9000 values collided
       const itemName = typeof body.item_name === 'string' && body.item_name.trim()
         ? body.item_name.trim()
         : 'Compute Workload'
@@ -479,17 +484,26 @@ async function handleCustomerApi(req, res, path, deps = {}) {
         ? body.status.toLowerCase().trim()
         : 'running'
 
+      // The foreign key only proves a deployment exists; an order may link only the caller's own deployment.
+      const deploymentId = typeof body.deployment_id === 'string' && body.deployment_id.trim() ? body.deployment_id.trim() : null
+      if (deploymentId) {
+        const owned = await supabase.from('deployments').select('id').eq('id', deploymentId).eq('user_id', claims.sub).maybeSingle()
+        if (owned.error) throw owned.error
+        if (!owned.data) return sendJson(res, 404, { ok: false, error: 'Deployment was not found.' })
+      }
+
       const id = crypto.randomUUID()
       const now = new Date().toISOString()
+      const parsedOrderDate = typeof body.order_date === 'string' ? Date.parse(body.order_date) : NaN
       const newOrder = {
         id,
         user_id: claims.sub,
         organization_id: context.profile.organization_id || null,
-        deployment_id: typeof body.deployment_id === 'string' ? body.deployment_id.trim() : null,
+        deployment_id: deploymentId,
         order_number: orderNumber,
         item_name: itemName,
         provider_name: providerName,
-        order_date: body.order_date || now,
+        order_date: Number.isNaN(parsedOrderDate) ? now : new Date(parsedOrderDate).toISOString(), // garbage dates made the insert fail (503)
         duration_minutes: durationMinutes,
         total_cost: totalCost,
         currency,

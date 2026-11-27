@@ -140,3 +140,17 @@ test('repeated failures from one IP are rate limited, other IPs are not', { skip
   assert.equal((await login(mw, { email: ADMIN_EMAIL, password: ADMIN_PASSWORD }, ip)).status, 429)
   assert.equal((await login(mw, { email: ADMIN_EMAIL, password: ADMIN_PASSWORD }, '192.0.2.78')).status, 200)
 })
+
+test('failures against one admin do not lock other admins out behind a shared proxy address', { skip: ARGON2_SKIP }, async () => {
+  const hash = hashPassword(ADMIN_PASSWORD, { memory: 1024, passes: 2, parallelism: 1 })
+  const other = { ...adminRow(hash), id: crypto.randomUUID(), email: 'second@example.test' }
+  const mw = createAdminAuthMiddleware({
+    supabaseClient: mockSupabase([adminRow(hash), other]), sessionSecret: SECRET, rateLimitMaxAttempts: 5,
+  })
+  const proxy = '10.200.0.1' // every request arrives from the Render proxy's address
+  for (let i = 0; i < 5; i++) {
+    assert.equal((await login(mw, { email: ADMIN_EMAIL, password: 'wrong' }, proxy)).status, 401)
+  }
+  assert.equal((await login(mw, { email: ADMIN_EMAIL, password: ADMIN_PASSWORD }, proxy)).status, 429, 'the targeted account stays limited')
+  assert.equal((await login(mw, { email: 'second@example.test', password: ADMIN_PASSWORD }, proxy)).status, 200, 'other admins can still sign in')
+})

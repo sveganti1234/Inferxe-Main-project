@@ -2,6 +2,8 @@ import crypto from 'node:crypto'
 
 const jwksCache = new Map()
 const JWKS_CACHE_DURATION_MS = 60 * 60 * 1000
+// Issuer and audience are public, so any forged token with a random kid reaches the key lookup: refetch at most once a minute.
+const JWKS_REFETCH_COOLDOWN_MS = 60 * 1000
 
 function decodeBase64Url(value) {
   return Buffer.from(value.replace(/-/g, '+').replace(/_/g, '/'), 'base64')
@@ -19,6 +21,7 @@ async function getJwks(jwksUrl, fetchImpl) {
 
   jwksCache.set(jwksUrl, {
     keys: data.keys,
+    fetchedAt: Date.now(),
     expiresAt: Date.now() + JWKS_CACHE_DURATION_MS,
   })
   return data.keys
@@ -92,7 +95,7 @@ export async function verifyCognitoIdToken(
   let keys = await getJwks(jwksUrl, fetchImpl)
   let signingKey = keys.find((key) => key.kid === header.kid && key.kty === 'RSA')
 
-  if (!signingKey) {
+  if (!signingKey && Date.now() - (jwksCache.get(jwksUrl)?.fetchedAt ?? 0) > JWKS_REFETCH_COOLDOWN_MS) {
     jwksCache.delete(jwksUrl)
     keys = await getJwks(jwksUrl, fetchImpl)
     signingKey = keys.find((key) => key.kid === header.kid && key.kty === 'RSA')

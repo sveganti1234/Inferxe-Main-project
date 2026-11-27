@@ -313,3 +313,27 @@ test.after(async () => {
   try { closeDatabase() } catch {}
   fs.rmSync(sqliteDir, { recursive: true, force: true })
 })
+
+test('a token with an unknown kid does not refetch Cognito signing keys within the cooldown', async () => {
+  const pool = 'ap-south-1_cooldownpool' // own pool id, so the module-level key cache starts empty
+  const { privateKey, publicKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 })
+  const jwk = publicKey.export({ format: 'jwk' })
+  const nowSeconds = Math.floor(Date.now() / 1000)
+  const claims = {
+    iss: `https://cognito-idp.ap-south-1.amazonaws.com/${pool}`, aud: clientId, token_use: 'id',
+    sub: 'cognito-sub-cooldown', exp: nowSeconds + 300, iat: nowSeconds,
+  }
+  let fetches = 0
+  const fetchImpl = async () => {
+    fetches += 1
+    return new Response(JSON.stringify({ keys: [{ ...jwk, kid: 'test-key', kty: 'RSA' }] }), { status: 200 })
+  }
+  const opts = { userPoolId: pool, clientId, fetchImpl, nowSeconds }
+
+  assert.ok(await verifyCognitoIdToken(`Bearer ${createSignedToken(privateKey, claims)}`, opts))
+  assert.equal(fetches, 1)
+  for (let i = 0; i < 5; i++) {
+    assert.equal(await verifyCognitoIdToken(`Bearer ${createSignedToken(privateKey, claims, `forged-${i}`)}`, opts), null)
+  }
+  assert.equal(fetches, 1)
+})
