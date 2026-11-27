@@ -23,6 +23,7 @@ import { createCustomerAuthMiddleware } from '../auth/customerAuth.js'
 import { createAdminAuthMiddleware } from '../auth/adminAuth.js'
 import { createSSOAuthMiddleware } from '../auth/ssoAuth.js'
 import { createMockSupabaseMiddleware } from '../dev/mockSupabaseRest.js'
+import { isPortAccepting } from './workerProbe.mjs'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const ROOT_DIR = path.resolve(__dirname, '../..')
@@ -283,18 +284,25 @@ const server = http.createServer((req, res) => {
   const pathname = (req.url || '/').split('?')[0].split('#')[0]
 
   if (pathname === '/healthz' && req.method === 'GET') {
-    res.statusCode = 200
-    res.setHeader('Content-Type', 'application/json; charset=utf-8')
-    res.end(
-      JSON.stringify({
-        ok: true,
-        service: 'inferxe-backend-gateway',
-        status: 'healthy',
-        workers: {
-          inference: { running: childState.inference.running, port: childState.inference.port },
-          notifications: { running: childState.notifications.running, port: childState.notifications.port },
-        },
-      }),
+    // Healthy only when both Python workers accept connections: before, this answered 200 while every proxied
+    // /api call returned 503, so Render kept routing traffic to a gateway with dead workers.
+    Promise.all([isPortAccepting(childState.inference.port), isPortAccepting(childState.notifications.port)]).then(
+      ([inferenceUp, notificationsUp]) => {
+        const healthy = inferenceUp && notificationsUp
+        res.statusCode = healthy ? 200 : 503
+        res.setHeader('Content-Type', 'application/json; charset=utf-8')
+        res.end(
+          JSON.stringify({
+            ok: healthy,
+            service: 'inferxe-backend-gateway',
+            status: healthy ? 'healthy' : 'degraded',
+            workers: {
+              inference: { running: childState.inference.running, reachable: inferenceUp, port: childState.inference.port },
+              notifications: { running: childState.notifications.running, reachable: notificationsUp, port: childState.notifications.port },
+            },
+          }),
+        )
+      },
     )
     return
   }
