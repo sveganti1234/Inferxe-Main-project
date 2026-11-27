@@ -119,6 +119,21 @@ _ACTIVE_PROFILE_CACHE: Dict[str, float] = {}
 _ACTIVE_PROFILE_TTL_SECONDS = 60.0
 
 
+_profile_http_client = None
+_profile_http_client_lock = threading.Lock()
+
+
+def _get_profile_http_client():
+    """One pooled client for profile-status lookups (a new client per call meant a new TCP/TLS handshake each time)."""
+    global _profile_http_client
+    import httpx2
+
+    with _profile_http_client_lock:
+        if _profile_http_client is None or _profile_http_client.is_closed:
+            _profile_http_client = httpx2.Client(timeout=5.0)
+        return _profile_http_client
+
+
 def assert_profile_active(user_id: str) -> None:
     """
     Reject protected operations for customers whose Supabase profile is suspended or inactive.
@@ -136,16 +151,14 @@ def assert_profile_active(user_id: str) -> None:
     if _ACTIVE_PROFILE_CACHE.get(user_id, 0.0) > now:
         return
     try:
-        import httpx2
         from inference.supabase_config import get_supabase_settings
 
         settings = get_supabase_settings(auto_load=False)
-        with httpx2.Client(timeout=5.0) as client:
-            response = client.get(
-                settings.rest_url("profiles"),
-                params={"select": "status", "user_id": f"eq.{user_id}", "limit": "1"},
-                headers=settings.auth_headers(),
-            )
+        response = _get_profile_http_client().get(
+            settings.rest_url("profiles"),
+            params={"select": "status", "user_id": f"eq.{user_id}", "limit": "1"},
+            headers=settings.auth_headers(),
+        )
         if response.status_code >= 400:
             raise RuntimeError(f"profile lookup returned HTTP {response.status_code}")
         rows = response.json() or []
