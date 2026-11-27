@@ -633,6 +633,13 @@ def assert_profile_active(user: AuthenticatedUser) -> None:
             except Exception:
                 pass
     except Exception as db_err:
+        if (
+            os.getenv("INFERXE_LOCAL_MOCK_SUPABASE", "").strip() == "1"
+            or os.getenv("ADMIN_DEV_FALLBACK", "").strip().lower() in ("1", "true", "yes")
+        ):
+            logger.warning("Profile status lookup fallback in notifications: %s", db_err)
+            _ACTIVE_PROFILE_CACHE[user.user_id] = now + _ACTIVE_PROFILE_TTL_SECONDS
+            return
         logger.error("Profile status lookup failed: %s", type(db_err).__name__)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

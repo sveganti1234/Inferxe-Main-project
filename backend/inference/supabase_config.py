@@ -60,6 +60,17 @@ def load_backend_env(env_file: Optional[Path] = None, override: bool = False) ->
 load_backend_env(override=False)
 
 
+NON_LOCAL_ENVIRONMENTS = frozenset({"production", "prod", "staging"})
+
+
+def is_local_mock_supabase_enabled() -> bool:
+    """Return True if local mock Supabase is enabled outside production/staging environments."""
+    if os.getenv("INFERXE_LOCAL_MOCK_SUPABASE", "").strip() != "1":
+        return False
+    markers = [os.getenv("INFERXE_ENV"), os.getenv("APP_ENV"), os.getenv("NODE_ENV")]
+    return not any((m or "").strip().lower() in NON_LOCAL_ENVIRONMENTS for m in markers)
+
+
 def _validate_supabase_url(raw_url: str) -> str:
     cleaned = raw_url.strip().rstrip("/")
     if not cleaned:
@@ -158,6 +169,13 @@ def get_supabase_settings(
     """
     if auto_load:
         load_backend_env(env_file=env_file, override=False)
+
+    if is_local_mock_supabase_enabled():
+        port = (os.getenv("ADMIN_AUTH_PORT") or "5174").strip() or "5174"
+        return SupabaseSettings(
+            url=f"http://127.0.0.1:{port}",
+            service_role_key="local-mock-service-key",
+        )
 
     url = _validate_supabase_url(os.getenv("SUPABASE_URL", ""))
     service_role_key = _validate_service_role_key(os.getenv("SUPABASE_SERVICE_ROLE_KEY", ""))

@@ -2,41 +2,35 @@
 Server-side workload compatibility + routing (DPR §8-§9).
 
 Deterministic pipeline: estimate memory -> hard gates (memory, policy, budget, speed) -> score -> rank.
-The memory model mirrors frontend/src/lib/calc.ts so the console widgets and the API agree; keep
-MODELS/QUANT_BYTES in sync with frontend/src/data/gpus.ts.
+Model data and the memory formula come from the central model registry (inference/model_registry.py,
+database/datasets/models/model_registry.json). The formula mirrors frontend/src/lib/calc.ts so the console
+widgets and the API agree; test_model_registry.py checks frontend/src/data/gpus.ts against the registry.
 """
 
 from typing import Any, Dict, List, Optional
 
 from inference.catalog import load_catalog
+from inference.model_registry import estimate_memory_components, get_registry
 
-UTIL = 0.9  # vLLM default gpu_memory_utilization
+UTIL = 0.9  # vLLM default gpu_memory_utilization (equals the registry default; asserted in tests)
 GPU_COUNTS = (1, 2, 4, 8)
 MULTI_GPU_EFFICIENCY = 0.8
 HOURS_PER_MONTH = 730
 
-QUANT_BYTES = {"fp16": 2.0, "fp8": 1.0, "int4": 0.56}
+# The quantizations this API accepts (RecommendRequest.quant), with bytes per parameter from the registry.
+QUANT_BYTES = {q: get_registry().estimation_quant_bytes[q] for q in ("fp16", "fp8", "int4")}
 
-# id -> (params in billions, FP16 KV-cache bytes per token)
-MODELS = {
-    "qwen2.5-7b": (7.6, 57344),
-    "llama-3.1-8b": (8.03, 131072),
-    "mistral-7b": (7.25, 131072),
-    "qwen2.5-14b": (14.8, 196608),
-    "mistral-small-24b": (23.6, 163840),
-    "qwen2.5-32b": (32.5, 262144),
-    "llama-3.1-70b": (70.6, 327680),
-}
+# id -> (params in billions, FP16 KV-cache bytes per token). Uses the registry's planning parameter counts
+# (params_billion), which keeps recommendation results unchanged.
+MODELS = {m.key: (m.params_billion, m.kv_bytes_per_token) for m in get_registry().models}
 
 ROUTING_MODES = ("cost", "speed", "balanced")
 
 
 def estimate_memory(model_id: str, quant: str, context: int, concurrency: int) -> Dict[str, float]:
     params, kv_bytes_per_token = MODELS[model_id]
-    weights = params * QUANT_BYTES[quant]
-    kv = context * concurrency * kv_bytes_per_token / 1e9
-    overhead = 2 + 0.04 * weights
-    return {"weights_gb": weights, "kv_cache_gb": kv, "overhead_gb": overhead, "need_gb": weights + kv + overhead}
+    m = estimate_memory_components(params, kv_bytes_per_token, QUANT_BYTES[quant], context, concurrency)
+    return {"weights_gb": m.weights_gb, "kv_cache_gb": m.kv_cache_gb, "overhead_gb": m.overhead_gb, "need_gb": m.total_gb}
 
 
 def _evaluate(offer: Dict[str, Any], gpu: Dict[str, Any], memory: Dict[str, float], w: Dict[str, Any]) -> Dict[str, Any]:

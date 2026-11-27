@@ -11,6 +11,8 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional
 
+from inference.model_registry import estimate_memory_components, get_registry
+
 
 class PriorityEnum(str, Enum):
     COST = "cost"
@@ -25,13 +27,8 @@ class QuantizationEnum(str, Enum):
     INT4 = "int4"
 
 
-QUANT_BYTES_MAP: Dict[str, float] = {
-    "fp16": 2.0,
-    "bf16": 2.0,
-    "fp8": 1.0,
-    "int8": 1.0,
-    "int4": 0.56,
-}
+# Bytes per parameter by quantization, from the central model registry.
+QUANT_BYTES_MAP: Dict[str, float] = dict(get_registry().estimation_quant_bytes)
 
 
 @dataclass(frozen=True)
@@ -44,63 +41,18 @@ class ModelSpec:
     architecture: str
 
 
+# Built from the central model registry, in registry order (which is the order /routing/catalogue lists).
+# params_billion is the registry's planning value, which keeps placement results unchanged.
 REFERENCE_MODELS: Dict[str, ModelSpec] = {
-    "qwen2.5-7b": ModelSpec(
-        id="qwen2.5-7b",
-        family="Qwen",
-        name="Qwen2.5 7B Instruct",
-        params_billion=7.6,
-        kv_bytes_per_token=57344,
-        architecture="28 layers · 4 KV heads",
-    ),
-    "llama-3.1-8b": ModelSpec(
-        id="llama-3.1-8b",
-        family="Llama",
-        name="Llama 3.1 8B Instruct",
-        params_billion=8.03,
-        kv_bytes_per_token=131072,
-        architecture="32 layers · 8 KV heads",
-    ),
-    "mistral-7b": ModelSpec(
-        id="mistral-7b",
-        family="Mistral",
-        name="Mistral 7B Instruct v0.3",
-        params_billion=7.25,
-        kv_bytes_per_token=131072,
-        architecture="32 layers · 8 KV heads",
-    ),
-    "qwen2.5-14b": ModelSpec(
-        id="qwen2.5-14b",
-        family="Qwen",
-        name="Qwen2.5 14B Instruct",
-        params_billion=14.8,
-        kv_bytes_per_token=196608,
-        architecture="48 layers · 8 KV heads",
-    ),
-    "mistral-small-24b": ModelSpec(
-        id="mistral-small-24b",
-        family="Mistral",
-        name="Mistral Small 24B",
-        params_billion=23.6,
-        kv_bytes_per_token=163840,
-        architecture="40 layers · 8 KV heads",
-    ),
-    "qwen2.5-32b": ModelSpec(
-        id="qwen2.5-32b",
-        family="Qwen",
-        name="Qwen2.5 32B Instruct",
-        params_billion=32.5,
-        kv_bytes_per_token=262144,
-        architecture="64 layers · 8 KV heads",
-    ),
-    "llama-3.1-70b": ModelSpec(
-        id="llama-3.1-70b",
-        family="Llama",
-        name="Llama 3.1 70B Instruct",
-        params_billion=70.6,
-        kv_bytes_per_token=327680,
-        architecture="80 layers · 8 KV heads",
-    ),
+    m.key: ModelSpec(
+        id=m.key,
+        family=m.family,
+        name=m.display_name,
+        params_billion=m.params_billion,
+        kv_bytes_per_token=m.kv_bytes_per_token,
+        architecture=m.architecture_label,
+    )
+    for m in get_registry().models
 }
 
 
@@ -239,16 +191,15 @@ def calculate_memory_demand(
         model = REFERENCE_MODELS["llama-3.1-8b"]
 
     bytes_per_param = QUANT_BYTES_MAP.get(quantization.lower(), 2.0)
-    weights_gb = model.params_billion * bytes_per_param
-    kv_cache_gb = (context_tokens * concurrency * model.kv_bytes_per_token) / 1e9
-    overhead_gb = 2.0 + 0.04 * weights_gb
-    total_needed = weights_gb + kv_cache_gb + overhead_gb
+    m = estimate_memory_components(
+        model.params_billion, model.kv_bytes_per_token, bytes_per_param, context_tokens, concurrency
+    )
 
     return MemoryBreakdown(
-        weights_gb=weights_gb,
-        kv_cache_gb=kv_cache_gb,
-        overhead_gb=overhead_gb,
-        total_needed_gb=total_needed,
+        weights_gb=m.weights_gb,
+        kv_cache_gb=m.kv_cache_gb,
+        overhead_gb=m.overhead_gb,
+        total_needed_gb=m.total_gb,
     )
 
 

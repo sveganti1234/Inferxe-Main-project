@@ -42,3 +42,4 @@ backend/*_old.txt
 scratch/
 validation_report.json
 inferxe_finetune_clean.jsonl
+INFERXE_BACKEND_FILES_FOR_CHATGPT.*
