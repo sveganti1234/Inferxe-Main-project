@@ -71,6 +71,9 @@ export function CustomerSidebar({
   closeButtonRef: RefObject<HTMLButtonElement | null>
 }) {
   const [hovered, setHovered] = useState<string | null>(null)
+  // Collapsed (icon-only) sidebar: names appear beside each icon through the console's HoverTip.
+  const showRail = rail && !mobile
+  const railTip = (text: string) => (showRail ? { 'data-tip': text, 'data-tip-side': 'right' } : {})
   // Off-canvas and closed: remove from the tab order and the accessibility tree.
   const hidden = mobile && !open
   const inference =
@@ -104,7 +107,8 @@ export function CustomerSidebar({
           onClick={onToggleRail}
           aria-pressed={rail}
           aria-label={rail ? 'Expand sidebar' : 'Collapse sidebar'}
-          title={rail ? 'Expand sidebar' : 'Collapse sidebar'}
+          title={showRail ? undefined : 'Collapse sidebar'}
+          {...railTip('Expand sidebar')}
         >
           {rail ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
           <span className="cx-collapse__text">Collapse sidebar</span>
@@ -126,7 +130,8 @@ export function CustomerSidebar({
                   to={sectionHref(section)}
                   end={section.path === ''}
                   className="cx-nav__item"
-                  title={rail ? section.label : undefined}
+                  aria-label={showRail ? section.label : undefined}
+                  {...railTip(section.label)}
                   onClick={onNavigate}
                   onMouseEnter={() => setHovered(section.id)}
                 >
@@ -160,13 +165,13 @@ export function CustomerSidebar({
 
       <div className="cx-sidebar__footer">
         <SpendLimitCard organizationName={organizationName} />
-        <div className="cx-service" role="status" title={inference.text}>
+        <div className="cx-service" role="status" title={showRail ? undefined : inference.text} {...railTip(inference.text)}>
           <span className={`cx-dot ${inference.dot}`} aria-hidden="true" />
           <span className="cx-service__text">{inference.text}</span>
         </div>
         <div className="cx-sidefoot">
           {account ? (
-            <Link to={sectionHref(getSection('settings'))} className="cx-sideaccount" title="Account settings" onClick={onNavigate}>
+            <Link to={sectionHref(getSection('settings'))} className="cx-sideaccount" title={showRail ? undefined : 'Account settings'} {...railTip('Account settings')} onClick={onNavigate}>
               <span className="cx-avatar" aria-hidden="true">{account.initials}</span>
               <span className="cx-sideaccount__text">
                 <strong>{account.name}</strong>
@@ -175,7 +180,7 @@ export function CustomerSidebar({
             </Link>
           ) : <span className="cx-sidefoot__spacer" />}
         </div>
-        <Link to="/" className="cx-backlink" title="Back to Public Website">
+        <Link to="/" className="cx-backlink" title={showRail ? undefined : 'Back to Public Website'} {...railTip('Back to Public Website')}>
           <ExternalLink size={15} aria-hidden="true" />
           <span className="cx-backlink__text">Back to Public Website</span>
         </Link>

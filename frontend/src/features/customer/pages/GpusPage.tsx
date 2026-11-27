@@ -332,7 +332,7 @@ export default function GpusPage() {
           <ButtonLink to="/gpus" variant="secondary" size="sm">
             <ExternalLink size={13} style={{ marginRight: 4 }} /> Public GPU Guide
           </ButtonLink>
-          <Button variant="secondary" onClick={refresh} disabled={state.status === 'loading'} aria-label="Refresh GPU listings">
+          <Button variant="secondary" onClick={refresh} disabled={state.status === 'loading'} aria-label="Refresh GPU listings" data-tip="Refresh">
             <RefreshCw size={15} />
           </Button>
         </div>

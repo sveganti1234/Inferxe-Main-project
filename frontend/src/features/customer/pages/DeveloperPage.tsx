@@ -429,7 +429,7 @@ export default function DeveloperPage() {
         title="SSH keys & notebooks"
         description="Register SSH public keys and manage notebook session records."
         actions={
-          <Button variant="secondary" onClick={refreshAll} aria-label="Refresh SSH keys and notebooks">
+          <Button variant="secondary" onClick={refreshAll} aria-label="Refresh SSH keys and notebooks" data-tip="Refresh">
             <RefreshCw size={15} />
           </Button>
         }
