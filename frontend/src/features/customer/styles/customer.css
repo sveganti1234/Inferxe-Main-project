@@ -246,7 +246,13 @@
 }
 .cx-brand__name em {
   font-style: normal;
-  color: var(--cx-accent);
+  color: #57e6a0;
+}
+.cx-app[data-cx-theme='light'] .cx-brand__name {
+  color: #172b21;
+}
+.cx-app[data-cx-theme='light'] .cx-brand__name em {
+  color: #087b50;
 }
 .cx-brand__tag {
   margin-left: auto;

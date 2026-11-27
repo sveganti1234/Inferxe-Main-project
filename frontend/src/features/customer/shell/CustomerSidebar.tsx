@@ -94,7 +94,7 @@ export function CustomerSidebar({
       aria-modal={mobile && open ? true : undefined}
     >
       <div className="cx-brand">
-        <LogoMark size={30} theme="dark" />
+        <LogoMark size={30} />
         <span className="cx-brand__name">
           Infer<em>xe</em>
         </span>

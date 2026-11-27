@@ -90,23 +90,6 @@
   filter: none !important;
 }
 
-.logo__mark--dark {
-  display: block;
-}
-
-.logo__mark--light {
-  display: none;
-}
-
-[data-theme='light'] .logo__mark--dark,
-.dash-shell[data-theme='light'] .logo__mark--dark {
-  display: none !important;
-}
-
-[data-theme='light'] .logo__mark--light,
-.dash-shell[data-theme='light'] .logo__mark--light {
-  display: block !important;
-}
 
 .dash-shell[data-theme='light'] .dash-topbar__badge {
   background: rgba(14, 165, 233, 0.12) !important;
