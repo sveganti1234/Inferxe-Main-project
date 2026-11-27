@@ -115,7 +115,7 @@ export function CustomerTopbar({
           aria-haspopup="menu"
           aria-expanded={quickOpen}
           aria-label="Quick actions"
-          title="Quick actions"
+          data-tip={quickOpen ? undefined : 'Quick actions'}
         >
           <Plus size={18} strokeWidth={2.4} />
         </button>
@@ -139,11 +139,11 @@ export function CustomerTopbar({
 
       <span className="cx-topbar__divider" aria-hidden="true" />
 
-      <button type="button" className="cx-iconbtn cx-topbar__theme" onClick={onToggleTheme} aria-label={themeLabel} title={themeLabel}>
+      <button type="button" className="cx-iconbtn cx-topbar__theme" onClick={onToggleTheme} aria-label={themeLabel} data-tip={themeLabel}>
         {theme === 'forest' ? <Sun size={18} /> : <Moon size={18} />}
       </button>
 
-      <Link to={sectionHref(notifications)} className="cx-iconbtn" aria-label={unreadLabel} title={unreadLabel}>
+      <Link to={sectionHref(notifications)} className="cx-iconbtn" aria-label={unreadLabel} data-tip={unreadLabel}>
         <Bell size={18} />
         {unreadCount !== null && unreadCount > 0 ? (
           <span className="cx-iconbtn__count" aria-hidden="true">
@@ -160,6 +160,7 @@ export function CustomerTopbar({
           aria-haspopup="menu"
           aria-expanded={menuOpen}
           aria-label="Account menu"
+          data-tip={menuOpen ? undefined : 'Account menu'}
         >
           <span className="cx-avatar" aria-hidden="true">{initials}</span>
           <span className="cx-account__name">{displayName ?? 'Account'}</span>

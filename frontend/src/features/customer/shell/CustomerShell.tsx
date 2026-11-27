@@ -11,6 +11,7 @@ import { EmptyState, ErrorState, LoadingBlock } from '../ui/states'
 import { Button, Notice } from '../ui/primitives'
 import { useResourceRefreshing } from '../data/useAsyncResource'
 import { CustomerSidebar } from './CustomerSidebar'
+import { HoverTip } from '../ui/HoverTip'
 import { CustomerTopbar } from './CustomerTopbar'
 import { ConsoleSignalsContext, useConsoleSignals } from './useConsoleSignals'
 import { useConsoleTheme } from './useConsoleTheme'
@@ -182,6 +183,7 @@ export function CustomerShell() {
         />
         {drawerOpen ? <div className="cx-scrim" onClick={dismissDrawer} aria-hidden="true" /> : null}
         {/* While the mobile drawer is open, everything else is inert (focus stays in the drawer). */}
+        <HoverTip />
         <div className="cx-main" inert={drawerModal || undefined}>
           <CustomerTopbar
             section={section}

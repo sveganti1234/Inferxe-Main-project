@@ -380,7 +380,7 @@ export default function DeploymentsPage() {
               variant="secondary"
               onClick={deployments.refresh}
               disabled={listState.status === 'loading'}
-              aria-label="Refresh deployments"
+              aria-label="Refresh deployments" data-tip="Refresh"
             >
               <RefreshCw size={15} className={listState.status === 'loading' ? 'cx-spin' : undefined} />
             </Button>

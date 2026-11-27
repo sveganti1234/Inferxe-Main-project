@@ -61,7 +61,7 @@
   --cx-sidebar-w: 300px;
   --cx-sidebar-rail: 78px;
   --cx-topbar-h: 64px;
-  --cx-content-max: 1360px;
+  --cx-content-max: 1600px;
   --cx-gutter: clamp(16px, 2.4vw, 32px);
 
   position: relative;
@@ -550,6 +550,11 @@
 .cx-topbar {
   position: relative;
   z-index: 20;
+  /* Same box as .cx-content, so the breadcrumb and the page heading share one left edge */
+  width: 100%;
+  max-width: var(--cx-content-max);
+  margin-inline: auto;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -7482,4 +7487,67 @@
 }
 .cx-app[data-cx-theme='light'] .cx-tilt > .cx-card.cx-model.is-selected {
   border-color: rgba(8, 123, 80, 0.55);
+}
+
+/* Console name tooltip (ui/HoverTip): opt in with data-tip, beside (data-tip-side="right") or below.
+   Lives on <body>, so no .cx-app theme vars here. */
+.cx-hovertip {
+  --arrow-shift: 0px;
+  position: fixed;
+  z-index: 1000;
+  padding: 6px 11px;
+  border-radius: 8px;
+  background: #0f1a15;
+  border: 1px solid rgba(126, 232, 186, 0.18);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  color: #eef4ee;
+  font-family: 'Inter', Arial, Helvetica, sans-serif;
+  font-size: 0.82rem;
+  font-weight: 500;
+  line-height: 1.3;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.cx-hovertip::before {
+  /* small arrow pointing at the element */
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: inherit;
+  border: inherit;
+}
+.cx-hovertip--right {
+  transform: translateY(-50%);
+  animation: cx-hovertip-right 0.12s ease-out;
+}
+.cx-hovertip--right::before {
+  left: -5px;
+  top: 50%;
+  border-top-color: transparent;
+  border-right-color: transparent;
+  transform: translateY(-50%) rotate(45deg);
+}
+.cx-hovertip--bottom {
+  transform: translateX(-50%);
+  animation: cx-hovertip-bottom 0.12s ease-out;
+}
+.cx-hovertip--bottom::before {
+  top: -5px;
+  left: calc(50% + var(--arrow-shift));
+  border-bottom-color: transparent;
+  border-right-color: transparent;
+  transform: translateX(-50%) rotate(45deg);
+}
+@keyframes cx-hovertip-right {
+  from { opacity: 0; transform: translate(-4px, -50%); }
+  to { opacity: 1; transform: translate(0, -50%); }
+}
+@keyframes cx-hovertip-bottom {
+  from { opacity: 0; transform: translate(-50%, -4px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cx-hovertip--right,
+  .cx-hovertip--bottom { animation: none; }
 }
