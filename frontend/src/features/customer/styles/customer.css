@@ -2408,37 +2408,9 @@
 .cx-model.is-selected {
   border-color: var(--cx-border-3);
 }
-.cx-model__top {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
 .cx-model__params {
   font-size: 0.8rem;
   color: var(--cx-text-3);
-}
-.cx-model__name {
-  margin: 0;
-  font-family: var(--cx-font-display);
-  font-size: 1.08rem;
-  font-weight: 600;
-}
-.cx-model__arch {
-  margin: 0;
-  font-size: 0.84rem;
-  color: var(--cx-text-3);
-}
-.cx-model__kv {
-  margin: 4px 0 0;
-}
-.cx-model__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: auto;
-  padding-top: 10px;
 }
 .cx-compare {
   min-width: 460px;
@@ -7356,7 +7328,7 @@
 
 
 /* ==========================================================================
-   GPU listing cards — cursor-following 3D tilt + emerald holographic sheen.
+   GPU listing + LLM catalog cards — cursor-following 3D tilt + emerald holographic sheen.
    GpusPage's useTilt sets --tilt-x/--tilt-y/--glare-x/--glare-y and [data-tilting] on .cx-tilt
    (untransformed, so its rect stays stable). Kept last so it beats the theme :hover translate.
    ========================================================================== */
@@ -7394,7 +7366,7 @@
   filter: blur(16px);
   opacity: calc(var(--edge) * 0.6);
 }
-.cx-app:not([data-cx-theme='light']) .cx-tilt > .cx-card.cx-listing::before {
+.cx-app:not([data-cx-theme='light']) .cx-tilt > .cx-card:is(.cx-listing, .cx-model)::before {
   /* reuse the card's masked 1px rim: cursor-following mint highlight over the existing top highlight */
   padding: 1.5px;
   background:
@@ -7405,27 +7377,27 @@
       transparent 46%),
     linear-gradient(180deg, rgba(235, 255, 244, 0.12), transparent 40%);
 }
-.cx-app .cx-tilt > .cx-card.cx-listing {
+.cx-app .cx-tilt > .cx-card:is(.cx-listing, .cx-model) {
   transform: rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg)) translateY(0) scale(1);
   transform-style: preserve-3d;
   transition: transform 0.55s var(--cx-ease), box-shadow 0.55s var(--cx-ease), border-color 0.55s var(--cx-ease);
 }
 /* Opaque emerald glass so every card looks the same (the theme's translucent --cx-card-a let the
    backdrop photo tint each card differently). Dark themes only; hover/glow never touch background. */
-.cx-app:not([data-cx-theme='light']) .cx-tilt > .cx-card.cx-listing {
+.cx-app:not([data-cx-theme='light']) .cx-tilt > .cx-card:is(.cx-listing, .cx-model) {
   background:
     radial-gradient(ellipse at 15% 10%, rgba(65, 150, 105, 0.16), transparent 65%),
     linear-gradient(145deg, #203b30 0%, #172b22 48%, #101b16 100%);
   border: 1px solid rgba(110, 190, 150, 0.16);
 }
-.cx-app .cx-tilt[data-tilting] > .cx-card.cx-listing {
+.cx-app .cx-tilt[data-tilting] > .cx-card:is(.cx-listing, .cx-model) {
   transform: rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg)) translateY(-6px) scale(1.02);
   transition-duration: 0.12s, 0.3s, 0.3s;
   border-color: rgba(126, 232, 186, 0.32);
   box-shadow: var(--cx-shadow-lg), 0 0 0 1px rgba(80, 227, 150, 0.1), 0 28px 60px -28px rgba(80, 227, 150, 0.45);
-  will-change: transform;
+  /* no will-change: it freezes the text into a bitmap that is then scaled, which blurs it */
 }
-.cx-tilt > .cx-listing::after {
+.cx-tilt > :is(.cx-listing, .cx-model)::after {
   /* sheen: soft spotlight under the cursor + a mint holo band that slides with it */
   content: '';
   position: absolute;
@@ -7441,15 +7413,15 @@
   opacity: 0;
   transition: opacity 0.4s var(--cx-ease);
 }
-.cx-tilt[data-tilting] > .cx-listing::after {
+.cx-tilt[data-tilting] > :is(.cx-listing, .cx-model)::after {
   opacity: 1;
 }
 @media (prefers-reduced-motion: reduce), (hover: none) {
-  .cx-app .cx-tilt > .cx-card.cx-listing,
-  .cx-app .cx-tilt[data-tilting] > .cx-card.cx-listing {
+  .cx-app .cx-tilt > .cx-card:is(.cx-listing, .cx-model),
+  .cx-app .cx-tilt[data-tilting] > .cx-card:is(.cx-listing, .cx-model) {
     transform: none;
   }
-  .cx-tilt > .cx-listing::after {
+  .cx-tilt > :is(.cx-listing, .cx-model)::after {
     display: none;
   }
 }
@@ -7471,13 +7443,15 @@
 
 /* GPU card tilt/glow, light theme: the dark-theme versions use screen-blended mint, which vanishes on
    light cards. Same mechanics (same vars from useTilt), deeper emerald tones, normal blending. */
-.cx-app[data-cx-theme='light'] .cx-tilt[data-tilting] > .cx-card.cx-listing {
+.cx-app[data-cx-theme='light'] .cx-tilt[data-tilting] > .cx-card:is(.cx-listing, .cx-model) {
   border-color: rgba(23, 107, 74, 0.35);
   box-shadow: var(--cx-glass-rim), 0 0 0 1px rgba(23, 107, 74, 0.12), 0 2px 6px rgba(20, 50, 34, 0.1),
     0 30px 60px -28px rgba(23, 107, 74, 0.45);
 }
-.cx-app[data-cx-theme='light'] .cx-tilt > .cx-listing::after {
-  /* glossy white spotlight + a soft emerald band sliding with the cursor */
+.cx-app[data-cx-theme='light'] .cx-tilt > :is(.cx-listing, .cx-model)::after {
+  /* glossy white spotlight + a soft emerald band sliding with the cursor. z-index -1 paints it over the
+     card background but under the text (the transformed card is its own stacking context) */
+  z-index: -1;
   background:
     radial-gradient(circle at var(--glare-x, 50%) var(--glare-y, 50%), rgba(255, 255, 255, 0.75), transparent 45%),
     linear-gradient(115deg, transparent 32%, rgba(23, 107, 74, 0.05) 42%, rgba(8, 123, 80, 0.1) 50%, rgba(23, 107, 74, 0.05) 58%, transparent 68%);
@@ -7485,7 +7459,7 @@
   background-position: center, var(--glare-x, 50%) var(--glare-y, 50%);
   mix-blend-mode: normal;
 }
-.cx-app[data-cx-theme='light'] .cx-tilt > .cx-card.cx-listing::before {
+.cx-app[data-cx-theme='light'] .cx-tilt > .cx-card:is(.cx-listing, .cx-model)::before {
   /* edge glow on the card rim, over the theme's white top highlight; stays softly lit (40%) anywhere on
      the card while hovered, full strength at the edge */
   --rim: max(var(--edge), var(--hover) * 0.4);
@@ -7500,4 +7474,12 @@
 }
 .cx-app[data-cx-theme='light'] .cx-tilt::before {
   background: radial-gradient(circle at var(--glare-x, 50%) var(--glare-y, 50%), rgba(23, 107, 74, 0.4), rgba(23, 107, 74, 0.14) 25%, transparent 45%);
+}
+
+/* LLM catalog: keep the selected model's outline visible over the tilt-card border */
+.cx-app .cx-tilt > .cx-card.cx-model.is-selected {
+  border-color: rgba(126, 232, 186, 0.5);
+}
+.cx-app[data-cx-theme='light'] .cx-tilt > .cx-card.cx-model.is-selected {
+  border-color: rgba(8, 123, 80, 0.55);
 }

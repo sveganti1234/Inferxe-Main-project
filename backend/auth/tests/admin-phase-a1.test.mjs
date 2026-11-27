@@ -13,7 +13,7 @@ import {
   verifyAdminSession,
   verifyAdminToken,
 } from '../adminAuth.js'
-import { hashPassword, validatePasswordStrength, verifyPassword } from '../adminPassword.js'
+import { hashPassword, validatePasswordStrength, verifyPassword, verifyPasswordWithReason, verifyPasswordWithReasonAsync } from '../adminPassword.js'
 import { classifyAdminInsertError } from '../adminSessionStore.js'
 
 const TEST_SECRET = 'phase-a1-test-signing-secret-with-at-least-32-chars-2026'
@@ -1229,4 +1229,18 @@ test('Super Admin can update and delete Admin accounts with strict protections, 
   const actions = auditLogsRes.data.logs.map((l) => l.action)
   assert.equal(actions.includes('superadmin.admin.updated'), true)
   assert.equal(actions.includes('superadmin.admin.deleted'), true)
+})
+
+test('async admin password verification matches the sync result and does not block the event loop', async () => {
+  const hash = hashPassword('DevAccount#2026!Secure', { memory: 65536, passes: 3, parallelism: 1 }) // production cost
+  for (const [pw, h] of [['DevAccount#2026!Secure', hash], ['WrongPassword#2026!', hash], ['DevAccount#2026!Secure', 'not-a-valid-hash'], ['', hash]]) {
+    const sync = verifyPasswordWithReason(pw, h)
+    const asyncResult = await verifyPasswordWithReasonAsync(pw, h)
+    assert.deepEqual({ valid: asyncResult.valid, reason: asyncResult.reason }, { valid: sync.valid, reason: sync.reason })
+  }
+  let ticks = 0
+  const timer = setInterval(() => { ticks += 1 }, 5)
+  await verifyPasswordWithReasonAsync('WrongPassword#2026!', hash)
+  clearInterval(timer)
+  assert.ok(ticks > 0, 'timers kept running while Argon2 was computing')
 })

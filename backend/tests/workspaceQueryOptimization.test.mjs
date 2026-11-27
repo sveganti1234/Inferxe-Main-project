@@ -32,7 +32,7 @@ function fakeSupabase({ catalogError = false, inferenceDenied = false } = {}) {
       }
       const q = {
         select(_c, opts) { st.head = Boolean(opts?.head); st.count = opts?.count ?? null; return q },
-        eq(f, v) { st.filters[f] = v; return q }, in() { return q }, order() { return q },
+        eq(f, v) { st.filters[f] = v; return q }, in() { return q }, order(f, o) { st.order = { f, ascending: o?.ascending }; return q }, limit(n) { st.limit = n; return q },
         gte(f, v) { st.filters.gte = v; return q },
         maybeSingle() { return run(true) }, then(res, rej) { return run(false).then(res, rej) },
       }
@@ -110,4 +110,16 @@ test('permission denied on inference_requests yields an empty usage history, not
   assert.equal(status, 200)
   assert.deepEqual(body.workspace.inference_requests, [])
   assert.equal(body.workspace.inference_requests_total, 0)
+})
+
+test('growing history tables are read newest first with an explicit cap, other collections untouched', async () => {
+  const supabase = fakeSupabase()
+  await loadWorkspace(supabase)
+  for (const table of ['deployments', 'orders', 'wallet_transactions', 'notifications', 'notebook_sessions']) {
+    const q = supabase.log.find((x) => x.table === table)
+    assert.deepEqual(q.order, { f: 'created_at', ascending: false }, table)
+    assert.equal(q.limit, 1000, table)
+    assert.equal(q.filters.user_id, 'sub-a', `${table} stays scoped to the customer`)
+  }
+  assert.equal(supabase.log.find((x) => x.table === 'wallets').limit, undefined)
 })

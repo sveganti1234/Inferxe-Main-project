@@ -61,41 +61,66 @@ export const ROLE_PERMISSIONS_FALLBACK = {
   ],
 }
 
+// Every admin request resolves its role's permissions. In production admin_role_permissions does not exist (PGRST205),
+// so each lookup was a failed ~200-300 ms round trip before falling back to the in-code registry.
+// shortcut: per-process cache keyed by Supabase client; a permission edit applies within PERMISSION_CACHE_TTL_MS.
+// Sessions, revocation, active flag and role are still checked against the database on every request.
+const PERMISSION_CACHE_TTL_MS = 60 * 1000
+const permissionCache = new WeakMap() // supabase client -> Map(role -> { permissions, expiresAt })
+
 export async function getPermissionsForRole(role, supabaseClient) {
   const cleanRole = String(role || '').trim().toLowerCase()
   if (!ALLOWED_ROLES.has(cleanRole)) return new Set()
 
+  let supabase = null
   try {
-    const supabase = resolveSupabaseClient(supabaseClient)
+    supabase = resolveSupabaseClient(supabaseClient)
+  } catch {
+    // no client configured: use the in-code registry below
+  }
+  const byRole = supabase && typeof supabase === 'object' ? permissionCache.get(supabase) : null
+  const cached = byRole?.get(cleanRole)
+  if (cached && cached.expiresAt > Date.now()) return new Set(cached.permissions)
+
+  let permissions = null
+  try {
     const result = await supabase
       .from('admin_role_permissions')
       .select('permission_id')
       .eq('role', cleanRole)
 
     if (!result.error && Array.isArray(result.data) && result.data.length > 0) {
-      return new Set(result.data.map((r) => r.permission_id).filter(Boolean))
+      permissions = result.data.map((r) => r.permission_id).filter(Boolean)
     }
   } catch {
     // Fail-safe fallback to authoritative in-code registry
   }
+  permissions ??= [...(ROLE_PERMISSIONS_FALLBACK[cleanRole] || [])]
 
-  return new Set(ROLE_PERMISSIONS_FALLBACK[cleanRole] || [])
+  if (supabase && typeof supabase === 'object') {
+    if (!permissionCache.has(supabase)) permissionCache.set(supabase, new Map())
+    permissionCache.get(supabase).set(cleanRole, { permissions, expiresAt: Date.now() + PERMISSION_CACHE_TTL_MS })
+  }
+  return new Set(permissions)
 }
 
-export async function hasPermission(role, permissionId, supabaseClient) {
+export async function hasPermission(role, permissionId, supabaseClient, knownPermissions) {
   const cleanRole = String(role || '').trim().toLowerCase()
   if (cleanRole === 'superadmin') return true
   if (cleanRole !== 'admin') return false
 
-  const permissions = await getPermissionsForRole(cleanRole, supabaseClient)
+  // The session check already loaded this role's permissions; reuse them instead of another database round trip.
+  const permissions = Array.isArray(knownPermissions)
+    ? new Set(knownPermissions)
+    : await getPermissionsForRole(cleanRole, supabaseClient)
   return permissions.has(permissionId)
 }
 
 export async function checkAdminPermission(
-  { role, permissionId, actorAdmin, ipAddress, userAgent, path, method },
+  { role, permissionId, actorAdmin, ipAddress, userAgent, path, method, permissions },
   supabaseClient,
 ) {
-  const permitted = await hasPermission(role, permissionId, supabaseClient)
+  const permitted = await hasPermission(role, permissionId, supabaseClient, permissions)
   if (permitted) {
     return { ok: true }
   }
