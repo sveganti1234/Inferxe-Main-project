@@ -229,7 +229,7 @@ export default function OverviewPage() {
               compact
               icon={<Rocket size={24} />}
               title="Nothing deployed yet"
-              body="Deployment provisioning is not available yet, so GPUs cannot be started from the console. Your deployments will appear here."
+              body="Launch a GPU from Deployments. Your deployments will appear here."
             />
           ) : (
             <ul className="cx-activity">

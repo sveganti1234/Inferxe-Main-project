@@ -87,9 +87,24 @@
   align-items: center;
   gap: 10px;
 }
+/* Logo mark colours (see components/Logo.tsx): dark defaults, light overrides for every themed shell */
+.logo__mark {
+  --logo-cloud: #eef4ee;
+  --logo-accent-a: #86efbf;
+  --logo-accent-b: #57e6a0;
+  --logo-accent-c: #34c985;
+}
+[data-theme='light'] .logo__mark,
+.dash-shell[data-theme='light'] .logo__mark,
+.cx-app[data-cx-theme='light'] .logo__mark {
+  --logo-cloud: #172b21;
+  --logo-accent-a: #1a9a68;
+  --logo-accent-b: #0d8a59;
+  --logo-accent-c: #087b50;
+}
 .logo svg,
 .logo img {
-  filter: drop-shadow(0 4px 14px rgba(14, 165, 233, 0.35));
+  filter: drop-shadow(0 4px 14px rgba(87, 230, 160, 0.28));
 }
 .logo__word {
   font-family: var(--font-display);
@@ -99,7 +114,13 @@
   color: var(--ink);
 }
 .logo__word span {
-  color: var(--brand);
+  color: #57e6a0;
+}
+[data-theme='light'] .logo__word {
+  color: #172b21;
+}
+[data-theme='light'] .logo__word span {
+  color: #087b50;
 }
 
 /* ── Navbar ────────────────────────────────────────────── */

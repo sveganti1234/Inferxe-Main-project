@@ -90,23 +90,6 @@
   filter: none !important;
 }
 
-.logo__mark--dark {
-  display: block;
-}
-
-.logo__mark--light {
-  display: none;
-}
-
-[data-theme='light'] .logo__mark--dark,
-.dash-shell[data-theme='light'] .logo__mark--dark {
-  display: none !important;
-}
-
-[data-theme='light'] .logo__mark--light,
-.dash-shell[data-theme='light'] .logo__mark--light {
-  display: block !important;
-}
 
 .dash-shell[data-theme='light'] .dash-topbar__badge {
   background: rgba(14, 165, 233, 0.12) !important;
@@ -7009,9 +6992,9 @@ html[data-theme='light'],
 .dash-shell[data-role="admin"],
 .dash-shell[data-role="admin"][data-theme="dark"],
 [data-theme="dark"] .dash-shell[data-role="admin"] {
-  --font: "Urbanist", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-body: "Urbanist", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-display: "Urbanist", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font: "Inter", Arial, Helvetica, sans-serif;
+  --font-body: "Inter", Arial, Helvetica, sans-serif;
+  --font-display: "Inter", Arial, Helvetica, sans-serif;
   --font-mono: "JetBrains Mono", monospace;
   --fs-2xs: 11px;
   --fs-xs: 12px;

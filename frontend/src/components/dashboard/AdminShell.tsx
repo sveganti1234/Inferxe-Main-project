@@ -762,7 +762,7 @@ export function AdminShell() {
                 <LogoMark size={30} theme={dashTheme} />
                 {!isSidebarCollapsed && (
                   <span style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '1.22rem', letterSpacing: '-0.01em', color: 'var(--ink)' }}>
-                    Infer<span style={{ color: dashTheme === 'light' ? '#137a50' : '#50e396' }}>xe</span>
+                    Infer<span style={{ color: dashTheme === 'light' ? '#087b50' : '#57e6a0' }}>xe</span>
                   </span>
                 )}
               </Link>
@@ -853,7 +853,7 @@ export function AdminShell() {
                   <div className="verdelo-safe-spend-card" title="Cluster Fleet: 4 Nodes · 14 Users (64% capacity)">
                     <div className="verdelo-safe-spend-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <span>Cluster & Fleet</span>
-                      <span style={{ fontSize: '0.68rem', color: dashTheme === 'light' ? '#137a50' : '#50e396', fontWeight: 700 }}>Tier IV</span>
+                      <span style={{ fontSize: '0.68rem', color: dashTheme === 'light' ? '#087b50' : '#57e6a0', fontWeight: 700 }}>Tier IV</span>
                     </div>
                     <div className="verdelo-safe-spend-amount" style={{ fontSize: '1.15rem' }}>4 Nodes · 14 Users</div>
                     <div className="dash-quota-progress well" style={{ margin: '6px 0 4px', height: 4 }}>

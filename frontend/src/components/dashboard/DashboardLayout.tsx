@@ -1447,7 +1447,7 @@ export function DashboardLayout({
             <Link to={portalHomeRoute} className="row" style={{ gap: 10, alignItems: 'center' }}>
               <LogoMark size={28} theme={dashTheme} />
               <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.05rem', color: 'var(--ink)' }}>
-                Infer<span style={{ color: 'var(--brand-hi)' }}>xe</span>
+                Infer<span style={{ color: dashTheme === 'light' ? '#087b50' : '#57e6a0' }}>xe</span>
               </span>
             </Link>
 

@@ -236,6 +236,19 @@ class TestLifecycle(unittest.TestCase):
         self.registry.get("mock").get_instance_status = AsyncMock(side_effect=ProviderError("down"))
         self.assertEqual(self.service.get("alice", self.dep["id"])["status"], "running")
 
+    def test_unregistered_provider_row_does_not_break_the_list(self):
+        self.repo.rows[self.dep["id"]].update(status="provisioning", provider_id="retired-provider")
+        self.assertEqual(self.service.list("alice")[0]["status"], "provisioning")
+
+
+class TestMockDisabledInProduction(unittest.TestCase):
+    def test_mock_is_never_offered_in_production(self):
+        from unittest.mock import patch
+        with patch.dict(os.environ, {"GPU_PROVIDERS": "mock,jarvislabs", "INFERXE_ENV": "production"}):
+            self.assertEqual([p.provider_id for p in ProviderRegistry().enabled_providers()], ["jarvislabs"])
+        with patch.dict(os.environ, {"GPU_PROVIDERS": "mock", "INFERXE_ENV": "development"}):
+            self.assertEqual([p.provider_id for p in ProviderRegistry().enabled_providers()], ["mock"])
+
 
 def _jwt(sub):
     enc = lambda d: base64.urlsafe_b64encode(json.dumps(d).encode()).decode().rstrip("=")  # noqa: E731

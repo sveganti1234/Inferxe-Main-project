@@ -202,14 +202,19 @@ export default function DeploymentsPage() {
         ssh_key_ids: formData.sshKeyIds,
         idempotency_key: idempotencyKey,
       })
-      setActionSuccess(`Deployment "${created.name}" launched (${humaniseCode(created.status)}).`)
       setIdempotencyKey(newIdempotencyKey())
+      if (created.status === 'failed') {
+        // A retry with the kept key returns the earlier attempt's record; it failed, so the next try starts fresh.
+        setActionError(`Deployment "${created.name}" could not be launched. Try again.`)
+        return
+      }
+      setActionSuccess(`Deployment "${created.name}" launched (${humaniseCode(created.status)}).`)
       setFormData((f) => ({ ...f, name: '', sshKeyIds: [] }))
       handleCloseCreate()
     } catch (err) {
-      // A server answer means this attempt is finished (a failed launch is kept as a "failed" record),
-      // so the next try needs a new key. Network errors keep the key: the request may have gone through.
-      if (err instanceof CustomerApiError && err.status !== null) setIdempotencyKey(newIdempotencyKey())
+      // A 4xx means the request was refused, so the next try needs a new key. Network errors and 5xx keep the key:
+      // a gateway timeout does not end the backend request, and a retry returns its record instead of a second GPU.
+      if (err instanceof CustomerApiError && err.status !== null && err.status < 500) setIdempotencyKey(newIdempotencyKey())
       setActionError(err instanceof Error ? err.message : 'Failed to create deployment.')
     } finally {
       setCreateSubmitting(false)

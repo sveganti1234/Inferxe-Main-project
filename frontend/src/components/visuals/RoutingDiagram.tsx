@@ -116,7 +116,7 @@ export function RoutingDiagram() {
               </circle>
             </g>
           ))}
-          <text x="80" y="44" fill={p.live ? '#eef2ea' : '#8e9c8c'} fontSize="12.5" fontWeight="600" fontFamily="'Rubik Variable', sans-serif">
+          <text x="80" y="44" fill={p.live ? '#eef2ea' : '#8e9c8c'} fontSize="12.5" fontWeight="600" fontFamily="'Inter', Arial, Helvetica, sans-serif">
             {p.name}
           </text>
           <text x="80" y="60" fill={p.live ? '#9be015' : '#5c6759'} fontSize="8.5" letterSpacing="1.2" fontFamily="'JetBrains Mono Variable', monospace">
