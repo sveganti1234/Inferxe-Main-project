@@ -5,7 +5,7 @@ import { upsertCognitoProfile } from '../database/supabaseProfiles.js'
 import {
   hashPassword,
   validatePasswordStrength,
-  verifyPasswordWithReason,
+  verifyPasswordWithReasonAsync,
 } from './adminPassword.js'
 import {
   CANONICAL_PERMISSIONS,
@@ -290,6 +290,7 @@ export async function verifyAdminSession(token, secret, options = {}) {
     const permCheck = await checkAdminPermission(
       {
         role: dbCheck.admin.role,
+        permissions: dbCheck.admin.permissions,
         permissionId: options.requiredPermission,
         actorAdmin: dbCheck.admin,
         ipAddress: options.ipAddress,
@@ -1881,7 +1882,10 @@ export function createAdminAuthMiddleware(config = {}) {
           })
         }
 
-        if (isRateLimited(clientIp)) {
+        // Behind the Render proxy every client shares one socket address, so an address-only key let one
+        // attacker lock every administrator out. Address + email still limits guessing at any one account.
+        const loginLimitKey = `${clientIp}|${email}`
+        if (isRateLimited(loginLimitKey)) {
           return sendJson(req, res, 429, {
             ok: false,
             isAdmin: true,
@@ -1920,7 +1924,7 @@ export function createAdminAuthMiddleware(config = {}) {
           })
         }
 
-        const passwordCheck = verifyPasswordWithReason(password, dbAdmin.password_hash)
+        const passwordCheck = await verifyPasswordWithReasonAsync(password, dbAdmin.password_hash)
         if (!passwordCheck.valid) {
           if (
             passwordCheck.reason === 'malformed_hash' ||
@@ -1938,7 +1942,7 @@ export function createAdminAuthMiddleware(config = {}) {
             })
           }
 
-          recordFailedAttempt(clientIp)
+          recordFailedAttempt(loginLimitKey)
           console.warn(
             `[admin-auth] Login rejected (401): password mismatch for ${dbAdmin.email} (id=${dbAdmin.id}, variant=${passwordCheck.meta?.variant || 'unknown'}, m=${passwordCheck.meta?.memory || 0}, t=${passwordCheck.meta?.passes || 0}, p=${passwordCheck.meta?.parallelism || 0}).`,
           )
@@ -1963,7 +1967,7 @@ export function createAdminAuthMiddleware(config = {}) {
           })
         }
 
-        clearFailedAttempts(clientIp)
+        clearFailedAttempts(loginLimitKey)
 
         const safeUser = sanitizeAdminUser(dbAdmin)
         const sessionRecord = await createAdminSessionRecord(

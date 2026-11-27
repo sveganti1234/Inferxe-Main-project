@@ -34,6 +34,7 @@ import { getSection, sectionHref } from '../navigation'
 import { Field, Segmented, Select, TextInput } from '../ui/controls'
 import { Button, Card, CardHeader, DataTable, Notice, PageHeader, StatusPill, type Column } from '../ui/primitives'
 import { EmptyState } from '../ui/states'
+import { useTilt } from '../ui/useTilt'
 
 const quantLabel = (q: Quant) => QUANTS.find((x) => x.id === q)?.label ?? q
 
@@ -54,26 +55,53 @@ function ModelCard({
   onEstimate: () => void
   onToggleCompare: () => void
 }) {
+  const tilt = useTilt()
+
   return (
-    <Card as="article" className={`cx-model${selected ? ' is-selected' : ''}`} aria-label={model.name}>
-      <div className="cx-model__top">
+    <div className="cx-tilt" {...tilt}>
+    {/* Same building blocks (cx-listing__*) as the GPU marketplace cards, so both share one look */}
+    <Card as="article" className={`cx-listing cx-model${selected ? ' is-selected' : ''}`} aria-label={model.name}>
+      <div className="cx-listing__top-row">
+        <span className="cx-listing__icon-badge" aria-hidden="true">
+          <BrainCircuit size={19} />
+        </span>
         <StatusPill tone="info">{model.family}</StatusPill>
-        <span className="cx-model__params">{formatParams(model.params)} parameters</span>
+        <span className="cx-model__params" style={{ marginLeft: 'auto' }}>{formatParams(model.params)} parameters</span>
       </div>
-      <h3 className="cx-model__name">{model.name}</h3>
-      <p className="cx-model__arch">{model.architecture}</p>
-      <dl className="cx-kv cx-model__kv">
-        <dt>Weights · {quantLabel(quant)}</dt>
-        <dd>{fmtGB(model.weightsGb[quant])}</dd>
-        <dt>KV cache / token</dt>
-        <dd>{formatKib(model.kvKibPerToken)}</dd>
+
+      <div className="cx-listing__titles">
+        <h3 className="cx-listing__model">{model.name}</h3>
+        <p className="cx-listing__subtitle">{model.architecture}</p>
+      </div>
+
+      <dl className="cx-kv cx-listing__specs">
+        <div className="cx-listing__spec">
+          <dt>Parameters</dt>
+          <dd>{formatParams(model.params)}</dd>
+        </div>
+        <div className="cx-listing__spec">
+          <dt>Family</dt>
+          <dd>{model.family}</dd>
+        </div>
       </dl>
-      <div className="cx-model__actions">
-        <Button variant="secondary" size="sm" onClick={onEstimate} aria-label={`Estimate GPU fit for ${model.name}`}>
-          <Calculator size={14} /> Estimate fit
+
+      <div className="cx-listing__metrics">
+        <div>
+          <span className="cx-listing__metric-label">WEIGHTS · {quantLabel(quant)}</span>
+          <strong className="cx-listing__metric-val cx-listing__metric-val--price">{fmtGB(model.weightsGb[quant])}</strong>
+        </div>
+        <div>
+          <span className="cx-listing__metric-label">KV CACHE / TOKEN</span>
+          <strong className="cx-listing__metric-val">{formatKib(model.kvKibPerToken)}</strong>
+        </div>
+      </div>
+
+      <div className="cx-listing__actions-bar">
+        <Button variant="primary" className="cx-listing__btn-deploy" onClick={onEstimate} aria-label={`Estimate GPU fit for ${model.name}`}>
+          <Calculator size={15} /> Estimate fit
         </Button>
         <Button
-          variant={compared ? 'primary' : 'ghost'}
+          variant={compared ? 'primary' : 'secondary'}
           size="sm"
           onClick={onToggleCompare}
           aria-pressed={compared}
@@ -84,6 +112,7 @@ function ModelCard({
         </Button>
       </div>
     </Card>
+    </div>
   )
 }
 
@@ -238,7 +267,7 @@ export default function ModelsPage() {
           />
         </Card>
       ) : (
-        <div className="cx-grid cx-grid--3" role="list" aria-label="Models">
+        <div className="cx-grid cx-grid--3 cx-listings" role="list" aria-label="Models">
           {filtered.map((m) => (
             <div role="listitem" key={m.id} className="cx-grid__item">
               <ModelCard

@@ -211,47 +211,73 @@ export function hashPassword(password, options = {}) {
  */
 export function verifyPasswordWithReason(password, storedHash) {
   try {
-    if (typeof password !== 'string' || !password) {
-      return { valid: false, reason: 'invalid_input' }
-    }
-    if (typeof storedHash !== 'string' || !storedHash.trim()) {
-      return { valid: false, reason: 'malformed_hash' }
-    }
-    if (typeof crypto.argon2Sync !== 'function') {
-      return { valid: false, reason: 'unsupported_runtime' }
-    }
+    const prepared = prepareVerification(password, storedHash, typeof crypto.argon2Sync === 'function')
+    if (prepared.result) return prepared.result
+    return finishVerification(prepared.parsed, crypto.argon2Sync(prepared.parsed.variant, prepared.params))
+  } catch {
+    return { valid: false, reason: 'error' }
+  }
+}
 
-    const parsed = parseArgon2Hash(storedHash)
-    if (!parsed) {
-      return { valid: false, reason: 'malformed_hash' }
-    }
+/**
+ * Same result as verifyPasswordWithReason, but the Argon2 work runs on libuv's thread pool. A sync verify at the
+ * production parameters blocks the whole Node process for ~170 ms per attempt, stalling every other request.
+ */
+export async function verifyPasswordWithReasonAsync(password, storedHash) {
+  if (typeof crypto.argon2 !== 'function') return verifyPasswordWithReason(password, storedHash) // @node-rs fallback is sync-only
+  try {
+    const prepared = prepareVerification(password, storedHash, true)
+    if (prepared.result) return prepared.result
+    const derived = await new Promise((resolve, reject) =>
+      crypto.argon2(prepared.parsed.variant, prepared.params, (err, key) => (err ? reject(err) : resolve(key))),
+    )
+    return finishVerification(prepared.parsed, derived)
+  } catch {
+    return { valid: false, reason: 'error' }
+  }
+}
 
-    const derived = crypto.argon2Sync(parsed.variant, {
+function prepareVerification(password, storedHash, runtimeSupported) {
+  if (typeof password !== 'string' || !password) {
+    return { result: { valid: false, reason: 'invalid_input' } }
+  }
+  if (typeof storedHash !== 'string' || !storedHash.trim()) {
+    return { result: { valid: false, reason: 'malformed_hash' } }
+  }
+  if (!runtimeSupported) {
+    return { result: { valid: false, reason: 'unsupported_runtime' } }
+  }
+  const parsed = parseArgon2Hash(storedHash)
+  if (!parsed) {
+    return { result: { valid: false, reason: 'malformed_hash' } }
+  }
+  return {
+    parsed,
+    params: {
       message: Buffer.from(password, 'utf8'),
       nonce: parsed.salt,
       parallelism: parsed.parallelism,
       tagLength: parsed.expectedHash.length,
       memory: parsed.memory,
       passes: parsed.passes,
-    })
+    },
+  }
+}
 
-    if (derived.length !== parsed.expectedHash.length) {
-      return { valid: false, reason: 'mismatch' }
-    }
-
-    const matched = crypto.timingSafeEqual(derived, parsed.expectedHash)
-    return {
-      valid: matched,
-      reason: matched ? 'ok' : 'mismatch',
-      meta: {
-        variant: parsed.variant,
-        memory: parsed.memory,
-        passes: parsed.passes,
-        parallelism: parsed.parallelism,
-      },
-    }
-  } catch {
-    return { valid: false, reason: 'error' }
+function finishVerification(parsed, derived) {
+  if (derived.length !== parsed.expectedHash.length) {
+    return { valid: false, reason: 'mismatch' }
+  }
+  const matched = crypto.timingSafeEqual(derived, parsed.expectedHash)
+  return {
+    valid: matched,
+    reason: matched ? 'ok' : 'mismatch',
+    meta: {
+      variant: parsed.variant,
+      memory: parsed.memory,
+      passes: parsed.passes,
+      parallelism: parsed.parallelism,
+    },
   }
 }
 

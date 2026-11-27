@@ -35,3 +35,13 @@ scratch/
 .git/
 .githooks/
 .vscode/
+
+# Not needed at runtime: offline ML training assets (29 MB, incl. a LoRA adapter; RAG calls the model through
+# Ollama by name), test suites, docs and local agent tooling
+backend/ml/
+backend/**/tests/
+backend/tests/
+docs/
+.claude/
+.agents/
+skills-lock.json

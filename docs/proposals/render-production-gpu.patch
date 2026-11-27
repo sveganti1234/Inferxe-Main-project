@@ -1,0 +1,41 @@
+diff --git render.yaml render.yaml
+index bb35d02..8bdc9cd 100644
+--- render.yaml
++++ render.yaml
+@@ -14,14 +14,21 @@ services:
+         value: "10000"
+       - key: NODE_ENV
+         value: production
++      # Marks the Python services as production: the provider registry then refuses the mock provider and
++      # test mode can never be honoured. NODE_ENV alone is not read by the Python services.
++      - key: INFERXE_ENV
++        value: production
+       - key: INFERENCE_PORT
+         value: "8001"
+       - key: NOTIFICATIONS_PORT
+         value: "8002"
++      # Simulated inference answers only for local development; production fails visibly without NVIDIA_API_KEY.
+       - key: INFERENCE_DEMO_MODE
+-        value: "true"
++        value: "false"
++      # No real GPU provider is configured yet (real integration deferred). Empty = no provider, so launches fail
++      # honestly instead of creating simulated GPUs. Set "jarvislabs" once JARVISLABS_API_KEY/JARVISLABS_USER_ID exist.
+       - key: GPU_PROVIDERS
+-        value: "mock"
++        value: ""
+       - key: WALLET_SELF_RECHARGE_ENABLED
+         value: "false"
+       - key: ADMIN_DEV_FALLBACK
+diff --git backend/scripts/render-gateway.mjs backend/scripts/render-gateway.mjs
+index f949e48..4b3594b 100644
+--- backend/scripts/render-gateway.mjs
++++ backend/scripts/render-gateway.mjs
+@@ -150,7 +150,7 @@ function startPythonWorker(name, python, spec) {
+   const env = {
+     ...process.env,
+     PYTHONPATH: [ROOT_DIR, BACKEND_DIR, process.env.PYTHONPATH].filter(Boolean).join(path.delimiter),
+-    INFERENCE_DEMO_MODE: process.env.INFERENCE_DEMO_MODE || 'true',
++    INFERENCE_DEMO_MODE: process.env.INFERENCE_DEMO_MODE || 'false', // production gateway: never simulate unless explicitly enabled
+     PYTHONUTF8: '1',
+     PYTHONIOENCODING: 'utf-8',
+   }

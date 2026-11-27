@@ -1,0 +1,114 @@
+# backend/requirements.lock — exact versions for the production image (Debian bookworm, CPython 3.11, x86_64).
+# Generated 2026-11-27 from backend/requirements.txt with:
+#   pip install --dry-run --report ... --platform manylinux_2_17/2014/2_28/2_34_x86_64 --implementation cp
+#     --python-version 3.11 --only-binary=:all: -c <locally tested versions> -r backend/requirements.txt
+# Versions installed in the development environment the Python suites pass on were held fixed (48 packages);
+# the rest (e.g. chromadb, supabase and their dependencies) are the versions pip resolves for Linux today.
+# Not yet used by the Dockerfile (needs approval). After a real image build, regenerate with hashes
+# (pip-compile --generate-hashes inside the image) before switching the install to --require-hashes.
+
+aiohappyeyeballs==2.7.1  # resolved for Linux (not installed locally)
+aiohttp==3.14.5  # resolved for Linux (not installed locally)
+aiosignal==1.4.0  # resolved for Linux (not installed locally)
+annotated-doc==0.0.5
+annotated-types==0.8.0
+anyio==4.14.2
+attrs==25.3.0
+bcrypt==4.0.1
+build==1.6.1  # resolved for Linux (not installed locally)
+certifi==2025.8.3
+cffi==2.1.1
+charset-normalizer==3.4.2
+chromadb==1.5.9  # direct  # resolved for Linux (not installed locally)
+click==8.2.1
+colorama==0.4.6  # resolved for Linux (not installed locally)
+cryptography==50.0.2  # direct
+deprecation==2.1.0  # resolved for Linux (not installed locally)
+durationpy==0.12  # resolved for Linux (not installed locally)
+fastapi==0.141.1  # direct
+filelock==4.3.1  # resolved for Linux (not installed locally)
+flatbuffers==25.12.19  # resolved for Linux (not installed locally)
+frozenlist==1.8.0  # resolved for Linux (not installed locally)
+fsspec==2026.9.0  # resolved for Linux (not installed locally)
+googleapis-common-protos==1.75.0  # resolved for Linux (not installed locally)
+greenlet==3.5.6  # resolved for Linux (not installed locally)
+grpcio==1.85.4  # resolved for Linux (not installed locally)
+h11==0.16.0
+h2==4.4.1  # resolved for Linux (not installed locally)
+hf-xet==1.8.0  # resolved for Linux (not installed locally)
+hpack==4.2.0  # resolved for Linux (not installed locally)
+httpcore==1.0.9
+httpcore2==2.16.0
+httptools==0.9.0  # resolved for Linux (not installed locally)
+httpx==0.28.1  # direct
+httpx2==2.16.0  # direct
+huggingface-hub==1.16.1  # resolved for Linux (not installed locally)
+hyperframe==6.1.0  # resolved for Linux (not installed locally)
+idna==3.20
+importlib-resources==7.1.0  # resolved for Linux (not installed locally)
+jiter==0.19.0
+jsonschema==4.25.0
+jsonschema-specifications==2025.4.1
+kubernetes==36.0.3  # resolved for Linux (not installed locally)
+markdown-it-py==4.3.0  # resolved for Linux (not installed locally)
+mdurl==0.1.2  # resolved for Linux (not installed locally)
+mmh3==5.3.1  # resolved for Linux (not installed locally)
+multidict==7.2.1  # resolved for Linux (not installed locally)
+numpy==2.2.6
+oauthlib==4.0.1  # resolved for Linux (not installed locally)
+onnxruntime==1.32.0  # resolved for Linux (not installed locally)
+openai==3.46.0  # direct
+opentelemetry-api==1.45.2  # resolved for Linux (not installed locally)
+opentelemetry-exporter-otlp-common==0.66b2  # resolved for Linux (not installed locally)
+opentelemetry-exporter-otlp-proto-common==1.45.2  # resolved for Linux (not installed locally)
+opentelemetry-exporter-otlp-proto-grpc==1.45.2  # resolved for Linux (not installed locally)
+opentelemetry-proto==1.45.2  # resolved for Linux (not installed locally)
+opentelemetry-sdk==1.45.2  # resolved for Linux (not installed locally)
+opentelemetry-semantic-conventions==0.66b2  # resolved for Linux (not installed locally)
+orjson==3.13.0  # resolved for Linux (not installed locally)
+overrides==7.7.0  # resolved for Linux (not installed locally)
+packaging==25.0
+postgrest==2.34.1  # resolved for Linux (not installed locally)
+propcache==0.5.4  # resolved for Linux (not installed locally)
+protobuf==6.31.1
+psycopg2-binary==2.9.12  # direct
+pybase64==1.5.2  # resolved for Linux (not installed locally)
+pycparser==3.0
+pydantic==2.13.5  # direct
+pydantic-core==2.46.5
+pydantic-settings==2.15.0
+pygments==2.21.0
+pyjwt==2.15.1  # direct
+pypika==0.51.1  # resolved for Linux (not installed locally)
+pyproject-hooks==1.3.3  # resolved for Linux (not installed locally)
+python-dateutil==2.9.0.post0
+python-dotenv==1.2.3  # direct
+pyyaml==6.0.3
+realtime==2.34.1  # resolved for Linux (not installed locally)
+referencing==0.36.2
+requests==2.32.4
+requests-oauthlib==2.0.0  # resolved for Linux (not installed locally)
+rich==15.0.0  # resolved for Linux (not installed locally)
+rpds-py==0.26.0
+shellingham==1.5.4  # resolved for Linux (not installed locally)
+six==1.17.0  # resolved for Linux (not installed locally)
+sniffio==1.3.1
+sqlalchemy==2.0.52  # direct
+starlette==1.6.0
+storage3==2.34.1  # resolved for Linux (not installed locally)
+supabase==2.34.1  # direct  # resolved for Linux (not installed locally)
+supabase-auth==2.34.1  # resolved for Linux (not installed locally)
+supabase-functions==2.34.1  # resolved for Linux (not installed locally)
+tenacity==9.1.2
+tokenizers==0.23.3  # resolved for Linux (not installed locally)
+tqdm==4.70.1  # resolved for Linux (not installed locally)
+truststore==0.10.5
+typer==0.29.3  # resolved for Linux (not installed locally)
+typing-extensions==4.16.0
+typing-inspection==0.4.4
+urllib3==2.5.0
+uvicorn==0.52.4  # direct
+watchfiles==1.3.0  # resolved for Linux (not installed locally)
+websocket-client==1.9.2
+websockets==15.0.1  # resolved for Linux (not installed locally)
+yarl==1.25.1  # resolved for Linux (not installed locally)

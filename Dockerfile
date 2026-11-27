@@ -25,9 +25,9 @@ RUN python3 -m venv /opt/venv && \
 ENV PATH="/opt/venv/bin:$PATH" \
     INFERXE_PYTHON="/opt/venv/bin/python"
 
-# Install backend Node.js dependencies
-COPY backend/package.json ./backend/package.json
-RUN npm --prefix /app/backend install --omit=dev
+# Install backend Node.js dependencies exactly as locked (npm install could resolve newer versions on every build)
+COPY backend/package.json backend/package-lock.json ./backend/
+RUN npm --prefix /app/backend ci --omit=dev
 
 # Copy backend services and knowledge base datasets
 COPY backend ./backend

@@ -1,0 +1,19 @@
+diff --git Dockerfile Dockerfile
+index 3e17d5f..27f48ea 100644
+--- Dockerfile
++++ Dockerfile
+@@ -33,6 +33,14 @@ RUN npm --prefix /app/backend ci --omit=dev
+ COPY backend ./backend
+ COPY database ./database
+ 
++# Run as the unprivileged "node" user (uid 1000, present in the base image). At runtime the services write only
++# under /app/database: the customer SQLite file and its backups (backend/database/customerDatabase.js) and the
++# Chroma store (backend/rag/server.py, CHROMA_PERSIST_DIR). Code, the venv and node_modules stay root-owned and
++# read-only for the app. Embeddings and generation come from Ollama, so there is no local model cache to open up.
++RUN mkdir -p /app/database/backups /app/database/chroma_db && chown -R node:node /app/database
++ENV HOME=/home/node
++USER node
++
+ EXPOSE 10000
+ 
+ CMD ["node", "backend/scripts/render-gateway.mjs"]
