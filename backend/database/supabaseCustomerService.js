@@ -9,13 +9,17 @@
  */
 
 import { loadBackendEnv } from '../auth/envLoader.js'
-import { assertExternalTargetAllowed } from '../lib/testSafety.js'
+import { assertExternalTargetAllowed, isTestRun } from '../lib/testSafety.js'
+import { isLocalMockSupabaseEnabled, LOCAL_MOCK_SUPABASE_URL } from '../lib/supabase.js'
+import { isAdminDevFallbackEnabled } from '../auth/adminSessionStore.js'
 import {
   recordSessionHeartbeat,
   removeSession,
   hasOtherActiveSessionsDb,
   cleanExpiredSessionsDb,
   listOnlineSessionKeysDb,
+  getCustomerDetails as getCustomerDetailsDb,
+  registerOrUpdateCustomer,
 } from './customerDatabase.js'
 
 loadBackendEnv()
@@ -125,8 +129,13 @@ export function cleanExpiredSessions(olderThanMs = 24 * 60 * 60 * 1000) {
 }
 
 function getSupabaseConfig() {
-  const url = process.env.SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  const useMock = isLocalMockSupabaseEnabled()
+  const url = (useMock ? LOCAL_MOCK_SUPABASE_URL : (process.env.SUPABASE_URL || '')).trim()
+  const key = (
+    useMock
+      ? 'local-mock-service-key'
+      : (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || '')
+  ).trim()
   if (!url || !key) {
     throw new Error('Supabase configuration missing (SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY).')
   }
@@ -377,6 +386,25 @@ export async function upsertCustomerProfile({
       console.warn('[supabaseCustomerService] Profile lookup failed:', err.message)
     }
     if (!lookupRes || !lookupRes.ok) {
+      if (!isTestRun() && (isAdminDevFallbackEnabled() || isLocalMockSupabaseEnabled())) {
+        const localCustomer = getCustomerDetailsDb(cognito_sub) || getCustomerDetailsDb(cleanEmail)
+        if (localCustomer) {
+          return [{
+            user_id: localCustomer.cognito_sub || cognito_sub,
+            full_name: localCustomer.full_name,
+            email: localCustomer.email,
+            username: localCustomer.username || localCustomer.email.split('@')[0],
+            role: localCustomer.role || 'customer',
+            status: localCustomer.account_status || 'active',
+            organization: localCustomer.organization || null,
+            organization_id: null,
+            login_count: localCustomer.login_count || 1,
+            last_login_at: localCustomer.last_login_at || null,
+            last_active_at: localCustomer.last_active_at || null,
+          }]
+        }
+        return []
+      }
       throw profileLinkError('Customer profile service is temporarily unavailable.', 503, 'PROFILE_LOOKUP_UNAVAILABLE')
     }
     const rows = await lookupRes.json()
@@ -480,63 +508,94 @@ export async function upsertCustomerProfile({
     updated_at: nowIso,
   }
 
-  let res
-  if (existingProfile) {
-    // If profile already exists, PATCH to update and avoid duplicate email constraint failures
-    const targetId = existingProfile.user_id || cognito_sub
-    const patchUrl = `${url}/rest/v1/profiles?user_id=eq.${encodeURIComponent(targetId)}`
-    res = await fetch(patchUrl, {
-      method: 'PATCH',
-      headers: {
-        ...getAuthHeaders(key),
-        Prefer: 'return=representation',
-      },
-      body: JSON.stringify(extendedPayload),
-    })
+  let res = null
+  try {
+    if (existingProfile) {
+      // If profile already exists, PATCH to update and avoid duplicate email constraint failures
+      const targetId = existingProfile.user_id || cognito_sub
+      const patchUrl = `${url}/rest/v1/profiles?user_id=eq.${encodeURIComponent(targetId)}`
+      res = await fetch(patchUrl, {
+        method: 'PATCH',
+        headers: {
+          ...getAuthHeaders(key),
+          Prefer: 'return=representation',
+        },
+        body: JSON.stringify(extendedPayload),
+      })
 
-    if (!res.ok) {
-      const errorBody = await res.json().catch(() => ({}))
-      if (errorBody.code === 'PGRST204' || res.status === 400) {
-        res = await fetch(patchUrl, {
-          method: 'PATCH',
-          headers: {
-            ...getAuthHeaders(key),
-            Prefer: 'return=representation',
-          },
-          body: JSON.stringify(baselinePayload),
-        })
+      if (!res.ok) {
+        const errorBody = await res.json().catch(() => ({}))
+        if (errorBody.code === 'PGRST204' || res.status === 400) {
+          res = await fetch(patchUrl, {
+            method: 'PATCH',
+            headers: {
+              ...getAuthHeaders(key),
+              Prefer: 'return=representation',
+            },
+            body: JSON.stringify(baselinePayload),
+          })
+        }
+      }
+    } else {
+      // Brand new customer: POST to insert
+      const insertUrl = `${url}/rest/v1/profiles`
+      res = await fetch(insertUrl, {
+        method: 'POST',
+        headers: {
+          ...getAuthHeaders(key),
+          Prefer: 'return=representation',
+        },
+        body: JSON.stringify(extendedPayload),
+      })
+
+      if (!res.ok) {
+        const errorBody = await res.json().catch(() => ({}))
+        if (errorBody.code === 'PGRST204' || res.status === 400) {
+          res = await fetch(insertUrl, {
+            method: 'POST',
+            headers: {
+              ...getAuthHeaders(key),
+              Prefer: 'return=representation',
+            },
+            body: JSON.stringify(baselinePayload),
+          })
+        }
       }
     }
-  } else {
-    // Brand new customer: POST to insert
-    const insertUrl = `${url}/rest/v1/profiles`
-    res = await fetch(insertUrl, {
-      method: 'POST',
-      headers: {
-        ...getAuthHeaders(key),
-        Prefer: 'return=representation',
-      },
-      body: JSON.stringify(extendedPayload),
-    })
-
-    if (!res.ok) {
-      const errorBody = await res.json().catch(() => ({}))
-      if (errorBody.code === 'PGRST204' || res.status === 400) {
-        res = await fetch(insertUrl, {
-          method: 'POST',
-          headers: {
-            ...getAuthHeaders(key),
-            Prefer: 'return=representation',
-          },
-          body: JSON.stringify(baselinePayload),
-        })
-      }
-    }
+  } catch (fetchErr) {
+    console.warn('[supabaseCustomerService] Profile save request failed:', fetchErr.message)
   }
 
-  if (!res.ok) {
-    const text = await res.text().catch(() => '')
-    throw new Error(`Failed to upsert Supabase profile: HTTP ${res.status} - ${text}`)
+  if (!res || !res.ok) {
+    if (!isTestRun() && (isAdminDevFallbackEnabled() || isLocalMockSupabaseEnabled())) {
+      try {
+        registerOrUpdateCustomer({
+          cognito_sub,
+          full_name: cleanFullName,
+          email: cleanEmail,
+          phone_number,
+          organization: cleanOrg,
+          role: 'customer',
+          account_status: profileStatus,
+          isLogin,
+        })
+      } catch (localErr) {
+        console.warn('[supabaseCustomerService] Local SQLite customer save warning:', localErr.message)
+      }
+      return {
+        cognito_sub,
+        full_name: cleanFullName,
+        email: cleanEmail,
+        username,
+        role: 'customer',
+        account_status: profileStatus,
+        status: profileStatus,
+        organization: cleanOrg || 'Personal Workspace',
+        organization_id: null,
+      }
+    }
+    const text = res ? await res.text().catch(() => '') : 'Network unavailable'
+    throw new Error(`Failed to upsert Supabase profile: HTTP ${res?.status || 503} - ${text}`)
   }
 
   // Return only what the database confirms it stored (never the request payload): a PATCH matching no row

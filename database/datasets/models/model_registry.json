@@ -1,0 +1,423 @@
+{
+  "schema_version": 1,
+  "updated_on": "2026-11-25",
+  "description": "Single source of truth for LLM models known to Inferxe. Loaded and validated by backend/inference/model_registry.py. Entries with serving_status 'estimate_only' exist only for the existing GPU recommendation APIs and cannot be deployed. 'planned' entries are documented but not yet validated on real hardware.",
+  "estimation_quant_bytes": {
+    "fp16": 2.0,
+    "bf16": 2.0,
+    "fp8": 1.0,
+    "int8": 1.0,
+    "int4": 0.56
+  },
+  "defaults": {
+    "gpu_memory_utilization": 0.9,
+    "overhead_base_gb": 2.0,
+    "overhead_per_weight_gb": 0.04,
+    "default_max_model_len": 8192,
+    "low_headroom_gb": 1.0
+  },
+  "gpu_classes": {
+    "l4": { "name": "NVIDIA L4", "vram_gb": 24, "architecture": "Ada Lovelace", "fp8_native": true },
+    "l40s": { "name": "NVIDIA L40S", "vram_gb": 48, "architecture": "Ada Lovelace", "fp8_native": true },
+    "a100-40gb": { "name": "NVIDIA A100 40GB", "vram_gb": 40, "architecture": "Ampere", "fp8_native": false },
+    "a100-80gb": { "name": "NVIDIA A100 80GB", "vram_gb": 80, "architecture": "Ampere", "fp8_native": false },
+    "h100": { "name": "NVIDIA H100 80GB", "vram_gb": 80, "architecture": "Hopper", "fp8_native": true },
+    "h200": { "name": "NVIDIA H200 141GB", "vram_gb": 141, "architecture": "Hopper", "fp8_native": true }
+  },
+  "models": [
+    {
+      "key": "qwen2.5-7b",
+      "display_name": "Qwen2.5 7B Instruct",
+      "family": "Qwen",
+      "serving_status": "planned",
+      "serving_types": ["selfhosted"],
+      "hf_repo": "Qwen/Qwen2.5-7B-Instruct",
+      "hf_revision": null,
+      "gated": false,
+      "license": {
+        "name": "Apache License 2.0",
+        "spdx": "Apache-2.0",
+        "url": "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct/blob/main/LICENSE",
+        "commercial_use": true,
+        "attribution_required": false,
+        "requires_acceptance": false,
+        "restrictions": []
+      },
+      "params_billion": 7.6,
+      "params_total": 7615616512,
+      "architecture": {
+        "hf_architecture": "Qwen2ForCausalLM",
+        "num_hidden_layers": 28,
+        "num_attention_heads": 28,
+        "num_key_value_heads": 4,
+        "head_dim": 128,
+        "hidden_size": 3584,
+        "torch_dtype": "bfloat16"
+      },
+      "architecture_label": "28 layers · 4 KV heads",
+      "kv_bytes_per_token": 57344,
+      "context": {
+        "native_context": 32768,
+        "max_context": 131072,
+        "default_max_model_len": 8192,
+        "long_context_note": "Above 32,768 tokens the model card requires rope_scaling {type: yarn, factor: 4.0, original_max_position_embeddings: 32768}. vLLM supports only static YaRN, which the card warns may hurt short-text quality; enable only when long context is needed."
+      },
+      "quantization": {
+        "default": "bf16",
+        "variants": {
+          "bf16": { "hf_repo": "Qwen/Qwen2.5-7B-Instruct", "publisher": "official", "estimation_quant": "bf16" },
+          "fp8": { "hf_repo": "RedHatAI/Qwen2.5-7B-Instruct-FP8-dynamic", "publisher": "third_party", "estimation_quant": "fp8" },
+          "awq": { "hf_repo": "Qwen/Qwen2.5-7B-Instruct-AWQ", "publisher": "official", "estimation_quant": "int4" }
+        }
+      },
+      "vllm": {
+        "min_version": null,
+        "extra_args": [],
+        "supported_tensor_parallel_sizes": [1, 2, 4],
+        "recommended_temperature": null,
+        "notes": "Qwen2ForCausalLM is listed in the vLLM supported-models documentation. Pin an exact vLLM image tag after a real load test."
+      },
+      "recommended_placements": [
+        { "gpu_class": "l4", "gpu_count": 1, "quantization": "bf16", "max_model_len": 8192, "tier": "recommended", "note": "Single L4 at 8k context with KV headroom for several concurrent requests (estimate)." }
+      ],
+      "sources": [
+        "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct",
+        "https://huggingface.co/Qwen/Qwen2.5-7B-Instruct/blob/main/config.json",
+        "https://docs.vllm.ai/en/latest/models/supported_models.html"
+      ],
+      "verification": {
+        "status": "documented",
+        "checked_on": "2026-11-25",
+        "notes": "Architecture, licence and context taken from the official model card and config.json. Not yet loaded on real hardware; hf_revision not pinned."
+      }
+    },
+    {
+      "key": "llama-3.1-8b",
+      "display_name": "Llama 3.1 8B Instruct",
+      "family": "Llama",
+      "serving_status": "planned",
+      "serving_types": ["selfhosted"],
+      "hf_repo": "meta-llama/Llama-3.1-8B-Instruct",
+      "hf_revision": null,
+      "gated": true,
+      "license": {
+        "name": "Llama 3.1 Community License Agreement",
+        "spdx": null,
+        "url": "https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct/blob/main/LICENSE",
+        "commercial_use": true,
+        "attribution_required": true,
+        "requires_acceptance": true,
+        "restrictions": [
+          "A separate licence from Meta is required if licensee products exceeded 700 million monthly active users in the preceding calendar month.",
+          "Distributors must prominently display 'Built with Llama'.",
+          "Names of models derived from Llama 3.1 must begin with 'Llama'.",
+          "Use is subject to the Llama 3.1 Acceptable Use Policy.",
+          "Hugging Face access is gated: an HF token from an account that accepted Meta's terms is required to download weights."
+        ]
+      },
+      "params_billion": 8.03,
+      "params_total": 8030261248,
+      "architecture": {
+        "hf_architecture": "LlamaForCausalLM",
+        "num_hidden_layers": 32,
+        "num_attention_heads": 32,
+        "num_key_value_heads": 8,
+        "head_dim": 128,
+        "hidden_size": 4096,
+        "torch_dtype": "bfloat16"
+      },
+      "architecture_label": "32 layers · 8 KV heads",
+      "kv_bytes_per_token": 131072,
+      "context": {
+        "native_context": 131072,
+        "max_context": 131072,
+        "default_max_model_len": 8192,
+        "long_context_note": "Native 128k context via llama3 rope scaling; long context needs proportionally more KV cache memory."
+      },
+      "quantization": {
+        "default": "bf16",
+        "variants": {
+          "bf16": { "hf_repo": "meta-llama/Llama-3.1-8B-Instruct", "publisher": "official", "estimation_quant": "bf16" },
+          "fp8": { "hf_repo": "RedHatAI/Meta-Llama-3.1-8B-Instruct-FP8", "publisher": "third_party", "estimation_quant": "fp8" }
+        }
+      },
+      "vllm": {
+        "min_version": null,
+        "extra_args": [],
+        "supported_tensor_parallel_sizes": [1, 2, 4],
+        "recommended_temperature": null,
+        "notes": "LlamaForCausalLM is listed in the vLLM supported-models documentation. The container needs HF_TOKEN for this gated repository."
+      },
+      "recommended_placements": [
+        { "gpu_class": "l4", "gpu_count": 1, "quantization": "bf16", "max_model_len": 8192, "tier": "minimum", "note": "Fits, but leaves KV room for only about two concurrent 8k requests (estimate)." },
+        { "gpu_class": "a100-80gb", "gpu_count": 1, "quantization": "bf16", "max_model_len": 8192, "tier": "recommended", "note": "Ample KV headroom for concurrency or longer context." }
+      ],
+      "sources": [
+        "https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct",
+        "https://huggingface.co/api/models/meta-llama/Llama-3.1-8B-Instruct",
+        "https://huggingface.co/unsloth/Llama-3.1-8B-Instruct/blob/main/config.json",
+        "https://docs.vllm.ai/en/latest/models/supported_models.html"
+      ],
+      "verification": {
+        "status": "documented",
+        "checked_on": "2026-11-25",
+        "notes": "The official config.json is gated (HTTP 401); architecture values were read from the unsloth mirror and should be re-checked with an authorised HF token. Licence terms from the official model card."
+      }
+    },
+    {
+      "key": "mistral-7b",
+      "display_name": "Mistral 7B Instruct v0.3",
+      "family": "Mistral",
+      "serving_status": "estimate_only",
+      "serving_types": [],
+      "hf_repo": "mistralai/Mistral-7B-Instruct-v0.3",
+      "hf_revision": null,
+      "gated": null,
+      "license": null,
+      "params_billion": 7.25,
+      "params_total": null,
+      "architecture": null,
+      "architecture_label": "32 layers · 8 KV heads",
+      "kv_bytes_per_token": 131072,
+      "context": null,
+      "quantization": null,
+      "vllm": null,
+      "recommended_placements": [],
+      "sources": [],
+      "verification": {
+        "status": "repo_legacy",
+        "checked_on": null,
+        "notes": "Kept so the existing /recommend and /routing/recommend APIs keep accepting this id. Values copied unchanged from the previous routing tables; not independently verified."
+      }
+    },
+    {
+      "key": "qwen2.5-14b",
+      "display_name": "Qwen2.5 14B Instruct",
+      "family": "Qwen",
+      "serving_status": "planned",
+      "serving_types": ["selfhosted"],
+      "hf_repo": "Qwen/Qwen2.5-14B-Instruct",
+      "hf_revision": null,
+      "gated": false,
+      "license": {
+        "name": "Apache License 2.0",
+        "spdx": "Apache-2.0",
+        "url": "https://huggingface.co/Qwen/Qwen2.5-14B-Instruct/blob/main/LICENSE",
+        "commercial_use": true,
+        "attribution_required": false,
+        "requires_acceptance": false,
+        "restrictions": []
+      },
+      "params_billion": 14.8,
+      "params_total": 14770033664,
+      "architecture": {
+        "hf_architecture": "Qwen2ForCausalLM",
+        "num_hidden_layers": 48,
+        "num_attention_heads": 40,
+        "num_key_value_heads": 8,
+        "head_dim": 128,
+        "hidden_size": 5120,
+        "torch_dtype": "bfloat16"
+      },
+      "architecture_label": "48 layers · 8 KV heads",
+      "kv_bytes_per_token": 196608,
+      "context": {
+        "native_context": 32768,
+        "max_context": 131072,
+        "default_max_model_len": 8192,
+        "long_context_note": "Above 32,768 tokens the model card requires static YaRN rope_scaling (factor 4.0); enable only when long context is needed."
+      },
+      "quantization": {
+        "default": "bf16",
+        "variants": {
+          "bf16": { "hf_repo": "Qwen/Qwen2.5-14B-Instruct", "publisher": "official", "estimation_quant": "bf16" },
+          "fp8": { "hf_repo": "RedHatAI/Qwen2.5-14B-Instruct-FP8-dynamic", "publisher": "third_party", "estimation_quant": "fp8" },
+          "awq": { "hf_repo": "Qwen/Qwen2.5-14B-Instruct-AWQ", "publisher": "official", "estimation_quant": "int4" }
+        }
+      },
+      "vllm": {
+        "min_version": null,
+        "extra_args": [],
+        "supported_tensor_parallel_sizes": [1, 2, 4],
+        "recommended_temperature": null,
+        "notes": "Qwen2ForCausalLM is listed in the vLLM supported-models documentation."
+      },
+      "recommended_placements": [
+        { "gpu_class": "a100-40gb", "gpu_count": 1, "quantization": "bf16", "max_model_len": 8192, "tier": "minimum", "note": "Fits with little KV headroom (estimate)." },
+        { "gpu_class": "a100-80gb", "gpu_count": 1, "quantization": "bf16", "max_model_len": 8192, "tier": "recommended", "note": "Comfortable headroom for concurrency; 32k context also fits." }
+      ],
+      "sources": [
+        "https://huggingface.co/Qwen/Qwen2.5-14B-Instruct",
+        "https://huggingface.co/Qwen/Qwen2.5-14B-Instruct/blob/main/config.json",
+        "https://docs.vllm.ai/en/latest/models/supported_models.html"
+      ],
+      "verification": {
+        "status": "documented",
+        "checked_on": "2026-11-25",
+        "notes": "Architecture, licence and context from the official model card and config.json. Not yet loaded on real hardware; hf_revision not pinned."
+      }
+    },
+    {
+      "key": "mistral-small-24b",
+      "display_name": "Mistral Small 24B",
+      "family": "Mistral",
+      "serving_status": "planned",
+      "serving_types": ["selfhosted"],
+      "hf_repo": "mistralai/Mistral-Small-24B-Instruct-2501",
+      "hf_revision": null,
+      "gated": false,
+      "license": {
+        "name": "Apache License 2.0",
+        "spdx": "Apache-2.0",
+        "url": "https://huggingface.co/mistralai/Mistral-Small-24B-Instruct-2501",
+        "commercial_use": true,
+        "attribution_required": false,
+        "requires_acceptance": false,
+        "restrictions": []
+      },
+      "params_billion": 23.6,
+      "params_total": 23572403200,
+      "architecture": {
+        "hf_architecture": "MistralForCausalLM",
+        "num_hidden_layers": 40,
+        "num_attention_heads": 32,
+        "num_key_value_heads": 8,
+        "head_dim": 128,
+        "hidden_size": 5120,
+        "torch_dtype": "bfloat16"
+      },
+      "architecture_label": "40 layers · 8 KV heads",
+      "kv_bytes_per_token": 163840,
+      "context": {
+        "native_context": 32768,
+        "max_context": 32768,
+        "default_max_model_len": 8192,
+        "long_context_note": "The 2501 checkpoint is text-only with a 32k context. The 3.1 (2503) and 3.2 (2506) variants are multimodal with 128k context and need a newer vLLM; they are not registered here."
+      },
+      "quantization": {
+        "default": "bf16",
+        "variants": {
+          "bf16": { "hf_repo": "mistralai/Mistral-Small-24B-Instruct-2501", "publisher": "official", "estimation_quant": "bf16" },
+          "fp8": { "hf_repo": "RedHatAI/Mistral-Small-24B-Instruct-2501-FP8-dynamic", "publisher": "third_party", "estimation_quant": "fp8" }
+        }
+      },
+      "vllm": {
+        "min_version": "0.6.4",
+        "extra_args": ["--tokenizer-mode", "mistral", "--config-format", "mistral", "--load-format", "mistral"],
+        "supported_tensor_parallel_sizes": [1, 2, 4],
+        "recommended_temperature": 0.15,
+        "notes": "The model card recommends vLLM >= 0.6.4 with mistral_common >= 1.5.2 and the mistral tokenizer/config/load formats (the card writes the flags with underscores). Note head_dim is 128 per config.json, not hidden_size / heads (160)."
+      },
+      "recommended_placements": [
+        { "gpu_class": "a100-80gb", "gpu_count": 1, "quantization": "bf16", "max_model_len": 8192, "tier": "recommended", "note": "BF16 needs an 80 GB GPU; the model card cites about 55 GB of GPU RAM." },
+        { "gpu_class": "h100", "gpu_count": 1, "quantization": "bf16", "max_model_len": 8192, "tier": "recommended", "note": "Faster alternative to A100 80GB." },
+        { "gpu_class": "l40s", "gpu_count": 1, "quantization": "fp8", "max_model_len": 8192, "tier": "minimum", "note": "Uses a third-party FP8 checkpoint; validate output quality before offering." }
+      ],
+      "sources": [
+        "https://huggingface.co/mistralai/Mistral-Small-24B-Instruct-2501",
+        "https://huggingface.co/mistralai/Mistral-Small-24B-Instruct-2501/blob/main/config.json",
+        "https://docs.vllm.ai/en/latest/models/supported_models.html"
+      ],
+      "verification": {
+        "status": "documented",
+        "checked_on": "2026-11-25",
+        "notes": "2501 chosen as the initial checkpoint (text-only, simplest to serve). Product must confirm this choice over 3.1/3.2 before production."
+      }
+    },
+    {
+      "key": "qwen2.5-32b",
+      "display_name": "Qwen2.5 32B Instruct",
+      "family": "Qwen",
+      "serving_status": "planned",
+      "serving_types": ["selfhosted"],
+      "hf_repo": "Qwen/Qwen2.5-32B-Instruct",
+      "hf_revision": null,
+      "gated": false,
+      "license": {
+        "name": "Apache License 2.0",
+        "spdx": "Apache-2.0",
+        "url": "https://huggingface.co/Qwen/Qwen2.5-32B-Instruct/blob/main/LICENSE",
+        "commercial_use": true,
+        "attribution_required": false,
+        "requires_acceptance": false,
+        "restrictions": []
+      },
+      "params_billion": 32.5,
+      "params_total": 32763876352,
+      "architecture": {
+        "hf_architecture": "Qwen2ForCausalLM",
+        "num_hidden_layers": 64,
+        "num_attention_heads": 40,
+        "num_key_value_heads": 8,
+        "head_dim": 128,
+        "hidden_size": 5120,
+        "torch_dtype": "bfloat16"
+      },
+      "architecture_label": "64 layers · 8 KV heads",
+      "kv_bytes_per_token": 262144,
+      "context": {
+        "native_context": 32768,
+        "max_context": 131072,
+        "default_max_model_len": 8192,
+        "long_context_note": "Above 32,768 tokens the model card requires static YaRN rope_scaling (factor 4.0); enable only when long context is needed."
+      },
+      "quantization": {
+        "default": "fp8",
+        "variants": {
+          "bf16": { "hf_repo": "Qwen/Qwen2.5-32B-Instruct", "publisher": "official", "estimation_quant": "bf16" },
+          "fp8": { "hf_repo": "RedHatAI/Qwen2.5-32B-Instruct-FP8-dynamic", "publisher": "third_party", "estimation_quant": "fp8" },
+          "awq": { "hf_repo": "Qwen/Qwen2.5-32B-Instruct-AWQ", "publisher": "official", "estimation_quant": "int4" }
+        }
+      },
+      "vllm": {
+        "min_version": null,
+        "extra_args": [],
+        "supported_tensor_parallel_sizes": [1, 2, 4],
+        "recommended_temperature": null,
+        "notes": "BF16 weights (about 65.5 GB) do not leave usable KV headroom on a single 80 GB GPU at 0.90 utilisation; use FP8/AWQ, an H200, or tensor parallelism."
+      },
+      "recommended_placements": [
+        { "gpu_class": "h100", "gpu_count": 1, "quantization": "fp8", "max_model_len": 8192, "tier": "recommended", "note": "Uses a third-party FP8 checkpoint on native-FP8 hardware; validate quality before offering." },
+        { "gpu_class": "h200", "gpu_count": 1, "quantization": "bf16", "max_model_len": 8192, "tier": "premium", "note": "Full BF16 on one GPU." },
+        { "gpu_class": "h100", "gpu_count": 2, "quantization": "bf16", "max_model_len": 8192, "tier": "premium", "note": "BF16 with --tensor-parallel-size 2." },
+        { "gpu_class": "a100-40gb", "gpu_count": 1, "quantization": "awq", "max_model_len": 8192, "tier": "minimum", "note": "Official AWQ 4-bit checkpoint; lower quality than BF16/FP8." }
+      ],
+      "sources": [
+        "https://huggingface.co/Qwen/Qwen2.5-32B-Instruct",
+        "https://huggingface.co/Qwen/Qwen2.5-32B-Instruct/blob/main/config.json",
+        "https://docs.vllm.ai/en/latest/models/supported_models.html"
+      ],
+      "verification": {
+        "status": "documented",
+        "checked_on": "2026-11-25",
+        "notes": "Architecture, licence and context from the official model card and config.json. Not yet loaded on real hardware; hf_revision not pinned."
+      }
+    },
+    {
+      "key": "llama-3.1-70b",
+      "display_name": "Llama 3.1 70B Instruct",
+      "family": "Llama",
+      "serving_status": "estimate_only",
+      "serving_types": [],
+      "hf_repo": "meta-llama/Llama-3.1-70B-Instruct",
+      "hf_revision": null,
+      "gated": null,
+      "license": null,
+      "params_billion": 70.6,
+      "params_total": null,
+      "architecture": null,
+      "architecture_label": "80 layers · 8 KV heads",
+      "kv_bytes_per_token": 327680,
+      "context": null,
+      "quantization": null,
+      "vllm": null,
+      "recommended_placements": [],
+      "sources": [],
+      "verification": {
+        "status": "repo_legacy",
+        "checked_on": null,
+        "notes": "Kept so the existing /recommend and /routing/recommend APIs keep accepting this id. Values copied unchanged from the previous routing tables; not independently verified."
+      }
+    }
+  ]
+}

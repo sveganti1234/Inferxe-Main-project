@@ -332,6 +332,12 @@ class GpuDeploymentResponse(BaseModel):
     @classmethod
     def from_row(cls, row: Dict[str, Any]) -> "GpuDeploymentResponse":
         meta = row.get("metadata") or {}
+        if isinstance(meta, str):
+            try:
+                import json
+                meta = json.loads(meta)
+            except Exception:
+                meta = {}
         ssh = None
         # Connection details only make sense while the instance is up.
         if row.get("status") == "running" and row.get("ssh_host") and row.get("ssh_port"):

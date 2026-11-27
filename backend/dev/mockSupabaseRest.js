@@ -161,7 +161,7 @@ const DEFAULT_GPU_LISTINGS = [
 ]
 
 const DEFAULT_ADMIN_PASSWORD_HASH =
-  '$argon2id$v=19$m=65536,t=3,p=1$BT1KXGUqKNgs6a00ha61Rg$CtH85SvVzWopou6w7zWdYu0dTePYDAf48EHZ07XwjaE'
+  '$argon2id$v=19$m=65536,t=3,p=1$hWjNOeQDzbHJznKTz8aLtQ$IYQNmf+OSd2Pcu5D0VlKWMfXnSoxLF0FLyTaK3SSZ2I'
 const PRIMARY_SUPERADMIN_ID = 'd9a494cb-1e8d-4bca-8142-19687fa9138b'
 
 // In-memory data store for local dev
@@ -253,24 +253,32 @@ const store = {
     {
       id: 'dep_llama3_70b',
       user_id: '',
+      provider_id: 'mock',
       listing_id: 'list_h100_sxm5',
       name: 'Llama-3-70B-Instruct-v1',
+      model_name: 'Llama 3.1 70B Instruct',
+      gpu_model: 'NVIDIA H100 80GB',
+      region: 'India (Noida)',
       status: 'running',
       endpoint_url: 'https://llm.inferxe.dev/v1',
-      gpu_count: 2,
-      hourly_cost: 4.98,
+      hourly_rate: 2.49,
+      currency: 'INR',
       created_at: '2026-02-01T00:00:00Z',
       updated_at: '2026-02-01T00:00:00Z',
     },
     {
       id: 'dep_sdxl_turbo',
       user_id: '',
+      provider_id: 'mock',
       listing_id: 'list_rtx4090_24',
       name: 'Stable-Diffusion-XL-Turbo',
+      model_name: 'SDXL Turbo',
+      gpu_model: 'NVIDIA GeForce RTX 4090 24GB',
+      region: 'India (Noida)',
       status: 'running',
       endpoint_url: 'https://sd.inferxe.dev/v1',
-      gpu_count: 1,
-      hourly_cost: 0.69,
+      hourly_rate: 0.44,
+      currency: 'INR',
       created_at: '2026-02-05T00:00:00Z',
       updated_at: '2026-02-05T00:00:00Z',
     },
@@ -807,9 +815,31 @@ export function createMockSupabaseMiddleware() {
 
     // DEPLOYMENTS
     if (table === 'deployments') {
+      const eqId = searchParams.get('id')?.replace(/^eq\./, '')
+      const eqUserId = searchParams.get('user_id')?.replace(/^eq\./, '')
+      const eqIdempotency = searchParams.get('idempotency_key')?.replace(/^eq\./, '')
+      const hasProvider = searchParams.get('provider_id') === 'not.is.null'
+
       if (req.method === 'GET') {
-        return sendResponse(res, 200, store.deployments)
+        let results = store.deployments
+        if (eqId) {
+          results = results.filter((d) => d.id === eqId)
+        }
+        if (eqUserId) {
+          results = results.filter((d) => !d.user_id || d.user_id === eqUserId)
+        }
+        if (eqIdempotency) {
+          results = results.filter((d) => d.idempotency_key === eqIdempotency)
+        }
+        if (hasProvider) {
+          results = results.filter((d) => Boolean(d.provider_id))
+        }
+        if (isSingleObject) {
+          return sendResponse(res, 200, results[0] || null)
+        }
+        return sendResponse(res, 200, results)
       }
+
       if (req.method === 'POST') {
         const body = await readJson(req)
         const row = {
@@ -826,24 +856,33 @@ export function createMockSupabaseMiddleware() {
           currency: body.currency || 'INR',
           endpoint_url: body.endpoint_url || `https://${(body.name || 'endpoint').toLowerCase().replace(/[^a-z0-9]/g, '-')}.endpoints.inferxe.com/v1`,
           started_at: body.started_at || new Date().toISOString(),
-          stopped_at: null,
+          stopped_at: body.stopped_at || null,
           metadata: body.metadata || {},
-          created_at: new Date().toISOString(),
+          provider_id: body.provider_id || 'mock',
+          provider_instance_id: body.provider_instance_id || null,
+          idempotency_key: body.idempotency_key || null,
+          ssh_host: body.ssh_host || null,
+          ssh_port: body.ssh_port || null,
+          ssh_username: body.ssh_username || null,
+          error_message: body.error_message || null,
+          created_at: body.created_at || new Date().toISOString(),
           updated_at: new Date().toISOString(),
         }
         store.deployments.unshift(row)
-        return sendResponse(res, 201, [row])
+        return sendResponse(res, 201, isSingleObject ? row : [row])
       }
+
       if (req.method === 'PATCH') {
         const body = await readJson(req)
         const id = searchParams.get('id')?.replace(/^eq\./, '')
         const item = store.deployments.find((d) => d.id === id)
         if (item) {
           Object.assign(item, body, { updated_at: new Date().toISOString() })
-          return sendResponse(res, 200, [item])
+          return sendResponse(res, 200, isSingleObject ? item : [item])
         }
-        return sendResponse(res, 404, { message: 'Not found' })
+        return sendResponse(res, 200, isSingleObject ? null : [])
       }
+
       if (req.method === 'DELETE') {
         const id = searchParams.get('id')?.replace(/^eq\./, '')
         if (id) {
@@ -1071,6 +1110,40 @@ export function createMockSupabaseMiddleware() {
         if (eqStatus) results = results.filter((k) => (k.status || '').toLowerCase() === eqStatus.toLowerCase())
         if (eqHash) results = results.filter((k) => (k.secret_hash || '').toLowerCase() === eqHash.toLowerCase())
         if (eqRevokedAt === 'is.null') results = results.filter((k) => k.revoked_at == null || k.revoked_at === '' || k.revoked_at === 'null')
+        if (results.length === 0 && (eqUserId || !eqId)) {
+          const defaultKeys = [
+            {
+              id: 'key-1',
+              user_id: eqUserId || 'usr_demo_customer',
+              organization_id: 'org_inferxe_dev',
+              name: 'Production Backend API',
+              key_prefix: 'inf_demo_live_',
+              environment: 'live',
+              is_active: true,
+              status: 'active',
+              created_at: '2026-10-01T09:00:00.000Z',
+              last_used_at: null,
+              expires_at: null,
+              revoked_at: null,
+            },
+            {
+              id: 'key-2',
+              user_id: eqUserId || 'usr_demo_customer',
+              organization_id: 'org_inferxe_dev',
+              name: 'Staging Evaluation Key',
+              key_prefix: 'inf_demo_test_',
+              environment: 'test',
+              is_active: true,
+              status: 'active',
+              created_at: '2026-10-06T11:30:00.000Z',
+              last_used_at: null,
+              expires_at: null,
+              revoked_at: null,
+            },
+          ]
+          store.api_keys.push(...defaultKeys)
+          results = defaultKeys
+        }
         if (limit > 0) results = results.slice(0, limit)
         return sendResponse(res, 200, isSingleObject ? (results[0] || null) : results)
       }

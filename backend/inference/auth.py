@@ -1,4 +1,4 @@
-﻿"""
+"""
 Customer API Key Authentication and Key Generation for Inferxe.
 Enforces SHA-256 hashed storage, constant-time comparison, lifecycle verification,
 and Cognito verified identity association.
@@ -163,6 +163,16 @@ def assert_profile_active(user_id: str) -> None:
             raise RuntimeError(f"profile lookup returned HTTP {response.status_code}")
         rows = response.json() or []
     except Exception as lookup_err:
+        from inference.supabase_config import is_local_mock_supabase_enabled
+
+        if (
+            is_local_mock_supabase_enabled()
+            or is_test_mode_enabled()
+            or os.getenv("ADMIN_DEV_FALLBACK", "").strip().lower() in ("1", "true", "yes")
+        ):
+            logger.warning("Profile status lookup fallback in dev mode: %s", lookup_err)
+            _ACTIVE_PROFILE_CACHE[user_id] = now + _ACTIVE_PROFILE_TTL_SECONDS
+            return
         logger.error("Profile status lookup failed: %s", type(lookup_err).__name__)
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
