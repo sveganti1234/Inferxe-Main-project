@@ -3904,7 +3904,7 @@
 .dash-shell .sa-stat-val,
 .dash-shell .sa-kpi-card__value,
 .dash-shell .sa-kpi-val {
-  font-family: 'Urbanist', system-ui, sans-serif;
+  font-family: 'Inter', system-ui, sans-serif;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.025em;
 }

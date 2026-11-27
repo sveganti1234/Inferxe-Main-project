@@ -49,8 +49,8 @@
   --cx-r-md: 14px;
   --cx-r-lg: 18px;
   --cx-r-xl: 24px;
-  --cx-font-display: var(--font-display, 'Rubik Variable', 'Rubik', system-ui, sans-serif);
-  --cx-font-body: var(--font-body, 'IBM Plex Sans', system-ui, sans-serif);
+  --cx-font-display: var(--font-display, 'Inter', Arial, Helvetica, sans-serif);
+  --cx-font-body: var(--font-body, 'Inter', Arial, Helvetica, sans-serif);
   --cx-font-mono: var(--font-mono, 'JetBrains Mono Variable', ui-monospace, monospace);
   --cx-ease: cubic-bezier(0.22, 1, 0.36, 1);
   --cx-shadow: 0 1px 0 rgba(255, 255, 255, 0.03) inset, 0 24px 48px -28px rgba(0, 0, 0, 0.75);
@@ -929,6 +929,10 @@
 }
 .cx-grid--4 {
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
+}
+/* GPU listings: at most 3 per row (min width = one third of the row minus gaps), wrapping to 2/1 below 320px per card */
+.cx-grid--3.cx-listings {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, max(320px, calc((100% - 32px) / 3))), 1fr));
 }
 .cx-stack {
   display: flex;
@@ -3788,27 +3792,32 @@
   --cx-glow: transparent;
   --cx-glass-tint: rgba(30, 40, 36, 0.47);
   --cx-glass-rim: inset 0 0 0 1px rgba(225, 255, 238, 0.1), inset 1px 1px 0 rgba(235, 255, 244, 0.14);
-  --cx-font-display: 'Urbanist', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --cx-font-body: 'Urbanist', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --cx-font-display: 'Inter', Arial, Helvetica, sans-serif;
+  --cx-font-body: 'Inter', Arial, Helvetica, sans-serif;
   font-family: var(--cx-font-body);
 }
 
+/* Deep forest-green canvas (replaces the room photo), shared by the page and the app frame below. */
+.cx-app[data-cx-theme='forest'] {
+  --cx-page-bg:
+    radial-gradient(ellipse 130% 110% at 50% 45%, transparent 55%, #080e0b 100%),
+    radial-gradient(900px 620px at 18% 6%, rgba(23, 59, 43, 0.55), transparent 66%),
+    radial-gradient(820px 560px at 88% 28%, rgba(23, 59, 43, 0.3), transparent 66%),
+    radial-gradient(1000px 680px at 50% 108%, rgba(23, 59, 43, 0.38), transparent 70%),
+    linear-gradient(180deg, #101d16 0%, #0b1510 60%);
+}
 .cx-app[data-cx-theme='forest']::before {
-  background:
-    linear-gradient(180deg, rgba(6, 10, 8, 0.1), rgba(4, 8, 6, 0.34)),
-    #0c1210 url(/verdelo/photos/284-verdelo/room.jpg) center 45% / cover no-repeat;
+  background: var(--cx-page-bg);
 }
 .cx-app[data-cx-theme='forest']::after {
   display: none;
 }
 
-/* Frame, sidebar and topbar are one sheet of frosted glass */
+/* Frame, sidebar and topbar share the page canvas (viewport-anchored, so it lines up seamlessly) */
 .cx-app[data-cx-theme='forest'] .cx-layout,
 .cx-app[data-cx-theme='forest'] .cx-sidebar {
-  background:
-    linear-gradient(140deg, rgba(225, 255, 238, 0.06), transparent 36%),
-    linear-gradient(var(--cx-glass-tint), var(--cx-glass-tint)),
-    #0c1210 url(/verdelo/photos/284-verdelo/room-blur.jpg) center 45% / cover no-repeat fixed;
+  background: var(--cx-page-bg);
+  background-attachment: fixed;
 }
 @media (min-width: 1024px) {
   .cx-app[data-cx-theme='forest'] .cx-layout {
@@ -3846,11 +3855,14 @@
   }
 }
 
-/* Lighter, rounder type like Verdelo: 600 for headings, never the heavy 700/800 */
+/* Inter hierarchy: page titles bold, section and card titles semibold (both themes) */
 .cx-app[data-cx-theme='forest'] :is(h1, h2, h3, .cx-hero__title, .cx-card__title) {
   font-family: var(--cx-font-display);
   font-weight: 600;
   letter-spacing: -0.015em;
+}
+.cx-app[data-cx-theme='forest'] :is(h1, .cx-hero__title) {
+  font-weight: 700;
 }
 
 /* Entrance: cards rise in one after another (both themes) */
@@ -4102,8 +4114,8 @@
   --cx-border-2: rgba(15, 40, 28, 0.17);
   --cx-border-3: rgba(15, 40, 28, 0.3);
   --cx-panel: rgba(255, 255, 255, 0.6);
-  --cx-card-a: rgba(255, 255, 255, 0.52);
-  --cx-card-b: rgba(255, 255, 255, 0.52);
+  --cx-card-a: rgba(246, 250, 247, 0.92);
+  --cx-card-b: rgba(246, 250, 247, 0.92);
   --cx-surface: rgba(16, 44, 30, 0.05);
   --cx-surface-2: rgba(16, 44, 30, 0.09);
   --cx-surface-hover: rgba(16, 44, 30, 0.12);
@@ -4114,27 +4126,32 @@
   --cx-shadow: 0 1px 2px rgba(20, 50, 34, 0.06), 0 18px 40px -26px rgba(20, 50, 34, 0.38);
   --cx-shadow-lg: 0 2px 6px rgba(20, 50, 34, 0.1), 0 34px 70px -28px rgba(20, 50, 34, 0.48);
   --cx-ring: 0 0 0 2px #f4f7f5, 0 0 0 4px rgba(19, 122, 80, 0.55);
-  --cx-font-display: 'Urbanist', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --cx-font-body: 'Urbanist', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --cx-font-display: 'Inter', Arial, Helvetica, sans-serif;
+  --cx-font-body: 'Inter', Arial, Helvetica, sans-serif;
   font-family: var(--cx-font-body);
 }
 
+/* Sage canvas: the light twin of the forest --cx-page-bg (same glow positions), replaces the day photo */
+.cx-app[data-cx-theme='light'] {
+  --cx-page-bg:
+    radial-gradient(ellipse 130% 110% at 50% 45%, transparent 58%, rgba(23, 107, 74, 0.09) 100%),
+    radial-gradient(900px 620px at 18% 6%, rgba(201, 221, 207, 0.95), transparent 66%),
+    radial-gradient(820px 560px at 88% 28%, rgba(23, 107, 74, 0.07), transparent 66%),
+    radial-gradient(1000px 680px at 50% 108%, rgba(201, 221, 207, 0.85), transparent 70%),
+    linear-gradient(180deg, #dce8df 0%, #e5eee7 60%);
+}
 .cx-app[data-cx-theme='light']::before {
-  background:
-    linear-gradient(180deg, rgba(236, 243, 238, 0.18), rgba(226, 234, 229, 0.32)),
-    #dfe6e1 url(/verdelo/photos/284-verdelo/day.jpg) center 45% / cover no-repeat;
+  background: var(--cx-page-bg);
 }
 .cx-app[data-cx-theme='light']::after {
   display: none;
 }
 
-/* Frame, sidebar and topbar are one sheet of frosted glass */
+/* Frame, sidebar and topbar share the page canvas (viewport-anchored, so it lines up seamlessly) */
 .cx-app[data-cx-theme='light'] .cx-layout,
 .cx-app[data-cx-theme='light'] .cx-sidebar {
-  background:
-    linear-gradient(140deg, rgba(255, 255, 255, 0.5), transparent 36%),
-    linear-gradient(var(--cx-glass-tint), var(--cx-glass-tint)),
-    #dfe6e1 url(/verdelo/photos/284-verdelo/day-blur.jpg) center 45% / cover no-repeat fixed;
+  background: var(--cx-page-bg);
+  background-attachment: fixed;
 }
 @media (min-width: 1024px) {
   .cx-app[data-cx-theme='light'] .cx-layout {
@@ -4175,6 +4192,9 @@
   font-family: var(--cx-font-display);
   font-weight: 600;
   letter-spacing: -0.015em;
+}
+.cx-app[data-cx-theme='light'] :is(h1, .cx-hero__title) {
+  font-weight: 700;
 }
 
 /* Surfaces that are hard-coded for dark backgrounds: give them light equivalents */
@@ -7328,3 +7348,150 @@
 
 
 
+
+/* ==========================================================================
+   GPU listing cards — cursor-following 3D tilt + emerald holographic sheen.
+   GpusPage's useTilt sets --tilt-x/--tilt-y/--glare-x/--glare-y and [data-tilting] on .cx-tilt
+   (untransformed, so its rect stays stable). Kept last so it beats the theme :hover translate.
+   ========================================================================== */
+.cx-tilt {
+  position: relative;
+  isolation: isolate;
+  height: 100%;
+  perspective: 1000px;
+  transition: --edge 0.45s var(--cx-ease), --hover 0.45s var(--cx-ease); /* fades the border glow out on leave */
+}
+.cx-tilt[data-tilting] {
+  --hover: 1;
+  transition-duration: 0.15s;
+}
+@property --hover {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0;
+}
+/* Border glow: registered so --edge can transition; set by useTilt from cursor-to-edge distance */
+@property --edge {
+  syntax: '<number>';
+  inherits: true;
+  initial-value: 0;
+}
+.cx-tilt::before {
+  /* outer illumination, behind the card (z-index -1 inside the isolated wrapper) */
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: 22px;
+  pointer-events: none;
+  background: radial-gradient(circle at var(--glare-x, 50%) var(--glare-y, 50%), rgba(52, 211, 153, 0.55), rgba(16, 185, 129, 0.2) 25%, transparent 45%);
+  filter: blur(16px);
+  opacity: calc(var(--edge) * 0.6);
+}
+.cx-app:not([data-cx-theme='light']) .cx-tilt > .cx-card.cx-listing::before {
+  /* reuse the card's masked 1px rim: cursor-following mint highlight over the existing top highlight */
+  padding: 1.5px;
+  background:
+    radial-gradient(circle at var(--glare-x, 50%) var(--glare-y, 50%),
+      rgb(163 230 196 / calc(var(--edge) * 0.95)),
+      rgb(52 211 153 / calc(var(--edge) * 0.55)) 16%,
+      rgb(16 185 129 / calc(var(--edge) * 0.2)) 32%,
+      transparent 46%),
+    linear-gradient(180deg, rgba(235, 255, 244, 0.12), transparent 40%);
+}
+.cx-app .cx-tilt > .cx-card.cx-listing {
+  transform: rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg)) translateY(0) scale(1);
+  transform-style: preserve-3d;
+  transition: transform 0.55s var(--cx-ease), box-shadow 0.55s var(--cx-ease), border-color 0.55s var(--cx-ease);
+}
+/* Opaque emerald glass so every card looks the same (the theme's translucent --cx-card-a let the
+   backdrop photo tint each card differently). Dark themes only; hover/glow never touch background. */
+.cx-app:not([data-cx-theme='light']) .cx-tilt > .cx-card.cx-listing {
+  background:
+    radial-gradient(ellipse at 15% 10%, rgba(65, 150, 105, 0.16), transparent 65%),
+    linear-gradient(145deg, #203b30 0%, #172b22 48%, #101b16 100%);
+  border: 1px solid rgba(110, 190, 150, 0.16);
+}
+.cx-app .cx-tilt[data-tilting] > .cx-card.cx-listing {
+  transform: rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, 0deg)) translateY(-6px) scale(1.02);
+  transition-duration: 0.12s, 0.3s, 0.3s;
+  border-color: rgba(126, 232, 186, 0.32);
+  box-shadow: var(--cx-shadow-lg), 0 0 0 1px rgba(80, 227, 150, 0.1), 0 28px 60px -28px rgba(80, 227, 150, 0.45);
+  will-change: transform;
+}
+.cx-tilt > .cx-listing::after {
+  /* sheen: soft spotlight under the cursor + a mint holo band that slides with it */
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at var(--glare-x, 50%) var(--glare-y, 50%), rgba(170, 255, 214, 0.16), transparent 55%),
+    linear-gradient(115deg, transparent 32%, rgba(80, 227, 150, 0.07) 42%, rgba(190, 255, 225, 0.13) 50%, rgba(52, 211, 153, 0.07) 58%, transparent 68%);
+  background-size: 100% 100%, 260% 260%;
+  background-position: center, var(--glare-x, 50%) var(--glare-y, 50%);
+  mix-blend-mode: screen;
+  opacity: 0;
+  transition: opacity 0.4s var(--cx-ease);
+}
+.cx-tilt[data-tilting] > .cx-listing::after {
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce), (hover: none) {
+  .cx-app .cx-tilt > .cx-card.cx-listing,
+  .cx-app .cx-tilt[data-tilting] > .cx-card.cx-listing {
+    transform: none;
+  }
+  .cx-tilt > .cx-listing::after {
+    display: none;
+  }
+}
+
+/* GPU card Inventory / Hourly rate box, light theme: the base rule's dark wash reads as a grey film on light cards */
+.cx-app[data-cx-theme='light'] .cx-listing__metrics {
+  background: #dce9df;
+  border-color: #c5d5ca;
+}
+.cx-app[data-cx-theme='light'] .cx-listing__metric-label {
+  color: #526b5c;
+}
+.cx-app[data-cx-theme='light'] .cx-listing__metric-val {
+  color: #172b21;
+}
+.cx-app[data-cx-theme='light'] .cx-listing__metric-val--price {
+  color: #087b50;
+}
+
+/* GPU card tilt/glow, light theme: the dark-theme versions use screen-blended mint, which vanishes on
+   light cards. Same mechanics (same vars from useTilt), deeper emerald tones, normal blending. */
+.cx-app[data-cx-theme='light'] .cx-tilt[data-tilting] > .cx-card.cx-listing {
+  border-color: rgba(23, 107, 74, 0.35);
+  box-shadow: var(--cx-glass-rim), 0 0 0 1px rgba(23, 107, 74, 0.12), 0 2px 6px rgba(20, 50, 34, 0.1),
+    0 30px 60px -28px rgba(23, 107, 74, 0.45);
+}
+.cx-app[data-cx-theme='light'] .cx-tilt > .cx-listing::after {
+  /* glossy white spotlight + a soft emerald band sliding with the cursor */
+  background:
+    radial-gradient(circle at var(--glare-x, 50%) var(--glare-y, 50%), rgba(255, 255, 255, 0.75), transparent 45%),
+    linear-gradient(115deg, transparent 32%, rgba(23, 107, 74, 0.05) 42%, rgba(8, 123, 80, 0.1) 50%, rgba(23, 107, 74, 0.05) 58%, transparent 68%);
+  background-size: 100% 100%, 260% 260%;
+  background-position: center, var(--glare-x, 50%) var(--glare-y, 50%);
+  mix-blend-mode: normal;
+}
+.cx-app[data-cx-theme='light'] .cx-tilt > .cx-card.cx-listing::before {
+  /* edge glow on the card rim, over the theme's white top highlight; stays softly lit (40%) anywhere on
+     the card while hovered, full strength at the edge */
+  --rim: max(var(--edge), var(--hover) * 0.4);
+  padding: 2px;
+  background:
+    radial-gradient(circle at var(--glare-x, 50%) var(--glare-y, 50%),
+      rgb(8 123 80 / calc(var(--rim) * 0.95)),
+      rgb(23 107 74 / calc(var(--rim) * 0.6)) 20%,
+      rgb(52 160 110 / calc(var(--rim) * 0.25)) 40%,
+      transparent 60%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.7), transparent 40%);
+}
+.cx-app[data-cx-theme='light'] .cx-tilt::before {
+  background: radial-gradient(circle at var(--glare-x, 50%) var(--glare-y, 50%), rgba(23, 107, 74, 0.4), rgba(23, 107, 74, 0.14) 25%, transparent 45%);
+}
