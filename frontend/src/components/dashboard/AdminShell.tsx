@@ -428,6 +428,7 @@ export function AdminShell() {
     { label: 'Permission Management', to: '/dashboard/super-admin/permissions', icon: Sliders, badge: '21', badgeType: 'count' },
     { label: 'Activity Monitoring', to: '/dashboard/super-admin/activity', icon: ActivityIcon },
     { label: 'Audit Logs', to: '/dashboard/super-admin/audit', icon: FileText },
+    { label: 'GPU Health Engine', to: '/dashboard/gpu-health', icon: ActivityIcon },
     { label: 'Infrastructure Telemetry', to: '/dashboard/superadmin/telemetry', icon: Cpu },
     { label: 'Key Governance', to: '/dashboard/superadmin/keys', icon: KeyRound },
   ]
@@ -435,6 +436,7 @@ export function AdminShell() {
   // 1. Administration Console Items
   const adminAdministrationItems: NavItem[] = [
     { label: 'Admin Console', to: '/dashboard', icon: LayoutDashboard },
+    { label: 'GPU Health Engine', to: '/dashboard/gpu-health', icon: ActivityIcon },
     { label: 'Customer Management', to: '/dashboard/customers', icon: Users },
     { label: 'Users Directory', to: '/dashboard/users', icon: Users },
     { label: 'Sovereign Nodes Map', to: '/dashboard/users/map', icon: Globe },

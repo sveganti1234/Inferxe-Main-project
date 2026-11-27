@@ -48,6 +48,7 @@ const AdminPermissions = lazy(() => import('./pages/dashboard/AdminPermissions')
 const AdminActivity = lazy(() => import('./pages/dashboard/AdminActivity'))
 const AdminAudit = lazy(() => import('./pages/dashboard/AdminAudit'))
 const SuperAdminFutureModule = lazy(() => import('./pages/dashboard/SuperAdminFutureModule'))
+const GpuHealthDashboard = lazy(() => import('./pages/dashboard/GpuHealthDashboard'))
 import { CustomerHeartbeat } from './components/dashboard/CustomerHeartbeat'
 // Admin-only chrome: kept out of the public entry bundle (rendered inside the route Suspense boundary).
 const AdminShell = lazy(() => import('./components/dashboard/AdminShell').then((m) => ({ default: m.AdminShell })))
@@ -158,6 +159,15 @@ export default function App() {
               />
 
               <Route path="/dashboard" element={<DashboardOverview />} />
+              <Route path="/dashboard/gpu-health" element={<GpuHealthDashboard />} />
+              <Route
+                path="/dashboard/superadmin/gpu-health"
+                element={
+                  <SuperadminGuard>
+                    <GpuHealthDashboard />
+                  </SuperadminGuard>
+                }
+              />
               <Route path="/dashboard/customers" element={<CustomerManagement />} />
               <Route path="/dashboard/users" element={<UsersList />} />
               <Route path="/dashboard/users/add" element={<AddUser />} />
