@@ -161,7 +161,7 @@ const DEFAULT_GPU_LISTINGS = [
 ]
 
 const DEFAULT_ADMIN_PASSWORD_HASH =
-  '$argon2id$v=19$m=65536,t=3,p=1$BT1KXGUqKNgs6a00ha61Rg$CtH85SvVzWopou6w7zWdYu0dTePYDAf48EHZ07XwjaE'
+  '$argon2id$v=19$m=65536,t=3,p=1$hWjNOeQDzbHJznKTz8aLtQ$IYQNmf+OSd2Pcu5D0VlKWMfXnSoxLF0FLyTaK3SSZ2I'
 const PRIMARY_SUPERADMIN_ID = 'd9a494cb-1e8d-4bca-8142-19687fa9138b'
 
 // In-memory data store for local dev
@@ -1071,6 +1071,40 @@ export function createMockSupabaseMiddleware() {
         if (eqStatus) results = results.filter((k) => (k.status || '').toLowerCase() === eqStatus.toLowerCase())
         if (eqHash) results = results.filter((k) => (k.secret_hash || '').toLowerCase() === eqHash.toLowerCase())
         if (eqRevokedAt === 'is.null') results = results.filter((k) => k.revoked_at == null || k.revoked_at === '' || k.revoked_at === 'null')
+        if (results.length === 0 && (eqUserId || !eqId)) {
+          const defaultKeys = [
+            {
+              id: 'key-1',
+              user_id: eqUserId || 'usr_demo_customer',
+              organization_id: 'org_inferxe_dev',
+              name: 'Production Backend API',
+              key_prefix: 'inf_demo_live_',
+              environment: 'live',
+              is_active: true,
+              status: 'active',
+              created_at: '2026-10-01T09:00:00.000Z',
+              last_used_at: null,
+              expires_at: null,
+              revoked_at: null,
+            },
+            {
+              id: 'key-2',
+              user_id: eqUserId || 'usr_demo_customer',
+              organization_id: 'org_inferxe_dev',
+              name: 'Staging Evaluation Key',
+              key_prefix: 'inf_demo_test_',
+              environment: 'test',
+              is_active: true,
+              status: 'active',
+              created_at: '2026-10-06T11:30:00.000Z',
+              last_used_at: null,
+              expires_at: null,
+              revoked_at: null,
+            },
+          ]
+          store.api_keys.push(...defaultKeys)
+          results = defaultKeys
+        }
         if (limit > 0) results = results.slice(0, limit)
         return sendResponse(res, 200, isSingleObject ? (results[0] || null) : results)
       }

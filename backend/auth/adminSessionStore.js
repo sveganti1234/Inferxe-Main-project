@@ -543,14 +543,29 @@ export async function findAdminByEmailForAuth(email, supabaseClient) {
     throw err
   }
 
-  const result = await selectSingleAdminRow(supabase, {
-    columns: ADMIN_AUTH_COLUMNS,
-    legacyColumns: ADMIN_AUTH_COLUMNS_LEGACY,
-    filterField: 'email',
-    filterValue: normalizedEmail,
-  })
+  let result
+  try {
+    result = await selectSingleAdminRow(supabase, {
+      columns: ADMIN_AUTH_COLUMNS,
+      legacyColumns: ADMIN_AUTH_COLUMNS_LEGACY,
+      filterField: 'email',
+      filterValue: normalizedEmail,
+    })
+  } catch (err) {
+    if (!supabaseClient && isAdminDevFallbackEnabled()) {
+      return findAdminByEmailDevFallback(normalizedEmail)
+    }
+    logStoreError('findAdminByEmailForAuth(query)', err)
+    const storeErr = new Error('Administrator authentication store is temporarily unavailable.')
+    storeErr.statusCode = 503
+    storeErr.cause = err
+    throw storeErr
+  }
 
   if (result.error) {
+    if (!supabaseClient && isAdminDevFallbackEnabled()) {
+      return findAdminByEmailDevFallback(normalizedEmail)
+    }
     logStoreError('findAdminByEmailForAuth', result.error)
     const err = new Error('Administrator authentication store is temporarily unavailable.')
     err.statusCode = 503
@@ -579,14 +594,43 @@ export async function findAdminByIdSafe(adminId, supabaseClient) {
     throw err
   }
 
-  const result = await selectSingleAdminRow(supabase, {
-    columns: ADMIN_SAFE_COLUMNS,
-    legacyColumns: ADMIN_SAFE_COLUMNS_LEGACY,
-    filterField: 'id',
-    filterValue: adminId,
-  })
+  let result
+  try {
+    result = await selectSingleAdminRow(supabase, {
+      columns: ADMIN_SAFE_COLUMNS,
+      legacyColumns: ADMIN_SAFE_COLUMNS_LEGACY,
+      filterField: 'id',
+      filterValue: adminId,
+    })
+  } catch (err) {
+    if (!supabaseClient && isAdminDevFallbackEnabled()) {
+      return {
+        id: adminId,
+        email: PRIMARY_SUPERADMIN_EMAIL,
+        role: 'superadmin',
+        is_active: true,
+        full_name: 'Inferxe Super Admin',
+        session_version: 1,
+      }
+    }
+    logStoreError('findAdminByIdSafe(query)', err)
+    const storeErr = new Error('Administrator store is temporarily unavailable.')
+    storeErr.statusCode = 503
+    storeErr.cause = err
+    throw storeErr
+  }
 
   if (result.error) {
+    if (!supabaseClient && isAdminDevFallbackEnabled()) {
+      return {
+        id: adminId,
+        email: PRIMARY_SUPERADMIN_EMAIL,
+        role: 'superadmin',
+        is_active: true,
+        full_name: 'Inferxe Super Admin',
+        session_version: 1,
+      }
+    }
     logStoreError('findAdminByIdSafe', result.error)
     const err = new Error('Administrator store is temporarily unavailable.')
     err.statusCode = 503
@@ -635,19 +679,64 @@ export async function createAdminSessionRecord(
   const expiresAtIso = new Date(expiresAtMs).toISOString()
   const sessionId = crypto.randomUUID()
 
-  const insertResult = await supabase
-    .from('admin_sessions')
-    .insert({
-      id: sessionId,
-      admin_user_id: adminUserId,
-      session_version: Number(sessionVersion),
-      expires_at: expiresAtIso,
-      revoked_at: null,
-    })
-    .select('id, admin_user_id, session_version, expires_at, created_at, revoked_at')
-    .single()
+  let insertResult
+  try {
+    insertResult = await supabase
+      .from('admin_sessions')
+      .insert({
+        id: sessionId,
+        admin_user_id: adminUserId,
+        session_version: Number(sessionVersion),
+        expires_at: expiresAtIso,
+        revoked_at: null,
+      })
+      .select('id, admin_user_id, session_version, expires_at, created_at, revoked_at')
+      .single()
+  } catch (err) {
+    if (!supabaseClient && isAdminDevFallbackEnabled()) {
+      devSessionStore.set(sessionId, {
+        id: sessionId,
+        admin_user_id: adminUserId,
+        session_version: Number(sessionVersion || 1),
+        expires_at: expiresAtIso,
+        expiresAtMs,
+        created_at: nowIso,
+        revoked_at: null,
+      })
+      return {
+        sessionId,
+        expiresAt: expiresAtIso,
+        expiresAtMs,
+        expiresAtSec: Math.floor(expiresAtMs / 1000),
+        expiresAtIso,
+      }
+    }
+    logStoreError('createAdminSessionRecord(query)', err)
+    const storeErr = new Error('Unable to create administrator session.')
+    storeErr.statusCode = 503
+    storeErr.cause = err
+    throw storeErr
+  }
 
   if (insertResult.error || !insertResult.data) {
+    if (!supabaseClient && isAdminDevFallbackEnabled()) {
+      devSessionStore.set(sessionId, {
+        id: sessionId,
+        admin_user_id: adminUserId,
+        session_version: Number(sessionVersion || 1),
+        expires_at: expiresAtIso,
+        expiresAtMs,
+        created_at: nowIso,
+        revoked_at: null,
+      })
+      return {
+        sessionId,
+        expiresAt: expiresAtIso,
+        expiresAtMs,
+        expiresAtSec: Math.floor(expiresAtMs / 1000),
+        expiresAtIso,
+      }
+    }
     logStoreError('createAdminSessionRecord', insertResult.error)
     const err = new Error('Unable to create administrator session.')
     err.statusCode = 503
@@ -736,6 +825,36 @@ export async function verifyAdminSessionRecord(
       }),
     ])
   } catch (err) {
+    if (!supabaseClient && isAdminDevFallbackEnabled()) {
+      const devSession = devSessionStore.get(sessionId)
+      if (devSession) {
+        if (devSession.revoked_at) {
+          return { valid: false, statusCode: 401, error: 'Administrator session has been revoked.' }
+        }
+        if (devSession.expiresAtMs && devSession.expiresAtMs <= Date.now()) {
+          return { valid: false, statusCode: 401, error: 'Administrator session has expired.' }
+        }
+        return {
+          valid: true,
+          statusCode: 200,
+          admin: {
+            id: adminUserId,
+            email: PRIMARY_SUPERADMIN_EMAIL,
+            role: 'superadmin',
+            is_active: true,
+            full_name: 'Inferxe Super Admin',
+            session_version: 1,
+            permissions: CANONICAL_PERMISSIONS.map((p) => p.id),
+          },
+          session: {
+            id: sessionId,
+            admin_user_id: adminUserId,
+            session_version: 1,
+            expires_at: devSession.expires_at,
+          },
+        }
+      }
+    }
     logStoreError('verifyAdminSessionRecord(query)', err)
     return {
       valid: false,
@@ -745,6 +864,36 @@ export async function verifyAdminSessionRecord(
   }
 
   if (sessionResult.error || adminResult.error) {
+    if (!supabaseClient && isAdminDevFallbackEnabled()) {
+      const devSession = devSessionStore.get(sessionId)
+      if (devSession) {
+        if (devSession.revoked_at) {
+          return { valid: false, statusCode: 401, error: 'Administrator session has been revoked.' }
+        }
+        if (devSession.expiresAtMs && devSession.expiresAtMs <= Date.now()) {
+          return { valid: false, statusCode: 401, error: 'Administrator session has expired.' }
+        }
+        return {
+          valid: true,
+          statusCode: 200,
+          admin: {
+            id: adminUserId,
+            email: PRIMARY_SUPERADMIN_EMAIL,
+            role: 'superadmin',
+            is_active: true,
+            full_name: 'Inferxe Super Admin',
+            session_version: 1,
+            permissions: CANONICAL_PERMISSIONS.map((p) => p.id),
+          },
+          session: {
+            id: sessionId,
+            admin_user_id: adminUserId,
+            session_version: 1,
+            expires_at: devSession.expires_at,
+          },
+        }
+      }
+    }
     logStoreError('verifyAdminSessionRecord(result)', sessionResult.error || adminResult.error)
     return {
       valid: false,
@@ -923,6 +1072,36 @@ export async function listAdminUsers(supabaseClient) {
   }
 
   if (result.error) {
+    if (!supabaseClient && isAdminDevFallbackEnabled()) {
+      try {
+        const { getAllAdminUsers } = await import('../database/customerDatabase.js')
+        return getAllAdminUsers().map((a) => ({
+          id: a.id,
+          email: a.email,
+          fullName: a.full_name,
+          full_name: a.full_name,
+          role: a.role || 'superadmin',
+          is_active: a.status === 'active',
+          status: a.status || 'active',
+          created_at: a.created_at,
+          last_login: a.last_login,
+        }))
+      } catch {
+        return [
+          {
+            id: PRIMARY_SUPERADMIN_ID,
+            email: PRIMARY_SUPERADMIN_EMAIL,
+            fullName: 'Inferxe Super Admin',
+            full_name: 'Inferxe Super Admin',
+            role: 'superadmin',
+            is_active: true,
+            status: 'active',
+            created_at: new Date().toISOString(),
+            last_login: null,
+          },
+        ]
+      }
+    }
     logStoreError('listAdminUsers', result.error)
     const err = new Error('Unable to load administrator accounts.')
     err.statusCode = 503

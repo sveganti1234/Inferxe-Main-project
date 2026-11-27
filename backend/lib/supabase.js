@@ -22,11 +22,11 @@ export function getSupabaseAdminClient() {
   // Fail closed: without real credentials there is no client, unless the local mock is explicitly
   // enabled, in which case unset values point at it (it does not check keys, so none is embedded).
   const useMock = isLocalMockSupabaseEnabled()
-  const url = (process.env.SUPABASE_URL || (useMock ? LOCAL_MOCK_SUPABASE_URL : '')).trim()
+  const url = (useMock ? LOCAL_MOCK_SUPABASE_URL : (process.env.SUPABASE_URL || '')).trim()
   const serviceRoleKey = (
-    process.env.SUPABASE_SERVICE_ROLE_KEY ||
-    process.env.SUPABASE_SECRET_KEY ||
-    (useMock ? 'local-mock-no-secret' : '')
+    useMock
+      ? 'local-mock-service-key'
+      : (process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY || '')
   ).trim()
 
   if (!url || !serviceRoleKey) {
@@ -45,8 +45,9 @@ export function getSupabaseAdminClient() {
   assertExternalTargetAllowed(url, 'Supabase admin client')
 
   if (
-    serviceRoleKey.startsWith('sbp_') ||
-    (serviceRoleKey.startsWith('sb_publishable_') && process.env.ADMIN_DEV_FALLBACK !== 'true')
+    !useMock &&
+    (serviceRoleKey.startsWith('sbp_') ||
+      (serviceRoleKey.startsWith('sb_publishable_') && process.env.ADMIN_DEV_FALLBACK !== 'true'))
   ) {
     throw new Error('SUPABASE_SERVICE_ROLE_KEY must be a server-side Supabase Secret or Service Role key.')
   }

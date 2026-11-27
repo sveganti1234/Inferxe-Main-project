@@ -1,7 +1,9 @@
 import { CognitoJwtVerifier } from 'aws-jwt-verify'
-import { getSupabaseAdminClient } from '../lib/supabase.js'
-import { registerOrUpdateCustomer } from '../database/customerDatabase.js'
+import { getSupabaseAdminClient, isLocalMockSupabaseEnabled } from '../lib/supabase.js'
+import { registerOrUpdateCustomer, getCustomerDetails } from '../database/customerDatabase.js'
 import { upsertCustomerProfile } from '../database/supabaseCustomerService.js'
+import { isAdminDevFallbackEnabled } from './adminSessionStore.js'
+import { isTestRun } from '../lib/testSafety.js'
 
 const MAX_BODY_BYTES = 16 * 1024
 let verifier
@@ -146,19 +148,41 @@ async function syncProfile(
   }
 
   try {
-    const supabase = await getSupabaseClient()
+    let existing = null
+    try {
+      const supabase = await getSupabaseClient()
+      existing = await supabase
+        .from('profiles')
+        .select(
+          'user_id, full_name, email, username, role, status, organization_id'
+        )
+        .eq('user_id', claims.sub)
+        .maybeSingle()
+    } catch (fetchErr) {
+      console.warn('[customer-auth] Supabase profiles fetch exception:', fetchErr?.message)
+    }
 
-    // Check whether this customer already has a profile.
-    const existing = await supabase
-      .from('profiles')
-      .select(
-        'user_id, full_name, email, username, role, status, organization_id'
-      )
-      .eq('user_id', claims.sub)
-      .maybeSingle()
-
-    if (existing.error) {
-      throw existing.error
+    if (existing?.error) {
+      console.warn('[customer-auth] Supabase profiles query error:', existing.error?.message)
+      if (!isTestRun() && (isAdminDevFallbackEnabled() || isLocalMockSupabaseEnabled())) {
+        const localCustomer = getCustomerDetails(claims.sub) || getCustomerDetails(claims.email)
+        if (localCustomer) {
+          existing = {
+            data: {
+              user_id: localCustomer.cognito_sub || claims.sub,
+              full_name: localCustomer.full_name,
+              email: localCustomer.email,
+              username: localCustomer.username || localCustomer.email.split('@')[0],
+              role: localCustomer.role || 'customer',
+              status: localCustomer.account_status || 'active',
+              organization_id: null,
+            },
+            error: null,
+          }
+        }
+      } else {
+        throw existing.error
+      }
     }
 
     // Block inactive or suspended accounts.
@@ -265,6 +289,45 @@ async function syncProfile(
       '[customer-auth] Profile synchronization failed:',
       error.message
     )
+
+    if (!isTestRun() && (isAdminDevFallbackEnabled() || isLocalMockSupabaseEnabled())) {
+      try {
+        const email = claims.email.trim().toLowerCase()
+        const fullName =
+          (typeof claims.name === 'string' && claims.name.trim()) ||
+          (typeof claims.preferred_username === 'string' && claims.preferred_username.trim()) ||
+          email.split('@')[0]
+        const username =
+          (typeof claims['cognito:username'] === 'string' && claims['cognito:username']) ||
+          email.split('@')[0]
+
+        registerOrUpdateCustomer({
+          cognito_sub: claims.sub,
+          full_name: fullName,
+          email,
+          phone_number: claims.phone_number || null,
+          role: 'customer',
+          account_status: 'active',
+          isLogin: true,
+        })
+
+        return sendJson(res, 200, {
+          ok: true,
+          profile: {
+            id: claims.sub,
+            fullName,
+            email,
+            username,
+            role: 'customer',
+            status: 'active',
+            organization: 'Personal Workspace',
+            organizationId: null,
+          },
+        })
+      } catch (fallbackErr) {
+        console.error('[customer-auth] Local fallback error:', fallbackErr?.message)
+      }
+    }
 
     return sendJson(res, 503, {
       ok: false,
