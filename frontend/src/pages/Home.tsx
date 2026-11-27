@@ -1,96 +1,122 @@
-import { motion, useScroll, useTransform } from 'framer-motion'
-import { ArrowRight, BellRing, ChevronDown, Gauge, ShieldCheck, Wallet, Activity, CheckCircle2 } from 'lucide-react'
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
+import { motion } from 'framer-motion'
+import { ArrowRight, BellRing, Gauge, ShieldCheck, Wallet, Activity } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { CtaBand } from '../components/CtaBand'
 import { Counter } from '../components/ui/Counter'
 import { LinkButton } from '../components/ui/Button'
 import { Glass, Plate } from '../components/ui/Glass'
-import { Reveal, SplitHeading, Stagger, StaggerItem } from '../components/ui/Reveal'
+import { Reveal, Stagger, StaggerItem } from '../components/ui/Reveal'
 import { SectionHead } from '../components/ui/SectionHead'
 import { Tilt } from '../components/ui/Tilt'
+import VariableProximity from '../components/ui/VariableProximity'
 import { ConsolePreview } from '../components/widgets/ConsolePreview'
 import { GpuStudio } from '../components/widgets/GpuStudio'
 import { PipelineSteps } from '../components/widgets/PipelineSteps'
 import { RackStack } from '../components/widgets/RackStack'
-import { GpuCardArt } from '../components/visuals/GpuCardArt'
+import AeroShards from '../components/visuals/AeroShards'
+import { HeroBackdrop } from '../components/visuals/HeroBackdrop'
 import { ProviderMarquee } from '../components/visuals/ProviderMarquee'
 import { INDIA_PROVIDERS, PROBLEMS } from '../data/content'
 import { GPUS } from '../data/gpus'
-import { defaultWorkload, fmtGB, inr, recommend } from '../lib/calc'
 import { usePageMeta } from '../lib/hooks'
 
 function Hero() {
-  const ref = useRef<HTMLElement>(null)
-  const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end start'] })
-  const y = useTransform(scrollYProgress, [0, 1], ['0%', '18%'])
-  const op = useTransform(scrollYProgress, [0, 0.9], [1, 0.15])
-  const { memory, pick } = recommend(defaultWorkload)
-  const gpu = pick ? GPUS.find((g) => g.id === pick.gpuId) : undefined
+  const leadRef = useRef<HTMLDivElement>(null)
+  const [webGpuFallback, setWebGpuFallback] = useState(
+    () => typeof navigator === 'undefined' || !('gpu' in navigator),
+  )
 
   return (
-    <section className="hero" ref={ref}>
-      <motion.div className="hero__bg" style={{ y, opacity: op }}>
-        <img src="/images/datacenter.webp" alt="" fetchPriority="high" />
-      </motion.div>
-      <div className="hero__wash" aria-hidden />
-      <div className="hero__grid" aria-hidden />
-
-      <div className="container hero__inner">
-        <div className="hero__copy">
-          <SplitHeading lines={['One API.', 'Many GPU', 'providers.']} className="display hero__title" delay={0.1} accentLast />
-
-          <motion.p className="lead hero__lead" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.7 }}>
-            Request compute by what your workload needs. Inferxe is a unified control plane between your applications and GPU providers —
-            placing every workload by <b>compatibility</b>, <b>cost</b> and <b>measured performance</b>.
-          </motion.p>
-
-          <motion.div className="row row--wrap" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8, delay: 0.85 }}>
-            <LinkButton to="/signup" size="lg" arrow>
-              Create an account
-            </LinkButton>
-            <LinkButton to="/how-it-works" variant="glass" size="lg">
-              See how it works
-            </LinkButton>
-          </motion.div>
+    <section className="hero">
+      {webGpuFallback ? (
+        <HeroBackdrop />
+      ) : (
+        <div className="hero__aero" aria-hidden="true">
+          <AeroShards
+            shardColor="#10b920"
+            accentColor="#000000"
+            placement="full"
+            material="glass"
+            markers="plus"
+            count={1300}
+            depthOfField={0.75}
+            vignette={0.3}
+            mouseInteraction
+            pulseOnClick
+            holdToGather
+            onError={(err) => {
+              console.warn('[AeroShards] Falling back to HeroBackdrop:', err.message)
+              setWebGpuFallback(true)
+            }}
+          />
         </div>
+      )}
+      <div className="hero__glow" aria-hidden />
 
-        <motion.div className="hero__stage" initial={{ opacity: 0, scale: 0.94, y: 30 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ duration: 1.2, delay: 0.35, ease: [0.22, 1, 0.36, 1] }}>
-          <Tilt max={9} className="hero__tilt">
-            <div className="hero__halo" aria-hidden />
-            <div className="hero__float">
-              <GpuCardArt label={gpu ? `${gpu.name} · ${gpu.vramLabel}` : 'GPU'} />
-            </div>
+      <div className="container hero__inner hero__inner--centered">
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <Link to="/platform" className="hero__pill">
+            <span className="hero__pill-tag">New</span>
+            <span>Unified routing across India &amp; global GPU clouds</span>
+            <ArrowRight size={13} aria-hidden />
+          </Link>
+        </motion.div>
 
-            <Glass className="hchip hchip--a" radius="m" style={{ transform: 'translateZ(70px)' }}>
-              <span className="engrave">Workload</span>
-              <b>Llama 3.1 8B · FP16</b>
-              <small>8K context × 8 concurrent</small>
-            </Glass>
-            <Glass className="hchip hchip--b" radius="m" style={{ transform: 'translateZ(100px)' }}>
-              <span className="engrave">Compatibility</span>
-              <b className="readout">
-                {fmtGB(memory.need)} <span className="dim">≤</span> {pick ? fmtGB(pick.usable) : '—'}
-              </b>
-              <small>
-                <CheckCircle2 aria-hidden /> VRAM fit verified
-              </small>
-            </Glass>
-            <Glass className="hchip hchip--c" radius="m" variant="lime" style={{ transform: 'translateZ(130px)' }}>
-              <span className="engrave">Placed on</span>
-              <b>
-                {gpu?.name} · {gpu?.vramLabel}
-              </b>
-              <small>{pick?.rate ? `${inr(pick.rate)}/hr · list rate` : ''}</small>
-            </Glass>
-          </Tilt>
+        <motion.h1
+          className="display hero__title"
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.7, delay: 0.08, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <span className="hero__line">One API.</span>
+          <span className="hero__line">
+            Many GPU <em className="hero__italic">providers.</em>
+          </span>
+        </motion.h1>
+
+        <motion.div
+          ref={leadRef}
+          className="lead hero__lead"
+          style={{ position: 'relative' }}
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.75, delay: 0.18, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <VariableProximity
+            label="Request compute by what your workload needs. Inferxe is a unified control plane between your applications and GPU providers — placing every workload by compatibility, cost and measured performance."
+            fromFontVariationSettings="'GRAD' 0, 'wght' 420, 'opsz' 14"
+            toFontVariationSettings="'GRAD' 150, 'wght' 420, 'opsz' 32"
+            fromColor="#8caba0"
+            toColor="#c8ffe4"
+            containerRef={leadRef}
+            radius={110}
+            falloff="gaussian"
+            smoothing={0.08}
+            scale={1.08}
+            lift={0.045}
+            idleWave={false}
+          />
+        </motion.div>
+
+        <motion.div
+          className="hero__actions"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.75, delay: 0.28, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <LinkButton to="/signup" size="lg" arrow className="hero__cta-primary">
+            Create an account
+          </LinkButton>
+          <LinkButton to="/how-it-works" variant="glass" size="lg" className="hero__cta-secondary">
+            See how it works
+          </LinkButton>
         </motion.div>
       </div>
-
-      <a href="#problem" className="hero__scroll" aria-label="Scroll to content">
-        <span>Scroll</span>
-        <ChevronDown aria-hidden />
-      </a>
     </section>
   )
 }

@@ -195,7 +195,10 @@ export const PROVIDERS: ProviderItem[] = [
 
 export const ProviderMarquee: FC = () => {
   return (
-    <section className="strip" aria-label="GPU and model providers: JarvisLabs is the MVP target, others are under evaluation">
+    <section className="strip" aria-label="GPU and model providers">
+      <div className="strip__head">
+        <span className="strip__eyebrow">From real-time inference to trillion-token workloads, routing across leading GPU clouds</span>
+      </div>
       <div className="marquee">
         {[0, 1].map((n) => (
           <div className="marquee__track" key={n} aria-hidden={n === 1}>
@@ -203,11 +206,6 @@ export const ProviderMarquee: FC = () => {
               <div className="strip__provider" key={`${n}-${p.id}-${i}`}>
                 <span className="strip__logo">{p.renderLogo()}</span>
                 <span className="strip__name">{p.name}</span>
-                {p.badge && (
-                  <span className={`strip__badge ${p.isLive ? '' : 'strip__badge--dim'}`}>
-                    {p.badge}
-                  </span>
-                )}
               </div>
             ))}
           </div>
