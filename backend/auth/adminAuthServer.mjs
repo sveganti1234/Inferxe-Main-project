@@ -34,7 +34,8 @@ if (typeof crypto.argon2Sync !== 'function') {
   )
 }
 
-const PORT = parseInt(process.env.ADMIN_AUTH_PORT || '5174', 10)
+const PORT = parseInt(process.env.PORT || process.env.ADMIN_AUTH_PORT || '5174', 10)
+const HOST = process.env.HOST || ((process.env.PORT || process.env.RENDER) ? '0.0.0.0' : '127.0.0.1')
 const mockSupabaseMiddleware = createMockSupabaseMiddleware()
 const adminMiddleware = createAdminAuthMiddleware()
 const customerMiddleware = createCustomerAuthMiddleware()
@@ -103,6 +104,6 @@ server.on('error', async (err) => {
   process.exit(1)
 })
 
-server.listen(PORT, '127.0.0.1', () => {
-  console.log(`[Inferxe] Authentication & SSO Server running at http://127.0.0.1:${PORT}`)
+server.listen(PORT, HOST, () => {
+  console.log(`[Inferxe] Authentication & SSO Server running at http://${HOST}:${PORT}`)
 })

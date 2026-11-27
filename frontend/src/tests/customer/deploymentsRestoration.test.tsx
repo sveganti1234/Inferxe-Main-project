@@ -241,6 +241,32 @@ describe('Customer Deployments (GPU provider API)', () => {
     expect(document.body.textContent).toContain('Deploy New Model Endpoint')
   })
 
+  it('keeps the idempotency key after a gateway error and replaces it after a refusal', async () => {
+    const keys = () =>
+      calls
+        .filter((c) => c.method === 'POST' && c.url.endsWith('/api/v1/gpu/deployments'))
+        .map((c) => (c.body as Record<string, unknown>).idempotency_key)
+    createResponse = { status: 504, body: { detail: 'The GPU provider did not respond in time.' } }
+    await renderDeployments('/dashboard/app/deployments?action=new')
+    await click(buttonByText('Deploy Endpoint'))
+    await click(buttonByText('Deploy Endpoint'))
+    createResponse = { status: 409, body: { detail: 'The requested GPU is not available right now.' } }
+    await click(buttonByText('Deploy Endpoint'))
+    await click(buttonByText('Deploy Endpoint'))
+    const [first, retry, refused, afterRefusal] = keys()
+    expect(retry).toBe(first)
+    expect(refused).toBe(first)
+    expect(afterRefusal).not.toBe(first)
+  })
+
+  it('reports a retried launch that returns a failed record as an error', async () => {
+    createResponse = { status: 201, body: { ...DEPLOYMENTS[2], status: 'failed' } }
+    await renderDeployments('/dashboard/app/deployments?action=new')
+    await click(buttonByText('Deploy Endpoint'))
+    expect(document.body.textContent).toContain('could not be launched')
+    expect(document.body.textContent).toContain('Deploy New Model Endpoint')
+  })
+
   it('stops and terminates through the provider API', async () => {
     await renderDeployments()
     await click(document.querySelector('button[aria-label="Stop deployment llama3-70b-v1"]'))

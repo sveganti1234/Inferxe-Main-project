@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { useMediaQuery } from '../../../lib/hooks'
 import { useLocation, useOutlet } from 'react-router-dom'
 import { AnimatePresence, MotionConfig, motion, useReducedMotion } from 'framer-motion'
@@ -7,7 +7,7 @@ import { signOutCurrentUser } from '../../../lib/authStore'
 import { useCustomerWorkspace } from '../data/WorkspaceContext'
 import { selectProfileSummary } from '../data/selectors'
 import { sectionForPath } from '../navigation'
-import { EmptyState, ErrorState } from '../ui/states'
+import { EmptyState, ErrorState, LoadingBlock } from '../ui/states'
 import { Button, Notice } from '../ui/primitives'
 import { useResourceRefreshing } from '../data/useAsyncResource'
 import { CustomerSidebar } from './CustomerSidebar'
@@ -150,7 +150,7 @@ export function CustomerShell() {
           exit={reduceMotion ? undefined : { opacity: 0, transition: { duration: 0.14, ease: [0.4, 0, 1, 1] } }}
           transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
         >
-          {outlet}
+          <Suspense fallback={<LoadingBlock lines={4} />}>{outlet}</Suspense>
         </motion.div>
       </AnimatePresence>
     )

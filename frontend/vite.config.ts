@@ -5,15 +5,7 @@ import path from 'path'
 // @ts-ignore
 import fs from 'fs'
 // @ts-ignore
-import { createAdminAuthMiddleware } from '../backend/auth/adminAuth.js'
-// @ts-ignore
-import { createCustomerAuthMiddleware } from '../backend/auth/customerAuth.js'
-// @ts-ignore
-import { createSupabaseApiMiddleware } from '../backend/api/supabaseApi.js'
-// @ts-ignore
-import { createSSOAuthMiddleware } from '../backend/auth/ssoAuth.js'
-// @ts-ignore
-import { createMockSupabaseMiddleware } from '../backend/dev/mockSupabaseRest.js'
+import { pathToFileURL } from 'url'
 // @ts-ignore
 import { FRONTEND_DIR, ROOT_DIR, loadBackendEnv, assertNoFrontendSupabaseSecrets, collectFrontendEnvForSecurityCheck } from '../backend/auth/envLoader.js'
 declare const process: any
@@ -69,29 +61,61 @@ export default defineConfig(({ command, mode }) => {
     next()
   }
 
-  const authPlugin = {
-    name: 'inferxe-auth-middleware',
-    configureServer(server: { middlewares: { use: (fn: any) => void } }) {
-      server.middlewares.use(verdeloMiddleware)
-      server.middlewares.use(createMockSupabaseMiddleware())
-      server.middlewares.use(createSSOAuthMiddleware())
-      server.middlewares.use(createCustomerAuthMiddleware())
-      server.middlewares.use(createAdminAuthMiddleware())
-      server.middlewares.use(createSupabaseApiMiddleware())
-    },
-    configurePreviewServer(server: { middlewares: { use: (fn: any) => void } }) {
-      server.middlewares.use(verdeloMiddleware)
-      server.middlewares.use(createMockSupabaseMiddleware())
-      server.middlewares.use(createSSOAuthMiddleware())
-      server.middlewares.use(createCustomerAuthMiddleware())
-      server.middlewares.use(createAdminAuthMiddleware())
-      server.middlewares.use(createSupabaseApiMiddleware())
-    },
+  const plugins: any[] = [react()]
+
+  if (command === 'serve') {
+    // @ts-ignore
+    // Resolve from frontend/, not from the bundled config's temp folder (node_modules/.vite-temp/).
+    const loadDevModule = (specifier: string) => import(/* @vite-ignore */ pathToFileURL(path.resolve(FRONTEND_DIR, specifier)).href)
+    const authPlugin = {
+      name: 'inferxe-auth-middleware',
+      async configureServer(server: { middlewares: { use: (fn: any) => void } }) {
+        server.middlewares.use(verdeloMiddleware)
+        try {
+          const [mockMod, ssoMod, custMod, adminMod, sbMod] = await Promise.all([
+            loadDevModule('../backend/dev/mockSupabaseRest.js'),
+            loadDevModule('../backend/auth/ssoAuth.js'),
+            loadDevModule('../backend/auth/customerAuth.js'),
+            loadDevModule('../backend/auth/adminAuth.js'),
+            loadDevModule('../backend/api/supabaseApi.js'),
+          ]) as any[]
+          server.middlewares.use(mockMod.createMockSupabaseMiddleware())
+          server.middlewares.use(ssoMod.createSSOAuthMiddleware())
+          server.middlewares.use(custMod.createCustomerAuthMiddleware())
+          server.middlewares.use(adminMod.createAdminAuthMiddleware())
+          server.middlewares.use(sbMod.createSupabaseApiMiddleware())
+        } catch (err) {
+          // Without these, /api/admin, /api/superadmin and SSO routes return 404 in local development
+          console.error('[inferxe] Backend dev middleware failed to load:', err)
+        }
+      },
+      async configurePreviewServer(server: { middlewares: { use: (fn: any) => void } }) {
+        server.middlewares.use(verdeloMiddleware)
+        try {
+          const [mockMod, ssoMod, custMod, adminMod, sbMod] = await Promise.all([
+            loadDevModule('../backend/dev/mockSupabaseRest.js'),
+            loadDevModule('../backend/auth/ssoAuth.js'),
+            loadDevModule('../backend/auth/customerAuth.js'),
+            loadDevModule('../backend/auth/adminAuth.js'),
+            loadDevModule('../backend/api/supabaseApi.js'),
+          ]) as any[]
+          server.middlewares.use(mockMod.createMockSupabaseMiddleware())
+          server.middlewares.use(ssoMod.createSSOAuthMiddleware())
+          server.middlewares.use(custMod.createCustomerAuthMiddleware())
+          server.middlewares.use(adminMod.createAdminAuthMiddleware())
+          server.middlewares.use(sbMod.createSupabaseApiMiddleware())
+        } catch (err) {
+          // Without these, /api/admin, /api/superadmin and SSO routes return 404 in local development
+          console.error('[inferxe] Backend dev middleware failed to load:', err)
+        }
+      },
+    }
+    plugins.push(authPlugin)
   }
 
   return {
     envPrefix: 'VITE_',
-    plugins: [react(), authPlugin],
+    plugins,
     server: {
       host: '127.0.0.1',
       port: 5173,

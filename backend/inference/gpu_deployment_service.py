@@ -227,9 +227,9 @@ class GpuDeploymentService:
 
     def _sync(self, row: Dict[str, Any], fallback_status: Optional[str] = None) -> Dict[str, Any]:
         """Refresh status and connection details from the provider. Provider errors keep the stored state."""
-        provider = self.registry.get(row["provider_id"])
         try:
-            status = self._run(provider.get_instance_status(row["provider_instance_id"]), provider.provider_id)
+            provider = self.registry.get(row["provider_id"])  # inside try: an unregistered provider keeps the stored row
+            status = self._run(provider.get_instance_status(row["provider_instance_id"]), row["provider_id"])
         except ProviderInstanceNotFoundError:
             fields = {**_status_fields("terminated", row), "error_message": "Instance no longer exists at the provider."}
         except ProviderError as err:

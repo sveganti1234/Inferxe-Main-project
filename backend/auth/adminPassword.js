@@ -1,6 +1,12 @@
 // @ts-nocheck
 import crypto from 'node:crypto'
-import * as nodeRsArgon2 from '@node-rs/argon2'
+
+let nodeRsArgon2 = null
+try {
+  nodeRsArgon2 = await import('@node-rs/argon2')
+} catch {
+  // @node-rs/argon2 is optional or unavailable in current environment
+}
 
 if (typeof crypto.argon2Sync !== 'function' && nodeRsArgon2?.hashSync) {
   const variantMap = {

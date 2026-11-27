@@ -2,13 +2,16 @@
  * Overview shows the restored portal dashboard (demo content + real name/wallet), and the new shell
  * controls (quick actions, theme, sidebar account) work. Network is mocked per "METHOD /path".
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from 'vitest'
 import { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { ensureFreshSession, getSession } from '../../lib/authStore'
 import CustomerApp from '../../features/customer/CustomerApp'
 import { emptyWorkspace, jsonResponse, workspaceEnvelope } from './fixtures'
+import { preloadCustomerPages } from './preloadPages'
+
+beforeAll(preloadCustomerPages)
 
 vi.mock('../../lib/authStore', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../lib/authStore')>()),

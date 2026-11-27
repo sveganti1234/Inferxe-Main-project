@@ -5,31 +5,34 @@
  * customer session. All data is loaded through the authenticated data layer; nothing is
  * stored in localStorage except UI preferences.
  */
+import { lazy } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import { Compass } from 'lucide-react'
 import './styles/customer.css'
 import { WorkspaceProvider } from './data/WorkspaceContext'
 import { CONSOLE_BASE, CONSOLE_SECTIONS } from './navigation'
 import { CustomerShell } from './shell/CustomerShell'
+// Overview is the landing page, so it stays in the console chunk; the rest load on demand
+// (CustomerShell renders them inside a Suspense boundary).
 import OverviewPage from './pages/OverviewPage'
-import ApiKeysPage from './pages/ApiKeysPage'
-import NotificationsPage from './pages/NotificationsPage'
-import SettingsPage from './pages/SettingsPage'
-import BillingPage from './pages/BillingPage'
-import UsagePage from './pages/UsagePage'
-import DeveloperPage from './pages/DeveloperPage'
-import ModelsPage from './pages/ModelsPage'
-import GpusPage from './pages/GpusPage'
-import PlaygroundPage from './pages/PlaygroundPage'
-import DeploymentsPage from './pages/DeploymentsPage'
-import WishlistPage from './pages/WishlistPage'
-import SshKeysPage from './pages/SshKeysPage'
-import OrdersPage from './pages/OrdersPage'
-import CheckoutPage from './pages/CheckoutPage'
-import RewardsPage from './pages/RewardsPage'
-import ProfilePage from './pages/ProfilePage'
-import HelpPage from './pages/HelpPage'
-import SectionPreview from './pages/SectionPreview'
+const ApiKeysPage = lazy(() => import('./pages/ApiKeysPage'))
+const NotificationsPage = lazy(() => import('./pages/NotificationsPage'))
+const SettingsPage = lazy(() => import('./pages/SettingsPage'))
+const BillingPage = lazy(() => import('./pages/BillingPage'))
+const UsagePage = lazy(() => import('./pages/UsagePage'))
+const DeveloperPage = lazy(() => import('./pages/DeveloperPage'))
+const ModelsPage = lazy(() => import('./pages/ModelsPage'))
+const GpusPage = lazy(() => import('./pages/GpusPage'))
+const PlaygroundPage = lazy(() => import('./pages/PlaygroundPage'))
+const DeploymentsPage = lazy(() => import('./pages/DeploymentsPage'))
+const WishlistPage = lazy(() => import('./pages/WishlistPage'))
+const SshKeysPage = lazy(() => import('./pages/SshKeysPage'))
+const OrdersPage = lazy(() => import('./pages/OrdersPage'))
+const CheckoutPage = lazy(() => import('./pages/CheckoutPage'))
+const RewardsPage = lazy(() => import('./pages/RewardsPage'))
+const ProfilePage = lazy(() => import('./pages/ProfilePage'))
+const HelpPage = lazy(() => import('./pages/HelpPage'))
+const SectionPreview = lazy(() => import('./pages/SectionPreview'))
 import type { SectionId } from './navigation'
 import type { ReactElement } from 'react'
 

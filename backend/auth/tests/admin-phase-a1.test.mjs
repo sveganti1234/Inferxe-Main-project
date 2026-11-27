@@ -896,14 +896,26 @@ test('Admin creation allows multiple active standard Admins, rejects duplicate e
   assert.equal(listRes.data.admins.filter((a) => a.role === 'superadmin').length, 1)
   assert.equal(listRes.data.admins.filter((a) => a.role === 'admin').length, 2)
 
-  // Existing email returns 409 DUPLICATE_ADMIN_EMAIL
+  // Existing email returns 409 DUPLICATE_ADMIN_EMAIL and leaves the existing account untouched
+  const diyaBefore = { ...mockDb.tables.admin_users.find((u) => u.email === 'diya@inferxe.com') }
   const dupEmailRes = await invokeMiddleware(middleware, '/api/superadmin/admins', {
     method: 'POST',
     token,
-    body: { email: 'DIYA@INFERXE.COM', password: 'DiyaAdmin#2026!Strong' },
+    body: { email: 'DIYA@INFERXE.COM', password: 'Takeover#2026!Different' },
   })
   assert.equal(dupEmailRes.status, 409)
   assert.equal(dupEmailRes.data.code, 'DUPLICATE_ADMIN_EMAIL')
+  assert.deepEqual(mockDb.tables.admin_users.find((u) => u.email === 'diya@inferxe.com'), diyaBefore)
+  assert.equal(mockDb.tables.admin_users.filter((u) => u.email === 'diya@inferxe.com').length, 1)
+
+  // Without a session, creation is refused before anything is written
+  const countBefore = mockDb.tables.admin_users.length
+  const anonCreate = await invokeMiddleware(middleware, '/api/superadmin/admins', {
+    method: 'POST',
+    body: { email: 'anon.create@inferxe.com', password: 'AnonCreate#2026!Strong' },
+  })
+  assert.equal(anonCreate.status, 401)
+  assert.equal(mockDb.tables.admin_users.length, countBefore)
 
   // Attempting to create another Super Admin is strictly rejected (403)
   const secondSuperRes = await invokeMiddleware(middleware, '/api/superadmin/admins', {

@@ -89,15 +89,27 @@ app = FastAPI(
 )
 app.add_exception_handler(PoolTimeoutError, pool_timeout_handler)
 
-# CORS Middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
+def _get_cors_origins() -> list[str]:
+    origins = [
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "http://localhost:3000",
         "http://127.0.0.1:3000",
-    ],
+    ]
+    for env_key in ("FRONTEND_URL", "CORS_ALLOWED_ORIGINS"):
+        raw = os.getenv(env_key, "")
+        for item in raw.split(","):
+            cleaned = item.strip().rstrip("/")
+            if cleaned and cleaned not in origins:
+                origins.append(cleaned)
+    return origins
+
+
+# CORS Middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_get_cors_origins(),
+    allow_origin_regex=r"^https://.*\.vercel\.app$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -494,5 +506,7 @@ def health_check():
 
 if __name__ == "__main__":
     import uvicorn
-    port = int(os.getenv("NOTIFICATIONS_PORT", 8002))
-    uvicorn.run("backend.notifications.main:app", host="127.0.0.1", port=port, reload=True)
+    port = int(os.getenv("PORT") or os.getenv("NOTIFICATIONS_PORT") or 8002)
+    host = os.getenv("HOST", "0.0.0.0" if (os.getenv("PORT") or os.getenv("RENDER")) else "127.0.0.1")
+    reload_enabled = os.getenv("RENDER") is None and os.getenv("NODE_ENV") != "production"
+    uvicorn.run("backend.notifications.main:app", host=host, port=port, reload=reload_enabled)
