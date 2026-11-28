@@ -26,6 +26,7 @@ const GpusPage = lazy(() => import('./pages/GpusPage'))
 const PlaygroundPage = lazy(() => import('./pages/PlaygroundPage'))
 const DeploymentsPage = lazy(() => import('./pages/DeploymentsPage'))
 const WishlistPage = lazy(() => import('./pages/WishlistPage'))
+const StoragePage = lazy(() => import('./pages/StoragePage'))
 const SshKeysPage = lazy(() => import('./pages/SshKeysPage'))
 const OrdersPage = lazy(() => import('./pages/OrdersPage'))
 const CheckoutPage = lazy(() => import('./pages/CheckoutPage'))
@@ -49,6 +50,7 @@ const IMPLEMENTED: Partial<Record<SectionId, () => ReactElement>> = {
   playground: () => <PlaygroundPage />,
   deployments: () => <DeploymentsPage />,
   wishlist: () => <WishlistPage />,
+  storage: () => <StoragePage />,
   'ssh-keys': () => <SshKeysPage />,
   orders: () => <OrdersPage />,
   checkout: () => <CheckoutPage />,

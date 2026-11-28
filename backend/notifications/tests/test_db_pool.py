@@ -660,3 +660,26 @@ def test_defaults_when_env_unset():
     res = _import_db_in_subprocess({})
     assert res.returncode == 0, res.stderr
     assert res.stdout.split() == ["5", "5.0", "30000"]
+
+
+def test_unconfigured_database_returns_503_not_500(monkeypatch):
+    """No DSN must surface as a clear 503 to customers instead of a bare 500."""
+    from backend.notifications.main import app
+
+    def no_dsn():
+        raise db.DBNotConfiguredError("no dsn")
+
+    monkeypatch.setattr(db, "get_connection_params", no_dsn)
+    db.close_pool()
+
+    @app.get("/__test/db-not-configured")
+    def _probe():
+        with DBConnection():
+            pass
+
+    try:
+        r = TestClient(app, raise_server_exceptions=False).get("/__test/db-not-configured")
+        assert r.status_code == 503
+        assert "SUPABASE_DATABASE_URL" in r.json()["detail"]
+    finally:
+        app.router.routes[:] = [rt for rt in app.router.routes if getattr(rt, "path", "") != "/__test/db-not-configured"]

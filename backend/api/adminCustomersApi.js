@@ -10,6 +10,7 @@
  * which records the credit and its audit_logs row in the same transaction.
  */
 import { readCustomerJsonBody } from '../auth/customerAuth.js'
+import { insertCustomerNotificationSafe } from './supabaseApi.js'
 
 const CUSTOMER_PROFILE_SELECT =
   'user_id, full_name, email, username, role, status, phone_number, last_active_at, last_login_at, login_count, organization_id, created_at, updated_at'
@@ -244,6 +245,23 @@ export async function handleAdminCustomerApi(req, res, path, { supabase, admin, 
       if (result.error.code === '22023' || result.error.code === '23514') return sendJson(res, 400, { ok: false, error: 'The plan change is not valid.' })
       throw result.error
     }
+
+    await insertCustomerNotificationSafe(supabase, {
+      userId: customerId,
+      title: 'Subscription Plan Updated',
+      message: update.tier
+        ? `Your subscription plan has been updated to the ${update.tier} tier by an administrator.`
+        : 'Your subscription plan has been updated by an administrator.',
+      notificationType: 'PLAN_UPDATE',
+      metadata: {
+        tier: update.tier,
+        reason: update.reason,
+        trial_started_at: update.trialStartedAt,
+        trial_ends_at: update.trialEndsAt,
+        administrator_email: adminEmail,
+      },
+    })
+
     return sendJson(res, 200, { ok: true, plan: result.data })
   }
 

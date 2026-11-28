@@ -681,6 +681,18 @@ def require_admin_user(
         )
     return user
 
+def require_superadmin_user(
+    user: AuthenticatedUser = Security(get_current_user),
+) -> AuthenticatedUser:
+    """FastAPI dependency enforcing strict Super Admin role authorization."""
+    if not any(r.lower() == "superadmin" for r in user.roles):
+        logger.warning(f"User {user.user_id} ({user.email}) attempted superadmin operation without superadmin privileges.")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access forbidden: Super Admin privileges required.",
+        )
+    return user
+
 def get_optional_user(
     request: Request,
     credentials: Optional[HTTPAuthorizationCredentials] = Security(security_bearer),

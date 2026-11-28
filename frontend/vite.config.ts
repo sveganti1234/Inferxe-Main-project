@@ -130,5 +130,9 @@ export default defineConfig(({ command, mode }) => {
       proxy: apiProxy,
     },
     build: { target: 'es2022', sourcemap: false },
+    // @ts-ignore
+    test: {
+      environment: 'jsdom',
+    },
   }
 })
