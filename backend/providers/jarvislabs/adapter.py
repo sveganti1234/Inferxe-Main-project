@@ -202,6 +202,8 @@ class JarvisLabsGpuProvider(BaseGpuProvider):
             # set supports_ssh_keys = True once the create payload carries them.
             raise ProviderError("JarvisLabs adapter does not support SSH key delivery yet",
                                 provider_id=self.provider_id, status_code=400)
+        # The payload below always launches the vLLM framework; a custom image or published port would be dropped.
+        self.reject_unsupported_container(request)
         clean_gpu_id = request.gpu_id.replace("-spot", "")
         meta = JARVISLABS_HARDWARE_CATALOG.get(clean_gpu_id)
         if not meta:

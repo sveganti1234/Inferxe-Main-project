@@ -4,7 +4,7 @@ Pydantic data validation schemas for the Inferxe Inference API.
 
 import uuid
 from typing import Literal, Optional, List, Any, Dict
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 
 class InferenceRequest(BaseModel):
@@ -162,10 +162,18 @@ class APIKeyRevokeResponse(BaseModel):
     id: str
 
 class NotebookCreateRequest(BaseModel):
-    """Payload to create and provision a new notebook instance."""
+    """Payload to create and provision a new notebook instance.
+    Deliberately has no image/command/env/privilege fields: those are server-side only, and unknown fields are ignored."""
     name: Optional[str] = Field(default="Untitled Notebook", max_length=255, description="Notebook session name")
     gpu_profile: Optional[str] = Field(default="NVIDIA L4", max_length=128, description="Target GPU model / tier")
     selected_ssh_key_id: Optional[str] = Field(default=None, description="UUID of registered customer SSH key")
+    gpu_id: Optional[str] = Field(default=None, min_length=1, max_length=64,
+                                  description="GPU id from GET /api/v1/gpu/offerings. Omit for a simulated notebook record.")
+    provider_id: Optional[str] = Field(default=None, max_length=64,
+                                       description="Omit to pick the cheapest enabled provider that supports notebooks")
+    region: Optional[str] = Field(default=None, max_length=64)
+    idempotency_key: Optional[str] = Field(default=None, min_length=8, max_length=128,
+                                           description="Required with gpu_id. Retries with the same key never launch a second GPU.")
 
     @field_validator("name")
     @classmethod
@@ -173,6 +181,19 @@ class NotebookCreateRequest(BaseModel):
         if v is not None and not v.strip():
             raise ValueError("Notebook name cannot be solely whitespace.")
         return (v or "Untitled Notebook").strip()
+
+    @field_validator("gpu_id")
+    @classmethod
+    def strip_gpu_id(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None and not v.strip():
+            raise ValueError("gpu_id must not be blank")
+        return v.strip() if v is not None else None
+
+    @model_validator(mode="after")
+    def require_idempotency_key_for_gpu(self) -> "NotebookCreateRequest":
+        if self.gpu_id and not self.idempotency_key:
+            raise ValueError("idempotency_key is required when gpu_id is provided.")
+        return self
 
 
 class NotebookResponse(BaseModel):
@@ -185,6 +206,7 @@ class NotebookResponse(BaseModel):
     runtime_type: str
     runtime_reference: Optional[str] = None
     selected_ssh_key_id: Optional[str] = None
+    deployment_id: Optional[str] = Field(default=None, description="GPU deployment backing this notebook, if any")
     ssh_command: Optional[str] = None
     jupyter_url: Optional[str] = None
     access_token: Optional[str] = Field(
@@ -198,6 +220,21 @@ class NotebookResponse(BaseModel):
     created_at: str
     updated_at: str
     last_active_at: Optional[str] = None
+
+
+class NotebookTokenResponse(BaseModel):
+    """New customer notebook token. Shown once; only its SHA-256 is stored and the previous token stops working."""
+    success: bool = True
+    notebook_id: str
+    access_token: str
+
+
+class NotebookAccessResponse(BaseModel):
+    """One-time link that opens the notebook's JupyterLab through the Inferxe proxy."""
+    success: bool = True
+    notebook_id: str
+    url: str = Field(description="Single-use; the access ticket rides in the URL fragment and expires quickly")
+    expires_in_seconds: int
 
 
 class NotebookListResponse(BaseModel):

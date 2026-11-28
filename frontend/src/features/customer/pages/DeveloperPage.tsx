@@ -1,14 +1,16 @@
 /**
  * SSH keys & notebooks.
  *
- * SSH keys are real records (8001 /api/v1/ssh-keys). Notebook sessions are records only:
- * the backend's runtime driver is SIMULATED — no GPU, Jupyter server or SSH server is ever
- * provisioned. This page therefore never shows connection commands, Jupyter URLs or access
- * tokens (the data adapter drops them), labels every active state "simulated", and explains
- * the limitation next to every control that could suggest otherwise.
+ * SSH keys are real records (8001 /api/v1/ssh-keys). Notebooks come in two kinds:
+ *  - Simulated records (no GPU chosen): only data in the account; nothing to connect to.
+ *  - GPU notebooks: a real GPU deployment running JupyterLab. "Open" asks the backend for a
+ *    single-use link through the Inferxe notebook proxy, only once JupyterLab answered its readiness
+ *    check. On the mock provider these stay simulated and never become ready.
+ * The page never shows connection commands, raw Jupyter URLs or access tokens (the data adapter drops
+ * them) and labels anything simulated as such.
  */
-import { useState, type FormEvent } from 'react'
-import { FlaskConical, KeyRound, Play, Plus, RefreshCw, Square, SquareTerminal, Trash2 } from 'lucide-react'
+import { useEffect, useState, type FormEvent } from 'react'
+import { ExternalLink, FlaskConical, KeyRound, Play, Plus, RefreshCw, Square, SquareTerminal, Trash2 } from 'lucide-react'
 import { usePageMeta } from '../../../lib/hooks'
 import {
   NOTEBOOK_NAME_MAX,
@@ -17,6 +19,7 @@ import {
   createNotebook,
   listNotebooks,
   listSshKeys,
+  openNotebook,
   removeSshKey,
   runNotebookAction,
   validateSshPublicKey,
@@ -26,6 +29,7 @@ import {
 } from '../data/developer'
 import { CustomerApiError } from '../data/http'
 import { formatDate, formatRelativeTime } from '../data/selectors'
+import { fetchGpuOfferings, type GpuOffering } from '../data/serviceClients'
 import { useAsyncResource, type AsyncResource } from '../data/useAsyncResource'
 import { useCustomerWorkspace } from '../data/WorkspaceContext'
 import { getSection } from '../navigation'
@@ -50,13 +54,20 @@ const STATUS_VIEW: Record<NotebookView['status'], { label: string; tone: PillTon
 function NotebookStatus({ notebook }: { notebook: NotebookView }) {
   const view = STATUS_VIEW[notebook.status]
   const active = notebook.status === 'running' || notebook.status === 'starting'
+  // A real GPU notebook: 'Running' means JupyterLab answered; 'Starting' covers provisioning and JupyterLab start-up.
+  const tone: PillTone = notebook.gpuBacked && !notebook.simulated
+    ? notebook.status === 'running' ? 'success' : notebook.status === 'starting' ? 'info' : view.tone
+    : view.tone
   return (
-    <StatusPill tone={view.tone}>
+    <StatusPill tone={tone}>
       {view.label}
       {active && notebook.simulated ? ' (simulated)' : ''}
     </StatusPill>
   )
 }
+
+const newIdempotencyKey = () =>
+  globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
 
 /* ───────────────────────── SSH keys ───────────────────────── */
 
@@ -228,6 +239,10 @@ function NotebooksCard({
   const [createOpen, setCreateOpen] = useState(false)
   const [name, setName] = useState('')
   const [sshKeyId, setSshKeyId] = useState('')
+  const [gpuId, setGpuId] = useState('') // '' = simulated record
+  const [idempotencyKey, setIdempotencyKey] = useState(newIdempotencyKey)
+  const [offerings, setOfferings] = useState<GpuOffering[]>([])
+  const [opening, setOpening] = useState<string | null>(null)
   const [creating, setCreating] = useState(false)
   const [createError, setCreateError] = useState<string | null>(null)
   const [busy, setBusy] = useState<{ id: string; action: NotebookAction } | null>(null)
@@ -239,9 +254,20 @@ function NotebooksCard({
   const loadError = notebooks.state.status === 'error' ? notebooks.state.error : null
   const keyName = (id: string | null) => (id === null ? 'None' : (sshKeys.find((k) => k.id === id)?.name ?? 'Deleted key'))
 
+  useEffect(() => {
+    if (!createOpen) return
+    const controller = new AbortController()
+    fetchGpuOfferings(controller.signal)
+      .then((list) => setOfferings(list.filter((o) => o.is_available)))
+      .catch(() => setOfferings([])) // GPU choice is optional; simulated records still work
+    return () => controller.abort()
+  }, [createOpen])
+
   const openCreate = () => {
     setName('')
     setSshKeyId('')
+    setGpuId('')
+    setIdempotencyKey(newIdempotencyKey()) // one key per dialog: a retried submit never launches a second GPU
     setCreateError(null)
     setCreateOpen(true)
   }
@@ -252,15 +278,38 @@ function NotebooksCard({
     setCreating(true)
     setCreateError(null)
     try {
-      await createNotebook(name, sshKeyId || null)
+      await createNotebook(name, sshKeyId || null, gpuId ? { gpuId, idempotencyKey } : undefined)
       setCreateOpen(false)
-      setRowMessage({ tone: 'success', text: 'Simulated notebook record created. No GPU or Jupyter server was provisioned.' })
+      setRowMessage(
+        gpuId
+          ? { tone: 'success', text: 'GPU notebook launching. JupyterLab starts with the instance; Open becomes available once it is ready.' }
+          : { tone: 'success', text: 'Simulated notebook record created. No GPU or Jupyter server was provisioned.' },
+      )
       notebooks.refresh()
       onChanged()
     } catch (err) {
-      setCreateError(errorMessage(err, 'The notebook record could not be created.'))
+      setCreateError(errorMessage(err, gpuId ? 'The GPU notebook could not be launched.' : 'The notebook record could not be created.'))
     } finally {
       setCreating(false)
+    }
+  }
+
+  const open = async (notebook: NotebookView) => {
+    setRowMessage(null)
+    // Open the tab inside the click so pop-up blockers allow it, then point it at the single-use link.
+    const tab = window.open('', '_blank')
+    if (tab) tab.opener = null
+    setOpening(notebook.id)
+    try {
+      const url = await openNotebook(notebook.id)
+      if (tab) tab.location.href = url
+      else setRowMessage({ tone: 'error', text: 'Your browser blocked the new tab. Allow pop-ups for this site and try again.' })
+    } catch (err) {
+      tab?.close()
+      setRowMessage({ tone: 'error', text: errorMessage(err, 'The notebook could not be opened.') })
+      notebooks.refresh()
+    } finally {
+      setOpening(null)
     }
   }
 
@@ -272,8 +321,13 @@ function NotebooksCard({
       setTerminateTarget(null)
       setRowMessage({
         tone: 'success',
-        text:
-          action === 'terminate'
+        text: notebook.gpuBacked
+          ? action === 'terminate'
+            ? `“${notebook.name}” and its GPU instance were terminated.`
+            : action === 'start'
+              ? `“${notebook.name}” is starting. Open becomes available once JupyterLab is ready.`
+              : `“${notebook.name}” was stopped. Its GPU instance is paused.`
+          : action === 'terminate'
             ? `“${notebook.name}” was marked as terminated.`
             : `“${notebook.name}” was marked as ${action === 'start' ? 'running' : 'stopped'} (simulated). Nothing was started or stopped on real infrastructure.`,
       })
@@ -291,7 +345,11 @@ function NotebooksCard({
   const columns: Column<NotebookView>[] = [
     { key: 'name', header: 'Notebook', render: (n) => <span className="cx-keycell__name">{n.name}</span> },
     { key: 'status', header: 'Status', render: (n) => <NotebookStatus notebook={n} /> },
-    { key: 'profile', header: 'Profile label', render: (n) => <span title="A label stored on the record. No GPU is allocated.">{n.profileLabel}</span> },
+    {
+      key: 'profile',
+      header: 'Profile label',
+      render: (n) => <span title={n.gpuBacked ? 'The GPU this notebook runs on.' : 'A label stored on the record. No GPU is allocated.'}>{n.profileLabel}</span>,
+    },
     { key: 'ssh', header: 'SSH key', render: (n) => keyName(n.sshKeyId) },
     { key: 'created', header: 'Created', render: (n) => formatDate(n.createdAt) },
     { key: 'active', header: 'Last active', render: (n) => (n.lastActiveAt ? formatRelativeTime(n.lastActiveAt) : '—') },
@@ -301,12 +359,25 @@ function NotebooksCard({
       numeric: true,
       render: (n) => {
         const working = busy?.id === n.id
+        const suffix = n.gpuBacked ? '' : ' (simulated)'
         return (
           <div className="cx-row-actions">
-            <Button variant="ghost" size="sm" onClick={() => void act('start', n)} disabled={working || n.status === 'running' || n.status === 'starting'} aria-label={`Start ${n.name} (simulated)`}>
+            {n.gpuBacked ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => void open(n)}
+                disabled={working || opening === n.id || n.status !== 'running'}
+                aria-label={`Open ${n.name} in JupyterLab`}
+                title={n.status === 'running' ? 'Open JupyterLab in a new tab' : 'Available once JupyterLab is ready'}
+              >
+                <ExternalLink size={14} /> {opening === n.id ? 'Opening…' : 'Open'}
+              </Button>
+            ) : null}
+            <Button variant="ghost" size="sm" onClick={() => void act('start', n)} disabled={working || n.status === 'running' || n.status === 'starting'} aria-label={`Start ${n.name}${suffix}`}>
               <Play size={14} /> Start
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => void act('stop', n)} disabled={working || n.status === 'stopped'} aria-label={`Stop ${n.name} (simulated)`}>
+            <Button variant="ghost" size="sm" onClick={() => void act('stop', n)} disabled={working || n.status === 'stopped'} aria-label={`Stop ${n.name}${suffix}`}>
               <Square size={13} /> Stop
             </Button>
             <Button variant="ghost" size="sm" onClick={() => { setTerminateError(null); setTerminateTarget(n) }} disabled={working} aria-label={`Terminate ${n.name}`}>
@@ -325,12 +396,12 @@ function NotebooksCard({
           <CardHeader
             id="cx-nb-title"
             title={<span className="cx-title-icon"><SquareTerminal size={17} aria-hidden="true" /> Notebook sessions</span>}
-            description="Records of notebook sessions. The runtime is simulated."
+            description="Simulated notebook records, and GPU notebooks running JupyterLab."
             action={
               <div className="cx-card__actions">
-                <AvailabilityBadge availability="simulated" note="Records are real; the notebook runtime is simulated and provisions nothing." />
+                <AvailabilityBadge availability="simulated" note="Records without a GPU are simulated and provision nothing. GPU notebooks need a notebook-capable GPU provider." />
                 <Button variant="primary" size="sm" onClick={openCreate} disabled={loadError?.kind === 'unauthenticated'}>
-                  <Plus size={15} /> New notebook record
+                  <Plus size={15} /> New notebook
                 </Button>
               </div>
             }
@@ -343,7 +414,7 @@ function NotebooksCard({
           <div className="cx-card__pad"><LoadingBlock lines={3} label="Loading notebooks" /></div>
         ) : (
           <DataTable
-            caption="Your notebook sessions (simulated)"
+            caption="Your notebook sessions"
             stackOnMobile
             columns={columns}
             rows={list}
@@ -353,21 +424,26 @@ function NotebooksCard({
                 compact
                 icon={<FlaskConical size={24} />}
                 title="No notebook records yet"
-                body="Creating one adds a simulated record to your account. It does not start a GPU, a Jupyter server or an SSH server."
-                actions={<Button variant="primary" size="sm" onClick={openCreate}><Plus size={15} /> New notebook record</Button>}
+                body="A notebook without a GPU is a simulated record: it does not start a GPU, a Jupyter server or an SSH server. Choose a GPU to launch a notebook with JupyterLab."
+                actions={<Button variant="primary" size="sm" onClick={openCreate}><Plus size={15} /> New notebook</Button>}
               />
             }
           />
         )}
         <p className="cx-card__pad cx-footnote cx-footnote--flush">
           Connection details are intentionally not shown: a simulated notebook has no SSH server or Jupyter URL you could connect to.
+          GPU notebooks open through <strong>Open</strong>, which signs you in to JupyterLab with a single-use link once it is ready.
         </p>
       </Card>
 
       <Dialog
         open={createOpen}
-        title="New notebook record"
-        description="This adds a simulated record to your account. No GPU, Jupyter server or SSH server is provisioned."
+        title="New notebook"
+        description={
+          gpuId
+            ? 'This launches a GPU instance running JupyterLab. The GPU is billed while it runs; stop or terminate it when you are done.'
+            : 'This adds a simulated record to your account. No GPU, Jupyter server or SSH server is provisioned.'
+        }
         onClose={() => setCreateOpen(false)}
         dismissible={!creating}
       >
@@ -377,7 +453,10 @@ function NotebooksCard({
               <TextInput id={inputId} value={name} onChange={(e) => setName(e.target.value)} maxLength={NOTEBOOK_NAME_MAX} autoComplete="off" aria-describedby={describedBy} data-autofocus placeholder="Fine-tuning scratchpad" />
             )}
           </Field>
-          <Field label="SSH key (optional)" hint="Stored on the record. It has no effect while the runtime is simulated.">
+          <Field
+            label="SSH key (optional)"
+            hint={gpuId ? 'Installed on the GPU instance for SSH access.' : 'Stored on the record. It has no effect while the runtime is simulated.'}
+          >
             {({ inputId, describedBy }) => (
               <Select id={inputId} value={sshKeyId} onChange={(e) => setSshKeyId(e.target.value)} aria-describedby={describedBy}>
                 <option value="">None</option>
@@ -387,10 +466,24 @@ function NotebooksCard({
               </Select>
             )}
           </Field>
+          <Field label="GPU" hint="Without a GPU the notebook is a simulated record. The server picks a provider that supports notebooks.">
+            {({ inputId, describedBy }) => (
+              <Select id={inputId} value={gpuId} onChange={(e) => setGpuId(e.target.value)} aria-describedby={describedBy}>
+                <option value="">No GPU (simulated record)</option>
+                {offerings.map((o) => (
+                  <option key={`${o.provider_id}:${o.gpu_id}`} value={o.gpu_id}>
+                    {`${o.name} · ${o.vram_gb} GB · ₹${o.hourly_price_inr}/h`}
+                  </option>
+                ))}
+              </Select>
+            )}
+          </Field>
           {createError ? <p className="cx-form-error" role="alert">{createError}</p> : null}
           <div className="cx-dialog__foot cx-dialog__foot--inline">
             <Button variant="ghost" onClick={() => setCreateOpen(false)} disabled={creating}>Cancel</Button>
-            <Button variant="primary" type="submit" disabled={creating}>{creating ? 'Creating…' : 'Create record'}</Button>
+            <Button variant="primary" type="submit" disabled={creating}>
+              {creating ? (gpuId ? 'Launching…' : 'Creating…') : gpuId ? 'Launch notebook' : 'Create record'}
+            </Button>
           </div>
         </form>
       </Dialog>
@@ -398,7 +491,11 @@ function NotebooksCard({
       <ConfirmDialog
         open={terminateTarget !== null}
         title={`Terminate “${terminateTarget?.name ?? ''}”?`}
-        description="The simulated notebook is marked as terminated and removed from this list. No real infrastructure is affected."
+        description={
+          terminateTarget?.gpuBacked
+            ? 'The GPU instance is terminated and billing stops. Files stored only on the instance are lost.'
+            : 'The simulated notebook is marked as terminated and removed from this list. No real infrastructure is affected.'
+        }
         confirmLabel="Terminate"
         busy={busy?.action === 'terminate'}
         error={terminateError}
@@ -427,7 +524,7 @@ export default function DeveloperPage() {
     <>
       <PageHeader
         title="SSH keys & notebooks"
-        description="Register SSH public keys and manage notebook session records."
+        description="Register SSH public keys and manage your notebooks."
         actions={
           <Button variant="secondary" onClick={refreshAll} aria-label="Refresh SSH keys and notebooks" data-tip="Refresh">
             <RefreshCw size={15} />
@@ -436,9 +533,10 @@ export default function DeveloperPage() {
       />
 
       <Notice tone="warning" icon={<FlaskConical size={17} />}>
-        <strong>The notebook runtime is simulated.</strong> Creating, starting or stopping a notebook only changes a
-        record in your account. No GPU, Jupyter server or SSH server is provisioned, so there is nothing to connect to.
-        SSH keys below are real and stored in your account.
+        <strong>Notebooks without a GPU are simulated.</strong> Creating, starting or stopping one only changes a
+        record in your account; no GPU, Jupyter server or SSH server is provisioned, so there is nothing to connect to.
+        Choosing a GPU launches a real instance running JupyterLab when a notebook-capable GPU provider is enabled;
+        notebooks on the mock provider stay simulated and never become ready. SSH keys below are real and stored in your account.
       </Notice>
 
       <div className="cx-stack">

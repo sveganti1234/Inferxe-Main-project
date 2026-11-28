@@ -11,7 +11,7 @@ from typing import Dict, Iterable, List, Optional, Tuple
 from .base import BaseGpuProvider, ProviderCapacityUnavailableError, ProviderError
 from .mock_adapter import MockGpuProvider
 from .jarvislabs.adapter import JarvisLabsGpuProvider
-from .types import GpuOffering
+from .types import ContainerConfig, GpuOffering
 
 DEFAULT_ENABLED_PROVIDERS = "mock"
 
@@ -81,9 +81,14 @@ class ProviderRegistry:
         gpu_id: str,
         provider_id: Optional[str] = None,
         region: Optional[str] = None,
+        notebook: bool = False,
+        container: Optional[ContainerConfig] = None,
     ) -> Tuple[BaseGpuProvider, GpuOffering]:
-        """Pick the provider for a GPU: the one requested, else the cheapest enabled provider that has it available."""
+        """Pick the provider for a GPU: the one requested, else the cheapest enabled provider that has it available.
+        Notebook workloads and custom containers only consider providers that can run them."""
         candidates = self.enabled_providers()
+        if notebook or container is not None:
+            candidates = [p for p in candidates if not p.unsupported_features(notebook=notebook, container=container)]
         if provider_id:
             clean = provider_id.strip().lower()
             candidates = [p for p in candidates if p.provider_id == clean]

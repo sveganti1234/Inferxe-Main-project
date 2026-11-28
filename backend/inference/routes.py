@@ -14,6 +14,7 @@ import asyncio
 import httpx2
 from typing import Optional, Tuple
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
 
 from inference.database import check_database_connection, engine
@@ -82,6 +83,8 @@ from inference.schemas import (
     NotebookResponse,
     NotebookListResponse,
     NotebookActionResponse,
+    NotebookAccessResponse,
+    NotebookTokenResponse,
     RoutingRecommendRequest,
     RoutingRecommendResponse,
     NotebookLogsResponse,
@@ -95,6 +98,7 @@ from inference.ssh_key_service import (
     SSHKeyValidationError,
     DuplicateSSHKeyError,
 )
+from inference.notebook_access import TICKET_TTL_SECONDS
 from inference.notebook_service import (
     create_notebook,
     list_user_notebooks,
@@ -105,6 +109,9 @@ from inference.notebook_service import (
     get_notebook_logs,
     get_notebook_telemetry,
     serialize_notebook,
+    rotate_notebook_token,
+    create_notebook_access,
+    NotebookAccessNotConfiguredError,
     NotebookNotFoundError,
     NotebookValidationError,
     InvalidStateTransitionError,
@@ -623,6 +630,13 @@ def remove_ssh_key(
 
 # --- Notebook Management Endpoints ---
 
+def get_gpu_deployment_service(
+    repo: SupabaseDeploymentRepository = Depends(get_deployment_repository),
+    ssh_repo: SupabaseSSHKeyRepository = Depends(get_ssh_key_repository),
+) -> GpuDeploymentService:
+    return GpuDeploymentService(repo=repo, ssh_repo=ssh_repo)
+
+
 @router.post(
     "/notebooks",
     response_model=NotebookResponse,
@@ -634,11 +648,13 @@ def create_notebook_instance(
     req: NotebookCreateRequest,
     user_id: str = Depends(require_cognito_user),
     repo: SupabaseNotebookRepository = Depends(get_notebook_repository),
+    deployments: GpuDeploymentService = Depends(get_gpu_deployment_service),
 ):
     """
     Create a new notebook session in Supabase.
     Validates selected SSH key ownership via Supabase SSH Keys repository
     and returns the one-time raw Jupyter session token in access_token.
+    With gpu_id (and idempotency_key), launches a real GPU deployment; otherwise the record is simulated.
     """
     ssh_key_uuid = None
     if req.selected_ssh_key_id:
@@ -657,6 +673,11 @@ def create_notebook_instance(
             name=req.name or "Untitled Notebook",
             gpu_profile=req.gpu_profile or "NVIDIA L4",
             selected_ssh_key_id=ssh_key_uuid,
+            gpu_id=req.gpu_id,
+            provider_id=req.provider_id,
+            region=req.region,
+            idempotency_key=req.idempotency_key,
+            deployments=deployments,
         )
     except (NotebookValidationError, SupabaseNotebookValidationError) as ve:
         raise HTTPException(
@@ -673,6 +694,12 @@ def create_notebook_instance(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Upstream notebook database rejected the request.",
         )
+    except NotebookAccessNotConfiguredError as err:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(err))
+    except DeploymentProvisioningError as err:
+        raise _gpu_http_error(err.cause)
+    except _GPU_ERRORS as err:
+        raise _gpu_http_error(err)
     except HTTPException:
         raise
     except Exception as e:
@@ -740,6 +767,7 @@ def get_notebook_instance(
     id: str,
     user_id: str = Depends(require_cognito_user),
     repo: SupabaseNotebookRepository = Depends(get_notebook_repository),
+    deployments: GpuDeploymentService = Depends(get_gpu_deployment_service),
 ):
     """
     Get single notebook instance by ID from Supabase.
@@ -754,7 +782,7 @@ def get_notebook_instance(
         )
 
     try:
-        notebook = get_notebook(repo=repo, user_id=user_id, notebook_id=nb_uuid)
+        notebook = get_notebook(repo=repo, user_id=user_id, notebook_id=nb_uuid, deployments=deployments)
     except NotebookNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -775,6 +803,8 @@ def get_notebook_instance(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Upstream notebook database rejected the request.",
         )
+    except _GPU_ERRORS as err:
+        raise _gpu_http_error(err)
     except HTTPException:
         raise
     except Exception as e:
@@ -797,6 +827,7 @@ def start_notebook_instance(
     id: str,
     user_id: str = Depends(require_cognito_user),
     repo: SupabaseNotebookRepository = Depends(get_notebook_repository),
+    deployments: GpuDeploymentService = Depends(get_gpu_deployment_service),
 ):
     """
     Start notebook session in Supabase.
@@ -810,7 +841,7 @@ def start_notebook_instance(
         )
 
     try:
-        notebook = start_notebook(repo=repo, user_id=user_id, notebook_id=nb_uuid)
+        notebook = start_notebook(repo=repo, user_id=user_id, notebook_id=nb_uuid, deployments=deployments)
     except NotebookNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -836,6 +867,8 @@ def start_notebook_instance(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Upstream notebook database rejected the request.",
         )
+    except _GPU_ERRORS as err:
+        raise _gpu_http_error(err)
     except HTTPException:
         raise
     except Exception as e:
@@ -862,6 +895,7 @@ def stop_notebook_instance(
     id: str,
     user_id: str = Depends(require_cognito_user),
     repo: SupabaseNotebookRepository = Depends(get_notebook_repository),
+    deployments: GpuDeploymentService = Depends(get_gpu_deployment_service),
 ):
     """
     Stop notebook session in Supabase.
@@ -875,7 +909,7 @@ def stop_notebook_instance(
         )
 
     try:
-        notebook = stop_notebook(repo=repo, user_id=user_id, notebook_id=nb_uuid)
+        notebook = stop_notebook(repo=repo, user_id=user_id, notebook_id=nb_uuid, deployments=deployments)
     except NotebookNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -901,6 +935,8 @@ def stop_notebook_instance(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Upstream notebook database rejected the request.",
         )
+    except _GPU_ERRORS as err:
+        raise _gpu_http_error(err)
     except HTTPException:
         raise
     except Exception as e:
@@ -927,6 +963,7 @@ def delete_notebook_instance(
     id: str,
     user_id: str = Depends(require_cognito_user),
     repo: SupabaseNotebookRepository = Depends(get_notebook_repository),
+    deployments: GpuDeploymentService = Depends(get_gpu_deployment_service),
 ):
     """
     Terminate notebook session in Supabase.
@@ -940,7 +977,7 @@ def delete_notebook_instance(
         )
 
     try:
-        notebook = terminate_notebook(repo=repo, user_id=user_id, notebook_id=nb_uuid)
+        notebook = terminate_notebook(repo=repo, user_id=user_id, notebook_id=nb_uuid, deployments=deployments)
     except NotebookNotFoundError:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -966,6 +1003,8 @@ def delete_notebook_instance(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Upstream notebook database rejected the request.",
         )
+    except _GPU_ERRORS as err:
+        raise _gpu_http_error(err)
     except HTTPException:
         raise
     except Exception as e:
@@ -980,6 +1019,76 @@ def delete_notebook_instance(
         message="Notebook terminated successfully.",
         notebook=serialize_notebook(notebook),
     )
+
+
+def _notebook_access_error(err: Exception) -> HTTPException:
+    """HTTP mapping shared by the token-reset and access endpoints. Messages never contain tokens."""
+    if isinstance(err, NotebookNotFoundError):
+        return HTTPException(status.HTTP_404_NOT_FOUND, "Notebook not found.")
+    if isinstance(err, InvalidStateTransitionError):
+        return HTTPException(status.HTTP_409_CONFLICT, str(err))
+    if isinstance(err, NotebookAccessNotConfiguredError):
+        return HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(err))
+    if isinstance(err, (NotebookValidationError, SupabaseNotebookValidationError)):
+        return HTTPException(status.HTTP_400_BAD_REQUEST, str(err))
+    if isinstance(err, SupabaseNotebookServiceUnavailableError):
+        return HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Notebook database is temporarily unavailable.")
+    if isinstance(err, SupabaseNotebookError):
+        return HTTPException(status.HTTP_502_BAD_GATEWAY, "Upstream notebook database rejected the request.")
+    if isinstance(err, _GPU_ERRORS):
+        return _gpu_http_error(err)
+    logger.error("Unexpected notebook access error (%s).", type(err).__name__)
+    return HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "Notebook access request failed.")
+
+
+def _notebook_uuid(id: str) -> uuid.UUID:
+    try:
+        return uuid.UUID(id)
+    except ValueError:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Invalid notebook ID format. Expected UUID.")
+
+
+@router.post(
+    "/notebooks/{id}/token",
+    response_model=NotebookTokenResponse,
+    summary="Reset Notebook Token",
+    description="Issues a new notebook token for the owner, shown once. The previous token, its notebook sessions "
+                "and any unused access links stop working immediately.",
+)
+def reset_notebook_token(
+    id: str,
+    user_id: str = Depends(require_cognito_user),
+    repo: SupabaseNotebookRepository = Depends(get_notebook_repository),
+):
+    nb_uuid = _notebook_uuid(id)
+    try:
+        notebook, raw_token = rotate_notebook_token(repo=repo, user_id=user_id, notebook_id=nb_uuid)
+    except Exception as err:
+        raise _notebook_access_error(err)
+    response = NotebookTokenResponse(notebook_id=str(notebook.id), access_token=raw_token)
+    return JSONResponse(response.model_dump(), headers={"Cache-Control": "no-store"})
+
+
+@router.post(
+    "/notebooks/{id}/access",
+    response_model=NotebookAccessResponse,
+    summary="Open Notebook",
+    description="Returns a single-use link that opens the owner's running notebook in JupyterLab through the "
+                "Inferxe notebook proxy. Refuses until JupyterLab answers its readiness check.",
+)
+def open_notebook_access(
+    id: str,
+    user_id: str = Depends(require_cognito_user),
+    repo: SupabaseNotebookRepository = Depends(get_notebook_repository),
+    deployments: GpuDeploymentService = Depends(get_gpu_deployment_service),
+):
+    nb_uuid = _notebook_uuid(id)
+    try:
+        url, notebook = create_notebook_access(repo=repo, user_id=user_id, notebook_id=nb_uuid, deployments=deployments)
+    except Exception as err:
+        raise _notebook_access_error(err)
+    response = NotebookAccessResponse(notebook_id=str(notebook.id), url=url, expires_in_seconds=TICKET_TTL_SECONDS)
+    return JSONResponse(response.model_dump(), headers={"Cache-Control": "no-store"})
 
 
 @router.post(
@@ -1311,13 +1420,7 @@ def usage_summary(
 
 
 # ── GPU deployments (provider adapter framework) ─────────────────────────────────────────────────────
-
-def get_gpu_deployment_service(
-    repo: SupabaseDeploymentRepository = Depends(get_deployment_repository),
-    ssh_repo: SupabaseSSHKeyRepository = Depends(get_ssh_key_repository),
-) -> GpuDeploymentService:
-    return GpuDeploymentService(repo=repo, ssh_repo=ssh_repo)
-
+# get_gpu_deployment_service is defined above the notebook routes, which also depend on it.
 
 def _gpu_http_error(err: Exception) -> HTTPException:
     """Map service, provider and store errors to HTTP. Provider messages are not echoed (they can carry upstream text)."""

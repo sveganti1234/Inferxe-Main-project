@@ -29,12 +29,19 @@ class MockGpuProvider(BaseGpuProvider):
     """Deterministic in-memory GPU provider adapter."""
 
     supports_ssh_keys = True
+    supports_notebooks = True
+    supports_custom_images = True
+    supports_exposed_ports = True
+
+    MOCK_PUBLIC_PORT_BASE = 40000
 
     def __init__(self):
         self._instances: Dict[str, InstanceHandle] = {}
         self._start_times: Dict[str, float] = {}
         # What a real host would hold in ~/.ssh/authorized_keys; lets tests assert key delivery.
         self.authorized_keys: Dict[str, List[str]] = {}
+        # The container a real host would run (image, env, published ports); lets tests assert propagation.
+        self.containers: Dict[str, Dict] = {}
 
     @property
     def provider_id(self) -> str:
@@ -161,6 +168,7 @@ class MockGpuProvider(BaseGpuProvider):
             ssh_port=2222,
             ssh_username="ubuntu",
             service_url=f"http://{mock_ip}:8000/v1",
+            port_mappings={p.container_port: self.MOCK_PUBLIC_PORT_BASE + i for i, p in enumerate(request.service_ports)},
             created_at=now,
             hourly_price_inr=offering.hourly_price_inr,
             hourly_price_usd=offering.hourly_price_usd,
@@ -169,6 +177,11 @@ class MockGpuProvider(BaseGpuProvider):
         self._instances[provider_id_str] = handle
         self._start_times[provider_id_str] = time.time()
         self.authorized_keys[provider_id_str] = list(request.ssh_public_keys)
+        self.containers[provider_id_str] = {
+            "image": request.container_image,
+            "env_vars": dict(request.env_vars),
+            "service_ports": [p.model_copy() for p in request.service_ports],
+        }
         return handle
 
     async def get_instance_status(self, provider_instance_id: str) -> InstanceStatus:
@@ -194,6 +207,7 @@ class MockGpuProvider(BaseGpuProvider):
             service_healthy=handle.status == InstanceStatusEnum.RUNNING,
             host_ip=handle.host_ip,
             ssh_port=handle.ssh_port,
+            port_mappings=dict(handle.port_mappings),
         )
 
     async def pause_instance(self, provider_instance_id: str) -> bool:

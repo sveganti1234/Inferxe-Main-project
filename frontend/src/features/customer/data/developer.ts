@@ -4,8 +4,9 @@
  *
  * Safety by construction:
  *  - Views are built by picking explicit fields. A notebook's `ssh_command`, `jupyter_url`
- *    and one-time `access_token` point at a simulated host that does not exist, so they are
- *    never copied into UI state — the console cannot display or store them.
+ *    and one-time `access_token` are never copied into UI state — the console cannot display
+ *    or store them. GPU notebooks are opened through `openNotebook`, which asks the backend for
+ *    a single-use proxy link and hands it straight to the new browser tab.
  *  - The SSH public key body is not kept either; the list shows name, type and fingerprint.
  *  - No user id is ever sent: the backend derives the customer from the Cognito token.
  */
@@ -19,6 +20,8 @@ import {
   createBackendNotebook,
   deleteBackendNotebook,
   fetchBackendNotebooks,
+  getBackendNotebook,
+  openBackendNotebook,
   startBackendNotebook,
   stopBackendNotebook,
   type BackendNotebook,
@@ -104,7 +107,7 @@ export async function removeSshKey(id: string): Promise<void> {
   if (!result.ok) throw toError(result, 'The SSH key could not be deleted.')
 }
 
-/* ── Notebooks (simulated runtime) ── */
+/* ── Notebooks (simulated records and GPU notebooks) ── */
 
 export const NOTEBOOK_NAME_MAX = 255
 
@@ -118,6 +121,8 @@ export interface NotebookView {
   status: NotebookStatus
   /** True unless the backend explicitly reports a non-simulated runtime. */
   simulated: boolean
+  /** Backed by a real GPU deployment (status follows the instance and JupyterLab readiness). */
+  gpuBacked: boolean
   sshKeyId: string | null
   createdAt: string | null
   lastActiveAt: string | null
@@ -148,6 +153,7 @@ export function toNotebookView(nb: BackendNotebook): NotebookView {
     profileLabel: nb.gpu_profile || '—',
     status: normaliseStatus(nb.status),
     simulated: nb.is_simulated !== false,
+    gpuBacked: Boolean(nb.deployment_id),
     sshKeyId: nb.selected_ssh_key_id ?? null,
     createdAt: nb.created_at ?? null,
     lastActiveAt: nb.last_active_at ?? null,
@@ -157,20 +163,46 @@ export function toNotebookView(nb: BackendNotebook): NotebookView {
 export async function listNotebooks(): Promise<NotebookView[]> {
   const result = await fetchBackendNotebooks()
   if (!result.ok) throw toError(result, 'Your notebooks could not be loaded.')
-  return (result.notebooks ?? [])
+  // The list returns stored status; fetching a launching GPU notebook refreshes it from the instance and the
+  // JupyterLab readiness check. A failed refresh keeps the listed copy.
+  const notebooks = await Promise.all(
+    (result.notebooks ?? []).map(async (nb) => {
+      if (!nb.deployment_id || (nb.status !== 'provisioning' && nb.status !== 'starting')) return nb
+      const fresh = await getBackendNotebook(nb.id)
+      return fresh.ok && fresh.notebook ? fresh.notebook : nb
+    }),
+  )
+  return notebooks
     .map(toNotebookView)
     .filter((n) => n.status !== 'terminated')
     .sort((a, b) => (Date.parse(b.createdAt ?? '') || 0) - (Date.parse(a.createdAt ?? '') || 0))
 }
 
-export async function createNotebook(name: string, sshKeyId: string | null): Promise<NotebookView> {
+export async function createNotebook(
+  name: string,
+  sshKeyId: string | null,
+  gpu?: { gpuId: string; idempotencyKey: string },
+): Promise<NotebookView> {
   const trimmed = name.trim()
   if (!trimmed || trimmed.length > NOTEBOOK_NAME_MAX) {
     throw new CustomerApiError('bad_request', `Notebook name must be between 1 and ${NOTEBOOK_NAME_MAX} characters.`)
   }
-  const result = await createBackendNotebook({ name: trimmed, selected_ssh_key_id: sshKeyId })
-  if (!result.ok || !result.notebook) throw toError(result, 'The notebook record could not be created.')
+  const result = await createBackendNotebook({
+    name: trimmed,
+    selected_ssh_key_id: sshKeyId,
+    ...(gpu ? { gpu_id: gpu.gpuId, idempotency_key: gpu.idempotencyKey } : {}),
+  })
+  if (!result.ok || !result.notebook) {
+    throw toError(result, gpu ? 'The GPU notebook could not be launched.' : 'The notebook record could not be created.')
+  }
   return toNotebookView(result.notebook)
+}
+
+/** Single-use link to the notebook's JupyterLab (through the Inferxe proxy). Never stored. */
+export async function openNotebook(id: string): Promise<string> {
+  const result = await openBackendNotebook(id)
+  if (!result.ok || !result.url) throw toError(result, 'The notebook could not be opened.')
+  return result.url
 }
 
 export type NotebookAction = 'start' | 'stop' | 'terminate'

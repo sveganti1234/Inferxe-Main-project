@@ -27,6 +27,8 @@ export interface BackendNotebook {
   runtime_type: string
   runtime_reference?: string | null
   selected_ssh_key_id?: string | null
+  /** Set for GPU-backed notebooks; absent/null for simulated records. */
+  deployment_id?: string | null
   ssh_command?: string | null
   jupyter_url?: string | null
   access_token?: string | null
@@ -41,6 +43,10 @@ export interface NotebookCreatePayload {
   name: string
   gpu_profile?: string
   selected_ssh_key_id?: string | null
+  /** GPU id from /api/v1/gpu/offerings. Omit for a simulated record. */
+  gpu_id?: string
+  /** Required with gpu_id: retries with the same key never launch a second GPU. */
+  idempotency_key?: string
 }
 
 export interface BackendNotebookListResponse {
@@ -156,6 +162,10 @@ export async function createBackendNotebook(payload: NotebookCreatePayload): Pro
     if (payload.selected_ssh_key_id) {
       body.selected_ssh_key_id = payload.selected_ssh_key_id
     }
+    if (payload.gpu_id) {
+      body.gpu_id = payload.gpu_id
+      body.idempotency_key = payload.idempotency_key
+    }
 
     const res = await fetch(`${INFERENCE_API_BASE}/api/v1/notebooks`, {
       method: 'POST',
@@ -252,6 +262,54 @@ export async function stopBackendNotebook(id: string): Promise<{
     }
 
     return { ok: true, notebook: data.notebook, message: data.message }
+  } catch (err) {
+    return {
+      ok: false,
+      error: formatApiConnectionError('Inference API server', INFERENCE_API_BASE),
+    }
+  }
+}
+
+/**
+ * Ask for a one-time link that opens a running GPU notebook's JupyterLab through the Inferxe notebook proxy.
+ * The link carries a short-lived single-use ticket; it is handed straight to the browser tab and never stored.
+ */
+export async function openBackendNotebook(id: string): Promise<{
+  ok: boolean
+  url?: string
+  error?: string
+  unauthorized?: boolean
+  notFound?: boolean
+  conflict?: boolean
+}> {
+  try {
+    const session = await ensureFreshSession()
+    if (!session?.token) {
+      return { ok: false, unauthorized: true, error: 'Please sign in to open a notebook.' }
+    }
+
+    const res = await fetch(`${INFERENCE_API_BASE}/api/v1/notebooks/${id}/access`, {
+      method: 'POST',
+      headers: getAuthHeaders(),
+    })
+
+    if (res.status === 401) {
+      return { ok: false, unauthorized: true, error: 'Session expired or unauthenticated.' }
+    }
+
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      return {
+        ok: false,
+        notFound: res.status === 404,
+        conflict: res.status === 409,
+        error: apiErrorDetail(data, 'The notebook could not be opened.'),
+      }
+    }
+    if (typeof data.url !== 'string' || !data.url.startsWith('http')) {
+      return { ok: false, error: 'The notebook could not be opened.' }
+    }
+    return { ok: true, url: data.url }
   } catch (err) {
     return {
       ok: false,

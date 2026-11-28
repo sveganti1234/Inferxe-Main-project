@@ -21,7 +21,7 @@ from inference.supabase_deployments import (
 )
 from providers.base import BaseGpuProvider, ProviderError, ProviderInstanceNotFoundError, ProviderTimeoutError
 from providers.registry import ProviderRegistry, get_registry
-from providers.types import GpuOffering, InstanceStatusEnum, ProvisionRequest
+from providers.types import ContainerConfig, GpuOffering, InstanceStatusEnum, ProvisionRequest
 
 logger = logging.getLogger("inferxe.gpu_deployments")
 
@@ -113,13 +113,28 @@ class GpuDeploymentService:
         region: Optional[str] = None,
         ssh_key_ids: Optional[List[uuid.UUID]] = None,
         idempotency_key: Optional[str] = None,
+        notebook: bool = False,
+        container: Optional[ContainerConfig] = None,
+        deployment_id: Optional[str] = None,
     ) -> Dict[str, Any]:
+        """container: workload-specific image/env/ports chosen by server code (notebooks). None keeps the
+        provider's default model-serving setup used by normal GPU deployments.
+        deployment_id: server-generated id to use for the new row, for callers that must configure the container
+        with it before launch (notebooks). A retried idempotency key still returns the existing row instead."""
         if idempotency_key:
             existing = self.repo.get_by_idempotency_key(user_id, idempotency_key)
             if existing:
                 return existing
 
-        provider, offer = self._run(self.registry.select_offering(gpu_id, provider_id, region))
+        if provider_id and (notebook or container is not None):
+            requested = self.registry.get(provider_id)
+            missing = requested.unsupported_features(notebook=notebook, container=container)
+            if missing:
+                raise DeploymentRequestError(
+                    f"Provider '{requested.provider_id}' does not support {', '.join(missing)}."
+                )
+        provider, offer = self._run(
+            self.registry.select_offering(gpu_id, provider_id, region, notebook=notebook, container=container))
 
         keys = []
         for key_id in dict.fromkeys(ssh_key_ids or []):  # de-duplicate, keep order
@@ -130,7 +145,7 @@ class GpuDeploymentService:
         if keys and not provider.supports_ssh_keys:
             raise DeploymentRequestError(f"Provider '{provider.provider_id}' does not support SSH keys yet.")
 
-        deployment_id = str(uuid.uuid4())
+        deployment_id = str(uuid.UUID(str(deployment_id))) if deployment_id else str(uuid.uuid4())
         row = {
             "id": deployment_id,
             "user_id": user_id,
@@ -147,6 +162,13 @@ class GpuDeploymentService:
                 "gpu_id": offer.gpu_id,
                 "pricing_type": offer.pricing_type.value,
                 "ssh_keys": [{"id": str(k.id), "fingerprint": k.fingerprint} for k in keys],
+                **({"workload": "notebook"} if notebook else {}),
+                # Env values are never stored: they may carry secrets. Names are enough to audit what was sent.
+                **({"container": {
+                    "image": container.image,
+                    "env_keys": sorted(container.env_vars),
+                    "service_ports": [p.model_dump() for p in container.service_ports],
+                }} if container is not None else {}),
             },
         }
         try:
@@ -166,6 +188,11 @@ class GpuDeploymentService:
             pricing_type=offer.pricing_type,
             region_preference=offer.region,
             ssh_public_keys=[k.public_key for k in keys],
+            **({
+                "container_image": container.image,
+                "env_vars": dict(container.env_vars),
+                "service_ports": list(container.service_ports),
+            } if container is not None else {}),
         )
         try:
             handle = self._run(provider.provision_instance(request), provider.provider_id)
@@ -190,6 +217,9 @@ class GpuDeploymentService:
             "ssh_username": handle.ssh_username,
             "endpoint_url": handle.service_url,
         }
+        if handle.port_mappings:
+            fields["metadata"] = {**(row.get("metadata") or {}),
+                                  "port_mappings": {str(c): p for c, p in handle.port_mappings.items()}}
         try:
             updated = self.repo.update(user_id, deployment_id, fields)
         except DeploymentStoreError:
@@ -243,6 +273,9 @@ class GpuDeploymentService:
                 fields["ssh_host"] = status.host_ip
             if status.ssh_port:
                 fields["ssh_port"] = status.ssh_port
+            mappings = {str(c): p for c, p in status.port_mappings.items()}
+            if mappings and mappings != (row.get("metadata") or {}).get("port_mappings"):
+                fields["metadata"] = {**(row.get("metadata") or {}), "port_mappings": mappings}
             if status.error_message:
                 fields["error_message"] = status.error_message[:ERROR_MESSAGE_MAX]
         return self.repo.update(row["user_id"], row["id"], fields) or {**row, **fields}
