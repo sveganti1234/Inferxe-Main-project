@@ -180,7 +180,7 @@ export default function AdminKeyMonitoring() {
                   letterSpacing: '0.06em',
                   textTransform: 'uppercase',
                   background: 'rgba(16, 185, 129, 0.14)',
-                  color: '#10b981',
+                  color: 'var(--cx-accent)',
                   border: '1px solid rgba(16, 185, 129, 0.32)',
                 }}
               >
@@ -225,7 +225,7 @@ export default function AdminKeyMonitoring() {
           className="dash-panel-card"
           style={{
             padding: '16px 18px',
-            borderColor: isSuperadminSession ? 'rgba(251, 191, 36, 0.35)' : undefined,
+            borderColor: isSuperadminSession ? 'color-mix(in srgb, var(--cx-accent) 30%, transparent)' : undefined,
             display: 'flex',
             flexDirection: 'column',
             justifyContent: 'space-between',
@@ -246,9 +246,9 @@ export default function AdminKeyMonitoring() {
                   fontWeight: 700,
                   letterSpacing: '0.06em',
                   textTransform: 'uppercase',
-                  background: 'rgba(251, 191, 36, 0.14)',
-                  color: '#f59e0b',
-                  border: '1px solid rgba(251, 191, 36, 0.32)',
+                  background: 'var(--cx-accent-soft)',
+                  color: 'var(--cx-accent)',
+                  border: '1px solid transparent',
                 }}
               >
                 <ShieldCheck size={12} /> Super Admin Key Management
@@ -274,9 +274,9 @@ export default function AdminKeyMonitoring() {
                   textDecoration: 'none',
                   fontSize: '0.78rem',
                   fontWeight: 600,
-                  background: 'rgba(251, 191, 36, 0.16)',
-                  color: '#f59e0b',
-                  border: '1px solid rgba(251, 191, 36, 0.38)',
+                  background: 'var(--cx-accent-soft)',
+                  color: 'var(--cx-accent)',
+                  border: '1px solid transparent',
                 }}
               >
                 <ShieldAlert size={14} />
@@ -310,8 +310,8 @@ export default function AdminKeyMonitoring() {
           role="alert"
           className="dash-panel-card"
           style={{
-            background: authError ? 'rgba(245, 158, 11, 0.08)' : 'rgba(239, 68, 68, 0.08)',
-            border: `1px solid ${authError ? 'rgba(245, 158, 11, 0.38)' : 'rgba(239, 68, 68, 0.38)'}`,
+            background: authError ? 'var(--cx-info-soft)' : 'var(--cx-danger-soft)',
+            border: `1px solid ${authError ? 'color-mix(in srgb, var(--cx-info) 30%, transparent)' : 'color-mix(in srgb, var(--cx-danger) 30%, transparent)'}`,
             padding: '24px',
             marginBottom: 20,
             display: 'flex',
@@ -323,7 +323,7 @@ export default function AdminKeyMonitoring() {
             <AlertCircle
               size={22}
               style={{
-                color: authError ? '#f59e0b' : '#ef4444',
+                color: authError ? 'var(--cx-info)' : 'var(--cx-danger)',
                 flexShrink: 0,
                 marginTop: 2,
               }}
@@ -355,8 +355,8 @@ export default function AdminKeyMonitoring() {
                   padding: '8px 14px',
                   borderRadius: 9,
                   border: 'none',
-                  background: '#10b981',
-                  color: '#04120b',
+                  background: 'var(--cx-accent)',
+                  color: 'var(--cx-accent-ink)',
                   fontSize: '0.8rem',
                   fontWeight: 700,
                   cursor: 'pointer',
@@ -390,7 +390,7 @@ export default function AdminKeyMonitoring() {
             color: 'var(--ink-3)',
           }}
         >
-          <RefreshCw size={22} className="spin-icon" style={{ color: '#10b981', margin: '0 auto 10px' }} />
+          <RefreshCw size={22} className="spin-icon" style={{ color: 'var(--cx-accent)', margin: '0 auto 10px' }} />
           <div style={{ fontWeight: 600, color: 'var(--ink)', fontSize: '0.92rem' }}>
             Loading live key monitoring telemetry...
           </div>
@@ -415,7 +415,7 @@ export default function AdminKeyMonitoring() {
             <div className="dash-stat-card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span className="dash-stat-label">Active API Keys</span>
-                <KeyRound size={16} style={{ color: '#10b981' }} />
+                <KeyRound size={16} style={{ color: 'var(--cx-accent)' }} />
               </div>
               <div className="dash-stat-value">{summary.active_api_keys}</div>
               <div style={{ fontSize: '0.74rem', color: 'var(--ink-3)' }}>
@@ -426,7 +426,7 @@ export default function AdminKeyMonitoring() {
             <div className="dash-stat-card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span className="dash-stat-label">Registered SSH Keys</span>
-                <Terminal size={16} style={{ color: '#0ea5e9' }} />
+                <Terminal size={16} style={{ color: 'var(--cx-info)' }} />
               </div>
               <div className="dash-stat-value">{summary.ssh_keys}</div>
               <div style={{ fontSize: '0.74rem', color: 'var(--ink-3)' }}>
@@ -437,7 +437,7 @@ export default function AdminKeyMonitoring() {
             <div className="dash-stat-card">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span className="dash-stat-label">API Requests Tracked</span>
-                <Activity size={16} style={{ color: '#50e396' }} />
+                <Activity size={16} style={{ color: 'var(--cx-accent)' }} />
               </div>
               <div className="dash-stat-value">{summary.total_requests}</div>
               <div style={{ fontSize: '0.74rem', color: 'var(--ink-3)' }}>
@@ -450,7 +450,7 @@ export default function AdminKeyMonitoring() {
                 <span className="dash-stat-label">Security Alerts</span>
                 <ShieldAlert
                   size={16}
-                  style={{ color: summary.high_severity_alerts > 0 ? '#ef4444' : '#f59e0b' }}
+                  style={{ color: summary.high_severity_alerts > 0 ? 'var(--cx-danger)' : 'var(--cx-warn)' }}
                 />
               </div>
               <div className="dash-stat-value">{summary.security_alerts_count}</div>
@@ -590,10 +590,10 @@ export default function AdminKeyMonitoring() {
                                 fontSize: '0.7rem',
                                 fontWeight: 600,
                                 background:
-                                  key.type === 'API Key' ? 'rgba(245, 158, 11, 0.14)' : 'rgba(14, 165, 233, 0.14)',
-                                color: key.type === 'API Key' ? '#f59e0b' : '#0ea5e9',
+                                  key.type === 'API Key' ? 'var(--cx-accent-soft)' : 'var(--cx-info-soft)',
+                                color: key.type === 'API Key' ? 'var(--cx-accent)' : 'var(--cx-info)',
                                 border: `1px solid ${
-                                  key.type === 'API Key' ? 'rgba(245, 158, 11, 0.3)' : 'rgba(14, 165, 233, 0.3)'
+                                  'transparent'
                                 }`,
                               }}
                             >
@@ -617,7 +617,7 @@ export default function AdminKeyMonitoring() {
                                 <div>
                                   <strong>{key.usage_count ?? 0}</strong> reqs
                                   {(key.failed_count ?? 0) > 0 && (
-                                    <span style={{ color: '#ef4444', marginLeft: 6 }}>
+                                    <span style={{ color: 'var(--cx-danger)', marginLeft: 6 }}>
                                       ({key.failed_count} failed)
                                     </span>
                                   )}
@@ -645,16 +645,16 @@ export default function AdminKeyMonitoring() {
                                 textTransform: 'capitalize',
                                 background:
                                   key.status === 'active'
-                                    ? 'rgba(16, 185, 129, 0.14)'
+                                    ? 'var(--cx-accent-soft)'
                                     : key.status === 'expired'
-                                      ? 'rgba(245, 158, 11, 0.14)'
-                                      : 'rgba(239, 68, 68, 0.14)',
+                                      ? 'var(--cx-warn-soft)'
+                                      : 'var(--cx-danger-soft)',
                                 color:
                                   key.status === 'active'
-                                    ? '#10b981'
+                                    ? 'var(--cx-accent)'
                                     : key.status === 'expired'
-                                      ? '#f59e0b'
-                                      : '#ef4444',
+                                      ? 'var(--cx-warn)'
+                                      : 'var(--cx-danger)',
                               }}
                             >
                               {key.status}
@@ -679,7 +679,7 @@ export default function AdminKeyMonitoring() {
             <div className="dash-panel-card">
               {alerts.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: 40, color: 'var(--ink-3)' }}>
-                  <ShieldCheck size={28} style={{ color: '#10b981', margin: '0 auto 8px' }} />
+                  <ShieldCheck size={28} style={{ color: 'var(--cx-accent)', margin: '0 auto 8px' }} />
                   <div style={{ fontWeight: 600, color: 'var(--ink)' }}>No active key security alerts</div>
                   <div style={{ fontSize: '0.8rem', marginTop: 4 }}>
                     All monitored API keys are within normal failure-rate, expiration, and rotation thresholds.
@@ -719,8 +719,8 @@ export default function AdminKeyMonitoring() {
                               textTransform: 'uppercase',
                               padding: '2px 7px',
                               borderRadius: 999,
-                              background: alert.severity === 'high' ? '#ef4444' : '#f59e0b',
-                              color: '#ffffff',
+                              background: alert.severity === 'high' ? 'var(--cx-danger)' : 'var(--cx-warn)',
+                              color: 'var(--cx-accent-ink)',
                             }}
                           >
                             {alert.severity}
@@ -777,7 +777,7 @@ export default function AdminKeyMonitoring() {
                                 padding: '2px 7px',
                                 borderRadius: 6,
                                 background: 'rgba(16, 185, 129, 0.12)',
-                                color: '#10b981',
+                                color: 'var(--cx-accent)',
                               }}
                             >
                               {rec.action}

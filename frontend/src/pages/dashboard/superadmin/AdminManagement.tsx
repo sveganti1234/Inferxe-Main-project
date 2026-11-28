@@ -206,7 +206,7 @@ export default function AdminManagement() {
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '4px',
-                  color: '#9CA3AF',
+                  color: 'var(--cx-text-3)',
                   fontSize: '0.78rem',
                   textDecoration: 'none',
                 }}
@@ -218,14 +218,14 @@ export default function AdminManagement() {
               style={{
                 fontSize: '1.5rem',
                 fontWeight: 700,
-                color: '#FFFFFF',
+                color: 'var(--cx-text)',
                 margin: 0,
                 letterSpacing: '-0.02em',
               }}
             >
               Administrator Accounts Directory
             </h1>
-            <p style={{ margin: '4px 0 0', color: '#9CA3AF', fontSize: '0.84rem' }}>
+            <p style={{ margin: '4px 0 0', color: 'var(--cx-text-3)', fontSize: '0.84rem' }}>
               View and govern all platform administrators. Suspend or restore authorization privileges with audit logging.
             </p>
           </div>
@@ -238,9 +238,10 @@ export default function AdminManagement() {
                 setIsCreateModalOpen(true)
               }}
               style={{
-                background: 'linear-gradient(135deg, #10B981, #059669)',
-                border: '1px solid #10B981',
-                color: '#FFFFFF',
+                background: 'linear-gradient(135deg, var(--cx-accent-2), var(--cx-accent))',
+                border: '1px solid transparent',
+                color: 'var(--cx-accent-ink)',
+                boxShadow: '0 12px 28px -14px var(--cx-accent-glow), 0 1px 0 rgba(255, 255, 255, 0.4) inset',
                 padding: '8px 14px',
                 borderRadius: '8px',
                 fontSize: '0.82rem',
@@ -260,9 +261,9 @@ export default function AdminManagement() {
               onClick={() => void loadAdmins()}
               disabled={loading}
               style={{
-                background: '#121C16',
-                border: '1px solid #1B2E24',
-                color: '#E5E7EB',
+                background: 'var(--cx-surface)',
+                border: '1px solid var(--cx-border)',
+                color: 'var(--cx-text-2)',
                 padding: '8px 14px',
                 borderRadius: '8px',
                 fontSize: '0.82rem',
@@ -282,11 +283,11 @@ export default function AdminManagement() {
         {error && (
           <div
             style={{
-              background: '#2B1214',
-              border: '1px solid #7F1D1D',
+              background: 'var(--cx-danger-soft)',
+              border: '1px solid color-mix(in srgb, var(--cx-danger) 30%, transparent)',
               borderRadius: '8px',
               padding: '12px 16px',
-              color: '#FCA5A5',
+              color: 'var(--cx-danger)',
               fontSize: '0.85rem',
               marginBottom: '16px',
               display: 'flex',
@@ -302,11 +303,11 @@ export default function AdminManagement() {
         {successMsg && (
           <div
             style={{
-              background: '#0D2818',
-              border: '1px solid #10B981',
+              background: 'var(--cx-accent-soft)',
+              border: '1px solid var(--cx-accent)',
               borderRadius: '8px',
               padding: '12px 16px',
-              color: '#6EE7B7',
+              color: 'var(--cx-accent)',
               fontSize: '0.85rem',
               marginBottom: '16px',
               display: 'flex',
@@ -322,8 +323,8 @@ export default function AdminManagement() {
         {/* ── Search & Filter Toolbar ── */}
         <div
           style={{
-            background: '#0F1612',
-            border: '1px solid #1B2E24',
+            background: 'var(--cx-card-a, var(--cx-panel))',
+            border: '1px solid var(--cx-border)',
             borderRadius: '10px',
             padding: '14px 18px',
             marginBottom: '20px',
@@ -343,7 +344,7 @@ export default function AdminManagement() {
                 left: '12px',
                 top: '50%',
                 transform: 'translateY(-50%)',
-                color: '#6B7280',
+                color: 'var(--cx-text-4)',
               }}
             />
             <input
@@ -353,11 +354,11 @@ export default function AdminManagement() {
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{
                 width: '100%',
-                background: '#121C16',
-                border: '1px solid #23382C',
+                background: 'var(--cx-surface)',
+                border: '1px solid var(--cx-border-2)',
                 borderRadius: '6px',
                 padding: '8px 12px 8px 36px',
-                color: '#FFFFFF',
+                color: 'var(--cx-text)',
                 fontSize: '0.84rem',
                 outline: 'none',
               }}
@@ -388,9 +389,9 @@ export default function AdminManagement() {
                 type="button"
                 onClick={() => setStatusFilter(tab.key)}
                 style={{
-                  background: statusFilter === tab.key ? '#10B981' : '#121C16',
-                  color: statusFilter === tab.key ? '#040D08' : '#D1D5DB',
-                  border: `1px solid ${statusFilter === tab.key ? '#10B981' : '#1B2E24'}`,
+                  background: statusFilter === tab.key ? 'var(--cx-accent)' : 'var(--cx-surface)',
+                  color: statusFilter === tab.key ? 'var(--cx-accent-ink)' : 'var(--cx-text-2)',
+                  border: `1px solid ${statusFilter === tab.key ? 'var(--cx-accent)' : 'var(--cx-border)'}`,
                   borderRadius: '6px',
                   padding: '6px 12px',
                   fontSize: '0.78rem',
@@ -408,33 +409,33 @@ export default function AdminManagement() {
         {/* ── Admins Table Card ── */}
         <div
           style={{
-            background: '#0F1612',
-            border: '1px solid #1B2E24',
+            background: 'var(--cx-card-a, var(--cx-panel))',
+            border: '1px solid var(--cx-border)',
             borderRadius: '12px',
             overflow: 'hidden',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.4)',
+            boxShadow: '0 4px 20px var(--cx-surface)',
           }}
         >
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.84rem' }}>
               <thead>
-                <tr style={{ background: '#0B130F', borderBottom: '1px solid #1B2E24' }}>
-                  <th style={{ padding: '12px 18px', color: '#E5E7EB', fontWeight: 600, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                <tr style={{ background: 'var(--cx-surface)', borderBottom: '1px solid var(--cx-border)' }}>
+                  <th style={{ padding: '12px 18px', color: 'var(--cx-text-2)', fontWeight: 600, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                     Administrator
                   </th>
-                  <th style={{ padding: '12px 18px', color: '#E5E7EB', fontWeight: 600, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  <th style={{ padding: '12px 18px', color: 'var(--cx-text-2)', fontWeight: 600, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                     Role
                   </th>
-                  <th style={{ padding: '12px 18px', color: '#E5E7EB', fontWeight: 600, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  <th style={{ padding: '12px 18px', color: 'var(--cx-text-2)', fontWeight: 600, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                     Status
                   </th>
-                  <th style={{ padding: '12px 18px', color: '#E5E7EB', fontWeight: 600, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  <th style={{ padding: '12px 18px', color: 'var(--cx-text-2)', fontWeight: 600, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                     Last Login & IP
                   </th>
-                  <th style={{ padding: '12px 18px', color: '#E5E7EB', fontWeight: 600, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  <th style={{ padding: '12px 18px', color: 'var(--cx-text-2)', fontWeight: 600, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                     Activity Count
                   </th>
-                  <th style={{ padding: '12px 18px', color: '#E5E7EB', fontWeight: 600, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'right' }}>
+                  <th style={{ padding: '12px 18px', color: 'var(--cx-text-2)', fontWeight: 600, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'right' }}>
                     Governance Actions
                   </th>
                 </tr>
@@ -442,16 +443,16 @@ export default function AdminManagement() {
               <tbody>
                 {loading && admins.length === 0 ? (
                   <tr>
-                    <td colSpan={6} style={{ textAlign: 'center', padding: '48px', color: '#9CA3AF' }}>
-                      <RefreshCw size={20} className="spin-icon" style={{ color: '#10B981', margin: '0 auto 8px' }} />
+                    <td colSpan={6} style={{ textAlign: 'center', padding: '48px', color: 'var(--cx-text-3)' }}>
+                      <RefreshCw size={20} className="spin-icon" style={{ color: 'var(--cx-accent)', margin: '0 auto 8px' }} />
                       <div>Loading admin directory...</div>
                     </td>
                   </tr>
                 ) : filteredAdmins.length === 0 ? (
                   <tr>
-                    <td colSpan={6} style={{ textAlign: 'center', padding: '48px', color: '#9CA3AF' }}>
+                    <td colSpan={6} style={{ textAlign: 'center', padding: '48px', color: 'var(--cx-text-3)' }}>
                       <Users size={28} style={{ opacity: 0.4, margin: '0 auto 8px' }} />
-                      <div style={{ color: '#FFFFFF', fontWeight: 600 }}>No administrators found</div>
+                      <div style={{ color: 'var(--cx-text)', fontWeight: 600 }}>No administrators found</div>
                       <div style={{ fontSize: '0.78rem', marginTop: '4px' }}>
                         Try clearing search terms or changing status filter.
                       </div>
@@ -462,7 +463,7 @@ export default function AdminManagement() {
                     <tr
                       key={adm.id}
                       style={{
-                        borderBottom: '1px solid #152219',
+                        borderBottom: '1px solid var(--cx-border)',
                         transition: 'background 0.15s ease',
                       }}
                     >
@@ -473,14 +474,14 @@ export default function AdminManagement() {
                               width: '36px',
                               height: '36px',
                               borderRadius: '50%',
-                              background: adm.role === 'superadmin' ? 'rgba(0, 255, 136, 0.15)' : '#152414',
-                              color: adm.role === 'superadmin' ? '#00FF88' : '#10B981',
+                              background: adm.role === 'superadmin' ? 'rgba(0, 255, 136, 0.15)' : 'var(--cx-surface-2)',
+                              color: adm.role === 'superadmin' ? 'var(--cx-accent)' : 'var(--cx-accent)',
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'center',
                               fontWeight: 700,
                               fontSize: '0.82rem',
-                              border: `1px solid ${adm.role === 'superadmin' ? 'rgba(0, 255, 136, 0.3)' : '#1B2E24'}`,
+                              border: `1px solid ${adm.role === 'superadmin' ? 'rgba(0, 255, 136, 0.3)' : 'var(--cx-border)'}`,
                             }}
                           >
                             {adm.full_name
@@ -491,10 +492,10 @@ export default function AdminManagement() {
                               .toUpperCase()}
                           </div>
                           <div>
-                            <div style={{ fontWeight: 600, color: '#FFFFFF', fontSize: '0.88rem' }}>
+                            <div style={{ fontWeight: 600, color: 'var(--cx-text)', fontSize: '0.88rem' }}>
                               {adm.full_name}
                             </div>
-                            <div style={{ color: '#9CA3AF', fontSize: '0.76rem', fontFamily: 'var(--font-mono)' }}>
+                            <div style={{ color: 'var(--cx-text-3)', fontSize: '0.76rem', fontFamily: 'var(--font-mono)' }}>
                               {adm.email}
                             </div>
                           </div>
@@ -506,7 +507,7 @@ export default function AdminManagement() {
                           style={{
                             background:
                               adm.role === 'superadmin' ? 'rgba(0, 255, 136, 0.12)' : 'rgba(56, 189, 248, 0.12)',
-                            color: adm.role === 'superadmin' ? '#00FF88' : '#38BDF8',
+                            color: adm.role === 'superadmin' ? 'var(--cx-accent)' : 'var(--cx-info)',
                             border: `1px solid ${adm.role === 'superadmin' ? 'rgba(0, 255, 136, 0.3)' : 'rgba(56, 189, 248, 0.3)'}`,
                             borderRadius: '4px',
                             padding: '3px 8px',
@@ -536,10 +537,10 @@ export default function AdminManagement() {
                                   : 'rgba(245, 158, 11, 0.12)',
                             color:
                               adm.status === 'active'
-                                ? '#10B981'
+                                ? 'var(--cx-accent)'
                                 : adm.status === 'suspended'
-                                  ? '#EF4444'
-                                  : '#F59E0B',
+                                  ? 'var(--cx-danger)'
+                                  : 'var(--cx-warn)',
                             border: `1px solid ${
                               adm.status === 'active'
                                 ? 'rgba(16, 185, 129, 0.25)'
@@ -558,10 +559,10 @@ export default function AdminManagement() {
                               borderRadius: '50%',
                               background:
                                 adm.status === 'active'
-                                  ? '#10B981'
+                                  ? 'var(--cx-accent)'
                                   : adm.status === 'suspended'
-                                    ? '#EF4444'
-                                    : '#F59E0B',
+                                    ? 'var(--cx-danger)'
+                                    : 'var(--cx-warn)',
                             }}
                           />
                           {adm.status.charAt(0).toUpperCase() + adm.status.slice(1)}
@@ -569,7 +570,7 @@ export default function AdminManagement() {
                       </td>
 
                       <td style={{ padding: '14px 18px' }}>
-                        <div style={{ color: '#E5E7EB', fontSize: '0.8rem' }}>
+                        <div style={{ color: 'var(--cx-text-2)', fontSize: '0.8rem' }}>
                           {adm.last_login
                             ? new Date(adm.last_login).toLocaleString([], {
                                 month: 'short',
@@ -579,12 +580,12 @@ export default function AdminManagement() {
                               })
                             : 'Never'}
                         </div>
-                        <div style={{ color: '#6B7280', fontSize: '0.72rem', fontFamily: 'var(--font-mono)' }}>
+                        <div style={{ color: 'var(--cx-text-4)', fontSize: '0.72rem', fontFamily: 'var(--font-mono)' }}>
                           IP: {adm.last_ip || '127.0.0.1'}
                         </div>
                       </td>
 
-                      <td style={{ padding: '14px 18px', color: '#FFFFFF', fontWeight: 600, fontFamily: 'var(--font-mono)' }}>
+                      <td style={{ padding: '14px 18px', color: 'var(--cx-text)', fontWeight: 600, fontFamily: 'var(--font-mono)' }}>
                         {adm.activity_count ?? 0} actions
                       </td>
 
@@ -601,7 +602,7 @@ export default function AdminManagement() {
                               }}
                               style={{
                                 background: 'rgba(16, 185, 129, 0.15)',
-                                color: '#10B981',
+                                color: 'var(--cx-accent)',
                                 border: '1px solid rgba(16, 185, 129, 0.3)',
                                 borderRadius: '6px',
                                 padding: '5px 10px',
@@ -624,7 +625,7 @@ export default function AdminManagement() {
                               }}
                               style={{
                                 background: 'rgba(239, 68, 68, 0.12)',
-                                color: '#EF4444',
+                                color: 'var(--cx-danger)',
                                 border: '1px solid rgba(239, 68, 68, 0.3)',
                                 borderRadius: '6px',
                                 padding: '5px 10px',
@@ -647,7 +648,7 @@ export default function AdminManagement() {
                               title="Delete administrator account"
                               style={{
                                 background: 'rgba(239, 68, 68, 0.1)',
-                                color: '#EF4444',
+                                color: 'var(--cx-danger)',
                                 border: '1px solid rgba(239, 68, 68, 0.25)',
                                 borderRadius: '6px',
                                 padding: '5px 8px',
@@ -665,7 +666,7 @@ export default function AdminManagement() {
                           )}
 
                           {adm.role === 'superadmin' && (
-                            <span style={{ fontSize: '0.72rem', color: '#6B7280', padding: '5px 0' }}>
+                            <span style={{ fontSize: '0.72rem', color: 'var(--cx-text-4)', padding: '5px 0' }}>
                               Primary Superadmin
                             </span>
                           )}
@@ -685,7 +686,7 @@ export default function AdminManagement() {
             style={{
               position: 'fixed',
               inset: 0,
-              background: 'rgba(0, 0, 0, 0.82)',
+              background: 'var(--cx-overlay)',
               backdropFilter: 'blur(8px)',
               display: 'flex',
               alignItems: 'center',
@@ -696,8 +697,8 @@ export default function AdminManagement() {
           >
             <div
               style={{
-                background: '#0F1612',
-                border: '1px solid #1B2E24',
+                background: 'var(--cx-card-a, var(--cx-panel))',
+                border: '1px solid var(--cx-border)',
                 borderRadius: '14px',
                 width: '100%',
                 maxWidth: '460px',
@@ -716,29 +717,29 @@ export default function AdminManagement() {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: actionType === 'active' ? '#10B981' : '#EF4444',
+                    color: actionType === 'active' ? 'var(--cx-accent)' : 'var(--cx-danger)',
                   }}
                 >
                   {actionType === 'active' ? <UserCheck size={18} /> : <UserX size={18} />}
                 </div>
                 <div>
-                  <h3 style={{ margin: 0, color: '#FFFFFF', fontSize: '1.1rem', fontWeight: 700 }}>
+                  <h3 style={{ margin: 0, color: 'var(--cx-text)', fontSize: '1.1rem', fontWeight: 700 }}>
                     {actionType === 'active' ? 'Activate Admin Account' : 'Suspend Admin Account'}
                   </h3>
-                  <div style={{ color: '#9CA3AF', fontSize: '0.78rem' }}>
+                  <div style={{ color: 'var(--cx-text-3)', fontSize: '0.78rem' }}>
                     {actionTarget.full_name} ({actionTarget.email})
                   </div>
                 </div>
               </div>
 
-              <p style={{ color: '#D1D5DB', fontSize: '0.84rem', margin: '0 0 16px', lineHeight: 1.5 }}>
+              <p style={{ color: 'var(--cx-text-2)', fontSize: '0.84rem', margin: '0 0 16px', lineHeight: 1.5 }}>
                 {actionType === 'suspended'
                   ? 'Suspending this administrator will immediately revoke their access to the Admin Portal, Customer Management, and backend API endpoints.'
                   : 'Activating this account will restore full administrator access to platform administration dashboards.'}
               </p>
 
               <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '0.76rem', color: '#9CA3AF', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '0.76rem', color: 'var(--cx-text-3)', marginBottom: '6px' }}>
                   Reason for Audit Trail (Required)
                 </label>
                 <input
@@ -748,11 +749,11 @@ export default function AdminManagement() {
                   placeholder="e.g. Completed quarterly review / Security precaution"
                   style={{
                     width: '100%',
-                    background: '#121C16',
-                    border: '1px solid #23382C',
+                    background: 'var(--cx-surface)',
+                    border: '1px solid var(--cx-border-2)',
                     borderRadius: '6px',
                     padding: '8px 12px',
-                    color: '#FFFFFF',
+                    color: 'var(--cx-text)',
                     fontSize: '0.82rem',
                     outline: 'none',
                   }}
@@ -768,9 +769,9 @@ export default function AdminManagement() {
                   }}
                   disabled={submittingAction}
                   style={{
-                    background: '#121C16',
-                    border: '1px solid #1B2E24',
-                    color: '#D1D5DB',
+                    background: 'var(--cx-surface)',
+                    border: '1px solid var(--cx-border)',
+                    color: 'var(--cx-text-2)',
                     borderRadius: '6px',
                     padding: '8px 14px',
                     fontSize: '0.82rem',
@@ -811,7 +812,7 @@ export default function AdminManagement() {
             style={{
               position: 'fixed',
               inset: 0,
-              background: 'rgba(0, 0, 0, 0.82)',
+              background: 'var(--cx-overlay)',
               backdropFilter: 'blur(8px)',
               display: 'flex',
               alignItems: 'center',
@@ -822,8 +823,8 @@ export default function AdminManagement() {
           >
             <div
               style={{
-                background: '#0F1612',
-                border: '1px solid #7F1D1D',
+                background: 'var(--cx-card-a, var(--cx-panel))',
+                border: '1px solid color-mix(in srgb, var(--cx-danger) 30%, transparent)',
                 borderRadius: '14px',
                 width: '100%',
                 maxWidth: '460px',
@@ -841,16 +842,16 @@ export default function AdminManagement() {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#EF4444',
+                    color: 'var(--cx-danger)',
                   }}
                 >
                   <Trash2 size={18} />
                 </div>
                 <div>
-                  <h3 style={{ margin: 0, color: '#FFFFFF', fontSize: '1.1rem', fontWeight: 700 }}>
+                  <h3 style={{ margin: 0, color: 'var(--cx-text)', fontSize: '1.1rem', fontWeight: 700 }}>
                     Delete Admin Account
                   </h3>
-                  <div style={{ color: '#FCA5A5', fontSize: '0.78rem' }}>
+                  <div style={{ color: 'var(--cx-danger)', fontSize: '0.78rem' }}>
                     {deletingAdmin.full_name} ({deletingAdmin.email})
                   </div>
                 </div>
@@ -863,7 +864,7 @@ export default function AdminManagement() {
                   borderRadius: '8px',
                   padding: '12px 14px',
                   marginBottom: '16px',
-                  color: '#FECACA',
+                  color: 'var(--cx-danger)',
                   fontSize: '0.82rem',
                   lineHeight: 1.5,
                 }}
@@ -872,7 +873,7 @@ export default function AdminManagement() {
               </div>
 
               <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '0.76rem', color: '#9CA3AF', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '0.76rem', color: 'var(--cx-text-3)', marginBottom: '6px' }}>
                   Reason for Audit Trail (Optional)
                 </label>
                 <input
@@ -882,11 +883,11 @@ export default function AdminManagement() {
                   placeholder="e.g. Account offboarding / Departure"
                   style={{
                     width: '100%',
-                    background: '#121C16',
-                    border: '1px solid #23382C',
+                    background: 'var(--cx-surface)',
+                    border: '1px solid var(--cx-border-2)',
                     borderRadius: '6px',
                     padding: '8px 12px',
-                    color: '#FFFFFF',
+                    color: 'var(--cx-text)',
                     fontSize: '0.82rem',
                     outline: 'none',
                   }}
@@ -902,9 +903,9 @@ export default function AdminManagement() {
                   }}
                   disabled={submittingDelete}
                   style={{
-                    background: '#121C16',
-                    border: '1px solid #1B2E24',
-                    color: '#D1D5DB',
+                    background: 'var(--cx-surface)',
+                    border: '1px solid var(--cx-border)',
+                    color: 'var(--cx-text-2)',
                     borderRadius: '6px',
                     padding: '8px 14px',
                     fontSize: '0.82rem',
@@ -945,7 +946,7 @@ export default function AdminManagement() {
             style={{
               position: 'fixed',
               inset: 0,
-              background: 'rgba(0, 0, 0, 0.82)',
+              background: 'var(--cx-overlay)',
               backdropFilter: 'blur(8px)',
               display: 'flex',
               alignItems: 'center',
@@ -957,8 +958,8 @@ export default function AdminManagement() {
             <form
               onSubmit={handleCreateDeveloperAdmin}
               style={{
-                background: '#0F1612',
-                border: '1px solid #1B2E24',
+                background: 'var(--cx-card-a, var(--cx-panel))',
+                border: '1px solid var(--cx-border)',
                 borderRadius: '14px',
                 width: '100%',
                 maxWidth: '460px',
@@ -976,17 +977,17 @@ export default function AdminManagement() {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#10B981',
+                    color: 'var(--cx-accent)',
                   }}
                 >
                   <Shield size={18} />
                 </div>
                 <div>
-                  <h3 style={{ margin: 0, color: '#FFFFFF', fontSize: '1.08rem', fontWeight: 700 }}>
+                  <h3 style={{ margin: 0, color: 'var(--cx-text)', fontSize: '1.08rem', fontWeight: 700 }}>
                     Create Platform Administrator
                   </h3>
-                  <div style={{ color: '#9CA3AF', fontSize: '0.78rem' }}>
-                    Provisioned in Supabase with Argon2id hashing and role <strong style={{ color: '#6EE7B7' }}>admin</strong>
+                  <div style={{ color: 'var(--cx-text-3)', fontSize: '0.78rem' }}>
+                    Provisioned in Supabase with Argon2id hashing and role <strong style={{ color: 'var(--cx-accent)' }}>admin</strong>
                   </div>
                 </div>
               </div>
@@ -994,11 +995,11 @@ export default function AdminManagement() {
               {createError && (
                 <div
                   style={{
-                    background: '#2B1214',
-                    border: '1px solid #7F1D1D',
+                    background: 'var(--cx-danger-soft)',
+                    border: '1px solid color-mix(in srgb, var(--cx-danger) 30%, transparent)',
                     borderRadius: '6px',
                     padding: '10px 12px',
-                    color: '#FCA5A5',
+                    color: 'var(--cx-danger)',
                     fontSize: '0.8rem',
                     marginBottom: '14px',
                   }}
@@ -1008,7 +1009,7 @@ export default function AdminManagement() {
               )}
 
               <div style={{ marginBottom: '12px' }}>
-                <label style={{ display: 'block', fontSize: '0.76rem', color: '#9CA3AF', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '0.76rem', color: 'var(--cx-text-3)', marginBottom: '6px' }}>
                   Administrator Email
                 </label>
                 <input
@@ -1019,11 +1020,11 @@ export default function AdminManagement() {
                   placeholder="admin.user@inferxe.com"
                   style={{
                     width: '100%',
-                    background: '#121C16',
-                    border: '1px solid #23382C',
+                    background: 'var(--cx-surface)',
+                    border: '1px solid var(--cx-border-2)',
                     borderRadius: '6px',
                     padding: '8px 12px',
-                    color: '#FFFFFF',
+                    color: 'var(--cx-text)',
                     fontSize: '0.84rem',
                     outline: 'none',
                   }}
@@ -1031,7 +1032,7 @@ export default function AdminManagement() {
               </div>
 
               <div style={{ marginBottom: '12px' }}>
-                <label style={{ display: 'block', fontSize: '0.76rem', color: '#9CA3AF', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '0.76rem', color: 'var(--cx-text-3)', marginBottom: '6px' }}>
                   Strong Password (min 12 chars, upper/lower/digit/symbol)
                 </label>
                 <input
@@ -1043,11 +1044,11 @@ export default function AdminManagement() {
                   placeholder="Enter strong password"
                   style={{
                     width: '100%',
-                    background: '#121C16',
-                    border: '1px solid #23382C',
+                    background: 'var(--cx-surface)',
+                    border: '1px solid var(--cx-border-2)',
                     borderRadius: '6px',
                     padding: '8px 12px',
-                    color: '#FFFFFF',
+                    color: 'var(--cx-text)',
                     fontSize: '0.84rem',
                     outline: 'none',
                   }}
@@ -1055,7 +1056,7 @@ export default function AdminManagement() {
               </div>
 
               <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '0.76rem', color: '#9CA3AF', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '0.76rem', color: 'var(--cx-text-3)', marginBottom: '6px' }}>
                   Confirm Password
                 </label>
                 <input
@@ -1067,11 +1068,11 @@ export default function AdminManagement() {
                   placeholder="Re-enter password"
                   style={{
                     width: '100%',
-                    background: '#121C16',
-                    border: '1px solid #23382C',
+                    background: 'var(--cx-surface)',
+                    border: '1px solid var(--cx-border-2)',
                     borderRadius: '6px',
                     padding: '8px 12px',
-                    color: '#FFFFFF',
+                    color: 'var(--cx-text)',
                     fontSize: '0.84rem',
                     outline: 'none',
                   }}
@@ -1090,9 +1091,9 @@ export default function AdminManagement() {
                   }}
                   disabled={creatingAdmin}
                   style={{
-                    background: '#121C16',
-                    border: '1px solid #1B2E24',
-                    color: '#D1D5DB',
+                    background: 'var(--cx-surface)',
+                    border: '1px solid var(--cx-border)',
+                    color: 'var(--cx-text-2)',
                     borderRadius: '6px',
                     padding: '8px 14px',
                     fontSize: '0.82rem',
@@ -1105,9 +1106,9 @@ export default function AdminManagement() {
                   type="submit"
                   disabled={creatingAdmin}
                   style={{
-                    background: '#10B981',
+                    background: 'var(--cx-accent)',
                     border: 'none',
-                    color: '#FFFFFF',
+                    color: 'var(--cx-text)',
                     borderRadius: '6px',
                     padding: '8px 16px',
                     fontSize: '0.82rem',

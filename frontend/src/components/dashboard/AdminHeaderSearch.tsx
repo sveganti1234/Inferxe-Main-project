@@ -536,7 +536,7 @@ export function AdminHeaderSearch({ sections, isSuperAdmin }: AdminHeaderSearchP
             <X size={13} />
           </button>
         ) : (
-          <kbd className="verdelo-search-kbd">⌘K</kbd>
+          <kbd className="verdelo-search-kbd">{/Mac|iPhone|iPad/.test(navigator.userAgent) ? '⌘K' : 'Ctrl K'}</kbd>
         )}
       </div>
 

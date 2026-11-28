@@ -394,6 +394,7 @@ export async function signOutCurrentUser(): Promise<void> {
   const isAdmin = stored ? isAdminPortalRole(stored.user.role) : false
   // Remove the application session first so nothing looks authenticated while sign-out runs.
   removeSessionRecord()
+  clearAdminAuthCaches()
   // Signed-in assistant history is stored under fixed keys (chatStore SCOPE_STORAGE_KEYS; not imported to
   // avoid a circular import), so it must not survive for the next person on this browser.
   try {
@@ -425,10 +426,22 @@ export async function signOutCurrentUser(): Promise<void> {
   }
 }
 
+let signingOutForRedirect = false
+
+/** True while `performSignOut()` is clearing the session and about to replace `window.location`. */
+export function isSigningOutRedirect(): boolean {
+  return signingOutForRedirect
+}
+
 /** Sign out (see signOutCurrentUser) and leave the page with a history replace. */
 export async function performSignOut(redirectUrl = '/'): Promise<void> {
-  await signOutCurrentUser()
-  if (typeof window !== 'undefined') window.location.replace(redirectUrl)
+  signingOutForRedirect = true
+  try {
+    await signOutCurrentUser()
+    if (typeof window !== 'undefined') window.location.replace(redirectUrl)
+  } finally {
+    signingOutForRedirect = false
+  }
 }
 
 const ADMIN_API_BASE =

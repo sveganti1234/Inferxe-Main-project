@@ -1,0 +1,1892 @@
+/* ==========================================================================
+   Admin / Super Admin console shell.
+   The shell itself uses the customer console design system (.cx-* in
+   features/customer/styles/customer.css); this file only adds the admin-only
+   pieces and neutralises legacy rules that would fight the new layout.
+   ========================================================================== */
+
+/* Admin pages still render inside a .dash-shell wrapper so their existing scoped
+   styles (incl. light theme) apply — but the wrapper must not act as a page frame. */
+.adm-console .dash-shell.adm-console__pages {
+  display: block !important;
+  min-height: 0 !important;
+  width: 100% !important;
+  padding: 0 !important;
+  overflow: visible !important;
+  background: none !important;
+  background-color: transparent !important;
+  background-image: none !important;
+}
+
+/* Sidebar count badges (admin accounts, roles, permissions). */
+.adm-nav__badge {
+  position: relative;
+  margin-left: auto;
+  min-width: 22px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-family: var(--cx-font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-align: center;
+  color: var(--cx-accent);
+  background: var(--cx-accent-soft);
+}
+.adm-console .cx-nav__item[aria-current='page'] .adm-nav__badge {
+  color: var(--cx-accent-ink);
+  background: rgba(0, 0, 0, 0.16);
+}
+.adm-console .is-rail .adm-nav__badge {
+  display: none;
+}
+
+/* Role chip in the account menu. */
+.adm-role-chip {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-style: normal;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--cx-accent);
+  background: var(--cx-accent-soft);
+}
+
+/* Notifications popover. */
+.adm-notifs {
+  width: 340px;
+}
+.adm-notifs__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px 10px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--cx-border);
+}
+.adm-notifs__mark {
+  border: 0;
+  background: none;
+  color: var(--cx-accent);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.adm-notifs__empty {
+  padding: 16px;
+  text-align: center;
+  color: var(--cx-text-3);
+  font-size: 0.82rem;
+}
+.adm-notifs__dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 6px;
+  border-radius: 50%;
+  vertical-align: middle;
+  background: var(--cx-accent);
+}
+
+/* Admin live search, restyled as the console search pill (legacy rules use !important). */
+.adm-console .cx-topbar .admin-search-wrap {
+  margin-left: 0 !important;
+}
+.adm-console .cx-topbar .verdelo-search-pill {
+  width: min(420px, 38vw) !important;
+  min-width: 0 !important;
+  max-width: none !important;
+  flex: 0 1 auto !important;
+  height: 44px !important;
+  margin-left: 0 !important;
+  padding: 0 12px 0 16px !important;
+  border: 1px solid var(--cx-border-2) !important;
+  border-radius: 999px !important;
+  background: rgba(255, 255, 255, 0.04) !important;
+  box-shadow: none !important;
+  color: var(--cx-text-3) !important;
+  font-size: 0.84rem !important;
+}
+.adm-console .cx-topbar .verdelo-search-pill:hover,
+.adm-console .cx-topbar .verdelo-search-pill:focus-within {
+  border-color: var(--cx-border-3) !important;
+  background: rgba(255, 255, 255, 0.06) !important;
+  box-shadow: none !important;
+}
+/* The input is the pill's text, not a box of its own. */
+.adm-console .cx-topbar .admin-search-input,
+.adm-console .cx-topbar .admin-search-input:focus,
+.adm-console .cx-topbar .admin-search-input:focus-visible {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  height: 100% !important;
+  padding: 0 !important;
+  border: 0 !important;
+  outline: none !important;
+  box-shadow: none !important;
+  background: transparent !important;
+  color: var(--cx-text) !important;
+  font: inherit !important;
+}
+.adm-console .cx-topbar .admin-search-input::placeholder {
+  color: var(--cx-text-3);
+  opacity: 1;
+}
+.adm-console .cx-topbar .verdelo-search-icon {
+  flex-shrink: 0;
+  width: 16px;
+  height: 16px;
+  color: var(--cx-text-3) !important;
+}
+.adm-console .cx-topbar .admin-search-clear-btn {
+  border: 0 !important;
+  background: none !important;
+  color: var(--cx-text-3) !important;
+  cursor: pointer;
+}
+.adm-console .cx-topbar .verdelo-search-kbd {
+  flex-shrink: 0;
+  font-family: var(--cx-font-mono) !important;
+  font-size: 0.68rem !important;
+  padding: 2px 6px !important;
+  border-radius: 6px !important;
+  border: 1px solid var(--cx-border-2) !important;
+  color: var(--cx-text-3) !important;
+  background: rgba(0, 0, 0, 0.2) !important;
+}
+@media (max-width: 1023px) {
+  .adm-console .cx-topbar .admin-search-wrap {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  .adm-console .cx-topbar .verdelo-search-pill {
+    width: 100% !important;
+  }
+}
+
+/* Primary action buttons on admin pages (e.g. "Manage Admins"): same as the console's .cx-btn--primary. */
+.adm-console .dash-primary-btn {
+  height: 38px;
+  padding: 0 16px;
+  gap: 8px;
+  border: 1px solid transparent;
+  border-radius: 14px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--cx-accent-ink);
+  background: linear-gradient(135deg, var(--cx-accent-2), var(--cx-accent));
+  box-shadow: 0 12px 28px -14px var(--cx-accent-glow), 0 1px 0 rgba(255, 255, 255, 0.4) inset;
+  transition: transform 0.16s var(--cx-ease), box-shadow 0.2s var(--cx-ease), filter 0.2s var(--cx-ease);
+}
+.adm-console .dash-primary-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.35) inset, 0 10px 28px -8px var(--cx-accent-glow);
+}
+.adm-console .dash-primary-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+.adm-console .dash-primary-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Secondary primary-style buttons used on super admin pages share the console primary look. */
+.adm-console .sa-btn-primary {
+  border: 1px solid transparent !important;
+  border-radius: 14px !important;
+  color: var(--cx-accent-ink) !important;
+  background: linear-gradient(135deg, var(--cx-accent-2), var(--cx-accent)) !important;
+  box-shadow: 0 12px 28px -14px var(--cx-accent-glow), 0 1px 0 rgba(255, 255, 255, 0.4) inset !important;
+}
+
+/* ==========================================================================
+   Light mode for admin pages — matches the customer console's light theme:
+   sage canvas, frosted near-white cards, deep green accent, dark ink.
+   Scoped to the admin console in light mode only; dark mode is untouched.
+   ========================================================================== */
+.adm-console[data-cx-theme='light'] .adm-console__pages {
+  /* Legacy dashboard tokens, re-pointed at the console's light palette. */
+  --ink: var(--cx-text);
+  --ink-2: var(--cx-text-2);
+  --ink-3: var(--cx-text-3);
+  --ink-4: var(--cx-text-4);
+  --muted: var(--cx-text-3);
+  --line: var(--cx-border);
+  --line-2: var(--cx-border-2);
+  --line-3: var(--cx-border-3);
+  --brand: var(--cx-accent);
+  --brand-hi: var(--cx-accent);
+  --brand-hi2: var(--cx-accent-2);
+  --brand-lo: var(--cx-accent);
+  --brand-ink: var(--cx-accent-ink);
+  --brand-soft: var(--cx-accent-soft);
+  --brand-glow: var(--cx-accent-glow);
+  --card: var(--cx-card-a);
+  --card-2: rgba(255, 255, 255, 0.72);
+  --card-3: rgba(255, 255, 255, 0.85);
+  --panel: var(--cx-card-a);
+  --bg-1: var(--cx-surface);
+  --bg-2: var(--cx-surface);
+  --bg-3: var(--cx-surface-2);
+  --bg-4: var(--cx-surface-hover);
+  --glass-rim: rgba(255, 255, 255, 0.62);
+  --glass-top: rgba(255, 255, 255, 0.95);
+  color: var(--cx-text);
+}
+
+/* Cards and panels: frosted near-white, no hard border, soft drop shadow. */
+.adm-console[data-cx-theme='light'] .adm-console__pages :is(
+  .glass, .mw-panel, .mw-form-panel, .sa-kpi-card, .dash-stat-card, .dash-panel-card,
+  .sa-profile-stat-box, .mw-table-wrap
+) {
+  background: var(--cx-card-a) !important;
+  background-image: none !important;
+  border: 1px solid transparent !important;
+  border-radius: var(--cx-r-xl) !important;
+  box-shadow: var(--cx-glass-rim), 0 1px 2px rgba(20, 50, 34, 0.06), 0 18px 40px -26px rgba(20, 50, 34, 0.38) !important;
+  color: var(--cx-text) !important;
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+}
+/* Tables sit inside a card already. */
+.adm-console[data-cx-theme='light'] .adm-console__pages :is(.mw-panel, .glass) .mw-table-wrap {
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+/* Typography. */
+.adm-console[data-cx-theme='light'] .adm-console__pages :is(h1, h2, h3, h4) {
+  color: var(--cx-text) !important;
+  letter-spacing: -0.015em;
+}
+.adm-console[data-cx-theme='light'] .adm-console__pages :is(
+  .sa-kpi-val, .sa-kpi-card__value, .dash-stat-value
+) {
+  color: var(--cx-text) !important;
+}
+.adm-console[data-cx-theme='light'] .adm-console__pages :is(
+  .sa-kpi-label, .sa-kpi-card__label, .dash-stat-label, .sa-kpi-sub, .sa-kpi-card__subtext,
+  .sa-profile-stat-lbl, .mw-panel-head p
+) {
+  color: var(--cx-text-3) !important;
+}
+.adm-console[data-cx-theme='light'] .adm-console__pages :is(.sa-kpi-icon-wrap, .sa-kpi-card__icon-wrap) {
+  color: var(--cx-accent) !important;
+  background: var(--cx-accent-soft) !important;
+  border-color: transparent !important;
+}
+.adm-console[data-cx-theme='light'] .adm-console__pages .mw-panel-head {
+  border-color: var(--cx-border) !important;
+  color: var(--cx-text) !important;
+}
+
+/* Secondary buttons: white pill like the console's "Playground" button. */
+.adm-console[data-cx-theme='light'] .adm-console__pages :is(.dash-filter-btn, .dash-btn-ghost, .sa-btn-secondary) {
+  color: var(--cx-text) !important;
+  background: rgba(255, 255, 255, 0.72) !important;
+  border: 1px solid var(--cx-border-2) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 1px 2px rgba(20, 50, 34, 0.06) !important;
+}
+.adm-console[data-cx-theme='light'] .adm-console__pages :is(.dash-filter-btn, .dash-btn-ghost, .sa-btn-secondary):hover:not(:disabled) {
+  border-color: var(--cx-border-3) !important;
+  background: #ffffff !important;
+}
+
+/* Form fields. */
+.adm-console[data-cx-theme='light'] .adm-console__pages :is(.dash-input, .sa-form-input, .sa-search-input, select, textarea) {
+  color: var(--cx-text) !important;
+  background: rgba(255, 255, 255, 0.8) !important;
+  border: 1px solid var(--cx-border-2) !important;
+  border-radius: 12px !important;
+  box-shadow: none !important;
+}
+.adm-console[data-cx-theme='light'] .adm-console__pages :is(.dash-input, .sa-form-input, .sa-search-input, textarea)::placeholder {
+  color: var(--cx-text-4) !important;
+}
+.adm-console[data-cx-theme='light'] .adm-console__pages :is(.dash-input, .sa-form-input, .sa-search-input, select, textarea):focus {
+  border-color: var(--cx-accent) !important;
+  box-shadow: 0 0 0 3px var(--cx-accent-soft) !important;
+  outline: none !important;
+}
+
+/* Tables. */
+.adm-console[data-cx-theme='light'] .adm-console__pages .mw-table :is(th, td) {
+  color: var(--cx-text-2) !important;
+  border-color: var(--cx-border) !important;
+}
+.adm-console[data-cx-theme='light'] .adm-console__pages .mw-table th {
+  color: var(--cx-text-3) !important;
+  background: transparent !important;
+}
+.adm-console[data-cx-theme='light'] .adm-console__pages .mw-table tbody tr:hover td {
+  background: var(--cx-surface) !important;
+}
+
+/* Tags / chips. */
+.adm-console[data-cx-theme='light'] .adm-console__pages .tag {
+  color: var(--cx-accent) !important;
+  background: var(--cx-accent-soft) !important;
+  border-color: transparent !important;
+}
+
+/* Modals (rendered inside the page wrapper). */
+.adm-console[data-cx-theme='light'] .adm-console__pages :is(.mw-modal-backdrop, .sa-modal-overlay) {
+  background: rgba(223, 230, 225, 0.6) !important;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.adm-console[data-cx-theme='light'] .adm-console__pages :is(.mw-modal, .sa-modal-container) {
+  color: var(--cx-text) !important;
+  background: rgba(246, 250, 247, 0.98) !important;
+  border: 1px solid var(--cx-border) !important;
+  border-radius: var(--cx-r-xl) !important;
+  box-shadow: var(--cx-shadow-lg) !important;
+}
+.adm-console[data-cx-theme='light'] .adm-console__pages :is(
+  .mw-modal-head, .mw-modal-foot, .sa-modal-header, .sa-modal-footer
+) {
+  border-color: var(--cx-border) !important;
+  background: transparent !important;
+}
+.adm-console[data-cx-theme='light'] .adm-console__pages .sa-modal-title {
+  color: var(--cx-text) !important;
+}
+
+/* ==========================================================================
+   Super Admin overview: activity ledger + security events.
+   Rows become a clean divided list (no box-in-box), text uses console tokens
+   so it is readable in both themes.
+   ========================================================================== */
+.adm-console .dash-shell.adm-console__pages .sa-section-container {
+  padding: 24px;
+  border: 1px solid var(--cx-border);
+  border-radius: var(--cx-r-xl);
+  background: var(--cx-card-a, var(--cx-panel));
+  box-shadow: var(--cx-shadow);
+}
+.adm-console .dash-shell.adm-console__pages[data-theme='light'] .sa-section-container {
+  border-color: transparent;
+  box-shadow: var(--cx-glass-rim), 0 1px 2px rgba(20, 50, 34, 0.06), 0 18px 40px -26px rgba(20, 50, 34, 0.38);
+}
+.adm-console .dash-shell.adm-console__pages .sa-section-header {
+  align-items: flex-start;
+  flex-wrap: nowrap;
+  margin-bottom: 14px;
+}
+.adm-console .dash-shell.adm-console__pages .sa-section-title {
+  color: var(--cx-text);
+  font-size: 1.02rem;
+  font-weight: 600;
+  flex-wrap: wrap;
+}
+.adm-console .dash-shell.adm-console__pages .sa-section-desc {
+  color: var(--cx-text-3);
+  font-size: 0.8rem;
+  margin-top: 4px;
+}
+.adm-console .dash-shell.adm-console__pages .sa-link-action {
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: 6px 12px;
+  border-radius: 999px;
+  color: var(--cx-accent);
+  background: var(--cx-accent-soft);
+}
+.adm-console .dash-shell.adm-console__pages .sa-link-action:hover {
+  text-decoration: none;
+  opacity: 1;
+  filter: brightness(1.05);
+}
+
+/* Shared list rows */
+.adm-console .dash-shell.adm-console__pages :is(.sa-activity-timeline, .sa-security-list) {
+  gap: 0;
+}
+.adm-console .dash-shell.adm-console__pages :is(.sa-activity-item, .sa-security-item) {
+  padding: 12px 10px;
+  border: 0;
+  border-bottom: 1px solid var(--cx-border);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.adm-console .dash-shell.adm-console__pages :is(.sa-activity-item, .sa-security-item):last-child {
+  border-bottom: 0;
+}
+.adm-console .dash-shell.adm-console__pages :is(.sa-activity-item, .sa-security-item):hover {
+  border-radius: 12px;
+  border-bottom-color: transparent;
+  background: var(--cx-surface);
+}
+
+/* Activity ledger */
+.adm-console .dash-shell.adm-console__pages .sa-activity-bullet {
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  box-shadow: 0 0 0 4px var(--cx-surface);
+}
+.adm-console .dash-shell.adm-console__pages .sa-activity-admin {
+  color: var(--cx-text);
+  font-size: 0.86rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.adm-console .dash-shell.adm-console__pages .sa-activity-time {
+  color: var(--cx-text-4);
+  font-size: 0.74rem;
+}
+.adm-console .dash-shell.adm-console__pages .sa-activity-action {
+  margin-top: 2px;
+  color: var(--cx-text-3);
+  font-family: var(--cx-font-mono);
+  font-size: 0.74rem;
+}
+.adm-console .dash-shell.adm-console__pages .sa-activity-target {
+  margin-top: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--cx-text-3);
+}
+.adm-console .dash-shell.adm-console__pages .sa-activity-target code {
+  display: inline-block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: bottom;
+  padding: 2px 8px;
+  border-radius: 8px;
+  font-family: var(--cx-font-mono);
+  font-size: 0.72rem;
+  color: var(--cx-text-3);
+  background: var(--cx-surface);
+}
+
+/* Security events */
+.adm-console .dash-shell.adm-console__pages .sa-security-item {
+  gap: 4px;
+}
+.adm-console .dash-shell.adm-console__pages .sa-security-item__type {
+  color: var(--cx-text);
+  font-family: var(--cx-font-mono);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.adm-console .dash-shell.adm-console__pages .sa-security-item__details {
+  padding-left: 23px;
+  color: var(--cx-text-2);
+  font-size: 0.8rem;
+}
+.adm-console .dash-shell.adm-console__pages .sa-security-item__meta {
+  padding-left: 23px;
+  gap: 6px 14px;
+  color: var(--cx-text-4);
+  font-size: 0.74rem;
+}
+.adm-console .dash-shell.adm-console__pages .sa-security-item__meta strong {
+  color: var(--cx-text-2);
+  font-weight: 600;
+}
+.adm-console .dash-shell.adm-console__pages .sa-security-item__meta code {
+  color: var(--cx-text-3);
+  font-family: var(--cx-font-mono);
+}
+.adm-console .dash-shell.adm-console__pages .sa-sec-badge {
+  padding: 2px 9px;
+  border: 0;
+  border-radius: 999px;
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.adm-console .dash-shell.adm-console__pages .sa-sec-badge--allowed {
+  color: var(--cx-accent);
+  background: var(--cx-accent-soft);
+}
+.adm-console .dash-shell.adm-console__pages .sa-sec-badge--blocked {
+  color: var(--cx-danger);
+  background: var(--cx-danger-soft);
+}
+.adm-console .dash-shell.adm-console__pages .sa-sec-badge--flagged {
+  color: var(--cx-warn);
+  background: var(--cx-warn-soft);
+}
+
+/* Header badges ("Live Audit", "Live Telemetry") */
+.adm-console .dash-shell.adm-console__pages .sa-section-title .sa-meta-badge {
+  border: 0;
+  border-radius: 999px;
+  font-weight: 600;
+}
+.adm-console .dash-shell.adm-console__pages .sa-section-title .sa-meta-badge--primary {
+  color: var(--cx-accent);
+  background: var(--cx-accent-soft);
+}
+.adm-console .dash-shell.adm-console__pages .sa-section-title .sa-meta-badge--phase {
+  color: var(--cx-info);
+  background: var(--cx-info-soft);
+}
+
+/* Account avatars (admin lists, audit rows): console avatar look instead of the inline dark role
+   gradient. !important is needed to beat the inline `background` set from account data. */
+.adm-console .dash-shell.adm-console__pages :is(.sa-avatar-circle, .sa-avatar) {
+  color: var(--cx-accent-ink) !important;
+  font-family: var(--cx-font-display);
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  background: linear-gradient(140deg, var(--cx-accent-2), var(--cx-accent-3, var(--cx-accent))) !important;
+  border: 0 !important;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08) inset, 0 4px 12px -6px var(--cx-accent-glow) !important;
+}
+/* Standard admins: soft blue tint, so roles stay distinguishable at a glance. */
+.adm-console .dash-shell.adm-console__pages tr:has(.sa-role-pill--admin) :is(.sa-avatar-circle, .sa-avatar) {
+  color: var(--cx-info) !important;
+  background: var(--cx-info-soft) !important;
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--cx-info) 22%, transparent) inset !important;
+}
+
+/* ==========================================================================
+   Confirm dialogs (deactivate / delete / reactivate admin).
+   Readable in both themes; inline hard-coded colours are overridden.
+   ========================================================================== */
+.adm-console .dash-shell.adm-console__pages .sa-modal-container {
+  border-radius: var(--cx-r-xl);
+}
+.adm-console .dash-shell.adm-console__pages .sa-modal-header {
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--cx-border);
+}
+.adm-console .dash-shell.adm-console__pages .sa-modal-title {
+  color: var(--cx-text);
+  font-size: 1.05rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+/* Subtitle under the title: tone follows the dialog's icon variant. */
+.adm-console .dash-shell.adm-console__pages .sa-modal-title + div {
+  margin-top: 2px;
+  color: var(--cx-text-3) !important;
+}
+.adm-console .dash-shell.adm-console__pages .sa-modal-header:has(.sa-modal-icon-wrap--warning) .sa-modal-title + div {
+  color: var(--cx-warn) !important;
+}
+.adm-console .dash-shell.adm-console__pages .sa-modal-header:has(.sa-modal-icon-wrap--danger) .sa-modal-title + div {
+  color: var(--cx-danger) !important;
+}
+.adm-console .dash-shell.adm-console__pages .sa-modal-header:has(.sa-modal-icon-wrap--success) .sa-modal-title + div {
+  color: var(--cx-accent) !important;
+}
+
+/* Icon tiles */
+.adm-console .dash-shell.adm-console__pages :is(.sa-modal-icon-wrap--warning, .sa-modal-icon-wrap--danger, .sa-modal-icon-wrap--success) {
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 12px;
+  box-shadow: none;
+}
+.adm-console .dash-shell.adm-console__pages .sa-modal-icon-wrap--warning { color: var(--cx-warn); background: var(--cx-warn-soft); }
+.adm-console .dash-shell.adm-console__pages .sa-modal-icon-wrap--danger { color: var(--cx-danger); background: var(--cx-danger-soft); }
+.adm-console .dash-shell.adm-console__pages .sa-modal-icon-wrap--success { color: var(--cx-accent); background: var(--cx-accent-soft); }
+
+/* Close button */
+.adm-console .dash-shell.adm-console__pages .sa-modal-close-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  color: var(--cx-text-3);
+}
+.adm-console .dash-shell.adm-console__pages .sa-modal-close-btn:hover:not(:disabled) {
+  color: var(--cx-text);
+  background: var(--cx-surface-2);
+}
+
+/* Notice box */
+.adm-console .dash-shell.adm-console__pages .sa-confirm-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  border: 1px solid var(--cx-border);
+  border-left-width: 3px;
+  background: var(--cx-surface);
+  color: var(--cx-text) !important;
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+.adm-console .dash-shell.adm-console__pages .sa-confirm-box strong {
+  color: var(--cx-text);
+  font-weight: 600;
+}
+/* Secondary line (inline colour in the markup). */
+.adm-console .dash-shell.adm-console__pages .sa-confirm-box > div + div {
+  color: var(--cx-text-3) !important;
+  font-size: 0.78rem !important;
+  line-height: 1.55;
+}
+.adm-console .dash-shell.adm-console__pages .sa-confirm-box code {
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-family: var(--cx-font-mono);
+  font-size: 0.72rem;
+  color: var(--cx-text-2);
+  background: var(--cx-surface-2);
+}
+.adm-console .dash-shell.adm-console__pages .sa-confirm-box--warning {
+  border-color: color-mix(in srgb, var(--cx-warn) 22%, transparent);
+  border-left-color: var(--cx-warn);
+  background: var(--cx-warn-soft);
+}
+.adm-console .dash-shell.adm-console__pages .sa-confirm-box--danger {
+  border-color: color-mix(in srgb, var(--cx-danger) 22%, transparent);
+  border-left-color: var(--cx-danger);
+  background: var(--cx-danger-soft);
+}
+
+/* Form label */
+.adm-console .dash-shell.adm-console__pages .sa-form-label {
+  color: var(--cx-text-2);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+/* Footer */
+.adm-console .dash-shell.adm-console__pages .sa-modal-footer {
+  gap: 10px;
+  padding-top: 16px;
+  border-top: 1px solid var(--cx-border);
+}
+.adm-console .dash-shell.adm-console__pages .sa-modal-footer :is(.dash-filter-btn, .dash-warning-btn, .dash-primary-btn) {
+  height: 40px;
+  padding: 0 18px;
+  border-radius: 14px;
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+/* Warning action: solid amber, same shape as the console primary button. */
+.adm-console .dash-shell.adm-console__pages .dash-warning-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid transparent;
+  color: #ffffff;
+  background: var(--cx-warn);
+  box-shadow: 0 12px 28px -14px color-mix(in srgb, var(--cx-warn) 60%, transparent), 0 1px 0 rgba(255, 255, 255, 0.25) inset;
+}
+.adm-console[data-cx-theme='forest'] .dash-shell.adm-console__pages .dash-warning-btn {
+  color: #1f1300;
+}
+.adm-console .dash-shell.adm-console__pages .dash-warning-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.06);
+}
+
+/* ==========================================================================
+   Role Management page (AdminRoles.tsx, .ar-*)
+   ========================================================================== */
+.adm-console .ar-tone--info { color: var(--cx-info); }
+.adm-console .ar-tone--accent { color: var(--cx-accent); }
+.adm-console .ar-tone--violet { color: var(--cx-violet); }
+.adm-console .ar-inline-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+  text-decoration: none;
+}
+.adm-console .ar-inline-link:hover { text-decoration: underline; }
+
+/* Policy notice */
+.adm-console .ar-notice {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  margin-bottom: 20px;
+  padding: 16px 18px;
+  border: 1px solid color-mix(in srgb, var(--cx-accent) 20%, transparent);
+  border-left: 3px solid var(--cx-accent);
+  border-radius: 16px;
+  background: var(--cx-accent-soft);
+}
+.adm-console .ar-notice__icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  color: var(--cx-accent);
+  background: var(--cx-card-a, var(--cx-panel));
+}
+.adm-console .ar-notice__title {
+  display: block;
+  color: var(--cx-text);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.adm-console .ar-notice__body {
+  margin: 4px 0 0;
+  color: var(--cx-text-2);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+.adm-console .ar-notice__body strong { color: var(--cx-accent); font-weight: 600; }
+.adm-console .ar-notice__body code,
+.adm-console .ar-card__code,
+.adm-console .sa-modal-title + div code {
+  padding: 1px 6px;
+  border-radius: 6px;
+  font-family: var(--cx-font-mono);
+  font-size: 0.72rem;
+  color: var(--cx-text-2);
+  background: var(--cx-surface-2);
+}
+
+/* Loading / empty states */
+.adm-console .ar-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 56px 20px;
+  text-align: center;
+  border: 1px dashed var(--cx-border-2);
+  border-radius: var(--cx-r-xl);
+  background: var(--cx-surface);
+}
+.adm-console .ar-state__icon { color: var(--cx-text-4); }
+.adm-console .ar-spin { color: var(--cx-accent); animation: spin 1.2s linear infinite; }
+.adm-console .ar-state__title { margin: 0; color: var(--cx-text); font-size: 1rem; font-weight: 600; }
+.adm-console .ar-state__body { margin: 0; color: var(--cx-text-3); font-size: 0.84rem; }
+
+/* Role cards */
+.adm-console .ar-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(360px, 100%), 1fr));
+  gap: 20px;
+}
+.adm-console .ar-card {
+  --ar-tone: var(--cx-info);
+  --ar-tone-soft: var(--cx-info-soft);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 24px;
+  border: 1px solid var(--cx-border);
+  border-radius: var(--cx-r-xl);
+  background: var(--cx-card-a, var(--cx-panel));
+  box-shadow: var(--cx-shadow);
+  transition: transform 0.2s var(--cx-ease), box-shadow 0.2s var(--cx-ease);
+}
+.adm-console .ar-card--super {
+  --ar-tone: var(--cx-accent);
+  --ar-tone-soft: var(--cx-accent-soft);
+}
+.adm-console[data-cx-theme='light'] .ar-card {
+  border-color: transparent;
+  box-shadow: var(--cx-glass-rim), 0 1px 2px rgba(20, 50, 34, 0.06), 0 18px 40px -26px rgba(20, 50, 34, 0.38);
+}
+@media (hover: hover) {
+  .adm-console .ar-card:hover { transform: translateY(-2px); }
+}
+.adm-console .ar-card__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.adm-console .ar-card__id { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.adm-console .ar-card__icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  color: var(--ar-tone);
+  background: var(--ar-tone-soft);
+}
+.adm-console .ar-card__title {
+  margin: 0 0 3px;
+  color: var(--cx-text);
+  font-size: 1.12rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.adm-console .ar-card__badge {
+  flex-shrink: 0;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--ar-tone);
+  background: var(--ar-tone-soft);
+}
+.adm-console .ar-card__desc {
+  margin: 0 0 16px;
+  color: var(--cx-text-2);
+  font-size: 0.86rem;
+  line-height: 1.55;
+}
+.adm-console .ar-card__stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.adm-console .ar-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--cx-surface);
+}
+.adm-console .ar-stat span { color: var(--cx-text-3); font-size: 0.74rem; }
+.adm-console .ar-stat strong { color: var(--cx-text); font-size: 0.92rem; font-weight: 600; }
+.adm-console .ar-label {
+  color: var(--cx-text-3);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.adm-console .ar-label--accent { color: var(--cx-accent); margin-bottom: 8px; }
+.adm-console .ar-card__members { margin-bottom: 18px; }
+.adm-console .ar-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.adm-console .ar-chip {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 500;
+  color: var(--cx-text);
+  background: var(--cx-surface-2);
+}
+.adm-console .ar-chip em { font-style: normal; color: var(--cx-text-3); }
+.adm-console .ar-chips__empty { color: var(--cx-text-4); font-size: 0.78rem; font-style: italic; }
+.adm-console .ar-card__actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 16px;
+  border-top: 1px solid var(--cx-border);
+}
+.adm-console .dash-shell.adm-console__pages .ar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+.adm-console .ar-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--ar-tone);
+  background: var(--ar-tone-soft);
+  transition: filter 0.18s var(--cx-ease);
+}
+.adm-console .ar-link:hover { filter: brightness(1.06); }
+
+/* Role details modal */
+.adm-console .ar-modal__heading {
+  margin: 0 0 12px;
+  color: var(--cx-text);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.adm-console .ar-perm-groups { display: flex; flex-direction: column; gap: 12px; }
+.adm-console .ar-perm-group {
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--cx-surface);
+}
+.adm-console .ar-perm-list { display: flex; flex-direction: column; gap: 8px; }
+.adm-console .ar-perm { display: flex; align-items: flex-start; gap: 9px; font-size: 0.82rem; }
+.adm-console .ar-perm__icon { flex-shrink: 0; margin-top: 2px; color: var(--cx-accent); }
+.adm-console .ar-perm__name { color: var(--cx-text); font-weight: 600; }
+.adm-console .ar-perm__desc { color: var(--cx-text-3); font-size: 0.76rem; }
+
+/* ==========================================================================
+   Permission Management page (AdminPermissions.tsx, .pm-*; shares .ar-* pieces)
+   ========================================================================== */
+.adm-console .pm-tone--super { --pm-tone: var(--cx-accent); --pm-tone-soft: var(--cx-accent-soft); color: var(--cx-accent); }
+.adm-console .pm-tone--admin { --pm-tone: var(--cx-info); --pm-tone-soft: var(--cx-info-soft); color: var(--cx-info); }
+
+.adm-console .pm-card {
+  overflow: hidden;
+  border: 1px solid var(--cx-border);
+  border-radius: var(--cx-r-xl);
+  background: var(--cx-card-a, var(--cx-panel));
+  box-shadow: var(--cx-shadow);
+}
+.adm-console[data-cx-theme='light'] .pm-card {
+  border-color: transparent;
+  box-shadow: var(--cx-glass-rim), 0 1px 2px rgba(20, 50, 34, 0.06), 0 18px 40px -26px rgba(20, 50, 34, 0.38);
+}
+.adm-console .pm-scroll { overflow-x: auto; }
+.adm-console .pm-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.84rem;
+}
+.adm-console .pm-table th {
+  position: sticky;
+  top: 0;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--cx-border);
+  color: var(--cx-text-3);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: var(--cx-surface);
+}
+.adm-console .pm-table th.pm-tone--super { color: var(--cx-accent); }
+.adm-console .pm-table th.pm-tone--admin { color: var(--cx-info); }
+.adm-console .pm-table td {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--cx-border);
+  vertical-align: middle;
+}
+.adm-console .pm-table tbody tr:last-child td { border-bottom: 0; }
+.adm-console .pm-col-role { text-align: center; }
+
+/* Category divider rows */
+.adm-console .pm-group-row td {
+  padding: 10px 18px;
+  background: var(--cx-surface);
+}
+.adm-console .pm-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--cx-text);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.adm-console .pm-group em {
+  padding: 0 8px;
+  border-radius: 999px;
+  font-style: normal;
+  font-family: var(--cx-font-mono);
+  font-size: 0.7rem;
+  color: var(--cx-text-3);
+  background: var(--cx-surface-2);
+}
+
+/* Permission rows */
+.adm-console .pm-row { cursor: pointer; transition: background 0.15s var(--cx-ease); }
+.adm-console .pm-row:hover td { background: var(--cx-surface); }
+.adm-console .pm-name { color: var(--cx-text); font-weight: 600; }
+.adm-console .pm-desc { margin-top: 2px; color: var(--cx-text-3); font-size: 0.78rem; line-height: 1.45; }
+.adm-console .pm-code {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 1px 7px;
+  border-radius: 6px;
+  font-family: var(--cx-font-mono);
+  font-size: 0.7rem;
+  color: var(--cx-accent);
+  background: var(--cx-accent-soft);
+}
+.adm-console .pm-cat {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  color: var(--cx-text-2);
+  background: var(--cx-surface-2);
+}
+.adm-console .pm-check {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  color: var(--pm-tone);
+  background: var(--pm-tone-soft);
+}
+.adm-console .pm-none { color: var(--cx-text-4); }
+
+/* Inspect modal: granted admins list */
+.adm-console .pm-admins { display: flex; flex-direction: column; gap: 6px; }
+.adm-console .pm-admin {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--cx-surface);
+}
+.adm-console .pm-admin__name { color: var(--cx-text); font-size: 0.84rem; font-weight: 600; }
+.adm-console .pm-admin__email { color: var(--cx-text-3); font-size: 0.74rem; }
+.adm-console .pm-role {
+  flex-shrink: 0;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--pm-tone);
+  background: var(--pm-tone-soft);
+}
+
+/* ==========================================================================
+   Activity Monitoring + shared super-admin page pieces (.sa-*), theme-aware.
+   Prefix beats the legacy `.dash-shell[data-theme=…] .sa-*` rules by specificity.
+   ========================================================================== */
+.adm-console .dash-shell.adm-console__pages {
+  --adm-card-shadow: var(--cx-shadow);
+}
+.adm-console[data-cx-theme='light'] .dash-shell.adm-console__pages {
+  --adm-card-shadow: var(--cx-glass-rim), 0 1px 2px rgba(20, 50, 34, 0.06), 0 18px 40px -26px rgba(20, 50, 34, 0.38);
+}
+
+/* Card surfaces */
+.adm-console .dash-shell.adm-console__pages :is(
+  .sa-header-banner, .sa-analytics-card, .sa-table-container, .sa-filter-bar, .sa-activity-card, .sa-kpi-card
+) {
+  border: 1px solid var(--cx-border);
+  border-radius: var(--cx-r-xl);
+  background: var(--cx-card-a, var(--cx-panel));
+  box-shadow: var(--adm-card-shadow);
+  color: var(--cx-text);
+}
+.adm-console[data-cx-theme='light'] .dash-shell.adm-console__pages :is(
+  .sa-header-banner, .sa-analytics-card, .sa-table-container, .sa-filter-bar, .sa-kpi-card
+) {
+  border-color: transparent;
+}
+.adm-console .dash-shell.adm-console__pages .sa-filter-bar { padding: 12px; }
+
+/* Inner tiles */
+.adm-console .dash-shell.adm-console__pages :is(
+  .sa-analytics-subcard, .sa-profile-stat-box, .sa-leaderboard-item, .sa-diff-box, .sa-progress-stat
+) {
+  border: 0;
+  border-radius: 14px;
+  background: var(--cx-surface);
+  box-shadow: none;
+  color: var(--cx-text);
+}
+
+/* Header banner */
+.adm-console .dash-shell.adm-console__pages .sa-banner-title { color: var(--cx-text); font-weight: 600; letter-spacing: -0.015em; }
+.adm-console .dash-shell.adm-console__pages .sa-banner-sub { color: var(--cx-text-3); }
+.adm-console .dash-shell.adm-console__pages .sa-shield-icon-wrap {
+  border: 0;
+  border-radius: 14px;
+  color: var(--cx-accent);
+  background: var(--cx-accent-soft);
+  box-shadow: none;
+}
+.adm-console .dash-shell.adm-console__pages .sa-meta-badge {
+  border: 0;
+  border-radius: 999px;
+  font-weight: 600;
+  color: var(--cx-text-2);
+  background: var(--cx-surface-2);
+}
+.adm-console .dash-shell.adm-console__pages :is(.sa-meta-badge--primary, .sa-meta-badge--emerald) { color: var(--cx-accent); background: var(--cx-accent-soft); }
+.adm-console .dash-shell.adm-console__pages :is(.sa-meta-badge--cyan, .sa-meta-badge--phase) { color: var(--cx-info); background: var(--cx-info-soft); }
+
+/* KPI cards (older markup: header / val / label / sub) */
+.adm-console .dash-shell.adm-console__pages :is(.sa-kpi-val, .sa-kpi-card__value) { color: var(--cx-text); font-weight: 600; letter-spacing: -0.02em; }
+.adm-console .dash-shell.adm-console__pages :is(.sa-kpi-label, .sa-kpi-card__label, .sa-kpi-sub, .sa-kpi-card__subtext) { color: var(--cx-text-3); }
+.adm-console .dash-shell.adm-console__pages :is(.sa-kpi-icon-wrap, .sa-kpi-card__icon-wrap, .sa-stat-icon--lime) {
+  border: 0;
+  border-radius: 12px;
+  box-shadow: none;
+  color: var(--cx-accent);
+  background: var(--cx-accent-soft);
+}
+.adm-console .dash-shell.adm-console__pages .sa-stat-icon--cyan { border: 0; border-radius: 12px; box-shadow: none; color: var(--cx-info); background: var(--cx-info-soft); }
+.adm-console .dash-shell.adm-console__pages .sa-stat-icon--red { border: 0; border-radius: 12px; box-shadow: none; color: var(--cx-danger); background: var(--cx-danger-soft); }
+.adm-console .dash-shell.adm-console__pages .sa-stat-icon--amber { border: 0; border-radius: 12px; box-shadow: none; color: var(--cx-warn); background: var(--cx-warn-soft); }
+.adm-console .dash-shell.adm-console__pages .sa-stat-icon--purple { border: 0; border-radius: 12px; box-shadow: none; color: var(--cx-violet); background: var(--cx-violet-soft); }
+.adm-console .dash-shell.adm-console__pages .sa-stat-trend { border: 0; border-radius: 999px; font-weight: 600; }
+.adm-console .dash-shell.adm-console__pages .sa-stat-trend--up { color: var(--cx-accent); background: var(--cx-accent-soft); }
+.adm-console .dash-shell.adm-console__pages .sa-stat-trend--down { color: var(--cx-danger); background: var(--cx-danger-soft); }
+.adm-console .dash-shell.adm-console__pages .sa-stat-trend--neutral { color: var(--cx-text-3); background: var(--cx-surface-2); }
+
+/* Analytics */
+.adm-console .dash-shell.adm-console__pages :is(.sa-analytics-title, .sa-analytics-subcard-title, .sa-profile-history-title, .sa-diff-title) {
+  color: var(--cx-text);
+  font-weight: 600;
+}
+.adm-console .dash-shell.adm-console__pages :is(.sa-progress-stat-label, .sa-bar-col-label, .sa-detail-label, .sa-profile-stat-lbl) { color: var(--cx-text-3); }
+.adm-console .dash-shell.adm-console__pages :is(.sa-progress-stat-val, .sa-profile-stat-val, .sa-leaderboard-name) { color: var(--cx-text); }
+.adm-console .dash-shell.adm-console__pages .sa-leaderboard-count { color: var(--cx-text-2); }
+.adm-console .dash-shell.adm-console__pages :is(.sa-progress-track, .sa-leaderboard-bar) {
+  border: 0;
+  border-radius: 999px;
+  background: var(--cx-surface-2);
+}
+.adm-console .dash-shell.adm-console__pages :is(.sa-progress-bar, .sa-leaderboard-bar-fill) {
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--cx-accent-2), var(--cx-accent));
+  box-shadow: none;
+}
+.adm-console .dash-shell.adm-console__pages .sa-bar-fill {
+  border-radius: 8px 8px 3px 3px;
+  background: linear-gradient(180deg, var(--cx-accent-2), var(--cx-accent));
+  box-shadow: none;
+}
+.adm-console .dash-shell.adm-console__pages .sa-bar-tooltip {
+  border: 1px solid var(--cx-border);
+  border-radius: 8px;
+  color: var(--cx-text);
+  background: var(--cx-card-a, var(--cx-panel));
+  box-shadow: var(--cx-shadow);
+}
+
+/* Activity feed cards */
+.adm-console .dash-shell.adm-console__pages .sa-activity-card { border-left-width: 3px; }
+.adm-console .dash-shell.adm-console__pages .sa-activity-card--critical { border-left-color: var(--cx-danger); }
+.adm-console .dash-shell.adm-console__pages .sa-activity-card--warning { border-left-color: var(--cx-warn); }
+.adm-console .dash-shell.adm-console__pages .sa-activity-card--info { border-left-color: var(--cx-info); }
+.adm-console .dash-shell.adm-console__pages .sa-activity-card--success { border-left-color: var(--cx-accent); }
+.adm-console .dash-shell.adm-console__pages .sa-activity-card:hover { background: var(--cx-card-a, var(--cx-panel)); transform: translateY(-1px); }
+.adm-console .dash-shell.adm-console__pages :is(.sa-activity-actor-name, .sa-activity-action-title, .sa-user-meta__name) { color: var(--cx-text); font-weight: 600; }
+.adm-console .dash-shell.adm-console__pages :is(.sa-activity-actor-email, .sa-activity-desc, .sa-user-meta__dept) { color: var(--cx-text-3); }
+.adm-console .dash-shell.adm-console__pages .sa-activity-source-tag {
+  border: 0;
+  border-radius: 999px;
+  color: var(--cx-text-2);
+  background: var(--cx-surface-2);
+}
+.adm-console .dash-shell.adm-console__pages :is(.sa-activity-details-btn, .sa-copy-btn) {
+  border: 1px solid var(--cx-border-2);
+  border-radius: 10px;
+  color: var(--cx-text-2);
+  background: transparent;
+}
+.adm-console .dash-shell.adm-console__pages :is(.sa-activity-details-btn, .sa-copy-btn):hover {
+  color: var(--cx-text);
+  background: var(--cx-surface);
+}
+
+/* Diff boxes */
+.adm-console .dash-shell.adm-console__pages .sa-diff-val {
+  border: 0;
+  border-radius: 10px;
+  font-family: var(--cx-font-mono);
+  color: var(--cx-text-2);
+  background: var(--cx-surface-2);
+}
+.adm-console .dash-shell.adm-console__pages .sa-diff-title--prev { color: var(--cx-danger); }
+.adm-console .dash-shell.adm-console__pages .sa-diff-title--new { color: var(--cx-accent); }
+
+/* Tables (sessions) */
+.adm-console .dash-shell.adm-console__pages .sa-table-container { overflow: hidden; }
+.adm-console .dash-shell.adm-console__pages .sa-table th {
+  border-bottom: 1px solid var(--cx-border);
+  color: var(--cx-text-3);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: var(--cx-surface);
+}
+.adm-console .dash-shell.adm-console__pages .sa-table td {
+  border-bottom: 1px solid var(--cx-border);
+  color: var(--cx-text-2);
+  background: transparent;
+}
+.adm-console .dash-shell.adm-console__pages .sa-table tbody tr:hover td { background: var(--cx-surface); }
+
+/* Search / selects */
+.adm-console .dash-shell.adm-console__pages .sa-search-icon { color: var(--cx-text-3); }
+.adm-console .dash-shell.adm-console__pages :is(.sa-search-input, .sa-select) {
+  height: 40px;
+  border: 1px solid var(--cx-border-2);
+  border-radius: 12px;
+  color: var(--cx-text);
+  background-color: var(--cx-surface);
+  box-shadow: none;
+}
+.adm-console[data-cx-theme='light'] .dash-shell.adm-console__pages :is(.sa-search-input, .sa-select) {
+  background-color: rgba(255, 255, 255, 0.8);
+}
+.adm-console .dash-shell.adm-console__pages :is(.sa-search-input, .sa-select):focus {
+  outline: none;
+  border-color: var(--cx-accent);
+  box-shadow: 0 0 0 3px var(--cx-accent-soft);
+}
+.adm-console .dash-shell.adm-console__pages .sa-search-input::placeholder { color: var(--cx-text-4); }
+
+/* Empty state */
+.adm-console .dash-shell.adm-console__pages .sa-empty-state {
+  border: 1px dashed var(--cx-border-2);
+  border-radius: var(--cx-r-xl);
+  background: var(--cx-surface);
+}
+.adm-console .dash-shell.adm-console__pages .sa-empty-icon-wrap {
+  border: 0;
+  border-radius: 14px;
+  color: var(--cx-text-3);
+  background: var(--cx-surface-2);
+  box-shadow: none;
+}
+.adm-console .dash-shell.adm-console__pages .sa-empty-title { color: var(--cx-text); font-weight: 600; }
+.adm-console .dash-shell.adm-console__pages .sa-empty-desc { color: var(--cx-text-3); }
+
+/* Pagination */
+.adm-console .dash-shell.adm-console__pages :is(.sa-pagination-total, .sa-pagination-indicator) { color: var(--cx-text-3); }
+.adm-console .dash-shell.adm-console__pages .sa-pagination-current { color: var(--cx-text); font-weight: 600; }
+.adm-console .dash-shell.adm-console__pages :is(.sa-page-btn, .sa-pagination-btn) {
+  border: 1px solid var(--cx-border-2);
+  border-radius: 10px;
+  color: var(--cx-text-2);
+  background: var(--cx-surface);
+}
+.adm-console .dash-shell.adm-console__pages :is(.sa-page-btn, .sa-pagination-btn):hover:not(:disabled) {
+  color: var(--cx-text);
+  border-color: var(--cx-border-3);
+}
+
+/* Buttons */
+.adm-console .dash-shell.adm-console__pages .sa-btn-secondary {
+  border: 1px solid var(--cx-border-2);
+  border-radius: 14px;
+  color: var(--cx-text);
+  background: var(--cx-surface);
+}
+.adm-console[data-cx-theme='light'] .dash-shell.adm-console__pages .sa-btn-secondary { background: rgba(255, 255, 255, 0.72); }
+.adm-console .dash-shell.adm-console__pages .sa-btn-danger {
+  border: 1px solid transparent;
+  border-radius: 14px;
+  color: #ffffff;
+  background: var(--cx-danger);
+}
+
+/* Toast */
+.adm-console .dash-shell.adm-console__pages .sa-toast {
+  border-radius: 14px;
+  color: var(--cx-text);
+  box-shadow: var(--cx-shadow-lg);
+}
+
+/* Base layout for .sa-btn-primary / .sa-btn-secondary (they had none, so icons wrapped above labels). */
+.adm-console .dash-shell.adm-console__pages :is(.sa-btn-primary, .sa-btn-secondary, .sa-btn-danger) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 14px;
+  font-size: 0.86rem;
+  font-weight: 600;
+  line-height: 1;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: transform 0.16s var(--cx-ease), box-shadow 0.2s var(--cx-ease), filter 0.2s var(--cx-ease), border-color 0.2s var(--cx-ease), background 0.2s var(--cx-ease);
+}
+.adm-console .dash-shell.adm-console__pages :is(.sa-btn-primary, .sa-btn-secondary, .sa-btn-danger) svg {
+  flex-shrink: 0;
+}
+.adm-console .dash-shell.adm-console__pages .sa-btn-primary:hover:not(:disabled),
+.adm-console .dash-shell.adm-console__pages .sa-btn-danger:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.05);
+}
+.adm-console .dash-shell.adm-console__pages .sa-btn-secondary:hover:not(:disabled) {
+  border-color: var(--cx-border-3);
+}
+.adm-console[data-cx-theme='light'] .dash-shell.adm-console__pages .sa-btn-secondary:hover:not(:disabled) {
+  background: #ffffff;
+}
+.adm-console .dash-shell.adm-console__pages :is(.sa-btn-primary, .sa-btn-secondary, .sa-btn-danger):disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+.adm-console .dash-shell.adm-console__pages .sa-banner-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* ==========================================================================
+   Audit Logs page (AdminAudit.tsx, .sa-audit-* and badges), theme-aware.
+   ========================================================================== */
+.adm-console .dash-shell.adm-console__pages :is(.sa-audit-table-container, .sa-audit-card-item) {
+  border: 1px solid var(--cx-border);
+  border-radius: var(--cx-r-xl);
+  background: var(--cx-card-a, var(--cx-panel));
+  box-shadow: var(--adm-card-shadow);
+  color: var(--cx-text);
+  overflow: hidden;
+}
+.adm-console[data-cx-theme='light'] .dash-shell.adm-console__pages :is(.sa-audit-table-container, .sa-audit-card-item) {
+  border-color: transparent;
+}
+.adm-console .dash-shell.adm-console__pages .sa-audit-card-item { overflow: visible; }
+
+/* Table */
+.adm-console .dash-shell.adm-console__pages .sa-audit-table th {
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--cx-border);
+  color: var(--cx-text-3);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: var(--cx-surface);
+}
+.adm-console .dash-shell.adm-console__pages .sa-audit-table td {
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--cx-border);
+  color: var(--cx-text-2);
+  background: transparent;
+}
+.adm-console .dash-shell.adm-console__pages .sa-audit-table tbody tr:last-child td { border-bottom: 0; }
+.adm-console .dash-shell.adm-console__pages .sa-audit-table tbody tr:hover td { background: var(--cx-surface); }
+
+/* Cells */
+.adm-console .dash-shell.adm-console__pages :is(.sa-audit-user-name, .sa-audit-action-title) { color: var(--cx-text); font-weight: 600; }
+.adm-console .dash-shell.adm-console__pages :is(.sa-audit-user-email, .sa-audit-action-desc, .sa-date-text, .sa-empty-text) { color: var(--cx-text-3); }
+.adm-console .dash-shell.adm-console__pages :is(.sa-audit-resource-code, .sa-audit-hash-chip, .sa-audit-id-badge) {
+  border: 0;
+  border-radius: 8px;
+  font-family: var(--cx-font-mono);
+  color: var(--cx-text-2);
+  background: var(--cx-surface-2);
+}
+.adm-console .dash-shell.adm-console__pages :is(.sa-audit-inspect-btn) {
+  border: 1px solid var(--cx-border-2);
+  border-radius: 10px;
+  color: var(--cx-text-2);
+  background: transparent;
+}
+.adm-console .dash-shell.adm-console__pages .sa-audit-inspect-btn:hover:not(:disabled) {
+  color: var(--cx-text);
+  background: var(--cx-surface);
+}
+
+/* Mobile card list */
+.adm-console .dash-shell.adm-console__pages :is(.sa-audit-card-top, .sa-audit-card-footer) { border-color: var(--cx-border); }
+
+/* Badges: soft pills in theme tones */
+.adm-console .dash-shell.adm-console__pages :is(.sa-sev-badge, .sa-audit-outcome, .sa-cat-badge, .sa-integrity-chip, .sa-audit-integrity-badge) {
+  border: 0;
+  border-radius: 999px;
+  font-weight: 600;
+  color: var(--cx-text-2);
+  background: var(--cx-surface-2);
+  box-shadow: none;
+}
+.adm-console .dash-shell.adm-console__pages :is(.sa-sev-badge--success, .sa-audit-outcome--success, .sa-integrity-chip, .sa-audit-integrity-badge) {
+  color: var(--cx-accent);
+  background: var(--cx-accent-soft);
+}
+.adm-console .dash-shell.adm-console__pages .sa-sev-badge--info { color: var(--cx-info); background: var(--cx-info-soft); }
+.adm-console .dash-shell.adm-console__pages :is(.sa-sev-badge--warning, .sa-audit-outcome--warning) { color: var(--cx-warn); background: var(--cx-warn-soft); }
+.adm-console .dash-shell.adm-console__pages :is(.sa-sev-badge--critical, .sa-audit-outcome--failure, .sa-audit-outcome--blocked) { color: var(--cx-danger); background: var(--cx-danger-soft); }
+.adm-console .dash-shell.adm-console__pages .sa-cat-badge--security { color: var(--cx-danger); background: var(--cx-danger-soft); }
+.adm-console .dash-shell.adm-console__pages :is(.sa-cat-badge--roles, .sa-cat-badge--permissions) { color: var(--cx-violet); background: var(--cx-violet-soft); }
+.adm-console .dash-shell.adm-console__pages .sa-cat-badge--accounts { color: var(--cx-info); background: var(--cx-info-soft); }
+.adm-console .dash-shell.adm-console__pages .sa-cat-badge--operations { color: var(--cx-accent); background: var(--cx-accent-soft); }
+.adm-console .dash-shell.adm-console__pages .sa-meta-badge--purple { color: var(--cx-violet); background: var(--cx-violet-soft); }
+
+/* KPI card tones used here */
+.adm-console .dash-shell.adm-console__pages .sa-kpi-card--amber .sa-kpi-icon-wrap { color: var(--cx-warn); background: var(--cx-warn-soft); }
+.adm-console .dash-shell.adm-console__pages .sa-kpi-card--red .sa-kpi-icon-wrap { color: var(--cx-danger); background: var(--cx-danger-soft); }
+.adm-console .dash-shell.adm-console__pages .sa-kpi-card--cyan .sa-kpi-icon-wrap { color: var(--cx-info); background: var(--cx-info-soft); }
+
+/* Notices */
+.adm-console .dash-shell.adm-console__pages :is(.sa-compliance-notice, .sa-audit-integrity-notice, .sa-audit-integrity-box) {
+  border: 1px solid color-mix(in srgb, var(--cx-accent) 20%, transparent);
+  border-left: 3px solid var(--cx-accent);
+  border-radius: 16px;
+  color: var(--cx-text-2);
+  background: var(--cx-accent-soft);
+}
+.adm-console .dash-shell.adm-console__pages .sa-compliance-notice__icon { color: var(--cx-accent); }
+.adm-console .dash-shell.adm-console__pages .sa-compliance-notice strong { color: var(--cx-text); }
+.adm-console .dash-shell.adm-console__pages .sa-audit-integrity-head { color: var(--cx-text); font-weight: 600; }
+
+/* Detail modal */
+.adm-console .dash-shell.adm-console__pages .sa-audit-detail-section { border-color: var(--cx-border); }
+.adm-console .dash-shell.adm-console__pages .sa-audit-detail-label {
+  color: var(--cx-text-3);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.adm-console .dash-shell.adm-console__pages .sa-audit-detail-value { color: var(--cx-text); }
+.adm-console .dash-shell.adm-console__pages .sa-search-clear { color: var(--cx-text-3); background: none; border: 0; }
+
+/* ==========================================================================
+   Infrastructure Telemetry: inline-styled panels get the console card finish.
+   Their colours are already theme tokens; this adds radius + shadow.
+   ========================================================================== */
+.adm-console .dash-shell.adm-console__pages [style*='--cx-card-a'] {
+  border-radius: var(--cx-r-xl) !important;
+  box-shadow: var(--adm-card-shadow);
+}
+.adm-console[data-cx-theme='light'] .dash-shell.adm-console__pages [style*='--cx-card-a'] {
+  border-color: transparent !important;
+}
+
+/* ==========================================================================
+   Admin Accounts / Admin Management pages, theme-aware.
+   ========================================================================== */
+/* Role pills: Super Admin green, Admin blue */
+.adm-console .dash-shell.adm-console__pages .sa-role-pill {
+  border: 0;
+  border-radius: 999px;
+  font-weight: 600;
+  color: var(--cx-info);
+  background: var(--cx-info-soft);
+}
+.adm-console .dash-shell.adm-console__pages :is(.sa-role-pill--superadmin, .sa-role-pill--super) {
+  color: var(--cx-accent);
+  background: var(--cx-accent-soft);
+}
+
+/* Status pills */
+.adm-console .dash-shell.adm-console__pages .sa-status-pill {
+  border: 0;
+  border-radius: 999px;
+  font-weight: 600;
+  color: var(--cx-text-3);
+  background: var(--cx-surface-2);
+}
+.adm-console .dash-shell.adm-console__pages .sa-status-pill--active { color: var(--cx-accent); background: var(--cx-accent-soft); }
+.adm-console .dash-shell.adm-console__pages .sa-status-pill--invited { color: var(--cx-info); background: var(--cx-info-soft); }
+.adm-console .dash-shell.adm-console__pages .sa-status-pill--inactive { color: var(--cx-danger); background: var(--cx-danger-soft); }
+.adm-console .dash-shell.adm-console__pages .sa-status-pill__dot { background: currentColor; box-shadow: none; }
+
+/* Row action buttons: quiet icon buttons that tint on hover */
+.adm-console .dash-shell.adm-console__pages .sa-action-btn {
+  border: 1px solid var(--cx-border-2);
+  border-radius: 10px;
+  color: var(--cx-text-3);
+  background: transparent;
+  box-shadow: none;
+  transition: color 0.16s var(--cx-ease), background 0.16s var(--cx-ease), border-color 0.16s var(--cx-ease);
+}
+.adm-console .dash-shell.adm-console__pages .sa-action-btn:hover:not(:disabled) { color: var(--cx-text); background: var(--cx-surface); }
+.adm-console .dash-shell.adm-console__pages .sa-action-btn--success:hover:not(:disabled) { color: var(--cx-accent); background: var(--cx-accent-soft); border-color: transparent; }
+.adm-console .dash-shell.adm-console__pages .sa-action-btn--warning:hover:not(:disabled) { color: var(--cx-warn); background: var(--cx-warn-soft); border-color: transparent; }
+.adm-console .dash-shell.adm-console__pages :is(.sa-action-btn--danger, .sa-action-btn--delete):hover:not(:disabled) { color: var(--cx-danger); background: var(--cx-danger-soft); border-color: transparent; }
+
+/* Cells & details */
+.adm-console .dash-shell.adm-console__pages .sa-email-text { color: var(--cx-text-2); }
+.adm-console .dash-shell.adm-console__pages .sa-detail-field { border-color: var(--cx-border); }
+.adm-console .dash-shell.adm-console__pages .sa-detail-value { color: var(--cx-text); }
+.adm-console .dash-shell.adm-console__pages .sa-form-hint { color: var(--cx-text-3); }
+.adm-console .dash-shell.adm-console__pages .sa-form-error {
+  border: 0;
+  border-radius: 12px;
+  color: var(--cx-danger);
+  background: var(--cx-danger-soft);
+}
+.adm-console .dash-shell.adm-console__pages .sa-scope-badge {
+  border: 0;
+  border-radius: 999px;
+  font-weight: 600;
+  color: var(--cx-accent);
+  background: var(--cx-accent-soft);
+}
+.adm-console .dash-shell.adm-console__pages .sa-scope-badge__dot { background: currentColor; box-shadow: none; }
+
+/* Notices */
+.adm-console .dash-shell.adm-console__pages :is(.sa-demo-banner, .sa-security-notice) {
+  border: 1px solid color-mix(in srgb, var(--cx-accent) 20%, transparent);
+  border-left: 3px solid var(--cx-accent);
+  border-radius: 16px;
+  color: var(--cx-text-2);
+  background: var(--cx-accent-soft);
+}
+.adm-console .dash-shell.adm-console__pages :is(.sa-demo-banner, .sa-security-notice) strong { color: var(--cx-text); }
+.adm-console .dash-shell.adm-console__pages :is(.sa-demo-banner, .sa-security-notice) svg { color: var(--cx-accent); }
+
+/* Toast */
+.adm-console .dash-shell.adm-console__pages .sa-notification-toast {
+  border: 1px solid var(--cx-border);
+  border-left: 3px solid var(--cx-accent);
+  border-radius: 14px;
+  color: var(--cx-text);
+  background: var(--cx-card-a, var(--cx-panel));
+  box-shadow: var(--cx-shadow-lg);
+}
+.adm-console .dash-shell.adm-console__pages .sa-notification-toast--error { border-left-color: var(--cx-danger); }
+
+/* Loading skeletons */
+.adm-console .dash-shell.adm-console__pages .sa-skeleton {
+  border-radius: 8px;
+  background: linear-gradient(90deg, var(--cx-surface), var(--cx-surface-2), var(--cx-surface));
+  background-size: 200% 100%;
+}
+
+/* Modal form fields */
+.adm-console .dash-shell.adm-console__pages .sa-form-input {
+  height: 40px;
+  border: 1px solid var(--cx-border-2);
+  border-radius: 12px;
+  color: var(--cx-text);
+  background: var(--cx-surface);
+  box-shadow: none;
+}
+.adm-console[data-cx-theme='light'] .dash-shell.adm-console__pages .sa-form-input { background: rgba(255, 255, 255, 0.8); }
+.adm-console .dash-shell.adm-console__pages .sa-form-input:focus {
+  outline: none;
+  border-color: var(--cx-accent);
+  box-shadow: 0 0 0 3px var(--cx-accent-soft);
+}
+.adm-console .dash-shell.adm-console__pages .sa-form-input::placeholder { color: var(--cx-text-4); }
+
+/* GPU Health page: table row hover (rows were using an unbuilt Tailwind class). */
+.adm-console .gh-row { transition: background 0.15s var(--cx-ease); }
+.adm-console .gh-row:hover { background: var(--cx-surface); }
+
+/* ==========================================================================
+   Customer Management / Users Directory / Key Monitoring — and any admin page
+   built on the older dashboard classes (.glass, .dash-*, .tag, .well…).
+   Dark (forest) mode now uses the console palette too; light mode rules above
+   still win in light mode (they are more specific).
+   ========================================================================== */
+.adm-console[data-cx-theme='forest'] .adm-console__pages {
+  --ink: var(--cx-text);
+  --ink-2: var(--cx-text-2);
+  --ink-3: var(--cx-text-3);
+  --ink-4: var(--cx-text-4);
+  --muted: var(--cx-text-3);
+  --line: var(--cx-border);
+  --line-2: var(--cx-border-2);
+  --line-3: var(--cx-border-3);
+  --brand: var(--cx-accent);
+  --brand-hi: var(--cx-accent);
+  --brand-hi2: var(--cx-accent-2);
+  --brand-lo: var(--cx-accent-3);
+  --brand-ink: var(--cx-accent-ink);
+  --brand-soft: var(--cx-accent-soft);
+  --brand-glow: var(--cx-accent-glow);
+  --card: rgba(14, 27, 20, 0.97); /* opaque enough for drawers */
+  --bg-1: var(--cx-surface);
+  --bg-2: var(--cx-surface);
+  --bg-3: var(--cx-surface-2);
+  --bg-4: var(--cx-surface-hover);
+}
+
+/* Card surfaces (both themes; light-mode rules earlier add the frosted finish) */
+.adm-console[data-cx-theme='forest'] .dash-shell.adm-console__pages :is(.glass, .dash-stat-card, .dash-panel-card, .dash-table-wrap) {
+  background: var(--cx-card-a) !important;
+  background-image: none !important;
+  border: 1px solid var(--cx-border) !important;
+  border-radius: var(--cx-r-xl) !important;
+  box-shadow: var(--cx-glass-rim), 0 1px 2px rgba(0, 0, 0, 0.25), 0 22px 44px -26px rgba(0, 0, 0, 0.7) !important;
+}
+.adm-console .dash-shell.adm-console__pages .dash-table-wrap { overflow: hidden; }
+.adm-console .dash-shell.adm-console__pages :is(.glass, .dash-panel-card) .dash-table-wrap {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Stat cards */
+.adm-console .dash-shell.adm-console__pages .dash-stat-value { color: var(--cx-text) !important; font-weight: 600; letter-spacing: -0.02em; }
+.adm-console .dash-shell.adm-console__pages :is(.dash-stat-label, .readout-label, .engrave) { color: var(--cx-text-3) !important; }
+
+/* Tables */
+.adm-console .dash-shell.adm-console__pages .dash-table th {
+  color: var(--cx-text-3) !important;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--cx-border) !important;
+  background: var(--cx-surface) !important;
+}
+.adm-console .dash-shell.adm-console__pages .dash-table td {
+  color: var(--cx-text-2) !important;
+  border-bottom: 1px solid var(--cx-border) !important;
+  background: transparent !important;
+}
+.adm-console .dash-shell.adm-console__pages .dash-table tr:hover td { background: var(--cx-surface) !important; }
+.adm-console .dash-shell.adm-console__pages .dash-table tr:last-child td { border-bottom: 0 !important; }
+
+/* Avatars in user cells: console avatar */
+.adm-console .dash-shell.adm-console__pages .dash-user-avatar {
+  color: var(--cx-accent-ink) !important;
+  background: linear-gradient(140deg, var(--cx-accent-2), var(--cx-accent-3, var(--cx-accent))) !important;
+  border: 0 !important;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08) inset !important;
+  font-weight: 600;
+}
+
+/* Buttons */
+.adm-console .dash-shell.adm-console__pages :is(.dash-btn-primary, .mw-primary) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 16px !important;
+  border: 1px solid transparent !important;
+  border-radius: 14px !important;
+  font-weight: 600;
+  color: var(--cx-accent-ink) !important;
+  background: linear-gradient(135deg, var(--cx-accent-2), var(--cx-accent)) !important;
+  box-shadow: 0 12px 28px -14px var(--cx-accent-glow), 0 1px 0 rgba(255, 255, 255, 0.4) inset !important;
+}
+.adm-console[data-cx-theme='forest'] .dash-shell.adm-console__pages :is(.dash-btn-secondary, .dash-btn-ghost, .dash-filter-btn) {
+  border: 1px solid var(--cx-border-2) !important;
+  border-radius: 14px !important;
+  color: var(--cx-text) !important;
+  background: var(--cx-surface) !important;
+  box-shadow: none !important;
+}
+.adm-console .dash-shell.adm-console__pages .dash-icon-btn {
+  border: 1px solid var(--cx-border-2) !important;
+  border-radius: 10px !important;
+  color: var(--cx-text-3) !important;
+  background: transparent !important;
+}
+.adm-console .dash-shell.adm-console__pages .dash-icon-btn:hover { color: var(--cx-text) !important; background: var(--cx-surface) !important; }
+
+/* Inputs */
+.adm-console[data-cx-theme='forest'] .dash-shell.adm-console__pages .dash-input {
+  border: 1px solid var(--cx-border-2) !important;
+  border-radius: 12px !important;
+  color: var(--cx-text) !important;
+  background: var(--cx-surface) !important;
+  box-shadow: none !important;
+}
+.adm-console[data-cx-theme='forest'] .dash-shell.adm-console__pages .dash-input:focus {
+  outline: none;
+  border-color: var(--cx-accent) !important;
+  box-shadow: 0 0 0 3px var(--cx-accent-soft) !important;
+}
+
+/* Tags / readouts / wells */
+.adm-console[data-cx-theme='forest'] .dash-shell.adm-console__pages .tag {
+  border: 0 !important;
+  border-radius: 999px !important;
+  font-weight: 600;
+  color: var(--cx-text-2) !important;
+  background: var(--cx-surface-2) !important;
+}
+.adm-console .dash-shell.adm-console__pages .tag--emerald { color: var(--cx-accent) !important; background: var(--cx-accent-soft) !important; }
+.adm-console .dash-shell.adm-console__pages .tag--clay { color: var(--cx-warn) !important; background: var(--cx-warn-soft) !important; }
+.adm-console .dash-shell.adm-console__pages .well {
+  border: 0 !important;
+  border-radius: 12px !important;
+  background: var(--cx-surface) !important;
+  box-shadow: none !important;
+}
+.adm-console .dash-shell.adm-console__pages .readout { color: var(--cx-text) !important; }
+
+/* Customer status badges */
+.adm-console .dash-shell.adm-console__pages .cust-status-badge {
+  border: 0 !important;
+  border-radius: 999px !important;
+  font-weight: 600;
+  box-shadow: none !important;
+}
+.adm-console .dash-shell.adm-console__pages .cust-status-badge--online { color: var(--cx-accent) !important; background: var(--cx-accent-soft) !important; }
+.adm-console .dash-shell.adm-console__pages .cust-status-badge--active { color: var(--cx-info) !important; background: var(--cx-info-soft) !important; }
+.adm-console .dash-shell.adm-console__pages .cust-status-badge--inactive { color: var(--cx-text-3) !important; background: var(--cx-surface-2) !important; }
+.adm-console .dash-shell.adm-console__pages .cust-pulse-dot { background: currentColor !important; box-shadow: none !important; }
+
+/* Alerts */
+.adm-console .dash-shell.adm-console__pages .dash-alert {
+  border: 1px solid color-mix(in srgb, var(--cx-danger) 25%, transparent) !important;
+  border-left: 3px solid var(--cx-danger) !important;
+  border-radius: 14px !important;
+  color: var(--cx-text-2) !important;
+  background: var(--cx-danger-soft) !important;
+}
+
+/* Status dots (users list) */
+.adm-console .dash-shell.adm-console__pages .dash-status-dot { box-shadow: none !important; }
+
+/* Customer detail drawer */
+.adm-console .dash-shell.adm-console__pages .cust-drawer-content {
+  border-left: 1px solid var(--cx-border);
+  box-shadow: var(--cx-shadow-lg);
+  color: var(--cx-text);
+}
+.adm-console[data-cx-theme='light'] .dash-shell.adm-console__pages .cust-drawer-content { background: rgba(246, 250, 247, 0.98); }
+.adm-console[data-cx-theme='light'] .dash-shell.adm-console__pages .dash-btn-secondary {
+  border: 1px solid var(--cx-border-2) !important;
+  border-radius: 14px !important;
+  color: var(--cx-text) !important;
+  background: rgba(255, 255, 255, 0.72) !important;
+  box-shadow: 0 1px 2px rgba(20, 50, 34, 0.06) !important;
+}
+
+/* ==========================================================================
+   Provider Management (MarketplaceWorkspace.tsx, .mw-*), both themes.
+   Colours already come from the mapped legacy tokens; this sets the console
+   shape and finish.
+   ========================================================================== */
+/* Cards */
+.adm-console .dash-shell.adm-console__pages :is(.mw-panel, .mw-metric, .mw-gpu-card, .mw-form-panel) {
+  border: 1px solid var(--cx-border) !important;
+  border-radius: var(--cx-r-xl) !important;
+  background: var(--cx-card-a, var(--cx-panel)) !important;
+  background-image: none !important;
+  box-shadow: var(--adm-card-shadow) !important;
+}
+.adm-console[data-cx-theme='light'] .dash-shell.adm-console__pages :is(.mw-panel, .mw-metric, .mw-gpu-card, .mw-form-panel) {
+  border-color: transparent !important;
+}
+.adm-console .dash-shell.adm-console__pages .mw-metric { padding: 18px 20px; }
+.adm-console .dash-shell.adm-console__pages .mw-metric > strong { font-weight: 600; letter-spacing: -0.02em; }
+.adm-console .dash-shell.adm-console__pages .mw-gpu-card:hover { transform: translateY(-2px); }
+.adm-console .dash-shell.adm-console__pages .mw-panel-head { border-color: var(--cx-border) !important; }
+.adm-console .dash-shell.adm-console__pages .mw-toolbar h2 { font-weight: 600; letter-spacing: -0.015em; }
+
+/* Inner tiles */
+.adm-console .dash-shell.adm-console__pages :is(.mw-info-box, .mw-calc-box, .mw-compare-item) {
+  border: 0 !important;
+  border-radius: 14px !important;
+  background: var(--cx-surface) !important;
+}
+.adm-console .dash-shell.adm-console__pages .mw-calc-box {
+  border: 1px solid color-mix(in srgb, var(--cx-accent) 22%, transparent) !important;
+  background: var(--cx-accent-soft) !important;
+}
+
+/* Icon tiles */
+.adm-console .dash-shell.adm-console__pages :is(.mw-icon-box, .icon-tile) {
+  border: 0 !important;
+  border-radius: 12px !important;
+  color: var(--cx-accent) !important;
+  background: var(--cx-accent-soft) !important;
+  box-shadow: none !important;
+}
+
+/* Buttons */
+.adm-console .dash-shell.adm-console__pages .mw-primary {
+  min-height: 38px;
+  padding: 0 16px;
+  border: 1px solid transparent !important;
+  border-radius: 14px !important;
+  font-size: 0.82rem;
+  color: var(--cx-accent-ink) !important;
+  background: linear-gradient(135deg, var(--cx-accent-2), var(--cx-accent)) !important;
+  box-shadow: 0 12px 28px -14px var(--cx-accent-glow), 0 1px 0 rgba(255, 255, 255, 0.4) inset !important;
+}
+.adm-console .dash-shell.adm-console__pages .mw-secondary {
+  min-height: 38px;
+  padding: 0 16px;
+  border: 1px solid var(--cx-border-2) !important;
+  border-radius: 14px !important;
+  font-size: 0.82rem;
+  color: var(--cx-text) !important;
+  background: var(--cx-surface) !important;
+}
+.adm-console[data-cx-theme='light'] .dash-shell.adm-console__pages .mw-secondary { background: rgba(255, 255, 255, 0.72) !important; }
+.adm-console .dash-shell.adm-console__pages .mw-secondary:hover { border-color: var(--cx-border-3) !important; }
+.adm-console .dash-shell.adm-console__pages :is(.mw-icon-btn, .mw-actions button) {
+  border: 1px solid var(--cx-border-2) !important;
+  border-radius: 10px !important;
+  color: var(--cx-text-3) !important;
+  background: transparent !important;
+}
+.adm-console .dash-shell.adm-console__pages :is(.mw-icon-btn, .mw-actions button):hover { color: var(--cx-text) !important; background: var(--cx-surface) !important; }
+.adm-console .dash-shell.adm-console__pages .mw-actions .mw-danger { color: var(--cx-danger) !important; }
+.adm-console .dash-shell.adm-console__pages .mw-actions .mw-danger:hover { background: var(--cx-danger-soft) !important; }
+.adm-console .dash-shell.adm-console__pages .mw-link-btn { color: var(--cx-accent) !important; font-weight: 600; }
+
+/* Filter pills + view toggles */
+.adm-console .dash-shell.adm-console__pages :is(.mw-filter-pill, .mw-view-toggle-btn) {
+  border: 1px solid var(--cx-border-2) !important;
+  border-radius: 999px !important;
+  color: var(--cx-text-2) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.adm-console .dash-shell.adm-console__pages :is(.mw-filter-pill, .mw-view-toggle-btn):hover { color: var(--cx-text) !important; background: var(--cx-surface) !important; }
+.adm-console .dash-shell.adm-console__pages :is(.mw-filter-pill, .mw-view-toggle-btn).is-active {
+  border-color: transparent !important;
+  color: var(--cx-accent-ink) !important;
+  background: var(--cx-accent) !important;
+}
+
+/* Search / selects */
+.adm-console .dash-shell.adm-console__pages :is(.mw-search, .mw-select) {
+  min-height: 40px;
+  border: 1px solid var(--cx-border-2) !important;
+  border-radius: 12px !important;
+  color: var(--cx-text) !important;
+  background: var(--cx-surface) !important;
+}
+.adm-console[data-cx-theme='light'] .dash-shell.adm-console__pages :is(.mw-search, .mw-select) { background: rgba(255, 255, 255, 0.8) !important; }
+.adm-console .dash-shell.adm-console__pages :is(.mw-search:focus-within, .mw-select:focus) {
+  border-color: var(--cx-accent) !important;
+  box-shadow: 0 0 0 3px var(--cx-accent-soft) !important;
+}
+
+/* Progress */
+.adm-console .dash-shell.adm-console__pages .mw-progress { background: var(--cx-surface-2) !important; }
+.adm-console .dash-shell.adm-console__pages .mw-progress > span { background: linear-gradient(90deg, var(--cx-accent-2), var(--cx-accent)) !important; }
+
+/* Tables (dark mode; light handled earlier) */
+.adm-console[data-cx-theme='forest'] .dash-shell.adm-console__pages .mw-table th {
+  color: var(--cx-text-3) !important;
+  background: var(--cx-surface) !important;
+  border-color: var(--cx-border) !important;
+}
+.adm-console[data-cx-theme='forest'] .dash-shell.adm-console__pages .mw-table td { color: var(--cx-text-2) !important; border-color: var(--cx-border) !important; }
+.adm-console .dash-shell.adm-console__pages .mw-table th {
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* Modals (dark mode; light handled earlier) */
+.adm-console[data-cx-theme='forest'] .dash-shell.adm-console__pages .mw-modal {
+  border: 1px solid var(--cx-border-2) !important;
+  border-radius: var(--cx-r-xl) !important;
+  background: rgba(14, 27, 20, 0.97) !important;
+  box-shadow: var(--cx-shadow-lg) !important;
+}
+.adm-console[data-cx-theme='forest'] .dash-shell.adm-console__pages .mw-modal-backdrop {
+  background: var(--cx-overlay) !important;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.adm-console .dash-shell.adm-console__pages :is(.mw-modal-head, .mw-modal-foot) { border-color: var(--cx-border) !important; }
+
+/* Chips */
+.adm-console .dash-shell.adm-console__pages .chip {
+  border: 0 !important;
+  border-radius: 999px !important;
+  color: var(--cx-text-2) !important;
+  background: var(--cx-surface-2) !important;
+}
+.adm-console .dash-shell.adm-console__pages .chip--lime { color: var(--cx-accent) !important; background: var(--cx-accent-soft) !important; }

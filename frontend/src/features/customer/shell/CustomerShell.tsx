@@ -3,7 +3,7 @@ import { useMediaQuery } from '../../../lib/hooks'
 import { useLocation, useOutlet } from 'react-router-dom'
 import { AnimatePresence, MotionConfig, motion, useReducedMotion } from 'framer-motion'
 import { RefreshCw, ShieldAlert } from 'lucide-react'
-import { signOutCurrentUser } from '../../../lib/authStore'
+import * as authStore from '../../../lib/authStore'
 import { useCustomerWorkspace } from '../data/WorkspaceContext'
 import { selectProfileSummary } from '../data/selectors'
 import { sectionForPath } from '../navigation'
@@ -28,7 +28,11 @@ function readRail(): boolean {
 }
 
 export async function signOutToLogin(): Promise<void> {
-  await signOutCurrentUser()
+  if (typeof authStore.performSignOut === 'function') {
+    await authStore.performSignOut('/login')
+    return
+  }
+  await authStore.signOutCurrentUser()
   window.location.replace('/login')
 }
 
