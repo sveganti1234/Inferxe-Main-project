@@ -36,6 +36,7 @@ import {
   runGpuDeploymentAction,
   type GpuDeploymentAction,
   type GpuOffering,
+  announceNotificationsChanged,
 } from '../data/serviceClients'
 import { useAsyncResource } from '../data/useAsyncResource'
 import { getSection, sectionHref } from '../navigation'
@@ -167,6 +168,7 @@ export default function DeploymentsPage() {
       const updated = await runGpuDeploymentAction(d.id, action)
       setActionSuccess(`Deployment "${d.name}" ${ACTION_DONE[action]} (now ${humaniseCode(updated.status)}).`)
       if (action === 'terminate') setTerminateTarget(null)
+      announceNotificationsChanged()
     } catch (err) {
       setActionError(err instanceof Error ? err.message : `Could not ${action} the deployment.`)
     } finally {
@@ -211,6 +213,7 @@ export default function DeploymentsPage() {
       setActionSuccess(`Deployment "${created.name}" launched (${humaniseCode(created.status)}).`)
       setFormData((f) => ({ ...f, name: '', sshKeyIds: [] }))
       handleCloseCreate()
+      announceNotificationsChanged()
     } catch (err) {
       // A 4xx means the request was refused, so the next try needs a new key. Network errors and 5xx keep the key:
       // a gateway timeout does not end the backend request, and a retry returns its record instead of a second GPU.

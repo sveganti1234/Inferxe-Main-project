@@ -32,6 +32,7 @@ const DashboardOverview = lazy(() => import('./pages/dashboard/DashboardOverview
 const MarketplaceWorkspace = lazy(() => import('./pages/dashboard/MarketplaceWorkspace'))
 const CustomerManagement = lazy(() => import('./pages/dashboard/CustomerManagement'))
 const AdminKeyMonitoring = lazy(() => import('./pages/dashboard/AdminKeyMonitoring'))
+const AdminNotificationsPage = lazy(() => import('./pages/dashboard/AdminNotificationsPage'))
 const CustomerVerdeloWorkspace = lazy(() => import('./components/dashboard/CustomerVerdeloWorkspace'))
 const CustomerApp = lazy(() => import('./features/customer/CustomerApp'))
 const CustomerEntryRedirect = lazy(() => import('./features/customer/CustomerEntryRedirect'))
@@ -159,6 +160,7 @@ export default function App() {
               />
 
               <Route path="/dashboard" element={<DashboardOverview />} />
+              <Route path="/dashboard/notifications" element={<AdminNotificationsPage />} />
               <Route path="/dashboard/gpu-health" element={<GpuHealthDashboard />} />
               <Route
                 path="/dashboard/superadmin/gpu-health"

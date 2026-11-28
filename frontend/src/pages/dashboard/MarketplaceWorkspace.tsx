@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { createPortal } from 'react-dom'
 import { useLocation, Link, useNavigate } from 'react-router-dom'
 import {
   Activity, Archive, ArrowDownToLine, ArrowUpDown, Bell, Check, ChevronDown, ChevronRight,
@@ -25,6 +26,7 @@ import {
   createBackendSshKey,
   deleteBackendSshKey,
 } from '../../lib/sshKeyService'
+import { updateAdminGpuPrice, createAdminGpuListing } from '../../lib/adminNotificationService'
 import { NotebooksSection, ReviewsSection, RewardsSection, UsageDetail } from './ExtraSections'
 import { SovereignNodesMap } from '../../components/dashboard/SovereignNodesMap'
 import { InteractivePriceHistoryChart, type PriceHistoryRange, type GpuModel } from '../../components/dashboard/InteractivePriceHistoryChart'
@@ -666,6 +668,9 @@ type ToastNotice = {
   const [showAddListing, setShowAddListing] = useState(false)
   const [listingForm, setListingForm] = useState({ gpu: 'NVIDIA L4', vram: '24 GB', region: 'Hyderabad, IN', quantity: '4', price: '60' })
   const [editingListing, setEditingListing] = useState<Listing | null>(null)
+  const [isSavingListing, setIsSavingListing] = useState(false)
+  const editIdempotencyKeyRef = useRef<string>('')
+  const createIdempotencyKeyRef = useRef<string>('')
   const [providerForm, setProviderForm] = useState({ company: 'Yotta Sovereign Infrastructure Ltd', contact: 'Anil Mehta', email: 'anil.mehta@yotta.com', regions: 'Mumbai NM1, Noida D1', apiType: 'REST + Daemon' })
   const [providerSaved, setProviderSaved] = useState(false)
   const [showPayoutModal, setShowPayoutModal] = useState(false)
@@ -1255,38 +1260,105 @@ type ToastNotice = {
     }
   }
 
-  const handleSaveListing = (e: FormEvent) => {
+  const handleSaveEditListing = async (e: FormEvent) => {
     e.preventDefault()
-    if (editingListing) {
-      setListings((prev) =>
-        prev.map((l) => (l.id === editingListing.id ? { ...editingListing } : l))
-      )
-      setEditingListing(null)
-      addNotification({
-        title: `GPU Listing Updated: ${editingListing.name}`,
-        detail: `Updated ${editingListing.gpu} (${editingListing.vram}) pricing to ₹${editingListing.price}/hr. Status: ${editingListing.status}.`,
-        type: 'Marketplace',
+    if (!editingListing) {
+      flash('Failed to update GPU price', 'No listing selected for editing.')
+      return
+    }
+
+    const targetListing = editingListing
+    const numericPrice = Number(targetListing.price)
+    if (isNaN(numericPrice) || numericPrice <= 0) {
+      flash('Failed to update GPU price', 'Please enter a valid price greater than ₹0/hr.')
+      return
+    }
+
+    setIsSavingListing(true)
+    try {
+      const idemKey = editIdempotencyKeyRef.current || `gpu_price_${targetListing.id}_${numericPrice}_${Date.now()}`
+      editIdempotencyKeyRef.current = idemKey
+
+      const res = await updateAdminGpuPrice(targetListing.id, numericPrice, {
+        idempotencyKey: idemKey,
       })
-      flash(`GPU listing "${editingListing.name}" updated.`)
-    } else {
-      const item: Listing = {
-        id: `gpu-${Date.now()}`,
-        name: listingForm.gpu,
-        gpu: listingForm.gpu.replace('NVIDIA ', ''),
+
+      if (!res.ok) {
+        flash('Failed to update GPU price', res.error || 'Server rejected the price update.')
+        return
+      }
+
+      const confirmedPrice = typeof res.data?.new_price === 'number' ? res.data.new_price : numericPrice
+      setListings((prev) => {
+        const next = prev.map((l) => (l.id === targetListing.id ? { ...targetListing, price: confirmedPrice } : l))
+        saveStore(STORE.listings, next)
+        return next
+      })
+      setEditingListing(null)
+      editIdempotencyKeyRef.current = ''
+      flash(`GPU listing "${targetListing.name}" updated.`)
+    } catch (err: any) {
+      flash('Failed to update GPU price', err?.message || 'Network error occurred.')
+    } finally {
+      setIsSavingListing(false)
+    }
+  }
+
+  const handleSaveListing = async (e: FormEvent) => {
+    e.preventDefault()
+
+    const priceNum = Math.max(1, Number(listingForm.price) || 1)
+    const quantityNum = Math.max(1, Number(listingForm.quantity) || 1)
+    const cleanGpuName = (listingForm.gpu || '').trim()
+    const cleanRegion = (listingForm.region || '').trim()
+
+    if (!cleanGpuName || !cleanRegion) {
+      flash('Failed to add GPU listing', 'GPU model and region are required.')
+      return
+    }
+
+    setIsSavingListing(true)
+    try {
+      const idemKey =
+        createIdempotencyKeyRef.current ||
+        `gpu_create_${cleanGpuName}_${cleanRegion}_${priceNum}_${Date.now()}`
+      createIdempotencyKeyRef.current = idemKey
+
+      const res = await createAdminGpuListing({
+        name: cleanGpuName,
+        gpu_model: cleanGpuName.replace('NVIDIA ', '').trim(),
         vram: listingForm.vram,
-        region: listingForm.region,
-        quantity: Math.max(1, Number(listingForm.quantity) || 1),
-        price: Math.max(1, Number(listingForm.price) || 1),
+        region: cleanRegion,
+        price: priceNum,
+        quantity: quantityNum,
+        idempotency_key: idemKey,
+      })
+
+      if (!res.ok) {
+        flash('Failed to add GPU listing', res.error || 'Server rejected new listing creation.')
+        return
+      }
+
+      const persisted = res.data?.listing
+      const item: Listing = {
+        id: persisted?.id || `gpu-${Date.now()}`,
+        name: cleanGpuName,
+        gpu: cleanGpuName.replace('NVIDIA ', ''),
+        vram: listingForm.vram,
+        region: cleanRegion,
+        quantity: quantityNum,
+        price: persisted?.price || priceNum,
         status: 'Available',
       }
+
       setListings((prev) => [item, ...prev])
       setShowAddListing(false)
-      addNotification({
-        title: `New GPU Listing Added: ${item.name}`,
-        detail: `${item.gpu} (${item.vram}) in ${item.region} added at ₹${item.price}/hr.`,
-        type: 'Marketplace',
-      })
+      createIdempotencyKeyRef.current = ''
       flash(`New GPU listing "${item.name}" added to inventory.`)
+    } catch (err: any) {
+      flash('Failed to add GPU listing', err?.message || 'Network error occurred.')
+    } finally {
+      setIsSavingListing(false)
     }
   }
 
@@ -1366,38 +1438,74 @@ type ToastNotice = {
       backButtonLabel="Back to overview"
     >
       <div className="mw-page">
-        {/* Action Toast Feedback - Matching Image 2 Reference */}
+        {/* Action Toast Feedback - Viewport-fixed Portal */}
         {notice && (
-          <div className="mw-toast" role="status" aria-live="polite">
-            <div className="mw-toast-icon-wrap">
-              {notice.icon === 'wallet' ? (
-                <Wallet size={20} strokeWidth={2.2} />
-              ) : notice.icon === 'bell' ? (
-                <Bell size={20} strokeWidth={2.2} />
-              ) : (
-                <Server size={20} strokeWidth={2.2} />
-              )}
+          typeof document !== 'undefined' ? (
+            createPortal(
+              <div className="mw-toast" role="status" aria-live="polite">
+                <div className="mw-toast-icon-wrap">
+                  {notice.icon === 'wallet' ? (
+                    <Wallet size={20} strokeWidth={2.2} />
+                  ) : notice.icon === 'bell' ? (
+                    <Bell size={20} strokeWidth={2.2} />
+                  ) : (
+                    <Server size={20} strokeWidth={2.2} />
+                  )}
+                </div>
+                <div className="mw-toast-content">
+                  <div className="mw-toast-title">{notice.title}</div>
+                  {notice.description && (
+                    <div className="mw-toast-desc">{notice.description}</div>
+                  )}
+                </div>
+                <button
+                  className="mw-toast-close"
+                  onClick={() => {
+                    if (noticeTimerRef.current) window.clearTimeout(noticeTimerRef.current)
+                    setNotice(null)
+                  }}
+                  aria-label="Dismiss notification"
+                >
+                  <X size={15} />
+                </button>
+                <div className="mw-toast-progress">
+                  <div className="mw-toast-progress-bar" />
+                </div>
+              </div>,
+              document.body
+            )
+          ) : (
+            <div className="mw-toast" role="status" aria-live="polite">
+              <div className="mw-toast-icon-wrap">
+                {notice.icon === 'wallet' ? (
+                  <Wallet size={20} strokeWidth={2.2} />
+                ) : notice.icon === 'bell' ? (
+                  <Bell size={20} strokeWidth={2.2} />
+                ) : (
+                  <Server size={20} strokeWidth={2.2} />
+                )}
+              </div>
+              <div className="mw-toast-content">
+                <div className="mw-toast-title">{notice.title}</div>
+                {notice.description && (
+                  <div className="mw-toast-desc">{notice.description}</div>
+                )}
+              </div>
+              <button
+                className="mw-toast-close"
+                onClick={() => {
+                  if (noticeTimerRef.current) window.clearTimeout(noticeTimerRef.current)
+                  setNotice(null)
+                }}
+                aria-label="Dismiss notification"
+              >
+                <X size={15} />
+              </button>
+              <div className="mw-toast-progress">
+                <div className="mw-toast-progress-bar" />
+              </div>
             </div>
-            <div className="mw-toast-content">
-              <div className="mw-toast-title">{notice.title}</div>
-              {notice.description && (
-                <div className="mw-toast-desc">{notice.description}</div>
-              )}
-            </div>
-            <button
-              className="mw-toast-close"
-              onClick={() => {
-                if (noticeTimerRef.current) window.clearTimeout(noticeTimerRef.current)
-                setNotice(null)
-              }}
-              aria-label="Dismiss notification"
-            >
-              <X size={15} />
-            </button>
-            <div className="mw-toast-progress">
-              <div className="mw-toast-progress-bar" />
-            </div>
-          </div>
+          )
         )}
 
         {/* ───────────────────────────────────────────────────────────
@@ -2596,7 +2704,15 @@ type ToastNotice = {
                 <h2>GPU Inventory & Listings</h2>
                 <p>Publish, edit or pause GPU node allocations for marketplace tenants.</p>
               </div>
-              <button className="mw-primary" onClick={() => setShowAddListing(!showAddListing)}>
+              <button
+                className="mw-primary"
+                disabled={isSavingListing}
+                onClick={() => {
+                  if (showAddListing) createIdempotencyKeyRef.current = ''
+                  setEditingListing(null)
+                  setShowAddListing(!showAddListing)
+                }}
+              >
                 {showAddListing ? <X size={16} /> : <Plus size={16} />}
                 {showAddListing ? 'Cancel' : 'Add GPU Listing'}
               </button>
@@ -2608,6 +2724,7 @@ type ToastNotice = {
                   GPU Model
                   <select
                     value={listingForm.gpu}
+                    disabled={isSavingListing}
                     onChange={(e) => {
                       const v = e.target.value
                       setListingForm({
@@ -2626,22 +2743,45 @@ type ToastNotice = {
                 </label>
                 <label>
                   VRAM
-                  <input value={listingForm.vram} onChange={(e) => setListingForm({ ...listingForm, vram: e.target.value })} />
+                  <input
+                    disabled={isSavingListing}
+                    value={listingForm.vram}
+                    onChange={(e) => setListingForm({ ...listingForm, vram: e.target.value })}
+                  />
                 </label>
                 <label>
                   Region
-                  <input required value={listingForm.region} onChange={(e) => setListingForm({ ...listingForm, region: e.target.value })} />
+                  <input
+                    required
+                    disabled={isSavingListing}
+                    value={listingForm.region}
+                    onChange={(e) => setListingForm({ ...listingForm, region: e.target.value })}
+                  />
                 </label>
                 <label>
                   Quantity (Units)
-                  <input type="number" min="1" required value={listingForm.quantity} onChange={(e) => setListingForm({ ...listingForm, quantity: e.target.value })} />
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    disabled={isSavingListing}
+                    value={listingForm.quantity}
+                    onChange={(e) => setListingForm({ ...listingForm, quantity: e.target.value })}
+                  />
                 </label>
                 <label>
                   Hourly Rate (₹)
-                  <input type="number" min="1" required value={listingForm.price} onChange={(e) => setListingForm({ ...listingForm, price: e.target.value })} />
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    disabled={isSavingListing}
+                    value={listingForm.price}
+                    onChange={(e) => setListingForm({ ...listingForm, price: e.target.value })}
+                  />
                 </label>
-                <button className="mw-primary" type="submit">
-                  Save Listing
+                <button className="mw-primary" type="submit" disabled={isSavingListing}>
+                  {isSavingListing ? 'Saving...' : 'Save Listing'}
                 </button>
               </form>
             )}
@@ -2692,7 +2832,10 @@ type ToastNotice = {
                             >
                               <Wrench size={13} />
                             </button>
-                            <button onClick={() => setEditingListing(l)}>
+                            <button onClick={() => {
+                              setShowAddListing(false)
+                              setEditingListing(l)
+                            }}>
                               Edit
                             </button>
                             <button
@@ -4957,13 +5100,19 @@ type ToastNotice = {
 
       {/* 8. Provider Edit Listing Modal */}
       {editingListing && (
-        <div className="mw-modal-backdrop" onClick={() => setEditingListing(null)}>
+        <div className="mw-modal-backdrop" onClick={() => { if (!isSavingListing) { editIdempotencyKeyRef.current = ''; setEditingListing(null) } }}>
           <div className="mw-modal" onClick={(e) => e.stopPropagation()}>
             <div className="mw-modal-head">
               <h3>Edit Listing: {editingListing.name}</h3>
-              <button onClick={() => setEditingListing(null)} aria-label="Close"><X size={16} /></button>
+              <button
+                onClick={() => { editIdempotencyKeyRef.current = ''; setEditingListing(null) }}
+                aria-label="Close"
+                disabled={isSavingListing}
+              >
+                <X size={16} />
+              </button>
             </div>
-            <form onSubmit={handleSaveListing}>
+            <form onSubmit={handleSaveEditListing}>
               <div className="mw-modal-body">
                 <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: '0.76rem', color: 'var(--ink-3)' }}>
                   Quantity (Units)
@@ -4971,19 +5120,21 @@ type ToastNotice = {
                     type="number"
                     min="1"
                     required
-                    value={editingListing.quantity}
-                    onChange={(e) => setEditingListing({ ...editingListing, quantity: Number(e.target.value) })}
+                    disabled={isSavingListing}
+                    value={editingListing.quantity === 0 ? '' : editingListing.quantity}
+                    onChange={(e) => setEditingListing({ ...editingListing, quantity: e.target.value === '' ? ('' as any) : Number(e.target.value) })}
                     style={{ padding: '8px 10px', background: 'var(--bg-2)', border: '1px solid var(--line-2)', borderRadius: 7, color: 'var(--ink)' }}
                   />
                 </label>
                 <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: '0.76rem', color: 'var(--ink-3)' }}>
-                  Rate per Hour (₹)
+                  Hourly Rate (₹)
                   <input
                     type="number"
                     min="1"
                     required
-                    value={editingListing.price}
-                    onChange={(e) => setEditingListing({ ...editingListing, price: Number(e.target.value) })}
+                    disabled={isSavingListing}
+                    value={editingListing.price === 0 ? '' : editingListing.price}
+                    onChange={(e) => setEditingListing({ ...editingListing, price: e.target.value === '' ? ('' as any) : Number(e.target.value) })}
                     style={{ padding: '8px 10px', background: 'var(--bg-2)', border: '1px solid var(--line-2)', borderRadius: 7, color: 'var(--ink)' }}
                   />
                 </label>
@@ -4991,6 +5142,7 @@ type ToastNotice = {
                   Listing Status
                   <select
                     value={editingListing.status}
+                    disabled={isSavingListing}
                     onChange={(e) => setEditingListing({ ...editingListing, status: e.target.value as any })}
                     className="mw-select"
                   >
@@ -5001,8 +5153,17 @@ type ToastNotice = {
                 </label>
               </div>
               <div className="mw-modal-foot">
-                <button type="button" className="mw-secondary" onClick={() => setEditingListing(null)}>Cancel</button>
-                <button type="submit" className="mw-primary">Save Changes</button>
+                <button
+                  type="button"
+                  className="mw-secondary"
+                  disabled={isSavingListing}
+                  onClick={() => { editIdempotencyKeyRef.current = ''; setEditingListing(null) }}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="mw-primary" disabled={isSavingListing} aria-label="Save Listing">
+                  {isSavingListing ? 'Saving...' : 'Save Listing'}
+                </button>
               </div>
             </form>
           </div>

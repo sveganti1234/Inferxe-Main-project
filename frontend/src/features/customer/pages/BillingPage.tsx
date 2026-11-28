@@ -11,7 +11,7 @@ import { useSearchParams } from 'react-router-dom'
 import { ArrowDownLeft, ArrowRight, ArrowUpRight, Info, Plus, Receipt, RefreshCw, Wallet } from 'lucide-react'
 import { usePageMeta } from '../../../lib/hooks'
 import { CustomerApiError } from '../data/http'
-import { MAX_DEMO_TOPUP, addMoneyToWallet, fetchWalletBalance } from '../data/serviceClients'
+import { MAX_DEMO_TOPUP, addMoneyToWallet, announceNotificationsChanged, fetchWalletBalance } from '../data/serviceClients'
 import { useAsyncResource } from '../data/useAsyncResource'
 import { useCustomerWorkspace } from '../data/WorkspaceContext'
 import {
@@ -103,6 +103,7 @@ export default function BillingPage() {
       await addMoneyToWallet(parsed.amount, attemptKey)
       closeAdd()
       setAdded(parsed.amount)
+      announceNotificationsChanged()
       refresh()
       wallet.refresh()
     } catch (err) {

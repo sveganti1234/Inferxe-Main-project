@@ -215,6 +215,10 @@ export async function topUpWallet(
       return { ok: false, status: res.status, error }
     }
 
+    try {
+      window.dispatchEvent(new CustomEvent('inferxe_notifications_change'))
+    } catch {}
+
     return { ok: true, status: res.status, result: data as WalletTransactionResult }
   } catch (err) {
     return {

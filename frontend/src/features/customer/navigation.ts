@@ -17,6 +17,7 @@ import {
   Cpu,
   FlaskConical,
   Gift,
+  HardDrive,
   HelpCircle,
   KeyRound,
   LayoutDashboard,
@@ -42,6 +43,7 @@ export type SectionId =
   | 'playground'
   | 'deployments'
   | 'wishlist'
+  | 'storage'
   | 'orders'
   | 'api-keys'
   | 'ssh-keys'
@@ -141,6 +143,22 @@ export const CONSOLE_SECTIONS: ConsoleSection[] = [
       'Saved GPU instances inventory and specifications',
       'One-click deployment navigation',
       'Remove and toggle bookmarks in sync with GPU Marketplace',
+    ],
+  },
+  {
+    id: 'storage',
+    label: 'Workspace storage',
+    path: 'storage',
+    icon: HardDrive,
+    group: 'Compute & AI',
+    availability: 'live',
+    description: 'Manage persistent workspace files, datasets, model weights, and scripts.',
+    availabilityNote: 'Real customer-isolated cloud storage backed by your workspace quota.',
+    capabilities: [
+      'Upload datasets, weights, scripts, and documents',
+      'Organize files into folders with path navigation',
+      'Secure signed URL downloads and file deletion',
+      'Real-time workspace storage capacity and utilization tracking',
     ],
   },
   {

@@ -2752,7 +2752,8 @@
   position: fixed;
   bottom: 28px;
   right: 28px;
-  z-index: 99999;
+  z-index: 999999;
+  pointer-events: auto;
   display: flex;
   align-items: flex-start;
   gap: 16px;
@@ -2774,6 +2775,14 @@
   overflow: hidden;
   box-sizing: border-box;
   animation: mwToastSlideIn 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.mw-toast:not(.cx-toast) {
+  position: fixed !important;
+  bottom: 28px !important;
+  right: 28px !important;
+  z-index: 999999 !important;
+  pointer-events: auto !important;
 }
 
 @keyframes mwToastSlideIn {
@@ -2915,6 +2924,11 @@
     width: auto;
     padding: 16px 40px 18px 16px;
     gap: 12px;
+  }
+  .mw-toast:not(.cx-toast) {
+    bottom: 16px !important;
+    right: 16px !important;
+    left: 16px !important;
   }
   .mw-toast-icon-wrap {
     width: 38px;

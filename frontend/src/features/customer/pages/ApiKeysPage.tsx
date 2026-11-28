@@ -26,6 +26,7 @@ import {
   type ApiKeyView,
 } from '../data/apiKeys'
 import { CustomerApiError } from '../data/http'
+import { announceNotificationsChanged } from '../data/serviceClients'
 import { useAsyncResource } from '../data/useAsyncResource'
 import { useCustomerWorkspace } from '../data/WorkspaceContext'
 import { CONSOLE_BASE, getSection } from '../navigation'
@@ -126,6 +127,7 @@ export default function ApiKeysPage() {
       setCreateOpen(false)
       setAcknowledged(false)
       setRevealed(result)
+      announceNotificationsChanged()
       keysResource.refresh()
       refreshWorkspace()
       setFeedback({ tone: 'success', text: `Demo API key "${result.key.name}" generated successfully.` })
@@ -161,6 +163,7 @@ export default function ApiKeysPage() {
       await revokeApiKey(revokeTarget.id)
       const targetName = revokeTarget.name
       setRevokeTarget(null)
+      announceNotificationsChanged()
       keysResource.refresh()
       refreshWorkspace()
       setFeedback({ tone: 'success', text: `API key "${targetName}" has been revoked.` })

@@ -20,6 +20,28 @@ _SCHEMA_CACHE: Dict[str, Dict[str, str]] = {}
 _SCHEMA_LOCK = threading.Lock()
 
 
+def _is_valid_uuid(val: Any) -> bool:
+    if not val:
+        return False
+    try:
+        uuid.UUID(str(val))
+        return True
+    except (ValueError, AttributeError, TypeError):
+        return False
+
+
+DEFAULT_GPU_CATALOG: Dict[str, Dict[str, Any]] = {
+    "gpu-101": {"name": "NVIDIA L40S", "gpu_model": "L40S", "vram": "48 GB", "region": "Mumbai, IN", "price": 100.0},
+    "gpu-102": {"name": "NVIDIA L4", "gpu_model": "L4", "vram": "24 GB", "region": "Hyderabad, IN", "price": 60.0},
+    "gpu-103": {"name": "NVIDIA A100", "gpu_model": "A100", "vram": "80 GB", "region": "Chennai, IN", "price": 210.0},
+    "gpu-104": {"name": "NVIDIA H100 SXM5", "gpu_model": "H100", "vram": "80 GB", "region": "Mumbai, IN", "price": 275.0},
+    "gpu-105": {"name": "NVIDIA H200", "gpu_model": "H200", "vram": "141 GB", "region": "Delhi, IN", "price": 340.0},
+}
+
+PRIMARY_SUPERADMIN_ID = "d9a494cb-1e8d-4bca-8142-19687fa9138b"
+PRIMARY_SUPERADMIN_EMAIL = "admin@inferxe.com"
+
+
 def clear_schema_cache() -> None:
     """Clear cached PostgreSQL table column metadata (useful in unit tests)."""
     with _SCHEMA_LOCK:
@@ -319,7 +341,85 @@ class NotificationService:
     # ── Notification Outbox & Event Generation ──
 
     @staticmethod
+    def _ensure_admin_profile(cur, user_id: str) -> bool:
+        """
+        Safely ensures an administrative identity profile exists in `profiles` for validated
+        administrators in `admin_users`, preserving the `notifications.user_id` foreign key.
+        Strictly restricted to active records in `admin_users`. Never creates profiles for
+        arbitrary or non-admin user IDs.
+        """
+        if not user_id:
+            return False
+        in_tx = not getattr(cur.connection, "autocommit", True)
+        sp_name = f"sp_adm_prof_{uuid.uuid4().hex[:8]}"
+        if in_tx:
+            cur.execute(f"SAVEPOINT {sp_name};")
+        try:
+            cur.execute("SELECT 1 FROM profiles WHERE user_id = %s LIMIT 1;", (str(user_id),))
+            if cur.fetchone():
+                if in_tx:
+                    cur.execute(f"RELEASE SAVEPOINT {sp_name};")
+                return True
+
+            # If user_id is not a valid UUID, it cannot be in admin_users (which uses UUID PK)
+            if not _is_valid_uuid(user_id):
+                if in_tx:
+                    cur.execute(f"RELEASE SAVEPOINT {sp_name};")
+                return False
+
+            cur.execute(
+                "SELECT id, email, role FROM admin_users WHERE id = %s AND is_active = TRUE LIMIT 1;",
+                (str(user_id),)
+            )
+            admin = cur.fetchone()
+            if not admin:
+                if in_tx:
+                    cur.execute(f"RELEASE SAVEPOINT {sp_name};")
+                return False
+
+            now = now_iso()
+            admin_id = str(admin["id"] if isinstance(admin, dict) else admin[0])
+            email = str(admin["email"] if isinstance(admin, dict) else admin[1])
+            auth_role = str(admin["role"] if isinstance(admin, dict) else admin[2]) if (isinstance(admin, dict) and "role" in admin) else "admin"
+            full_name = email.split("@")[0].capitalize()
+
+            # Map authoritative administrative role to 'admin' in profiles table to comply with profiles_role_check
+            # ('superadmin' is strictly preserved in admin_users and JWT session claims)
+            profile_role = "admin" if auth_role in ("admin", "superadmin") else "admin"
+
+            # Check if email is held by a legacy non-UUID profile row (e.g. 'usr_admin') violating profiles_email_key
+            cur.execute("SELECT user_id FROM profiles WHERE email = %s AND user_id != %s LIMIT 1;", (email, admin_id))
+            conflict_row = cur.fetchone()
+            if conflict_row:
+                conflict_uid = str(conflict_row["user_id"] if isinstance(conflict_row, dict) else conflict_row[0])
+                if not _is_valid_uuid(conflict_uid):
+                    legacy_email = f"legacy_{conflict_uid}_{email}"
+                    cur.execute("UPDATE profiles SET email = %s WHERE user_id = %s;", (legacy_email, conflict_uid))
+                    logger.info("Migrated legacy profile '%s' email to '%s' to allow admin '%s' to register.", conflict_uid, legacy_email, admin_id)
+                else:
+                    email = f"admin_{admin_id[:8]}@{email.split('@')[-1]}"
+
+            cur.execute(
+                """
+                INSERT INTO profiles (user_id, full_name, email, role, status, auth_provider, created_at, updated_at)
+                VALUES (%s, %s, %s, %s, 'active', 'admin', %s, %s)
+                ON CONFLICT (user_id) DO UPDATE SET role = EXCLUDED.role, updated_at = EXCLUDED.updated_at;
+                """,
+                (admin_id, full_name, email, profile_role, now, now)
+            )
+            if in_tx:
+                cur.execute(f"RELEASE SAVEPOINT {sp_name};")
+            logger.info("Ensured administrative compatibility profile for admin '%s' (authoritative: %s, profile: %s).", admin_id, auth_role, profile_role)
+            return True
+        except Exception as exc:
+            if in_tx:
+                cur.execute(f"ROLLBACK TO SAVEPOINT {sp_name};")
+            logger.debug("Admin profile check bypassed or failed for user '%s': %s", user_id, exc)
+            return False
+
+    @classmethod
     def _create_notification_internal(
+        cls,
         cur,
         user_id: str,
         title: str,
@@ -329,6 +429,7 @@ class NotificationService:
         related_entity_id: Optional[str] = None
     ) -> str:
         """Inserts a notification record using an active cursor across Supabase or legacy schemas."""
+        cls._ensure_admin_profile(cur, user_id)
         cols = _get_table_columns(cur, "notifications")
         insert_cols, row = _notification_row(cols, user_id, title, message, notification_type, metadata, related_entity_id)
         placeholders = ["FALSE" if c == "is_read" else "%s" for c in insert_cols]
@@ -352,15 +453,29 @@ class NotificationService:
     ) -> int:
         """Insert one notification per user; returns how many were created.
 
-        Fast path: a single multi-row INSERT (1 round trip instead of 3 per user). If any user has no
-        matching profile row (FK violation 23503), the batch is rolled back to its savepoint and the
-        per-user path runs, which skips exactly those users, as before. Other errors propagate.
+        Fast path: pre-filters user_ids against profiles to ensure the foreign key (FK 23503)
+        on notifications.user_id -> profiles.user_id is satisfied without slow per-user savepoint rollbacks.
+        Then executes a single multi-row INSERT via execute_values.
         """
         if not user_ids:
             return 0
+
+        # Pre-filter user_ids against profiles to guarantee FK constraint (FK 23503) is satisfied
+        target_uids = list(user_ids)
+        try:
+            cur.execute("SELECT user_id FROM profiles WHERE user_id = ANY(%s);", (list(user_ids),))
+            valid_uids = {r[0] if isinstance(r, (tuple, list)) else r["user_id"] for r in cur.fetchall()}
+            target_uids = [uid for uid in user_ids if uid in valid_uids]
+        except Exception:
+            # Fallback if profiles table is absent or schema query fails
+            target_uids = list(user_ids)
+
+        if not target_uids:
+            return 0
+
         cols = _get_table_columns(cur, "notifications")
         rows = [_notification_row(cols, uid, title, message, notification_type, metadata, related_entity_id)
-                for uid in user_ids]
+                for uid in target_uids]
         insert_cols = rows[0][0]
         template = "(" + ", ".join("FALSE" if c == "is_read" else "%s" for c in insert_cols) + ")"
         in_tx = not getattr(cur.connection, "autocommit", True)
@@ -374,13 +489,16 @@ class NotificationService:
                 template=template,
                 page_size=500,
             )
+            if in_tx:
+                cur.execute("RELEASE SAVEPOINT sp_broadcast_batch;")
+            return len(target_uids)
         except psycopg2.IntegrityError as exc:
             if in_tx:
                 cur.execute("ROLLBACK TO SAVEPOINT sp_broadcast_batch;")
             if getattr(exc, "pgcode", None) != "23503":
                 raise
             created = 0
-            for uid in user_ids:
+            for uid in target_uids:
                 if cls._create_notification_in_broadcast(
                     cur,
                     user_id=uid,
@@ -525,6 +643,156 @@ class NotificationService:
     # ── Notification Scenarios ──
 
     @classmethod
+    def process_gpu_listing_create(
+        cls,
+        admin_user_id: str,
+        name: str,
+        gpu_model: str,
+        vram: str,
+        region: str,
+        price: float,
+        listing_id: Optional[str] = None,
+        quantity: int = 1,
+        currency: str = "INR",
+        billing_unit: str = "hr",
+        idempotency_key: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Creates a new GPU listing in gpu_inventory and generates a persistent
+        GPU_LISTING_CREATED audit notification for administrators in a single atomic transaction.
+        If notification creation fails, the listing insertion is rolled back.
+        """
+        final_id = (listing_id or "").strip() or f"gpu-{uuid.uuid4().hex[:8]}"
+        idem_key = idempotency_key or f"gpu_create_{final_id}_{name}_{price}_{int(datetime.now().timestamp())}"
+
+        with DBConnection(autocommit=False) as conn:
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+
+            # 1. Outbox idempotency check within transaction
+            evt_id, is_duplicate = cls.record_outbox_event(
+                event_type="GPU_LISTING_CREATED",
+                payload={
+                    "admin_user_id": admin_user_id,
+                    "listing_id": final_id,
+                    "name": name,
+                    "gpu_model": gpu_model,
+                    "vram": vram,
+                    "region": region,
+                    "price": price,
+                    "quantity": quantity,
+                },
+                idempotency_key=idem_key,
+                user_id=admin_user_id,
+                cur=cur,
+            )
+            if is_duplicate:
+                conn.rollback()
+                return {
+                    "status": "skipped",
+                    "message": "Duplicate listing creation event ignored.",
+                    "event_id": evt_id,
+                    "listing_id": final_id,
+                }
+
+            # 2. Check if listing ID already exists in gpu_inventory
+            cur.execute("SELECT id, name, price, region FROM gpu_inventory WHERE id = %s;", (final_id,))
+            existing = cur.fetchone()
+            if existing:
+                conn.rollback()
+                return {
+                    "status": "skipped",
+                    "message": f"Listing with ID '{final_id}' already exists.",
+                    "listing_id": final_id,
+                }
+
+            now_str = now_iso()
+
+            # 3. Insert into gpu_inventory (check column existence for quantity)
+            cur.execute("SELECT column_name FROM information_schema.columns WHERE table_name = 'gpu_inventory';")
+            cols = {r["column_name"] for r in cur.fetchall()}
+            if "quantity" in cols:
+                cur.execute(
+                    """
+                    INSERT INTO gpu_inventory (id, name, gpu_model, vram, region, price, currency, billing_unit, quantity, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+                    """,
+                    (final_id, name, gpu_model, vram, region, price, currency, billing_unit, quantity, now_str)
+                )
+            else:
+                cur.execute(
+                    """
+                    INSERT INTO gpu_inventory (id, name, gpu_model, vram, region, price, currency, billing_unit, updated_at)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s);
+                    """,
+                    (final_id, name, gpu_model, vram, region, price, currency, billing_unit, now_str)
+                )
+
+            # 4. Find active admins for audit trail
+            try:
+                cur.execute("SELECT id FROM admin_users WHERE is_active = TRUE;")
+                admins = [str(r["id"]) for r in cur.fetchall()]
+            except Exception:
+                admins = []
+            if not admins:
+                cur.execute("SELECT id FROM users WHERE role = 'admin' AND status = 'active';")
+                admins = [r["id"] for r in cur.fetchall()]
+            if not admins:
+                admins = [admin_user_id]
+            elif admin_user_id not in admins:
+                admins.append(admin_user_id)
+
+            # 5. Ensure admin profile exists in profiles table for FK constraint
+            for uid in admins:
+                cls._ensure_admin_profile(cur, uid)
+
+            # 6. Create persistent notification for admins
+            title = "New GPU Listing Created"
+            message = f"New GPU listing '{name}' ({vram}) in {region} added to inventory at ₹{price:,.0f}/hr."
+            meta = {
+                "gpu_id": final_id,
+                "name": name,
+                "gpu_model": gpu_model,
+                "vram": vram,
+                "region": region,
+                "price": float(price),
+                "quantity": quantity,
+                "admin_user_id": admin_user_id,
+            }
+
+            admin_created = cls._broadcast_notifications(
+                cur,
+                admins,
+                title=title,
+                message=message,
+                notification_type="GPU_LISTING_CREATED",
+                metadata=meta,
+                related_entity_id=final_id,
+            )
+
+            # 7. Atomically commit both listing and notification
+            conn.commit()
+
+            return {
+                "status": "success",
+                "message": f"New GPU listing '{name}' added to inventory.",
+                "listing": {
+                    "id": final_id,
+                    "name": name,
+                    "gpu_model": gpu_model,
+                    "gpu": gpu_model,
+                    "vram": vram,
+                    "region": region,
+                    "price": float(price),
+                    "quantity": quantity,
+                    "currency": currency,
+                    "billing_unit": billing_unit,
+                    "status": "Available",
+                    "updated_at": now_str,
+                },
+                "admin_notifications_created": admin_created,
+            }
+
+    @classmethod
     def process_gpu_price_update(
         cls,
         admin_user_id: str,
@@ -534,51 +802,63 @@ class NotificationService:
     ) -> Dict[str, Any]:
         """
         Scenario A: Admin updates GPU price.
-        - Updates GPU price in database.
+        - Updates GPU price in database atomically with outbox event.
         - Identifies eligible customers.
         - Generates GPU_PRICE_UPDATE notifications for customers.
-        - Generates SYSTEM_ALERT audit notifications for admins.
+        - Generates GPU_PRICE_AUDIT audit notifications for admins.
         """
         idem_key = idempotency_key or f"gpu_price_{gpu_id}_{new_price}_{int(datetime.now().timestamp())}"
-        evt_id, is_duplicate = cls.record_outbox_event(
-            event_type="GPU_PRICE_UPDATE",
-            payload={"admin_user_id": admin_user_id, "gpu_id": gpu_id, "new_price": new_price},
-            idempotency_key=idem_key,
-            user_id=admin_user_id
-        )
-        if is_duplicate:
-            return {"status": "skipped", "message": "Duplicate price update event ignored.", "event_id": evt_id}
 
         with DBConnection(autocommit=False) as conn:
             cur = conn.cursor(cursor_factory=RealDictCursor)
+
+            evt_id, is_duplicate = cls.record_outbox_event(
+                event_type="GPU_PRICE_UPDATE",
+                payload={"admin_user_id": admin_user_id, "gpu_id": gpu_id, "new_price": new_price},
+                idempotency_key=idem_key,
+                user_id=admin_user_id,
+                cur=cur,
+            )
+            if is_duplicate:
+                conn.rollback()
+                return {"status": "skipped", "message": "Duplicate price update event ignored.", "event_id": evt_id}
 
             # Get current GPU info
             cur.execute("SELECT id, name, price, region FROM gpu_inventory WHERE id = %s;", (gpu_id,))
             gpu = cur.fetchone()
             if not gpu:
-                # If not found in inventory, check if default NVIDIA H100
-                gpu = {"id": gpu_id, "name": "NVIDIA H100 SXM5", "price": 250.0, "region": "Mumbai, IN"}
+                # If not found in inventory, look up catalog defaults or fallback to NVIDIA H100
+                catalog_gpu = DEFAULT_GPU_CATALOG.get(
+                    gpu_id,
+                    {"name": "NVIDIA H100 SXM5", "gpu_model": "H100", "vram": "80 GB", "region": "Mumbai, IN", "price": 250.0}
+                )
+                old_price = float(catalog_gpu.get("price", 250.0))
+                gpu_name = catalog_gpu.get("name", "GPU")
                 cur.execute(
                     """
                     INSERT INTO gpu_inventory (id, name, gpu_model, vram, region, price, currency, billing_unit, updated_at)
                     VALUES (%s, %s, %s, %s, %s, %s, 'INR', 'hr', %s)
                     ON CONFLICT (id) DO UPDATE SET price = EXCLUDED.price, updated_at = EXCLUDED.updated_at;
                     """,
-                    (gpu_id, gpu["name"], "H100", "80 GB", gpu["region"], new_price, now_iso())
+                    (gpu_id, gpu_name, catalog_gpu.get("gpu_model", "H100"), catalog_gpu.get("vram", "80 GB"), catalog_gpu.get("region", "Mumbai, IN"), new_price, now_iso())
                 )
             else:
                 old_price = float(gpu["price"])
+                gpu_name = gpu.get("name") or "GPU"
                 if old_price == float(new_price):
                     conn.commit()
-                    return {"status": "noop", "message": "Price is identical. No notifications sent.", "old_price": old_price, "new_price": new_price}
+                    return {
+                        "status": "noop",
+                        "message": "Price is identical. No notifications sent.",
+                        "gpu_id": gpu_id,
+                        "old_price": old_price,
+                        "new_price": new_price,
+                    }
 
                 cur.execute(
                     "UPDATE gpu_inventory SET price = %s, updated_at = %s WHERE id = %s;",
                     (new_price, now_iso(), gpu_id)
                 )
-
-            old_price = float(gpu["price"])
-            gpu_name = gpu["name"]
 
             # Price increase or decrease
             event_type = "GPU_PRICE_INCREASE" if new_price > old_price else "GPU_PRICE_DECREASE"
@@ -612,13 +892,22 @@ class NotificationService:
                 related_entity_id=gpu_id,
             )
 
-            # Find active admins for audit trail
-            cur.execute("SELECT id FROM users WHERE role = 'admin' AND status = 'active';")
-            admins = [r["id"] for r in cur.fetchall()]
+            # Find active admins for audit trail (look in admin_users, fallback to users/caller)
+            try:
+                cur.execute("SELECT id FROM admin_users WHERE is_active = TRUE;")
+                admins = [str(r["id"]) for r in cur.fetchall()]
+            except Exception:
+                admins = []
             if not admins:
-                admins = [admin_user_id]
-            elif admin_user_id not in admins:
-                admins.append(admin_user_id)
+                cur.execute("SELECT id FROM users WHERE role = 'admin' AND status = 'active';")
+                admins = [r["id"] for r in cur.fetchall()]
+            if not admins:
+                admins = [str(admin_user_id)]
+            elif str(admin_user_id) not in admins:
+                admins.append(str(admin_user_id))
+
+            for aid in admins:
+                cls._ensure_admin_profile(cur, aid)
 
             admin_audit_msg = (
                 f"Admin {admin_user_id} updated {gpu_name} price from ₹{old_price:,.0f} to ₹{new_price:,.0f}/hr. "
@@ -639,10 +928,241 @@ class NotificationService:
             return {
                 "status": "success",
                 "message": f"Updated {gpu_name} price to ₹{new_price:,.0f}",
+                "gpu_id": gpu_id,
                 "old_price": old_price,
                 "new_price": float(new_price),
                 "notifications_created": cust_created,
                 "admin_notifications_created": admin_created,
+            }
+
+    @classmethod
+    def process_superadmin_admin_created(
+        cls,
+        actor_admin_id: str,
+        created_admin_id: Optional[str] = None,
+        created_email: Optional[str] = None,
+        idempotency_key: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Governance notification for Super Admin accounts when an Admin account is created.
+        - Event: SUPERADMIN_ADMIN_CREATED
+        - Title: Admin Account Created
+        - Message: A new Admin account has been created.
+        - Target: All active Super Admin accounts ONLY (role='superadmin'). Standard Admins strictly excluded.
+        - Prevents duplicate notifications via outbox idempotency.
+        - Never includes passwords, tokens, or credential secrets.
+        """
+        idem_key = idempotency_key or f"sa_admin_created_{created_admin_id or created_email or uuid.uuid4().hex}"
+
+        with DBConnection() as conn:
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+
+            evt_id, is_duplicate = cls.record_outbox_event(
+                event_type="SUPERADMIN_ADMIN_CREATED",
+                payload={
+                    "actor_admin_id": actor_admin_id,
+                    "created_admin_id": created_admin_id,
+                    "created_email": created_email,
+                },
+                idempotency_key=idem_key,
+                user_id=actor_admin_id,
+                cur=cur,
+            )
+            if is_duplicate:
+                conn.rollback()
+                return {"status": "skipped", "message": "Duplicate admin creation event ignored.", "event_id": evt_id}
+
+            # Select active Super Admin accounts only (standard admins strictly excluded)
+            superadmin_ids = []
+            try:
+                cur.execute(
+                    "SELECT id FROM admin_users WHERE role = 'superadmin' AND is_active = TRUE;"
+                )
+                rows = cur.fetchall()
+                superadmin_ids = [str(r["id"] if isinstance(r, dict) else r[0]) for r in rows]
+            except Exception as e:
+                logger.warning("Failed querying superadmin role from admin_users: %s", type(e).__name__)
+                try:
+                    cur.execute(
+                        "SELECT id FROM admin_users WHERE email = %s AND is_active = TRUE;",
+                        (PRIMARY_SUPERADMIN_EMAIL,)
+                    )
+                    rows = cur.fetchall()
+                    superadmin_ids = [str(r["id"] if isinstance(r, dict) else r[0]) for r in rows]
+                except Exception:
+                    superadmin_ids = []
+
+            # Add actor if verified active superadmin
+            if actor_admin_id and _is_valid_uuid(actor_admin_id) and actor_admin_id not in superadmin_ids:
+                try:
+                    cur.execute(
+                        "SELECT id FROM admin_users WHERE id = %s AND role = 'superadmin' AND is_active = TRUE;",
+                        (actor_admin_id,)
+                    )
+                    if cur.fetchone():
+                        superadmin_ids.append(str(actor_admin_id))
+                except Exception:
+                    pass
+
+            if not superadmin_ids and _is_valid_uuid(PRIMARY_SUPERADMIN_ID):
+                superadmin_ids = [PRIMARY_SUPERADMIN_ID]
+
+            # Strictly ensure any non-superadmin accounts are purged
+            if superadmin_ids:
+                try:
+                    cur.execute(
+                        "SELECT id FROM admin_users WHERE id = ANY(%s) AND role != 'superadmin';",
+                        (superadmin_ids,)
+                    )
+                    excluded_ids = {str(r["id"] if isinstance(r, dict) else r[0]) for r in cur.fetchall()}
+                    superadmin_ids = [sa for sa in superadmin_ids if sa not in excluded_ids]
+                except Exception:
+                    pass
+
+            # Ensure compatibility profile exists for each Super Admin recipient (Phase 1 bridge)
+            for sa_id in superadmin_ids:
+                cls._ensure_admin_profile(cur, sa_id)
+
+            metadata = {
+                "action": "admin_created",
+                "actor_admin_id": str(actor_admin_id),
+                "created_admin_id": str(created_admin_id) if created_admin_id else None,
+                "created_email": str(created_email) if created_email else None,
+            }
+
+            created_count = cls._broadcast_notifications(
+                cur=cur,
+                user_ids=superadmin_ids,
+                title="Admin Account Created",
+                message="A new Admin account has been created.",
+                notification_type="SUPERADMIN_ADMIN_CREATED",
+                metadata=metadata,
+                related_entity_id=created_admin_id,
+            )
+
+            conn.commit()
+
+            return {
+                "status": "success",
+                "event": "SUPERADMIN_ADMIN_CREATED",
+                "title": "Admin Account Created",
+                "message": "A new Admin account has been created.",
+                "notifications_created": created_count,
+                "superadmin_recipients": superadmin_ids,
+            }
+
+    @classmethod
+    def process_superadmin_admin_deleted(
+        cls,
+        actor_admin_id: str,
+        deleted_admin_id: Optional[str] = None,
+        deleted_email: Optional[str] = None,
+        idempotency_key: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """
+        Governance notification for Super Admin accounts when an Admin account is deleted.
+        - Event: SUPERADMIN_ADMIN_DELETED
+        - Title: Admin Account Deleted
+        - Message: An Admin account has been deleted.
+        - Target: All active Super Admin accounts ONLY (role='superadmin'). Standard Admins strictly excluded.
+        - Prevents duplicate notifications via outbox idempotency.
+        - Never includes passwords, tokens, or credential secrets.
+        """
+        idem_key = idempotency_key or f"sa_admin_deleted_{deleted_admin_id or deleted_email or uuid.uuid4().hex}"
+
+        with DBConnection() as conn:
+            cur = conn.cursor(cursor_factory=RealDictCursor)
+
+            evt_id, is_duplicate = cls.record_outbox_event(
+                event_type="SUPERADMIN_ADMIN_DELETED",
+                payload={
+                    "actor_admin_id": actor_admin_id,
+                    "deleted_admin_id": deleted_admin_id,
+                    "deleted_email": deleted_email,
+                },
+                idempotency_key=idem_key,
+                user_id=actor_admin_id,
+                cur=cur,
+            )
+            if is_duplicate:
+                conn.rollback()
+                return {"status": "skipped", "message": "Duplicate admin deletion event ignored.", "event_id": evt_id}
+
+            # Select active Super Admin accounts only (standard admins strictly excluded)
+            superadmin_ids = []
+            try:
+                cur.execute(
+                    "SELECT id FROM admin_users WHERE role = 'superadmin' AND is_active = TRUE;"
+                )
+                rows = cur.fetchall()
+                superadmin_ids = [str(r["id"] if isinstance(r, dict) else r[0]) for r in rows]
+            except Exception as e:
+                logger.warning("Failed querying superadmin role from admin_users: %s", type(e).__name__)
+                try:
+                    cur.execute(
+                        "SELECT id FROM admin_users WHERE email = %s AND is_active = TRUE;",
+                        (PRIMARY_SUPERADMIN_EMAIL,)
+                    )
+                    rows = cur.fetchall()
+                    superadmin_ids = [str(r["id"] if isinstance(r, dict) else r[0]) for r in rows]
+                except Exception:
+                    superadmin_ids = []
+
+            if actor_admin_id and _is_valid_uuid(actor_admin_id) and actor_admin_id not in superadmin_ids:
+                try:
+                    cur.execute(
+                        "SELECT id FROM admin_users WHERE id = %s AND role = 'superadmin' AND is_active = TRUE;",
+                        (actor_admin_id,)
+                    )
+                    if cur.fetchone():
+                        superadmin_ids.append(str(actor_admin_id))
+                except Exception:
+                    pass
+
+            if not superadmin_ids and _is_valid_uuid(PRIMARY_SUPERADMIN_ID):
+                superadmin_ids = [PRIMARY_SUPERADMIN_ID]
+
+            # Strictly ensure any non-superadmin accounts are purged
+            if superadmin_ids:
+                try:
+                    cur.execute(
+                        "SELECT id FROM admin_users WHERE id = ANY(%s) AND role != 'superadmin';",
+                        (superadmin_ids,)
+                    )
+                    excluded_ids = {str(r["id"] if isinstance(r, dict) else r[0]) for r in cur.fetchall()}
+                    superadmin_ids = [sa for sa in superadmin_ids if sa not in excluded_ids]
+                except Exception:
+                    pass
+
+            for sa_id in superadmin_ids:
+                cls._ensure_admin_profile(cur, sa_id)
+
+            metadata = {
+                "action": "admin_deleted",
+                "actor_admin_id": str(actor_admin_id),
+                "deleted_admin_id": str(deleted_admin_id) if deleted_admin_id else None,
+                "deleted_email": str(deleted_email) if deleted_email else None,
+            }
+
+            created_count = cls._broadcast_notifications(
+                cur=cur,
+                user_ids=superadmin_ids,
+                title="Admin Account Deleted",
+                message="An Admin account has been deleted.",
+                notification_type="SUPERADMIN_ADMIN_DELETED",
+                metadata=metadata,
+                related_entity_id=deleted_admin_id,
+            )
+
+            conn.commit()
+
+            return {
+                "status": "success",
+                "event": "SUPERADMIN_ADMIN_DELETED",
+                "title": "Admin Account Deleted",
+                "message": "An Admin account has been deleted.",
+                "notifications_created": created_count,
+                "superadmin_recipients": superadmin_ids,
             }
 
     @classmethod
