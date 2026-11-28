@@ -2,6 +2,9 @@
 # Model fine-tuning (backend/ml/) has its own, much larger set: pip install -r backend/ml/requirements.txt
 fastapi>=0.109.0
 uvicorn>=0.27.0
+# WebSocket support: uvicorn needs it to serve WebSockets, and the notebook proxy uses its client (JupyterLab
+# kernels and terminals run over WebSockets).
+websockets>=13.0
 pydantic>=2.0.0
 httpx>=0.27.0
 httpx2>=2.16.0

@@ -39,6 +39,7 @@ from inference.database import (
 )
 from inference.routes import router, _close_health_http_client
 from gpu_health.routes import router as gpu_health_router
+from inference.notebook_proxy import router as notebook_proxy_router
 
 # Configure logging
 logging.basicConfig(
@@ -154,6 +155,8 @@ app.add_middleware(
 app.include_router(router)
 # Mount GPU Health Check Engine endpoints
 app.include_router(gpu_health_router)
+# Mount the notebook proxy (/nb/<notebook id>/... -> the notebook's JupyterLab)
+app.include_router(notebook_proxy_router)
 
 
 # Custom validation error handler (HTTP 422)

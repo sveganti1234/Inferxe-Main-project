@@ -143,6 +143,10 @@ class SupabaseNotebookValidationError(SupabaseNotebookError, NotebookValidationE
     """Raised for invalid notebook parameters or foreign-key precondition failures."""
 
 
+class SupabaseNotebookConflictError(SupabaseNotebookError):
+    """Raised when an insert collides with an existing row (unique / primary key violation)."""
+
+
 # --- Parsing & Sanitization Helpers ---
 
 def normalize_notebook_status(raw_status: Any) -> str:
@@ -737,7 +741,7 @@ class SupabaseNotebookRepository:
                     "Notebook references a missing prerequisite record."
                 )
             if pg_code == "23505" or status_code == 409:
-                raise SupabaseNotebookError("Notebook record conflict detected.")
+                raise SupabaseNotebookConflictError("Notebook record conflict detected.")
             if status_code in (401, 403):
                 raise SupabaseNotebookServiceUnavailableError(
                     "Notebook database authentication failed."
@@ -842,6 +846,7 @@ class SupabaseNotebookRepository:
         instance_id: Optional[uuid.UUID] = None,
         now: Optional[datetime] = None,
         bot_access_enabled: bool = False,
+        deployment_id: Optional[Union[str, uuid.UUID]] = None,
     ) -> SupabaseNotebookRecord:
         """
         Persist a new notebook session in Supabase `notebook_sessions` bound strictly
@@ -917,6 +922,8 @@ class SupabaseNotebookRepository:
             "started_at": now_iso if normalized_status == "running" else None,
             "stopped_at": None,
         }
+        if deployment_id is not None:
+            payload["deployment_id"] = str(uuid.UUID(str(deployment_id)))
 
         data = self._request_json(
             "POST",
@@ -1046,6 +1053,65 @@ class SupabaseNotebookRepository:
             nb_uuid = _parse_notebook_uuid(notebook_id)
             raise NotebookNotFoundError(f"Notebook '{nb_uuid}' not found.")
         return record
+
+    def get_notebook_with_token_hash(
+        self,
+        notebook_id: Union[str, uuid.UUID],
+    ) -> Optional[Tuple[SupabaseNotebookRecord, str]]:
+        """
+        Notebook plus its stored token hash, looked up by ID alone. Only for the notebook proxy, which has no
+        Cognito identity: the caller must then prove possession of that notebook's token or a ticket bound to it.
+        """
+        nb_uuid = _parse_notebook_uuid(notebook_id)
+        data = self._request_json(
+            "GET",
+            "notebook_sessions",
+            query_params={"select": f"{NOTEBOOK_SESSIONS_COLUMNS},token_hash", "id": f"eq.{nb_uuid}", "limit": "1"},
+        )
+        if not isinstance(data, list):
+            raise SupabaseNotebookServiceUnavailableError("Unexpected lookup response from notebook database.")
+        if not data:
+            return None
+        token_hash = data[0].get("token_hash")
+        record = SupabaseNotebookRecord.from_row(data[0])
+        if str(record.id) != nb_uuid or not isinstance(token_hash, str) or not SHA256_HEX_RE.fullmatch(token_hash):
+            return None
+        return record, token_hash.lower()
+
+    def update_token_hash(
+        self,
+        *,
+        user_id: str,
+        notebook_id: Union[str, uuid.UUID],
+        token_hash: str,
+    ) -> SupabaseNotebookRecord:
+        """Replace the notebook's token hash (token rotation). Scoped to the owner; terminated notebooks are refused."""
+        clean_user_id = _validate_user_id(user_id)
+        nb_uuid = _parse_notebook_uuid(notebook_id)
+        if not isinstance(token_hash, str) or not SHA256_HEX_RE.fullmatch(token_hash.strip()):
+            raise NotebookValidationError("Notebook token hash must be a valid 64-character SHA-256 hex digest.")
+        updated = self._request_json(
+            "PATCH",
+            "notebook_sessions",
+            query_params={
+                "id": f"eq.{nb_uuid}",
+                "user_id": f"eq.{clean_user_id}",
+                "status": "neq.terminated",
+                "select": NOTEBOOK_SESSIONS_COLUMNS,
+            },
+            payload={"token_hash": token_hash.strip().lower(), "updated_at": datetime.now(timezone.utc).isoformat()},
+            prefer="return=representation",
+        )
+        if not isinstance(updated, list):
+            raise SupabaseNotebookServiceUnavailableError("Unexpected response updating notebook token.")
+        if updated:
+            record = SupabaseNotebookRecord.from_row(updated[0])
+            if record.user_id != clean_user_id or str(record.id) != nb_uuid:
+                raise SupabaseNotebookServiceUnavailableError("Updated notebook ownership mismatch.")
+            return record
+        if self.get_notebook_by_id(user_id=clean_user_id, notebook_id=nb_uuid, resolve_ssh_key=False) is None:
+            raise NotebookNotFoundError(f"Notebook '{nb_uuid}' not found.")
+        raise InvalidStateTransitionError("Cannot reset the token of a terminated notebook.")
 
     def transition_notebook_status(
         self,

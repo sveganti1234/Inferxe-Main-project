@@ -9,6 +9,8 @@ from abc import ABC, abstractmethod
 from typing import List, Optional
 
 from .types import (
+    DEFAULT_SERVING_IMAGE,
+    ContainerConfig,
     GpuOffering,
     ProvisionRequest,
     InstanceHandle,
@@ -61,6 +63,36 @@ class BaseGpuProvider(ABC):
     # True when provision_instance() installs ProvisionRequest.ssh_public_keys on the instance.
     # Providers that cannot must leave this False so callers refuse keys instead of silently dropping them.
     supports_ssh_keys: bool = False
+
+    # True only when provision_instance() can host a notebook workload instead of a model-serving container.
+    # Notebook launches also require supports_ssh_keys; providers left False are never picked for notebooks.
+    supports_notebooks: bool = False
+
+    # True only when provision_instance() runs ProvisionRequest.container_image instead of the provider's default
+    # serving stack, and when it publishes ProvisionRequest.service_ports (returning InstanceHandle.port_mappings).
+    supports_custom_images: bool = False
+    supports_exposed_ports: bool = False
+
+    def unsupported_features(self, *, notebook: bool = False, container: Optional[ContainerConfig] = None) -> List[str]:
+        """Features a workload needs that this provider cannot deliver; empty when it can run the workload."""
+        missing = []
+        if notebook and not self.supports_notebooks:
+            missing.append("notebook workloads")
+        if notebook and not self.supports_ssh_keys:
+            missing.append("SSH key delivery")
+        if container is not None and container.image != DEFAULT_SERVING_IMAGE and not self.supports_custom_images:
+            missing.append("custom container images")
+        if container is not None and container.service_ports and not self.supports_exposed_ports:
+            missing.append("exposed service ports")
+        return missing
+
+    def reject_unsupported_container(self, request: ProvisionRequest) -> None:
+        """Adapters call this so a container setting they cannot honour fails loudly instead of being dropped."""
+        missing = self.unsupported_features(container=ContainerConfig(
+            image=request.container_image, service_ports=request.service_ports))
+        if missing:
+            raise ProviderError(f"{self.display_name} does not support {', '.join(missing)}",
+                                provider_id=self.provider_id, status_code=400)
 
     @property
     @abstractmethod

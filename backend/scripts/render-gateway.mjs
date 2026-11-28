@@ -13,6 +13,7 @@
 
 import fs from 'node:fs'
 import http from 'node:http'
+import net from 'node:net'
 import path from 'node:path'
 import { spawn, spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
@@ -179,7 +180,7 @@ function startPythonWorker(name, python, spec) {
   })
 }
 
-function proxyRequest(req, res, targetPort) {
+function proxyRequest(req, res, targetPort, cors = true) {
   const headers = { ...req.headers }
   headers.host = `127.0.0.1:${targetPort}`
 
@@ -203,7 +204,7 @@ function proxyRequest(req, res, targetPort) {
       for (const [k, v] of Object.entries(responseHeaders)) {
         res.setHeader(k, v)
       }
-      applyCorsHeaders(req, res)
+      if (cors) applyCorsHeaders(req, res)
       proxyRes.pipe(res)
     },
   )
@@ -217,7 +218,7 @@ function proxyRequest(req, res, targetPort) {
       res.destroy()
       return
     }
-    applyCorsHeaders(req, res)
+    if (cors) applyCorsHeaders(req, res)
     res.statusCode = 503
     res.setHeader('Content-Type', 'application/json; charset=utf-8')
     res.end(
@@ -242,6 +243,11 @@ function isInferenceRoute(pathname) {
     pathname.startsWith('/redoc/') ||
     pathname === '/openapi.json'
   )
+}
+
+// Notebook proxy (/nb/<notebook id>/...): JupyterLab pages and their WebSockets, served by the inference service.
+function isNotebookRoute(pathname) {
+  return pathname === '/nb' || pathname.startsWith('/nb/')
 }
 
 function isNotificationsRoute(pathname) {
@@ -273,6 +279,13 @@ const mockSupabaseMiddleware =
   process.env.MOCK_SUPABASE_ENABLED === 'true' ? createMockSupabaseMiddleware() : (_req, _res, next) => next()
 
 const server = http.createServer((req, res) => {
+  const pathname = (req.url || '/').split('?')[0].split('#')[0]
+
+  // Notebooks are opened as pages, never fetched cross-origin: no CORS headers, and OPTIONS goes to JupyterLab.
+  if (isNotebookRoute(pathname)) {
+    return proxyRequest(req, res, INFERENCE_PORT, false)
+  }
+
   applyCorsHeaders(req, res)
 
   if (req.method === 'OPTIONS') {
@@ -280,8 +293,6 @@ const server = http.createServer((req, res) => {
     res.end()
     return
   }
-
-  const pathname = (req.url || '/').split('?')[0].split('#')[0]
 
   if (pathname === '/healthz' && req.method === 'GET') {
     // Healthy only when both Python workers accept connections: before, this answered 200 while every proxied
@@ -344,6 +355,34 @@ const server = http.createServer((req, res) => {
       })
     })
   })
+})
+
+// WebSocket upgrades (JupyterLab kernels and terminals) are passed through to the inference service byte for
+// byte; it authenticates the notebook session and checks Origin. Every other upgrade is refused.
+server.on('upgrade', (req, socket, head) => {
+  const pathname = (req.url || '/').split('?')[0]
+  if (!isNotebookRoute(pathname)) {
+    socket.destroy()
+    return
+  }
+  const upstream = net.connect(INFERENCE_PORT, '127.0.0.1', () => {
+    const lines = [`${req.method} ${req.url} HTTP/1.1`]
+    for (let i = 0; i < req.rawHeaders.length; i += 2) {
+      const name = req.rawHeaders[i]
+      lines.push(`${name}: ${name.toLowerCase() === 'host' ? `127.0.0.1:${INFERENCE_PORT}` : req.rawHeaders[i + 1]}`)
+    }
+    upstream.write(`${lines.join('\r\n')}\r\n\r\n`)
+    if (head && head.length) upstream.write(head)
+    socket.pipe(upstream).pipe(socket)
+  })
+  const destroyBoth = () => {
+    socket.destroy()
+    upstream.destroy()
+  }
+  upstream.on('error', destroyBoth)
+  socket.on('error', destroyBoth)
+  upstream.on('close', () => socket.destroy())
+  socket.on('close', () => upstream.destroy())
 })
 
 function shutdown(code = 0) {

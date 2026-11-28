@@ -458,8 +458,9 @@ describe('SSH keys & notebooks', () => {
 
   it('labels the notebook runtime as simulated and never suggests real infrastructure', async () => {
     await render('/dashboard/app/developer')
-    expect(text()).toContain('The notebook runtime is simulated.')
+    expect(text()).toContain('Notebooks without a GPU are simulated.')
     expect(text()).toContain('there is nothing to connect to')
+    expect(text()).toContain('notebooks on the mock provider stay simulated')
     expect(byText('.cx-badge', /Simulated/)).toBeTruthy()
     const nbTable = [...document.querySelectorAll('.cx-table')].find((t) => /notebook sessions/i.test(t.querySelector('caption')?.textContent ?? ''))!
     const rows = [...nbTable.querySelectorAll('tbody tr')].map((r) => r.textContent ?? '')
@@ -562,7 +563,7 @@ describe('SSH keys & notebooks', () => {
       return jsonResponse(201, notebook({ id: 'n9', name: 'Fresh', selected_ssh_key_id: 's1' }))
     }
     await render('/dashboard/app/developer')
-    await click(byText('button', /New notebook record/))
+    await click(byText('button', /New notebook/))
     expect(text()).toContain('No GPU, Jupyter server or SSH server is provisioned.')
     await setValue(document.querySelector<HTMLInputElement>('.cx-dialog input.cx-input')!, 'Fresh')
     const select = document.querySelector<HTMLSelectElement>('.cx-dialog select')!
@@ -570,6 +571,7 @@ describe('SSH keys & notebooks', () => {
     await click(byText('.cx-dialog button', /^Create record$/))
     expect(posted).toHaveLength(1)
     expect(posted[0]).toMatchObject({ name: 'Fresh', selected_ssh_key_id: 's1' })
+    expect(posted[0]).not.toHaveProperty('gpu_id') // no GPU chosen: still a simulated record
     expect(JSON.stringify(posted)).not.toMatch(/user_?id/i)
     expect(text()).toContain('Simulated notebook record created. No GPU or Jupyter server was provisioned.')
     expect(document.body.innerHTML).not.toContain(NOTEBOOK_TOKEN)
@@ -609,6 +611,82 @@ describe('SSH keys & notebooks', () => {
     await render('/dashboard/app/developer')
     await click(document.querySelector('[aria-label="Start Idle box (simulated)"]'))
     expect(text()).toContain('Notebook is already running.')
+  })
+
+  const gpuNotebook = (over: object = {}) => notebook({
+    id: 'g1', name: 'GPU box', status: 'running', runtime_type: 'gpu-provider', deployment_id: 'd1', is_simulated: false,
+    simulation_notice: '', ssh_command: null, jupyter_url: 'https://notebooks.example.test/nb/g1/lab', access_token: null, ...over,
+  })
+  const TICKET = 'TICKET-SENTINEL-abcdefghijklmnopqrstuvwxyz'
+
+  it('opens a ready GPU notebook through a single-use link that is never displayed or stored', async () => {
+    notebooks = [gpuNotebook()]
+    const accessUrl = `https://notebooks.example.test/nb/g1/_inferxe/enter#ticket=${TICKET}`
+    handlers['POST /api/v1/notebooks/g1/access'] = () => jsonResponse(200, { success: true, notebook_id: 'g1', url: accessUrl, expires_in_seconds: 60 })
+    const tab = { opener: {} as unknown, location: { href: '' }, close: vi.fn() }
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(tab as unknown as Window)
+    await render('/dashboard/app/developer')
+
+    const row = [...document.querySelectorAll('.cx-table')].find((t) => /notebook sessions/i.test(t.querySelector('caption')?.textContent ?? ''))!.querySelector('tbody tr')!
+    expect(row.textContent).toContain('Running')
+    expect(row.textContent).not.toContain('(simulated)')
+    expect(row.querySelectorAll('td:last-child button')).toHaveLength(4) // open, start, stop, terminate
+
+    await click(document.querySelector('[aria-label="Open GPU box in JupyterLab"]'))
+    expect(openSpy).toHaveBeenCalledWith('', '_blank')
+    expect(calls()).toContain('POST /api/v1/notebooks/g1/access')
+    expect(tab.location.href).toBe(accessUrl)
+    expect(tab.opener).toBeNull()
+    expect(document.body.innerHTML).not.toContain(TICKET)
+    expect(document.body.innerHTML).not.toContain('notebooks.example.test')
+    for (const store of [localStorage, sessionStorage]) for (let i = 0; i < store.length; i++) expect(store.getItem(store.key(i)!) ?? '').not.toContain(TICKET)
+    openSpy.mockRestore()
+  })
+
+  it('keeps Open disabled until JupyterLab is ready and refreshes launching notebooks', async () => {
+    notebooks = [gpuNotebook({ status: 'starting', jupyter_url: null })]
+    handlers['GET /api/v1/notebooks/g1'] = () => jsonResponse(200, gpuNotebook({ status: 'starting', jupyter_url: null }))
+    await render('/dashboard/app/developer')
+    expect(calls()).toContain('GET /api/v1/notebooks/g1') // status + readiness refresh for a launching notebook
+    expect((document.querySelector('[aria-label="Open GPU box in JupyterLab"]') as HTMLButtonElement).disabled).toBe(true)
+    expect(text()).toContain('Starting')
+  })
+
+  it('shows backend refusals when opening and closes the blank tab', async () => {
+    notebooks = [gpuNotebook()]
+    handlers['POST /api/v1/notebooks/g1/access'] = () => jsonResponse(409, { detail: 'The notebook is not ready yet (status: starting).' })
+    const tab = { opener: {} as unknown, location: { href: '' }, close: vi.fn() }
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(tab as unknown as Window)
+    await render('/dashboard/app/developer')
+    await click(document.querySelector('[aria-label="Open GPU box in JupyterLab"]'))
+    expect(text()).toContain('The notebook is not ready yet (status: starting).')
+    expect(tab.close).toHaveBeenCalled()
+    expect(tab.location.href).toBe('')
+    openSpy.mockRestore()
+  })
+
+  it('launches a GPU notebook with an idempotency key and discards the one-time token', async () => {
+    const posted: Record<string, unknown>[] = []
+    handlers['GET /api/v1/gpu/offerings'] = () => jsonResponse(200, { success: true, count: 1, offerings: [
+      { gpu_id: 'l4', name: 'NVIDIA L4', provider_id: 'p1', vram_gb: 24, architecture: 'Ada', hourly_price_inr: 41, pricing_type: 'on_demand', region: 'in', available_quantity: 3, is_available: true },
+    ] })
+    handlers['POST /api/v1/notebooks'] = (_u, init) => {
+      posted.push(JSON.parse(String(init.body)))
+      return jsonResponse(201, gpuNotebook({ id: 'g9', name: 'Trainer', status: 'starting', jupyter_url: null, access_token: NOTEBOOK_TOKEN }))
+    }
+    await render('/dashboard/app/developer')
+    await click(byText('button', /New notebook/))
+    await setValue(document.querySelector<HTMLInputElement>('.cx-dialog input.cx-input')!, 'Trainer')
+    const gpuSelect = document.querySelectorAll<HTMLSelectElement>('.cx-dialog select')[1]
+    await act(async () => { gpuSelect.value = 'l4'; gpuSelect.dispatchEvent(new Event('change', { bubbles: true })) })
+    expect(text()).toContain('This launches a GPU instance running JupyterLab.')
+    await click(byText('.cx-dialog button', /^Launch notebook$/))
+    expect(posted).toHaveLength(1)
+    expect(posted[0]).toMatchObject({ name: 'Trainer', gpu_id: 'l4' })
+    expect(typeof posted[0].idempotency_key).toBe('string')
+    expect(String(posted[0].idempotency_key).length).toBeGreaterThanOrEqual(8)
+    expect(text()).toContain('GPU notebook launching.')
+    expect(document.body.innerHTML).not.toContain(NOTEBOOK_TOKEN)
   })
 
   it('shows empty, loading, error and expired-session states for both lists', async () => {
