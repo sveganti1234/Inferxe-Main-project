@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
-import { ensureFreshSession, getPortalRole } from '../../lib/authStore'
+import * as authStore from '../../lib/authStore'
 
 interface CustomerGuardProps {
   children: ReactNode
@@ -19,17 +19,28 @@ export function CustomerGuard({ children }: CustomerGuardProps) {
     let active = true
 
     const evaluate = async () => {
+      // Explicit sign-out via performSignOut() already calls window.location.replace('/login') once it finishes.
+      // Avoid triggering a simultaneous React Router <Navigate to="/login"> that would mount and reload /login twice.
+      if (authStore.isSigningOutRedirect?.()) {
+        if (active) setAuthState('checking')
+        return
+      }
+
       // 1. Must have a session with a currently valid token. Customer sessions are refreshed
       //    through Amplify when expired; a failed refresh clears the session.
-      const session = await ensureFreshSession()
+      const session = await authStore.ensureFreshSession()
       if (!active) return
+      if (authStore.isSigningOutRedirect?.()) {
+        setAuthState('checking')
+        return
+      }
 
       if (!session || !session.token) {
         setAuthState('to_login')
         return
       }
 
-      const role = getPortalRole(session.user?.role)
+      const role = authStore.getPortalRole(session.user?.role)
       const subpath = location.pathname.replace(/^\/dashboard\/?/, '')
       const isAdminRoute = subpath.startsWith('provider') || subpath === 'users/map'
 

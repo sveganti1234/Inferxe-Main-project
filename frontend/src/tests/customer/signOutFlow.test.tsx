@@ -96,7 +96,9 @@ describe('console sign-out', () => {
     expect(amplify.signOut).toHaveBeenCalledTimes(1) // real Cognito/Amplify flow, not just a navigation
     expect(localStorage.getItem(SESSION_KEY)).toBeNull() // application session destroyed
     expect(getSession()).toBeNull()
+    expect(replaceSpy).toHaveBeenCalledTimes(1)
     expect(replaceSpy).toHaveBeenCalledWith('/login') // replace(): the console is not left in history as the current entry
+    expect(text()).not.toContain('Sign in to Inferxe') // guard does not mount /login before window.location.replace('/login') runs
   })
 
   it('makes the protected console inaccessible afterwards and does not restore a session on its own', async () => {

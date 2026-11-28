@@ -585,7 +585,7 @@ export default function AdminAudit() {
               <CheckCircle2 size={18} />
             </div>
           </div>
-          <div className="sa-kpi-val" style={{ color: '#50e396' }}>
+          <div className="sa-kpi-val" style={{ color: 'var(--cx-accent)' }}>
             {kpiStats.successfulEvents}
           </div>
           <div className="sa-kpi-sub">
@@ -606,7 +606,7 @@ export default function AdminAudit() {
               <AlertTriangle size={18} />
             </div>
           </div>
-          <div className="sa-kpi-val" style={{ color: '#f59e0b' }}>
+          <div className="sa-kpi-val" style={{ color: 'var(--cx-warn)' }}>
             {kpiStats.warningEvents}
           </div>
           <div className="sa-kpi-sub">
@@ -627,7 +627,7 @@ export default function AdminAudit() {
               <ShieldAlert size={18} />
             </div>
           </div>
-          <div className="sa-kpi-val" style={{ color: '#ef4444' }}>
+          <div className="sa-kpi-val" style={{ color: 'var(--cx-danger)' }}>
             {kpiStats.criticalEvents}
           </div>
           <div className="sa-kpi-sub">
@@ -770,11 +770,11 @@ export default function AdminAudit() {
           gap: 12,
           marginBottom: 16,
           fontSize: '0.82rem',
-          color: '#94a3b8',
+          color: 'var(--cx-text-3)',
         }}
       >
         <div>
-          Showing <strong style={{ color: '#50e396' }}>{filteredRecords.length}</strong>{' '}
+          Showing <strong style={{ color: 'var(--cx-accent)' }}>{filteredRecords.length}</strong>{' '}
           {filteredRecords.length === 1 ? 'audit record' : 'audit records'}{' '}
           {auditRecords.length !== filteredRecords.length && `(filtered from ${auditRecords.length} total)`}
         </div>
@@ -791,7 +791,7 @@ export default function AdminAudit() {
       {/* ── 6. Audit Log Table & Responsive Cards ───────────────────────── */}
       {isLoadingBackend && rawActivities.length === 0 ? (
         <div className="sa-empty-state">
-          <div className="sa-empty-icon-wrap" style={{ background: 'rgba(80, 227, 150, 0.1)', color: '#50e396' }}>
+          <div className="sa-empty-icon-wrap" style={{ background: 'rgba(80, 227, 150, 0.1)', color: 'var(--cx-accent)' }}>
             <FileText size={24} style={{ animation: 'spin 1.2s linear infinite' }} />
           </div>
           <h3 className="sa-empty-title">Loading Audit Ledger...</h3>
@@ -801,7 +801,7 @@ export default function AdminAudit() {
         </div>
       ) : paginatedRecords.length === 0 ? (
         <div className="sa-empty-state">
-          <div className="sa-empty-icon-wrap" style={{ background: 'rgba(80, 227, 150, 0.1)', color: '#50e396' }}>
+          <div className="sa-empty-icon-wrap" style={{ background: 'rgba(80, 227, 150, 0.1)', color: 'var(--cx-accent)' }}>
             <FileText size={24} />
           </div>
           <h3 className="sa-empty-title">No Audit Records Found</h3>
@@ -1012,28 +1012,28 @@ export default function AdminAudit() {
                         {avatarInitials}
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 }}>
-                        <span style={{ fontWeight: 600, color: '#ffffff', fontSize: '0.84rem' }}>
+                        <span style={{ fontWeight: 600, color: 'var(--cx-text)', fontSize: '0.84rem' }}>
                           {rec.adminName}
                         </span>
-                        <span style={{ fontSize: '0.72rem', color: '#94a3b8', fontFamily: 'monospace' }}>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--cx-text-3)', fontFamily: 'monospace' }}>
                           {rec.adminEmail}
                         </span>
                       </div>
                     </div>
 
                     <div>
-                      <div style={{ fontWeight: 600, color: '#ffffff', fontSize: '0.86rem' }}>
+                      <div style={{ fontWeight: 600, color: 'var(--cx-text)', fontSize: '0.86rem' }}>
                         {rec.action}
                       </div>
                       {rec.description && (
-                        <div style={{ fontSize: '0.76rem', color: '#94a3b8', marginTop: 3, lineHeight: 1.4 }}>
+                        <div style={{ fontSize: '0.76rem', color: 'var(--cx-text-3)', marginTop: 3, lineHeight: 1.4 }}>
                           {rec.description}
                         </div>
                       )}
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '0.70rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 700 }}>
+                      <span style={{ fontSize: '0.70rem', color: 'var(--cx-text-4)', textTransform: 'uppercase', fontWeight: 700 }}>
                         Resource:
                       </span>
                       <span className="sa-audit-resource-code" title={rec.targetResource}>
@@ -1127,7 +1127,7 @@ export default function AdminAudit() {
                     style={{
                       width: 36,
                       height: 36,
-                      color: '#50e396',
+                      color: 'var(--cx-accent)',
                       borderColor: 'rgba(80, 227, 150, 0.4)',
                     }}
                   >
@@ -1145,7 +1145,7 @@ export default function AdminAudit() {
                         style={{
                           background: 'none',
                           border: 'none',
-                          color: '#94a3b8',
+                          color: 'var(--cx-text-3)',
                           cursor: 'pointer',
                           padding: 2,
                           display: 'inline-flex',
@@ -1153,7 +1153,7 @@ export default function AdminAudit() {
                         }}
                         title="Copy Event ID"
                       >
-                        {copiedKey === 'modal-id' ? <Check size={13} style={{ color: '#50e396' }} /> : <Copy size={13} />}
+                        {copiedKey === 'modal-id' ? <Check size={13} style={{ color: 'var(--cx-accent)' }} /> : <Copy size={13} />}
                       </button>
                     </div>
                   </div>
@@ -1228,8 +1228,8 @@ export default function AdminAudit() {
                 <div
                   style={{
                     padding: '12px 14px',
-                    background: 'rgba(0, 0, 0, 0.3)',
-                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    background: 'var(--cx-surface)',
+                    border: '1px solid var(--cx-border)',
                     borderRadius: 8,
                     marginBottom: 14,
                   }}
@@ -1239,33 +1239,33 @@ export default function AdminAudit() {
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                     <div>
-                      <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>Administrator Name:</span>
-                      <div style={{ fontSize: '0.86rem', fontWeight: 600, color: '#ffffff', marginTop: 2 }}>
+                      <span style={{ fontSize: '0.74rem', color: 'var(--cx-text-3)' }}>Administrator Name:</span>
+                      <div style={{ fontSize: '0.86rem', fontWeight: 600, color: 'var(--cx-text)', marginTop: 2 }}>
                         {selectedRecord.adminName || <span className="sa-empty-text">Not recorded</span>}
                       </div>
                     </div>
                     <div>
-                      <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>Corporate Email:</span>
-                      <div style={{ fontSize: '0.86rem', fontFamily: 'monospace', color: '#50e396', marginTop: 2 }}>
+                      <span style={{ fontSize: '0.74rem', color: 'var(--cx-text-3)' }}>Corporate Email:</span>
+                      <div style={{ fontSize: '0.86rem', fontFamily: 'monospace', color: 'var(--cx-accent)', marginTop: 2 }}>
                         {selectedRecord.adminEmail || <span className="sa-empty-text">Not recorded</span>}
                       </div>
                     </div>
                     <div>
-                      <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>Client IP Address:</span>
-                      <div style={{ fontSize: '0.82rem', fontFamily: 'monospace', color: '#cbd5e1', marginTop: 2 }}>
+                      <span style={{ fontSize: '0.74rem', color: 'var(--cx-text-3)' }}>Client IP Address:</span>
+                      <div style={{ fontSize: '0.82rem', fontFamily: 'monospace', color: 'var(--cx-text-2)', marginTop: 2 }}>
                         {selectedRecord.ipAddress || <span className="sa-empty-text">Not recorded</span>}
                       </div>
                     </div>
                     <div>
-                      <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>Source Module:</span>
-                      <div style={{ fontSize: '0.82rem', color: '#cbd5e1', marginTop: 2 }}>
+                      <span style={{ fontSize: '0.74rem', color: 'var(--cx-text-3)' }}>Source Module:</span>
+                      <div style={{ fontSize: '0.82rem', color: 'var(--cx-text-2)', marginTop: 2 }}>
                         {selectedRecord.source || <span className="sa-empty-text">Not recorded</span>}
                       </div>
                     </div>
                     {selectedRecord.userAgent && (
                       <div style={{ gridColumn: 'span 2' }}>
-                        <span style={{ fontSize: '0.74rem', color: '#94a3b8' }}>Client User Agent:</span>
-                        <div style={{ fontSize: '0.76rem', fontFamily: 'monospace', color: '#94a3b8', marginTop: 2, wordBreak: 'break-all' }}>
+                        <span style={{ fontSize: '0.74rem', color: 'var(--cx-text-3)' }}>Client User Agent:</span>
+                        <div style={{ fontSize: '0.76rem', fontFamily: 'monospace', color: 'var(--cx-text-3)', marginTop: 2, wordBreak: 'break-all' }}>
                           {selectedRecord.userAgent}
                         </div>
                       </div>
@@ -1276,7 +1276,7 @@ export default function AdminAudit() {
                 {/* Operation & Resource Details */}
                 <div className="sa-audit-detail-section">
                   <span className="sa-audit-detail-label">Action Performed</span>
-                  <div className="sa-audit-detail-value" style={{ fontWeight: 600, color: '#ffffff' }}>
+                  <div className="sa-audit-detail-value" style={{ fontWeight: 600, color: 'var(--cx-text)' }}>
                     {selectedRecord.action}
                   </div>
                 </div>
@@ -1300,12 +1300,12 @@ export default function AdminAudit() {
                   <div
                     style={{
                       fontSize: '0.84rem',
-                      color: '#cbd5e1',
+                      color: 'var(--cx-text-2)',
                       lineHeight: 1.5,
-                      background: 'rgba(0, 0, 0, 0.25)',
+                      background: 'var(--cx-surface)',
                       padding: '10px 12px',
                       borderRadius: 6,
-                      border: '1px solid rgba(255, 255, 255, 0.05)',
+                      border: '1px solid var(--cx-border)',
                     }}
                   >
                     {selectedRecord.description || <span className="sa-empty-text">Not recorded</span>}
@@ -1331,7 +1331,7 @@ export default function AdminAudit() {
                       </div>
                     </div>
                   ) : (
-                    <div style={{ fontSize: '0.8rem', color: '#64748b', fontStyle: 'italic', padding: '6px 0' }}>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--cx-text-4)', fontStyle: 'italic', padding: '6px 0' }}>
                       Not recorded
                     </div>
                   )}
@@ -1345,10 +1345,10 @@ export default function AdminAudit() {
                       style={{
                         margin: 0,
                         padding: '10px 12px',
-                        background: 'rgba(0, 0, 0, 0.4)',
-                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        background: 'var(--cx-surface)',
+                        border: '1px solid var(--cx-border)',
                         borderRadius: 6,
-                        color: '#a7f3d0',
+                        color: 'var(--cx-accent)',
                         fontSize: '0.75rem',
                         fontFamily: 'monospace',
                         overflowX: 'auto',
@@ -1365,7 +1365,7 @@ export default function AdminAudit() {
                 {/* Timestamp Details */}
                 <div className="sa-audit-detail-section">
                   <span className="sa-audit-detail-label">ISO 8601 UTC Timestamp</span>
-                  <div style={{ fontSize: '0.8rem', fontFamily: 'monospace', color: '#94a3b8' }}>
+                  <div style={{ fontSize: '0.8rem', fontFamily: 'monospace', color: 'var(--cx-text-3)' }}>
                     {selectedRecord.isoTimestamp || <span className="sa-empty-text">Not recorded</span>}
                   </div>
                 </div>
@@ -1385,7 +1385,7 @@ export default function AdminAudit() {
                   }
                   title="Copy full audit event payload as JSON"
                 >
-                  {copiedKey === 'modal-json' ? <Check size={14} style={{ color: '#50e396' }} /> : <Copy size={14} />}
+                  {copiedKey === 'modal-json' ? <Check size={14} style={{ color: 'var(--cx-accent)' }} /> : <Copy size={14} />}
                   <span>Copy JSON Payload</span>
                 </button>
                 <button
@@ -1428,11 +1428,11 @@ export default function AdminAudit() {
               borderRadius: 8,
               fontSize: '0.84rem',
               fontWeight: 600,
-              background: toast.type === 'error' ? '#1c0d0d' : toast.type === 'info' ? '#0b1d24' : '#081d13',
+              background: toast.type === 'error' ? 'var(--cx-card-a, var(--cx-panel))' : toast.type === 'info' ? 'var(--cx-card-a, var(--cx-panel))' : 'var(--cx-card-a, var(--cx-panel))',
               border: `1px solid ${
-                toast.type === 'error' ? '#ef4444' : toast.type === 'info' ? '#38bdf8' : '#50e396'
+                toast.type === 'error' ? 'var(--cx-danger)' : toast.type === 'info' ? 'var(--cx-info)' : 'var(--cx-accent)'
               }`,
-              color: toast.type === 'error' ? '#fca5a5' : toast.type === 'info' ? '#7dd3fc' : '#86efac',
+              color: toast.type === 'error' ? 'var(--cx-danger)' : toast.type === 'info' ? 'var(--cx-info)' : 'var(--cx-accent)',
               boxShadow: '0 8px 30px rgba(0,0,0,0.6)',
             }}
           >

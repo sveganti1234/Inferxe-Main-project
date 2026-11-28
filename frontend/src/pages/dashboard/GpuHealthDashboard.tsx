@@ -189,7 +189,7 @@ export default function GpuHealthDashboard() {
       case 'healthy':
         return {
           bg: 'rgba(16, 185, 129, 0.15)',
-          text: '#10B981',
+          text: 'var(--cx-accent)',
           border: 'rgba(16, 185, 129, 0.3)',
           icon: <CheckCircle2 size={13} />,
           label: 'Healthy',
@@ -197,7 +197,7 @@ export default function GpuHealthDashboard() {
       case 'warning':
         return {
           bg: 'rgba(245, 158, 11, 0.15)',
-          text: '#F59E0B',
+          text: 'var(--cx-warn)',
           border: 'rgba(245, 158, 11, 0.3)',
           icon: <AlertTriangle size={13} />,
           label: 'Warning',
@@ -206,7 +206,7 @@ export default function GpuHealthDashboard() {
       case 'unavailable':
         return {
           bg: 'rgba(239, 68, 68, 0.15)',
-          text: '#EF4444',
+          text: 'var(--cx-danger)',
           border: 'rgba(239, 68, 68, 0.3)',
           icon: <AlertCircle size={13} />,
           label: 'Critical',
@@ -214,7 +214,7 @@ export default function GpuHealthDashboard() {
       case 'unsupported':
         return {
           bg: 'rgba(156, 163, 175, 0.15)',
-          text: '#9CA3AF',
+          text: 'var(--cx-text-3)',
           border: 'rgba(156, 163, 175, 0.3)',
           icon: <Info size={13} />,
           label: 'Unsupported',
@@ -222,7 +222,7 @@ export default function GpuHealthDashboard() {
       default:
         return {
           bg: 'rgba(107, 114, 128, 0.15)',
-          text: '#9CA3AF',
+          text: 'var(--cx-text-3)',
           border: 'rgba(107, 114, 128, 0.3)',
           icon: <Info size={13} />,
           label: String(status),
@@ -270,16 +270,16 @@ export default function GpuHealthDashboard() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#10B981',
+                  color: 'var(--cx-accent)',
                 }}
               >
                 <Activity size={20} />
               </div>
-              <h1 style={{ fontSize: '24px', fontWeight: '700', color: '#F9FAFB', margin: 0, letterSpacing: '-0.02em' }}>
+              <h1 style={{ fontSize: '24px', fontWeight: '700', color: 'var(--cx-text)', margin: 0, letterSpacing: '-0.02em' }}>
                 GPU Health & Diagnostic Engine
               </h1>
             </div>
-            <p style={{ fontSize: '14px', color: '#9CA3AF', margin: 0 }}>
+            <p style={{ fontSize: '14px', color: 'var(--cx-text-3)', margin: 0 }}>
               Autonomous 7-point capability diagnostics, deployment readiness verification, and fleet-wide telemetry.
             </p>
           </div>
@@ -293,8 +293,8 @@ export default function GpuHealthDashboard() {
                 alignItems: 'center',
                 gap: '8px',
                 padding: '9px 16px',
-                backgroundColor: '#1B2E24',
-                color: '#10B981',
+                backgroundColor: 'var(--cx-border)',
+                color: 'var(--cx-accent)',
                 border: '1px solid rgba(16, 185, 129, 0.3)',
                 borderRadius: '8px',
                 fontSize: '13px',
@@ -317,7 +317,7 @@ export default function GpuHealthDashboard() {
               backgroundColor: 'rgba(239, 68, 68, 0.12)',
               border: '1px solid rgba(239, 68, 68, 0.3)',
               borderRadius: '8px',
-              color: '#FCA5A5',
+              color: 'var(--cx-danger)',
               fontSize: '13px',
               marginBottom: '20px',
               display: 'flex',
@@ -342,21 +342,21 @@ export default function GpuHealthDashboard() {
           {/* Total GPUs */}
           <div
             style={{
-              backgroundColor: '#121C16',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
+              backgroundColor: 'var(--cx-card-a, var(--cx-panel))',
+              border: '1px solid var(--cx-border)',
               borderRadius: '12px',
               padding: '20px',
               boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <span style={{ fontSize: '13px', fontWeight: '500', color: '#9CA3AF' }}>Total GPUs Monitored</span>
+              <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--cx-text-3)' }}>Total GPUs Monitored</span>
               <Cpu size={18} color="#9CA3AF" />
             </div>
-            <div style={{ fontSize: '28px', fontWeight: '700', color: '#F9FAFB' }}>
+            <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--cx-text)' }}>
               {loading ? '...' : fleetSummary?.total_gpus ?? 0}
             </div>
-            <div style={{ fontSize: '12px', color: '#10B981', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <div style={{ fontSize: '12px', color: 'var(--cx-accent)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
               <Check size={12} /> Live telemetry connected
             </div>
           </div>
@@ -364,7 +364,7 @@ export default function GpuHealthDashboard() {
           {/* Healthy GPUs */}
           <div
             style={{
-              backgroundColor: '#121C16',
+              backgroundColor: 'var(--cx-card-a, var(--cx-panel))',
               border: '1px solid rgba(16, 185, 129, 0.25)',
               borderRadius: '12px',
               padding: '20px',
@@ -372,13 +372,13 @@ export default function GpuHealthDashboard() {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <span style={{ fontSize: '13px', fontWeight: '500', color: '#9CA3AF' }}>Healthy Nodes</span>
+              <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--cx-text-3)' }}>Healthy Nodes</span>
               <CheckCircle2 size={18} color="#10B981" />
             </div>
-            <div style={{ fontSize: '28px', fontWeight: '700', color: '#10B981' }}>
+            <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--cx-accent)' }}>
               {loading ? '...' : fleetSummary?.healthy_gpus ?? 0}
             </div>
-            <div style={{ fontSize: '12px', color: '#9CA3AF', marginTop: '4px' }}>
+            <div style={{ fontSize: '12px', color: 'var(--cx-text-3)', marginTop: '4px' }}>
               {fleetSummary?.total_gpus
                 ? `${Math.round(((fleetSummary.healthy_gpus || 0) / fleetSummary.total_gpus) * 100)}% fleet operational`
                 : '100% operational'}
@@ -388,7 +388,7 @@ export default function GpuHealthDashboard() {
           {/* Warning / Throttled */}
           <div
             style={{
-              backgroundColor: '#121C16',
+              backgroundColor: 'var(--cx-card-a, var(--cx-panel))',
               border: '1px solid rgba(245, 158, 11, 0.25)',
               borderRadius: '12px',
               padding: '20px',
@@ -396,13 +396,13 @@ export default function GpuHealthDashboard() {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <span style={{ fontSize: '13px', fontWeight: '500', color: '#9CA3AF' }}>Degraded / Warning</span>
+              <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--cx-text-3)' }}>Degraded / Warning</span>
               <AlertTriangle size={18} color="#F59E0B" />
             </div>
-            <div style={{ fontSize: '28px', fontWeight: '700', color: '#F59E0B' }}>
+            <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--cx-warn)' }}>
               {loading ? '...' : fleetSummary?.warning_gpus ?? 0}
             </div>
-            <div style={{ fontSize: '12px', color: '#9CA3AF', marginTop: '4px' }}>
+            <div style={{ fontSize: '12px', color: 'var(--cx-text-3)', marginTop: '4px' }}>
               Thermal or memory threshold alerts
             </div>
           </div>
@@ -410,7 +410,7 @@ export default function GpuHealthDashboard() {
           {/* Critical / Offline */}
           <div
             style={{
-              backgroundColor: '#121C16',
+              backgroundColor: 'var(--cx-card-a, var(--cx-panel))',
               border: '1px solid rgba(239, 68, 68, 0.25)',
               borderRadius: '12px',
               padding: '20px',
@@ -418,13 +418,13 @@ export default function GpuHealthDashboard() {
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <span style={{ fontSize: '13px', fontWeight: '500', color: '#9CA3AF' }}>Critical / Offline</span>
+              <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--cx-text-3)' }}>Critical / Offline</span>
               <AlertCircle size={18} color="#EF4444" />
             </div>
-            <div style={{ fontSize: '28px', fontWeight: '700', color: '#EF4444' }}>
+            <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--cx-danger)' }}>
               {loading ? '...' : (fleetSummary?.critical_gpus ?? 0) + (fleetSummary?.offline_gpus ?? 0)}
             </div>
-            <div style={{ fontSize: '12px', color: '#9CA3AF', marginTop: '4px' }}>
+            <div style={{ fontSize: '12px', color: 'var(--cx-text-3)', marginTop: '4px' }}>
               Require immediate hardware attention
             </div>
           </div>
@@ -432,25 +432,25 @@ export default function GpuHealthDashboard() {
           {/* Fleet Health Score */}
           <div
             style={{
-              backgroundColor: '#121C16',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
+              backgroundColor: 'var(--cx-card-a, var(--cx-panel))',
+              border: '1px solid var(--cx-border)',
               borderRadius: '12px',
               padding: '20px',
               boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-              <span style={{ fontSize: '13px', fontWeight: '500', color: '#9CA3AF' }}>Fleet Score Average</span>
+              <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--cx-text-3)' }}>Fleet Score Average</span>
               <Gauge size={18} color="#10B981" />
             </div>
-            <div style={{ fontSize: '28px', fontWeight: '700', color: '#F9FAFB' }}>
+            <div style={{ fontSize: '28px', fontWeight: '700', color: 'var(--cx-text)' }}>
               {loading ? '...' : `${averageHealthScore}%`}
             </div>
             <div
               style={{
                 height: '6px',
                 width: '100%',
-                backgroundColor: 'rgba(255, 255, 255, 0.08)',
+                backgroundColor: 'var(--cx-surface)',
                 borderRadius: '3px',
                 marginTop: '10px',
                 overflow: 'hidden',
@@ -460,7 +460,7 @@ export default function GpuHealthDashboard() {
                 style={{
                   height: '100%',
                   width: `${averageHealthScore}%`,
-                  backgroundColor: averageHealthScore > 90 ? '#10B981' : averageHealthScore > 75 ? '#F59E0B' : '#EF4444',
+                  backgroundColor: averageHealthScore > 90 ? 'var(--cx-accent)' : averageHealthScore > 75 ? 'var(--cx-warn)' : 'var(--cx-danger)',
                   borderRadius: '3px',
                   transition: 'width 0.3s ease',
                 }}
@@ -475,7 +475,7 @@ export default function GpuHealthDashboard() {
             display: 'flex',
             alignItems: 'center',
             gap: '8px',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+            borderBottom: '1px solid var(--cx-border)',
             marginBottom: '24px',
             paddingBottom: '2px',
           }}
@@ -486,8 +486,8 @@ export default function GpuHealthDashboard() {
               padding: '10px 18px',
               background: 'none',
               border: 'none',
-              borderBottom: activeTab === 'fleet' ? '2px solid #10B981' : '2px solid transparent',
-              color: activeTab === 'fleet' ? '#10B981' : '#9CA3AF',
+              borderBottom: activeTab === 'fleet' ? '2px solid var(--cx-accent)' : '2px solid transparent',
+              color: activeTab === 'fleet' ? 'var(--cx-accent)' : 'var(--cx-text-3)',
               fontWeight: activeTab === 'fleet' ? '600' : '500',
               fontSize: '14px',
               cursor: 'pointer',
@@ -506,8 +506,8 @@ export default function GpuHealthDashboard() {
               padding: '10px 18px',
               background: 'none',
               border: 'none',
-              borderBottom: activeTab === 'history' ? '2px solid #10B981' : '2px solid transparent',
-              color: activeTab === 'history' ? '#10B981' : '#9CA3AF',
+              borderBottom: activeTab === 'history' ? '2px solid var(--cx-accent)' : '2px solid transparent',
+              color: activeTab === 'history' ? 'var(--cx-accent)' : 'var(--cx-text-3)',
               fontWeight: activeTab === 'history' ? '600' : '500',
               fontSize: '14px',
               cursor: 'pointer',
@@ -526,8 +526,8 @@ export default function GpuHealthDashboard() {
               padding: '10px 18px',
               background: 'none',
               border: 'none',
-              borderBottom: activeTab === 'readiness' ? '2px solid #10B981' : '2px solid transparent',
-              color: activeTab === 'readiness' ? '#10B981' : '#9CA3AF',
+              borderBottom: activeTab === 'readiness' ? '2px solid var(--cx-accent)' : '2px solid transparent',
+              color: activeTab === 'readiness' ? 'var(--cx-accent)' : 'var(--cx-text-3)',
               fontWeight: activeTab === 'readiness' ? '600' : '500',
               fontSize: '14px',
               cursor: 'pointer',
@@ -564,7 +564,7 @@ export default function GpuHealthDashboard() {
                     alignItems: 'center',
                   }}
                 >
-                  <Search size={15} style={{ position: 'absolute', left: '12px', color: '#6B7280' }} />
+                  <Search size={15} style={{ position: 'absolute', left: '12px', color: 'var(--cx-text-4)' }} />
                   <input
                     type="text"
                     placeholder="Search GPU ID, Model name, or Vendor..."
@@ -573,10 +573,10 @@ export default function GpuHealthDashboard() {
                     style={{
                       width: '100%',
                       padding: '9px 12px 9px 36px',
-                      backgroundColor: '#121C16',
-                      border: '1px solid rgba(255, 255, 255, 0.1)',
+                      backgroundColor: 'var(--cx-card-a, var(--cx-panel))',
+                      border: '1px solid var(--cx-border)',
                       borderRadius: '8px',
-                      color: '#F9FAFB',
+                      color: 'var(--cx-text)',
                       fontSize: '13px',
                       outline: 'none',
                     }}
@@ -586,16 +586,16 @@ export default function GpuHealthDashboard() {
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <Filter size={15} color="#9CA3AF" />
-                <span style={{ fontSize: '13px', color: '#9CA3AF' }}>Filter Status:</span>
+                <span style={{ fontSize: '13px', color: 'var(--cx-text-3)' }}>Filter Status:</span>
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value as any)}
                   style={{
                     padding: '8px 12px',
-                    backgroundColor: '#121C16',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    backgroundColor: 'var(--cx-card-a, var(--cx-panel))',
+                    border: '1px solid var(--cx-border)',
                     borderRadius: '8px',
-                    color: '#F9FAFB',
+                    color: 'var(--cx-text)',
                     fontSize: '13px',
                     outline: 'none',
                     cursor: 'pointer',
@@ -612,8 +612,8 @@ export default function GpuHealthDashboard() {
             {/* Fleet GPU Table */}
             <div
               style={{
-                backgroundColor: '#121C16',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
+                backgroundColor: 'var(--cx-card-a, var(--cx-panel))',
+                border: '1px solid var(--cx-border)',
                 borderRadius: '12px',
                 overflow: 'hidden',
                 boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)',
@@ -622,7 +622,7 @@ export default function GpuHealthDashboard() {
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
                   <thead>
-                    <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.08)', color: '#9CA3AF', backgroundColor: '#0B130E' }}>
+                    <tr style={{ borderBottom: '1px solid var(--cx-border)', color: 'var(--cx-text-3)', backgroundColor: 'var(--cx-surface)' }}>
                       <th style={{ padding: '14px 18px', fontWeight: '600' }}>GPU ID & Model</th>
                       <th style={{ padding: '14px 18px', fontWeight: '600' }}>Vendor</th>
                       <th style={{ padding: '14px 18px', fontWeight: '600' }}>Health Status</th>
@@ -636,14 +636,14 @@ export default function GpuHealthDashboard() {
                   <tbody>
                     {loading ? (
                       <tr>
-                        <td colSpan={8} style={{ padding: '36px', textAlign: 'center', color: '#9CA3AF' }}>
+                        <td colSpan={8} style={{ padding: '36px', textAlign: 'center', color: 'var(--cx-text-3)' }}>
                           <RefreshCw size={20} className="animate-spin" style={{ margin: '0 auto 8px', display: 'block' }} />
                           Scanning GPU hardware devices...
                         </td>
                       </tr>
                     ) : filteredGpus.length === 0 ? (
                       <tr>
-                        <td colSpan={8} style={{ padding: '36px', textAlign: 'center', color: '#9CA3AF' }}>
+                        <td colSpan={8} style={{ padding: '36px', textAlign: 'center', color: 'var(--cx-text-3)' }}>
                           No GPUs match your current search criteria.
                         </td>
                       </tr>
@@ -658,15 +658,15 @@ export default function GpuHealthDashboard() {
                           <tr
                             key={gpu.gpu_id}
                             style={{
-                              borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+                              borderBottom: '1px solid var(--cx-border)',
                               transition: 'background-color 0.15s ease',
                             }}
-                            className="hover:bg-[#16231C]"
+                            className="gh-row"
                           >
                             {/* GPU ID & Name */}
                             <td style={{ padding: '14px 18px' }}>
-                              <div style={{ fontWeight: '600', color: '#F9FAFB' }}>{gpu.name}</div>
-                              <div style={{ fontSize: '11px', color: '#9CA3AF', fontFamily: 'monospace' }}>{gpu.gpu_id}</div>
+                              <div style={{ fontWeight: '600', color: 'var(--cx-text)' }}>{gpu.name}</div>
+                              <div style={{ fontSize: '11px', color: 'var(--cx-text-3)', fontFamily: 'monospace' }}>{gpu.gpu_id}</div>
                             </td>
 
                             {/* Vendor */}
@@ -676,8 +676,8 @@ export default function GpuHealthDashboard() {
                                   display: 'inline-block',
                                   padding: '3px 8px',
                                   borderRadius: '4px',
-                                  backgroundColor: 'rgba(255, 255, 255, 0.06)',
-                                  color: '#D1D5DB',
+                                  backgroundColor: 'var(--cx-surface)',
+                                  color: 'var(--cx-text-2)',
                                   fontSize: '11px',
                                   textTransform: 'uppercase',
                                   letterSpacing: '0.04em',
@@ -712,12 +712,12 @@ export default function GpuHealthDashboard() {
                             {/* Health Score */}
                             <td style={{ padding: '14px 18px' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <span style={{ fontWeight: '600', color: '#F9FAFB' }}>{gpu.health_score}%</span>
+                                <span style={{ fontWeight: '600', color: 'var(--cx-text)' }}>{gpu.health_score}%</span>
                                 <div
                                   style={{
                                     width: '60px',
                                     height: '5px',
-                                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                                    backgroundColor: 'var(--cx-surface)',
                                     borderRadius: '3px',
                                     overflow: 'hidden',
                                   }}
@@ -726,7 +726,7 @@ export default function GpuHealthDashboard() {
                                     style={{
                                       width: `${gpu.health_score}%`,
                                       height: '100%',
-                                      backgroundColor: gpu.health_score > 90 ? '#10B981' : gpu.health_score > 75 ? '#F59E0B' : '#EF4444',
+                                      backgroundColor: gpu.health_score > 90 ? 'var(--cx-accent)' : gpu.health_score > 75 ? 'var(--cx-warn)' : 'var(--cx-danger)',
                                     }}
                                   />
                                 </div>
@@ -738,9 +738,9 @@ export default function GpuHealthDashboard() {
                               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                 <Thermometer
                                   size={14}
-                                  color={(gpu.temperature_c ?? 0) > 80 ? '#EF4444' : (gpu.temperature_c ?? 0) > 70 ? '#F59E0B' : '#10B981'}
+                                  color={(gpu.temperature_c ?? 0) > 80 ? 'var(--cx-danger)' : (gpu.temperature_c ?? 0) > 70 ? 'var(--cx-warn)' : 'var(--cx-accent)'}
                                 />
-                                <span style={{ color: (gpu.temperature_c ?? 0) > 80 ? '#EF4444' : '#F9FAFB' }}>
+                                <span style={{ color: (gpu.temperature_c ?? 0) > 80 ? 'var(--cx-danger)' : 'var(--cx-text)' }}>
                                   {gpu.temperature_c != null ? `${gpu.temperature_c.toFixed(1)} °C` : 'N/A'}
                                 </span>
                               </div>
@@ -749,14 +749,14 @@ export default function GpuHealthDashboard() {
                             {/* Memory */}
                             <td style={{ padding: '14px 18px' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <div style={{ minWidth: '70px', fontSize: '12px', color: '#D1D5DB' }}>
+                                <div style={{ minWidth: '70px', fontSize: '12px', color: 'var(--cx-text-2)' }}>
                                   {vramUsedGb} / {vramTotalGb} GB
                                 </div>
                                 <div
                                   style={{
                                     width: '70px',
                                     height: '5px',
-                                    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                                    backgroundColor: 'var(--cx-surface)',
                                     borderRadius: '3px',
                                     overflow: 'hidden',
                                   }}
@@ -765,17 +765,17 @@ export default function GpuHealthDashboard() {
                                     style={{
                                       width: `${memPct}%`,
                                       height: '100%',
-                                      backgroundColor: memPct > 85 ? '#EF4444' : memPct > 70 ? '#F59E0B' : '#10B981',
+                                      backgroundColor: memPct > 85 ? 'var(--cx-danger)' : memPct > 70 ? 'var(--cx-warn)' : 'var(--cx-accent)',
                                     }}
                                   />
                                 </div>
-                                <span style={{ fontSize: '11px', color: '#9CA3AF' }}>{memPct.toFixed(0)}%</span>
+                                <span style={{ fontSize: '11px', color: 'var(--cx-text-3)' }}>{memPct.toFixed(0)}%</span>
                               </div>
                             </td>
 
                             {/* GPU Utilization */}
                             <td style={{ padding: '14px 18px' }}>
-                              <span style={{ color: '#F9FAFB' }}>
+                              <span style={{ color: 'var(--cx-text)' }}>
                                 {gpu.gpu_utilization_pct != null ? `${gpu.gpu_utilization_pct.toFixed(0)}%` : 'N/A'}
                               </span>
                             </td>
@@ -787,10 +787,10 @@ export default function GpuHealthDashboard() {
                                   onClick={() => handleOpenReport(gpu.gpu_id)}
                                   style={{
                                     padding: '6px 12px',
-                                    backgroundColor: '#1B2E24',
+                                    backgroundColor: 'var(--cx-border)',
                                     border: '1px solid rgba(16, 185, 129, 0.3)',
                                     borderRadius: '6px',
-                                    color: '#10B981',
+                                    color: 'var(--cx-accent)',
                                     fontSize: '12px',
                                     fontWeight: '600',
                                     cursor: 'pointer',
@@ -831,16 +831,16 @@ export default function GpuHealthDashboard() {
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <span style={{ fontSize: '13px', color: '#9CA3AF' }}>Filter GPU:</span>
+                <span style={{ fontSize: '13px', color: 'var(--cx-text-3)' }}>Filter GPU:</span>
                 <select
                   value={historyFilterGpu}
                   onChange={(e) => setHistoryFilterGpu(e.target.value)}
                   style={{
                     padding: '8px 12px',
-                    backgroundColor: '#121C16',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    backgroundColor: 'var(--cx-card-a, var(--cx-panel))',
+                    border: '1px solid var(--cx-border)',
                     borderRadius: '8px',
-                    color: '#F9FAFB',
+                    color: 'var(--cx-text)',
                     fontSize: '13px',
                     outline: 'none',
                     cursor: 'pointer',
@@ -854,16 +854,16 @@ export default function GpuHealthDashboard() {
                   ))}
                 </select>
 
-                <span style={{ fontSize: '13px', color: '#9CA3AF', marginLeft: '8px' }}>Status:</span>
+                <span style={{ fontSize: '13px', color: 'var(--cx-text-3)', marginLeft: '8px' }}>Status:</span>
                 <select
                   value={historyFilterStatus}
                   onChange={(e) => setHistoryFilterStatus(e.target.value)}
                   style={{
                     padding: '8px 12px',
-                    backgroundColor: '#121C16',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    backgroundColor: 'var(--cx-card-a, var(--cx-panel))',
+                    border: '1px solid var(--cx-border)',
                     borderRadius: '8px',
-                    color: '#F9FAFB',
+                    color: 'var(--cx-text)',
                     fontSize: '13px',
                     outline: 'none',
                     cursor: 'pointer',
@@ -884,8 +884,8 @@ export default function GpuHealthDashboard() {
                   alignItems: 'center',
                   gap: '6px',
                   padding: '8px 14px',
-                  backgroundColor: '#1B2E24',
-                  color: '#10B981',
+                  backgroundColor: 'var(--cx-border)',
+                  color: 'var(--cx-accent)',
                   border: '1px solid rgba(16, 185, 129, 0.3)',
                   borderRadius: '6px',
                   fontSize: '12px',
@@ -901,8 +901,8 @@ export default function GpuHealthDashboard() {
             {/* Audit History Table */}
             <div
               style={{
-                backgroundColor: '#121C16',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
+                backgroundColor: 'var(--cx-card-a, var(--cx-panel))',
+                border: '1px solid var(--cx-border)',
                 borderRadius: '12px',
                 overflow: 'hidden',
                 boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)',
@@ -911,7 +911,7 @@ export default function GpuHealthDashboard() {
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '13px' }}>
                   <thead>
-                    <tr style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.08)', color: '#9CA3AF', backgroundColor: '#0B130E' }}>
+                    <tr style={{ borderBottom: '1px solid var(--cx-border)', color: 'var(--cx-text-3)', backgroundColor: 'var(--cx-surface)' }}>
                       <th style={{ padding: '14px 18px', fontWeight: '600' }}>Timestamp</th>
                       <th style={{ padding: '14px 18px', fontWeight: '600' }}>GPU ID</th>
                       <th style={{ padding: '14px 18px', fontWeight: '600' }}>Status</th>
@@ -925,14 +925,14 @@ export default function GpuHealthDashboard() {
                   <tbody>
                     {historyLoading ? (
                       <tr>
-                        <td colSpan={8} style={{ padding: '36px', textAlign: 'center', color: '#9CA3AF' }}>
+                        <td colSpan={8} style={{ padding: '36px', textAlign: 'center', color: 'var(--cx-text-3)' }}>
                           <RefreshCw size={20} className="animate-spin" style={{ margin: '0 auto 8px', display: 'block' }} />
                           Loading audit records...
                         </td>
                       </tr>
                     ) : historyRecords.length === 0 ? (
                       <tr>
-                        <td colSpan={8} style={{ padding: '36px', textAlign: 'center', color: '#9CA3AF' }}>
+                        <td colSpan={8} style={{ padding: '36px', textAlign: 'center', color: 'var(--cx-text-3)' }}>
                           No audit records found matching selected filter.
                         </td>
                       </tr>
@@ -945,18 +945,18 @@ export default function GpuHealthDashboard() {
                           <tr
                             key={rec.id}
                             style={{
-                              borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+                              borderBottom: '1px solid var(--cx-border)',
                             }}
-                            className="hover:bg-[#16231C]"
+                            className="gh-row"
                           >
-                            <td style={{ padding: '14px 18px', color: '#D1D5DB' }}>
+                            <td style={{ padding: '14px 18px', color: 'var(--cx-text-2)' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                                 <Clock size={13} color="#9CA3AF" />
                                 <span>{dateStr}</span>
                               </div>
                             </td>
 
-                            <td style={{ padding: '14px 18px', fontFamily: 'monospace', color: '#10B981' }}>
+                            <td style={{ padding: '14px 18px', fontFamily: 'monospace', color: 'var(--cx-accent)' }}>
                               {rec.gpu_id}
                             </td>
 
@@ -980,19 +980,19 @@ export default function GpuHealthDashboard() {
                               </span>
                             </td>
 
-                            <td style={{ padding: '14px 18px', fontWeight: '600', color: '#F9FAFB' }}>
+                            <td style={{ padding: '14px 18px', fontWeight: '600', color: 'var(--cx-text)' }}>
                               {rec.health_score}%
                             </td>
 
-                            <td style={{ padding: '14px 18px', color: '#D1D5DB' }}>
+                            <td style={{ padding: '14px 18px', color: 'var(--cx-text-2)' }}>
                               {rec.temperature_c != null ? `${rec.temperature_c.toFixed(1)} °C` : 'N/A'}
                             </td>
 
-                            <td style={{ padding: '14px 18px', color: '#D1D5DB' }}>
+                            <td style={{ padding: '14px 18px', color: 'var(--cx-text-2)' }}>
                               {rec.memory_utilization_pct != null ? `${rec.memory_utilization_pct.toFixed(0)}%` : 'N/A'}
                             </td>
 
-                            <td style={{ padding: '14px 18px', color: '#D1D5DB' }}>
+                            <td style={{ padding: '14px 18px', color: 'var(--cx-text-2)' }}>
                               {rec.gpu_utilization_pct != null ? `${rec.gpu_utilization_pct.toFixed(0)}%` : 'N/A'}
                             </td>
 
@@ -1007,7 +1007,7 @@ export default function GpuHealthDashboard() {
                                         padding: '1px 5px',
                                         borderRadius: '3px',
                                         backgroundColor: res === 'healthy' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
-                                        color: res === 'healthy' ? '#10B981' : '#F59E0B',
+                                        color: res === 'healthy' ? 'var(--cx-accent)' : 'var(--cx-warn)',
                                         border: `1px solid ${res === 'healthy' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)'}`,
                                       }}
                                     >
@@ -1015,7 +1015,7 @@ export default function GpuHealthDashboard() {
                                     </span>
                                   ))
                                 ) : (
-                                  <span style={{ fontSize: '11px', color: '#9CA3AF' }}>Complete</span>
+                                  <span style={{ fontSize: '11px', color: 'var(--cx-text-3)' }}>Complete</span>
                                 )}
                               </div>
                             </td>
@@ -1036,25 +1036,25 @@ export default function GpuHealthDashboard() {
             {/* Input Form */}
             <div
               style={{
-                backgroundColor: '#121C16',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
+                backgroundColor: 'var(--cx-card-a, var(--cx-panel))',
+                border: '1px solid var(--cx-border)',
                 borderRadius: '12px',
                 padding: '24px',
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
                 <ShieldCheck size={20} color="#10B981" />
-                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600', color: '#F9FAFB' }}>
+                <h3 style={{ margin: 0, fontSize: '16px', fontWeight: '600', color: 'var(--cx-text)' }}>
                   Workload Deployment Constraints
                 </h3>
               </div>
-              <p style={{ fontSize: '13px', color: '#9CA3AF', marginBottom: '20px' }}>
+              <p style={{ fontSize: '13px', color: 'var(--cx-text-3)', marginBottom: '20px' }}>
                 Evaluate whether a specific GPU meets strict operational criteria before scheduling inference or model weights.
               </p>
 
               {/* Target GPU */}
               <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '500', color: '#D1D5DB', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '500', color: 'var(--cx-text-2)', marginBottom: '6px' }}>
                   Target GPU Instance
                 </label>
                 <select
@@ -1063,10 +1063,10 @@ export default function GpuHealthDashboard() {
                   style={{
                     width: '100%',
                     padding: '9px 12px',
-                    backgroundColor: '#0B130E',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    backgroundColor: 'var(--cx-surface)',
+                    border: '1px solid var(--cx-border)',
                     borderRadius: '8px',
-                    color: '#F9FAFB',
+                    color: 'var(--cx-text)',
                     fontSize: '13px',
                     outline: 'none',
                   }}
@@ -1081,7 +1081,7 @@ export default function GpuHealthDashboard() {
 
               {/* Min VRAM */}
               <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '500', color: '#D1D5DB', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '500', color: 'var(--cx-text-2)', marginBottom: '6px' }}>
                   Minimum Free VRAM (GB)
                 </label>
                 <input
@@ -1091,10 +1091,10 @@ export default function GpuHealthDashboard() {
                   style={{
                     width: '100%',
                     padding: '9px 12px',
-                    backgroundColor: '#0B130E',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    backgroundColor: 'var(--cx-surface)',
+                    border: '1px solid var(--cx-border)',
                     borderRadius: '8px',
-                    color: '#F9FAFB',
+                    color: 'var(--cx-text)',
                     fontSize: '13px',
                     outline: 'none',
                   }}
@@ -1103,7 +1103,7 @@ export default function GpuHealthDashboard() {
 
               {/* CUDA Version */}
               <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '500', color: '#D1D5DB', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '500', color: 'var(--cx-text-2)', marginBottom: '6px' }}>
                   Required Minimum CUDA Version
                 </label>
                 <input
@@ -1114,10 +1114,10 @@ export default function GpuHealthDashboard() {
                   style={{
                     width: '100%',
                     padding: '9px 12px',
-                    backgroundColor: '#0B130E',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    backgroundColor: 'var(--cx-surface)',
+                    border: '1px solid var(--cx-border)',
                     borderRadius: '8px',
-                    color: '#F9FAFB',
+                    color: 'var(--cx-text)',
                     fontSize: '13px',
                     outline: 'none',
                   }}
@@ -1126,7 +1126,7 @@ export default function GpuHealthDashboard() {
 
               {/* Compute Capability */}
               <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '500', color: '#D1D5DB', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '500', color: 'var(--cx-text-2)', marginBottom: '6px' }}>
                   Minimum Compute Capability
                 </label>
                 <input
@@ -1137,10 +1137,10 @@ export default function GpuHealthDashboard() {
                   style={{
                     width: '100%',
                     padding: '9px 12px',
-                    backgroundColor: '#0B130E',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    backgroundColor: 'var(--cx-surface)',
+                    border: '1px solid var(--cx-border)',
                     borderRadius: '8px',
-                    color: '#F9FAFB',
+                    color: 'var(--cx-text)',
                     fontSize: '13px',
                     outline: 'none',
                   }}
@@ -1149,7 +1149,7 @@ export default function GpuHealthDashboard() {
 
               {/* Max Thermal Threshold */}
               <div style={{ marginBottom: '24px' }}>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '500', color: '#D1D5DB', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '13px', fontWeight: '500', color: 'var(--cx-text-2)', marginBottom: '6px' }}>
                   Maximum Allowed Temperature (°C)
                 </label>
                 <input
@@ -1159,10 +1159,10 @@ export default function GpuHealthDashboard() {
                   style={{
                     width: '100%',
                     padding: '9px 12px',
-                    backgroundColor: '#0B130E',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    backgroundColor: 'var(--cx-surface)',
+                    border: '1px solid var(--cx-border)',
                     borderRadius: '8px',
-                    color: '#F9FAFB',
+                    color: 'var(--cx-text)',
                     fontSize: '13px',
                     outline: 'none',
                   }}
@@ -1175,8 +1175,8 @@ export default function GpuHealthDashboard() {
                 style={{
                   width: '100%',
                   padding: '11px',
-                  backgroundColor: '#10B981',
-                  color: '#0B130E',
+                  backgroundColor: 'var(--cx-accent)',
+                  color: 'var(--cx-accent-ink)',
                   border: 'none',
                   borderRadius: '8px',
                   fontSize: '14px',
@@ -1205,13 +1205,13 @@ export default function GpuHealthDashboard() {
             {/* Results Output */}
             <div
               style={{
-                backgroundColor: '#121C16',
-                border: '1px solid rgba(255, 255, 255, 0.08)',
+                backgroundColor: 'var(--cx-card-a, var(--cx-panel))',
+                border: '1px solid var(--cx-border)',
                 borderRadius: '12px',
                 padding: '24px',
               }}
             >
-              <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: '600', color: '#F9FAFB' }}>
+              <h3 style={{ margin: '0 0 16px 0', fontSize: '16px', fontWeight: '600', color: 'var(--cx-text)' }}>
                 Evaluation Decision
               </h3>
 
@@ -1233,14 +1233,14 @@ export default function GpuHealthDashboard() {
                         <AlertCircle size={24} color="#EF4444" />
                       )}
                       <div>
-                        <div style={{ fontSize: '16px', fontWeight: '700', color: readinessResult.is_ready ? '#10B981' : '#EF4444' }}>
+                        <div style={{ fontSize: '16px', fontWeight: '700', color: readinessResult.is_ready ? 'var(--cx-accent)' : 'var(--cx-danger)' }}>
                           {readinessResult.is_ready ? 'READY FOR DEPLOYMENT' : 'DEPLOYMENT CONFLICT DETECTED'}
                         </div>
-                        <div style={{ fontSize: '12px', color: '#9CA3AF' }}>Status: {readinessResult.status}</div>
+                        <div style={{ fontSize: '12px', color: 'var(--cx-text-3)' }}>Status: {readinessResult.status}</div>
                       </div>
                     </div>
 
-                    <ul style={{ margin: '12px 0 0 0', paddingLeft: '20px', fontSize: '13px', color: '#D1D5DB' }}>
+                    <ul style={{ margin: '12px 0 0 0', paddingLeft: '20px', fontSize: '13px', color: 'var(--cx-text-2)' }}>
                       {readinessResult.reasons.map((r, idx) => (
                         <li key={idx} style={{ marginBottom: '4px' }}>
                           {r}
@@ -1249,26 +1249,26 @@ export default function GpuHealthDashboard() {
                     </ul>
                   </div>
 
-                  <h4 style={{ fontSize: '13px', fontWeight: '600', color: '#9CA3AF', marginBottom: '8px', textTransform: 'uppercase' }}>
+                  <h4 style={{ fontSize: '13px', fontWeight: '600', color: 'var(--cx-text-3)', marginBottom: '8px', textTransform: 'uppercase' }}>
                     Evaluated Hardware Metrics
                   </h4>
                   <pre
                     style={{
-                      backgroundColor: '#0B130E',
+                      backgroundColor: 'var(--cx-surface)',
                       padding: '14px',
                       borderRadius: '8px',
                       fontSize: '12px',
-                      color: '#10B981',
+                      color: 'var(--cx-accent)',
                       overflowX: 'auto',
-                      border: '1px solid rgba(255, 255, 255, 0.05)',
+                      border: '1px solid var(--cx-border)',
                     }}
                   >
                     {JSON.stringify(readinessResult.evaluated_metrics, null, 2)}
                   </pre>
                 </div>
               ) : (
-                <div style={{ padding: '48px 24px', textAlign: 'center', color: '#9CA3AF' }}>
-                  <ShieldCheck size={36} color="#4B5563" style={{ margin: '0 auto 12px', display: 'block' }} />
+                <div style={{ padding: '48px 24px', textAlign: 'center', color: 'var(--cx-text-3)' }}>
+                  <ShieldCheck size={36} color="var(--cx-text-4)" style={{ margin: '0 auto 12px', display: 'block' }} />
                   Configure workload requirements on the left and click "Run Deployment Readiness Check" to inspect feasibility.
                 </div>
               )}
@@ -1285,7 +1285,7 @@ export default function GpuHealthDashboard() {
               left: 0,
               right: 0,
               bottom: 0,
-              backgroundColor: 'rgba(0, 0, 0, 0.75)',
+              backgroundColor: 'var(--cx-overlay)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -1296,8 +1296,8 @@ export default function GpuHealthDashboard() {
           >
             <div
               style={{
-                backgroundColor: '#121C16',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
+                backgroundColor: 'var(--cx-card-a, var(--cx-panel))',
+                border: '1px solid var(--cx-border)',
                 borderRadius: '16px',
                 width: '100%',
                 maxWidth: '850px',
@@ -1312,19 +1312,19 @@ export default function GpuHealthDashboard() {
               <div
                 style={{
                   padding: '20px 24px',
-                  borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                  borderBottom: '1px solid var(--cx-border)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
                   position: 'sticky',
                   top: 0,
-                  backgroundColor: '#121C16',
+                  backgroundColor: 'var(--cx-card-a, var(--cx-panel))',
                   zIndex: 2,
                 }}
               >
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: '#F9FAFB' }}>
+                    <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: 'var(--cx-text)' }}>
                       {activeReport?.device_info?.name || selectedGpuId}
                     </h2>
                     {activeReport && (
@@ -1347,7 +1347,7 @@ export default function GpuHealthDashboard() {
                       </span>
                     )}
                   </div>
-                  <div style={{ fontSize: '12px', color: '#9CA3AF', marginTop: '2px', fontFamily: 'monospace' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--cx-text-3)', marginTop: '2px', fontFamily: 'monospace' }}>
                     ID: {selectedGpuId} • Driver: {activeReport?.device_info?.driver_version || 'N/A'} • CUDA: {activeReport?.device_info?.cuda_version || 'N/A'}
                   </div>
                 </div>
@@ -1362,8 +1362,8 @@ export default function GpuHealthDashboard() {
                         alignItems: 'center',
                         gap: '6px',
                         padding: '7px 12px',
-                        backgroundColor: '#1B2E24',
-                        color: '#10B981',
+                        backgroundColor: 'var(--cx-border)',
+                        color: 'var(--cx-accent)',
                         border: '1px solid rgba(16, 185, 129, 0.3)',
                         borderRadius: '6px',
                         fontSize: '12px',
@@ -1380,7 +1380,7 @@ export default function GpuHealthDashboard() {
                     style={{
                       background: 'none',
                       border: 'none',
-                      color: '#9CA3AF',
+                      color: 'var(--cx-text-3)',
                       cursor: 'pointer',
                       padding: '6px',
                       borderRadius: '6px',
@@ -1394,7 +1394,7 @@ export default function GpuHealthDashboard() {
               {/* Modal Body */}
               <div style={{ padding: '24px' }}>
                 {loadingReport ? (
-                  <div style={{ padding: '48px', textAlign: 'center', color: '#9CA3AF' }}>
+                  <div style={{ padding: '48px', textAlign: 'center', color: 'var(--cx-text-3)' }}>
                     <RefreshCw size={24} className="animate-spin" style={{ margin: '0 auto 12px', display: 'block' }} />
                     Running 7-point capability diagnostics on hardware...
                   </div>
@@ -1411,11 +1411,11 @@ export default function GpuHealthDashboard() {
                           marginBottom: '20px',
                         }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#F59E0B', fontWeight: '600', fontSize: '13px', marginBottom: '4px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--cx-warn)', fontWeight: '600', fontSize: '13px', marginBottom: '4px' }}>
                           <AlertTriangle size={15} />
                           <span>Actionable Recommendations</span>
                         </div>
-                        <ul style={{ margin: '4px 0 0 0', paddingLeft: '20px', fontSize: '13px', color: '#D1D5DB' }}>
+                        <ul style={{ margin: '4px 0 0 0', paddingLeft: '20px', fontSize: '13px', color: 'var(--cx-text-2)' }}>
                           {activeReport.recommendations.map((rec, idx) => (
                             <li key={idx}>{rec}</li>
                           ))}
@@ -1424,7 +1424,7 @@ export default function GpuHealthDashboard() {
                     )}
 
                     {/* The 7 Checks Breakdown Grid */}
-                    <h3 style={{ fontSize: '14px', fontWeight: '600', color: '#9CA3AF', marginBottom: '14px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    <h3 style={{ fontSize: '14px', fontWeight: '600', color: 'var(--cx-text-3)', marginBottom: '14px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                       Diagnostic Checks Breakdown (7 Checks)
                     </h3>
 
@@ -1435,8 +1435,8 @@ export default function GpuHealthDashboard() {
                           <div
                             key={chk.name}
                             style={{
-                              backgroundColor: '#0B130E',
-                              border: '1px solid rgba(255, 255, 255, 0.06)',
+                              backgroundColor: 'var(--cx-surface)',
+                              border: '1px solid var(--cx-border)',
                               borderRadius: '8px',
                               padding: '14px 16px',
                             }}
@@ -1461,12 +1461,12 @@ export default function GpuHealthDashboard() {
                                   {chkBadge.icon}
                                   {chk.name}
                                 </span>
-                                <span style={{ fontSize: '13px', fontWeight: '600', color: '#F9FAFB' }}>
+                                <span style={{ fontSize: '13px', fontWeight: '600', color: 'var(--cx-text)' }}>
                                   {chk.message}
                                 </span>
                               </div>
 
-                              <span style={{ fontSize: '11px', color: '#6B7280', fontFamily: 'monospace' }}>
+                              <span style={{ fontSize: '11px', color: 'var(--cx-text-4)', fontFamily: 'monospace' }}>
                                 {chk.execution_time_ms.toFixed(1)} ms
                               </span>
                             </div>
@@ -1480,15 +1480,15 @@ export default function GpuHealthDashboard() {
                                   gap: '12px',
                                   marginTop: '8px',
                                   paddingTop: '8px',
-                                  borderTop: '1px solid rgba(255, 255, 255, 0.04)',
+                                  borderTop: '1px solid var(--cx-border)',
                                   fontSize: '12px',
-                                  color: '#9CA3AF',
+                                  color: 'var(--cx-text-3)',
                                 }}
                               >
                                 {Object.entries(chk.metrics).map(([k, v]) => (
                                   <div key={k}>
-                                    <span style={{ color: '#6B7280' }}>{k}: </span>
-                                    <span style={{ color: '#D1D5DB', fontFamily: 'monospace' }}>
+                                    <span style={{ color: 'var(--cx-text-4)' }}>{k}: </span>
+                                    <span style={{ color: 'var(--cx-text-2)', fontFamily: 'monospace' }}>
                                       {typeof v === 'object' ? JSON.stringify(v) : String(v)}
                                     </span>
                                   </div>
@@ -1497,7 +1497,7 @@ export default function GpuHealthDashboard() {
                             )}
 
                             {chk.recommendation && (
-                              <div style={{ marginTop: '6px', fontSize: '12px', color: '#F59E0B' }}>
+                              <div style={{ marginTop: '6px', fontSize: '12px', color: 'var(--cx-warn)' }}>
                                 💡 {chk.recommendation}
                               </div>
                             )}
@@ -1507,7 +1507,7 @@ export default function GpuHealthDashboard() {
                     </div>
                   </div>
                 ) : (
-                  <div style={{ color: '#EF4444', textAlign: 'center', padding: '24px' }}>
+                  <div style={{ color: 'var(--cx-danger)', textAlign: 'center', padding: '24px' }}>
                     Failed to load diagnostic details for this device.
                   </div>
                 )}

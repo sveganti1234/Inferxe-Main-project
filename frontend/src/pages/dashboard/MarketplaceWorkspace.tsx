@@ -1584,7 +1584,7 @@ type ToastNotice = {
                     tabIndex={0}
                   >
                     <div className="row" style={{ justifyContent: 'space-between' }}>
-                      <span className="tag" style={{ background: 'rgba(99, 102, 241,0.12)', color: 'var(--brand-hi)', borderColor: 'var(--brand)' }}>
+                      <span className="tag" style={{ background: 'var(--cx-accent-soft)', color: 'var(--brand-hi)', borderColor: 'var(--brand)' }}>
                         {m.family}
                       </span>
                       <small style={{ fontFamily: 'var(--font-mono)', color: 'var(--ink-4)', fontSize: '0.68rem' }}>
@@ -1714,7 +1714,7 @@ type ToastNotice = {
                     <span>Runtime Overhead</span>
                     <strong>{fmtGB(modelMemoryCalc.overhead)}</strong>
                   </div>
-                  <div className="mw-calc-box" style={{ borderColor: 'rgba(99, 102, 241,0.4)', background: 'rgba(99, 102, 241,0.06)' }}>
+                  <div className="mw-calc-box" style={{ borderColor: 'var(--cx-accent-soft)', background: 'var(--cx-accent-soft)' }}>
                     <span style={{ color: 'var(--brand-hi)' }}>Total VRAM Required</span>
                     <strong style={{ color: 'var(--brand-hi)' }}>{fmtGB(modelMemoryCalc.need)}</strong>
                   </div>
@@ -1730,7 +1730,7 @@ type ToastNotice = {
                           Recommended Fit: {modelRecommendation.pick.label}
                         </strong>
                       </div>
-                      <span className="tag" style={{ background: 'rgba(99, 102, 241,0.2)', color: 'var(--brand-hi)', borderColor: 'var(--brand)' }}>
+                      <span className="tag" style={{ background: 'var(--cx-accent-soft)', color: 'var(--brand-hi)', borderColor: 'var(--brand)' }}>
                         {modelRecommendation.pick.rate ? inr(modelRecommendation.pick.rate) + '/hr' : 'Market Spot'}
                       </span>
                     </div>
@@ -1834,7 +1834,7 @@ type ToastNotice = {
                           title={wishlist.includes(item.id) ? 'Remove from Wishlist' : 'Save to Wishlist'}
                           aria-label="Wishlist toggle"
                         >
-                          <Heart size={14} fill={wishlist.includes(item.id) ? '#ef4444' : 'none'} color={wishlist.includes(item.id) ? '#ef4444' : 'currentColor'} />
+                          <Heart size={14} fill={wishlist.includes(item.id) ? 'var(--cx-danger)' : 'none'} color={wishlist.includes(item.id) ? 'var(--cx-danger)' : 'currentColor'} />
                         </button>
                         <button
                           className="mw-icon-btn"
@@ -2008,8 +2008,8 @@ type ToastNotice = {
             </div>
 
             {!getSession()?.token && (
-              <div style={{ padding: '12px 16px', background: 'rgba(234, 179, 8, 0.1)', border: '1px solid rgba(234, 179, 8, 0.3)', borderRadius: 8, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.82rem', color: '#eab308' }}>
+              <div style={{ padding: '12px 16px', background: 'var(--cx-info-soft)', border: '1px solid color-mix(in srgb, var(--cx-info) 30%, transparent)', borderRadius: 8, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.82rem', color: 'var(--cx-info)' }}>
                   <strong>Authentication Notice:</strong> Please sign in with your Cognito account to manage persistent production API keys.
                 </span>
                 <Link to="/login" style={{ fontSize: '0.8rem', color: 'var(--brand-hi)', textDecoration: 'underline' }}>Sign In</Link>
@@ -2018,7 +2018,7 @@ type ToastNotice = {
 
             {keysError && (
               <div style={{ padding: '12px 16px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 8, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.82rem', color: '#ef4444' }}>{keysError}</span>
+                <span style={{ fontSize: '0.82rem', color: 'var(--cx-danger)' }}>{keysError}</span>
                 <button className="mw-secondary" style={{ padding: '4px 10px', fontSize: '0.76rem' }} onClick={() => void loadApiKeys()}>Retry</button>
               </div>
             )}
@@ -2068,7 +2068,7 @@ type ToastNotice = {
                               padding: '2px 7px',
                               borderRadius: 4,
                               background: k.environment === 'test' ? 'rgba(59, 130, 246, 0.15)' : 'rgba(14, 165, 233, 0.15)',
-                              color: k.environment === 'test' ? '#60a5fa' : '#38bdf8',
+                              color: k.environment === 'test' ? '#60a5fa' : 'var(--cx-info)',
                               border: k.environment === 'test' ? '1px solid rgba(59, 130, 246, 0.3)' : '1px solid rgba(56, 189, 248, 0.3)',
                               fontWeight: 600,
                               textTransform: 'uppercase'
@@ -2297,7 +2297,7 @@ type ToastNotice = {
                 <div className="mw-metric-top"><span>Available Balance</span><span className="mw-icon-box"><Wallet /></span></div>
                 <strong>{money(walletBalance)}</strong>
                 {walletBalanceError
-                  ? <small role="alert" style={{ color: 'var(--danger, #f87171)' }}>{walletBalanceError}</small>
+                  ? <small role="alert" style={{ color: 'var(--danger, var(--cx-danger))' }}>{walletBalanceError}</small>
                   : <small style={{ color: 'var(--brand-hi)' }}>Prepaid balance</small>}
               </div>
               <div className="mw-metric">
@@ -2325,7 +2325,7 @@ type ToastNotice = {
                 </span>
               </div>
               {txHistoryError && !txHistoryLoading && (
-                <div role="alert" className="mw-muted" style={{ color: 'var(--warn, #e0a800)', padding: '0 0 12px' }}>
+                <div role="alert" className="mw-muted" style={{ color: 'var(--cx-warn)', padding: '0 0 12px' }}>
                   {txHistoryError}{transactions.length > 0 ? ' — showing locally cached transactions.' : ''}
                 </div>
               )}
@@ -2894,7 +2894,7 @@ type ToastNotice = {
                     <span
                       style={{
                         width: `${l.status === 'Available' ? 100 : l.status === 'Paused' ? 40 : 15}%`,
-                        background: l.status === 'Maintenance' ? '#f59e0b' : undefined,
+                        background: l.status === 'Maintenance' ? 'var(--cx-warn)' : undefined,
                       }}
                     />
                   </div>
@@ -3514,7 +3514,7 @@ type ToastNotice = {
                   <span>Throughput: <strong style={{ color: 'var(--brand-hi)', fontFamily: 'var(--font-mono)' }}>{playgroundMetrics ? `${playgroundMetrics.speed} tok/s` : '—'}</strong></span>
                   <span>Tokens: <strong style={{ color: 'var(--ink)', fontFamily: 'var(--font-mono)' }}>{playgroundMetrics ? playgroundMetrics.tokens : '—'}</strong></span>
                   <span>Model: <strong style={{ color: 'var(--ink)' }}>{playgroundServedModel || 'Server default'}</strong></span>
-                  {playgroundError && <span role="alert" style={{ color: 'var(--danger, #f87171)' }}>{playgroundError}</span>}
+                  {playgroundError && <span role="alert" style={{ color: 'var(--danger, var(--cx-danger))' }}>{playgroundError}</span>}
                 </div>
 
                 <div className="mw-console-box" style={{ minHeight: 220, maxHeight: 480, overflowY: 'auto', padding: 18, background: 'var(--bg-0)' }}>
@@ -3575,8 +3575,8 @@ type ToastNotice = {
             </div>
 
             {!getSession()?.token && (
-              <div style={{ padding: '12px 16px', background: 'rgba(234, 179, 8, 0.1)', border: '1px solid rgba(234, 179, 8, 0.3)', borderRadius: 8, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.82rem', color: '#eab308' }}>
+              <div style={{ padding: '12px 16px', background: 'var(--cx-info-soft)', border: '1px solid color-mix(in srgb, var(--cx-info) 30%, transparent)', borderRadius: 8, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ fontSize: '0.82rem', color: 'var(--cx-info)' }}>
                   <strong>Authentication Notice:</strong> Please sign in with your account to register and manage persistent SSH keys.
                 </span>
                 <Link to="/login" style={{ fontSize: '0.8rem', color: 'var(--brand-hi)', textDecoration: 'underline' }}>Sign In</Link>
@@ -3585,7 +3585,7 @@ type ToastNotice = {
 
             {sshError && (
               <div style={{ padding: '12px 16px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', borderRadius: 8, marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontSize: '0.82rem', color: '#ef4444' }}>{sshError}</span>
+                <span style={{ fontSize: '0.82rem', color: 'var(--cx-danger)' }}>{sshError}</span>
                 <button className="mw-secondary" style={{ padding: '4px 10px', fontSize: '0.76rem' }} onClick={() => void loadSshKeys()}>Retry</button>
               </div>
             )}
@@ -3637,8 +3637,8 @@ type ToastNotice = {
                               fontSize: '0.72rem',
                               padding: '2px 7px',
                               borderRadius: 4,
-                              background: 'rgba(255, 255, 255, 0.06)',
-                              border: '1px solid rgba(255, 255, 255, 0.1)',
+                              background: 'var(--cx-surface)',
+                              border: '1px solid var(--cx-border)',
                               fontFamily: 'var(--font-mono)'
                             }}>
                               {k.keyType || 'ssh'}
@@ -3871,14 +3871,14 @@ type ToastNotice = {
                         <button
                           type="button"
                           onClick={() => setAppliedCoupon(null)}
-                          style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', padding: 0 }}
+                          style={{ background: 'none', border: 'none', color: 'var(--cx-danger)', cursor: 'pointer', padding: 0 }}
                         >
                           <X size={12} />
                         </button>
                       </div>
                     )}
                     {couponError && (
-                      <small style={{ color: '#ef4444', display: 'block', marginTop: 6 }}>{couponError}</small>
+                      <small style={{ color: 'var(--cx-danger)', display: 'block', marginTop: 6 }}>{couponError}</small>
                     )}
                   </div>
 
@@ -3979,7 +3979,7 @@ type ToastNotice = {
                       </button>
 
                       {checkoutReceipt && (
-                        <div style={{ marginTop: 14, padding: 12, background: 'rgba(99, 102, 241,0.08)', border: '1px solid var(--brand)', borderRadius: 8 }}>
+                        <div style={{ marginTop: 14, padding: 12, background: 'var(--cx-accent-soft)', border: '1px solid var(--brand)', borderRadius: 8 }}>
                           <div className="row" style={{ gap: 6, alignItems: 'center', color: 'var(--brand-hi)', marginBottom: 4 }}>
                             <Check size={16} /> <strong>Order {checkoutReceipt.orderId} Confirmed!</strong>
                           </div>
@@ -4137,7 +4137,7 @@ type ToastNotice = {
                   <label>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span>Work Email</span>
-                      <span style={{ fontSize: '0.72rem', color: 'var(--brand-hi)', background: 'rgba(99, 102, 241, 0.1)', padding: '2px 6px', borderRadius: 4, fontWeight: 500 }}>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--brand-hi)', background: 'var(--cx-accent-soft)', padding: '2px 6px', borderRadius: 4, fontWeight: 500 }}>
                         Managed by SSO
                       </span>
                     </div>
@@ -4504,7 +4504,7 @@ type ToastNotice = {
                             style={{
                               opacity: isDimmed ? 0.35 : 1,
                               transition: 'opacity 0.25s ease',
-                              background: !isDimmed && selectedGeoCountry ? 'rgba(99, 102, 241, 0.06)' : undefined,
+                              background: !isDimmed && selectedGeoCountry ? 'var(--cx-accent-soft)' : undefined,
                             }}
                           >
                             <td><strong>{n.city}</strong></td>
@@ -4641,7 +4641,7 @@ type ToastNotice = {
             </div>
             <div className="mw-modal-foot">
               <button className="mw-secondary" onClick={() => setDeployToDelete(null)}>Cancel</button>
-              <button className="mw-primary" style={{ background: '#ef4444', borderColor: '#ef4444', color: '#fff' }} onClick={handleConfirmDeleteDeployment}>
+              <button className="mw-primary" style={{ background: 'var(--cx-danger)', borderColor: 'var(--cx-danger)', color: '#fff' }} onClick={handleConfirmDeleteDeployment}>
                 Terminate Deployment
               </button>
             </div>
@@ -4701,13 +4701,13 @@ type ToastNotice = {
         <div className="mw-modal-backdrop" onClick={() => setCreatedSecretData(null)}>
           <div className="mw-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 520 }}>
             <div className="mw-modal-head" style={{ borderBottom: '1px solid rgba(14, 165, 233, 0.2)' }}>
-              <h3 style={{ color: '#38bdf8', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <h3 style={{ color: 'var(--cx-info)', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Check size={18} /> API Key Created Successfully
               </h3>
               <button onClick={() => setCreatedSecretData(null)} aria-label="Close"><X size={16} /></button>
             </div>
             <div className="mw-modal-body" style={{ gap: 14 }}>
-              <div style={{ padding: '10px 14px', background: 'rgba(234, 179, 8, 0.1)', border: '1px solid rgba(234, 179, 8, 0.25)', borderRadius: 7, fontSize: '0.78rem', color: '#eab308', lineHeight: 1.5 }}>
+              <div style={{ padding: '10px 14px', background: 'var(--cx-warn-soft)', border: '1px solid color-mix(in srgb, var(--cx-warn) 30%, transparent)', borderRadius: 7, fontSize: '0.78rem', color: 'var(--cx-warn)', lineHeight: 1.5 }}>
                 <strong>Important:</strong> Save this key now! For security reasons, Inferxe only stores the SHA-256 hash. <strong>You will not be able to view this secret token again.</strong>
               </div>
 
@@ -4722,10 +4722,10 @@ type ToastNotice = {
                       fontFamily: 'monospace',
                       fontSize: '0.85rem',
                       padding: '10px 12px',
-                      background: 'rgba(0, 0, 0, 0.4)',
-                      border: '1px solid var(--brand-line, #38bdf8)',
+                      background: 'var(--cx-surface)',
+                      border: '1px solid var(--brand-line, var(--cx-info))',
                       borderRadius: 7,
-                      color: 'var(--brand-hi, #38bdf8)',
+                      color: 'var(--brand-hi, var(--cx-info))',
                     }}
                   />
                   <button
@@ -4770,7 +4770,7 @@ type ToastNotice = {
             </div>
             <div className="mw-modal-foot">
               <button className="mw-secondary" onClick={() => setKeyToRevoke(null)}>Cancel</button>
-              <button className="mw-primary" style={{ background: '#ef4444', borderColor: '#ef4444', color: '#fff' }} onClick={handleConfirmRevokeKey}>
+              <button className="mw-primary" style={{ background: 'var(--cx-danger)', borderColor: 'var(--cx-danger)', color: '#fff' }} onClick={handleConfirmRevokeKey}>
                 Revoke Key
               </button>
             </div>
@@ -4867,7 +4867,7 @@ type ToastNotice = {
                         }}
                       >
                         <div className="row" style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                          <span className="tag" style={{ background: 'rgba(99, 102, 241,0.12)', color: 'var(--brand-hi)', borderColor: 'var(--brand)' }}>
+                          <span className="tag" style={{ background: 'var(--cx-accent-soft)', color: 'var(--brand-hi)', borderColor: 'var(--brand)' }}>
                             {model.family}
                           </span>
                           <small style={{ fontFamily: 'var(--font-mono)', color: 'var(--ink-4)', fontSize: '0.68rem' }}>
@@ -4934,7 +4934,7 @@ type ToastNotice = {
                       style={{
                         position: 'absolute',
                         left: 14,
-                        color: 'var(--brand-hi, #38bdf8)',
+                        color: 'var(--brand-hi, var(--cx-info))',
                         fontSize: '1.15rem',
                         fontWeight: 700,
                         pointerEvents: 'none',
@@ -4960,8 +4960,8 @@ type ToastNotice = {
                         fontSize: '1.05rem',
                         fontWeight: 600,
                         fontFamily: 'var(--font-mono, monospace)',
-                        background: 'var(--bg-2, #111a14)',
-                        border: '1px solid var(--line-2, #26382a)',
+                        background: 'var(--bg-2)',
+                        border: '1px solid var(--line-2)',
                         borderRadius: 8,
                         color: 'var(--ink, #fff)',
                         outline: 'none',
@@ -5000,16 +5000,16 @@ type ToastNotice = {
                       justifyContent: 'space-between',
                       alignItems: 'center',
                       padding: '10px 14px',
-                      background: 'rgba(99, 102, 241, 0.08)',
+                      background: 'var(--cx-accent-soft)',
                       borderRadius: 8,
-                      border: '1px solid rgba(99, 102, 241, 0.25)',
+                      border: '1px solid color-mix(in srgb, var(--cx-accent) 25%, transparent)',
                       fontSize: '0.8rem',
                     }}
                   >
                     <span style={{ color: 'var(--ink-3)' }}>
                       Current Balance: <strong>{money(walletBalance)}</strong>
                     </span>
-                    <span style={{ color: 'var(--brand-hi, #38bdf8)', fontWeight: 600 }}>
+                    <span style={{ color: 'var(--brand-hi, var(--cx-info))', fontWeight: 600 }}>
                       New Balance: <strong>{money(walletBalance === null ? null : walletBalance + numericTopUp)}</strong>
                     </span>
                   </div>
@@ -5208,8 +5208,8 @@ type ToastNotice = {
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       padding: '12px 16px',
-                      background: 'rgba(99, 102, 241, 0.08)',
-                      border: '1px solid rgba(99, 102, 241, 0.22)',
+                      background: 'var(--cx-accent-soft)',
+                      border: '1px solid color-mix(in srgb, var(--cx-accent) 25%, transparent)',
                       borderRadius: 10,
                     }}
                   >
@@ -5217,7 +5217,7 @@ type ToastNotice = {
                       <span style={{ fontSize: '0.72rem', color: 'var(--ink-3)', display: 'block', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                         Available to Withdraw
                       </span>
-                      <strong style={{ fontSize: '1.25rem', color: 'var(--brand-hi, #38bdf8)' }}>
+                      <strong style={{ fontSize: '1.25rem', color: 'var(--brand-hi, var(--cx-info))' }}>
                         {money(pendingPayout)}
                       </strong>
                     </div>
@@ -5267,8 +5267,8 @@ type ToastNotice = {
                           fontSize: '1.05rem',
                           fontWeight: 600,
                           fontFamily: 'var(--font-mono, monospace)',
-                          background: 'var(--bg-2, #111a14)',
-                          border: '1px solid var(--line-2, #26382a)',
+                          background: 'var(--bg-2)',
+                          border: '1px solid var(--line-2)',
                           borderRadius: 8,
                           color: 'var(--ink, #fff)',
                           outline: 'none',
@@ -5278,7 +5278,7 @@ type ToastNotice = {
                       />
                     </div>
                     {numericPayout > pendingPayout && (
-                      <span style={{ color: '#ef4444', fontSize: '0.76rem', display: 'block', marginTop: 4 }}>
+                      <span style={{ color: 'var(--cx-danger)', fontSize: '0.76rem', display: 'block', marginTop: 4 }}>
                         Amount cannot exceed available pending earnings of {money(pendingPayout)}.
                       </span>
                     )}
@@ -5320,9 +5320,9 @@ type ToastNotice = {
                         flexDirection: 'column',
                         gap: 8,
                         padding: '12px 14px',
-                        background: 'rgba(255, 255, 255, 0.02)',
+                        background: 'var(--cx-surface)',
                         borderRadius: 8,
-                        border: '1px solid var(--line, #1e2c22)',
+                        border: '1px solid var(--line)',
                         fontSize: '0.82rem',
                       }}
                     >
@@ -5332,7 +5332,7 @@ type ToastNotice = {
                       </div>
                       <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--ink-3)' }}>
                         <span>Platform Fee (12%)</span>
-                        <span style={{ color: '#f59e0b' }}>- {money(Math.round(numericPayout * 0.12))}</span>
+                        <span style={{ color: 'var(--cx-warn)' }}>- {money(Math.round(numericPayout * 0.12))}</span>
                       </div>
                       <div
                         style={{
@@ -5345,7 +5345,7 @@ type ToastNotice = {
                         }}
                       >
                         <span>Net Disbursed to Bank</span>
-                        <span style={{ color: 'var(--brand-hi, #38bdf8)' }}>
+                        <span style={{ color: 'var(--brand-hi, var(--cx-info))' }}>
                           {money(Math.round(numericPayout * 0.88))}
                         </span>
                       </div>
@@ -5443,7 +5443,7 @@ type ToastNotice = {
                     style={{ padding: '8px 10px', background: 'var(--bg-2)', border: '1px solid var(--line-2)', borderRadius: 7, color: 'var(--ink)', fontFamily: 'var(--font-mono)', fontSize: '0.74rem' }}
                   />
                 </label>
-                {sshModalError && <small style={{ color: '#ef4444', display: 'block', lineHeight: 1.4 }}>{sshModalError}</small>}
+                {sshModalError && <small style={{ color: 'var(--cx-danger)', display: 'block', lineHeight: 1.4 }}>{sshModalError}</small>}
                 <div className="mw-info-box" style={{ marginTop: 4 }}>
                   <ShieldCheck size={16} />
                   <span>Never upload private keys (.id_rsa). Only OpenSSH public (.pub) keys are accepted. Cryptographically validated and saved to PostgreSQL.</span>
@@ -5479,7 +5479,7 @@ type ToastNotice = {
               <button
                 disabled={sshSubmitting}
                 className="mw-primary"
-                style={{ background: '#ef4444', borderColor: '#ef4444', color: '#fff' }}
+                style={{ background: 'var(--cx-danger)', borderColor: 'var(--cx-danger)', color: '#fff' }}
                 onClick={handleConfirmDeleteSshKey}
               >
                 {sshSubmitting ? 'Removing...' : 'Remove Key'}
@@ -5545,7 +5545,7 @@ type ToastNotice = {
           <div className="mw-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440 }}>
             <div className="mw-modal-head">
               <div className="row" style={{ gap: 8, alignItems: 'center' }}>
-                <span className="mw-icon-box" style={{ background: 'rgba(99, 102, 241, 0.12)', color: 'var(--brand-hi)', width: 32, height: 32 }}>
+                <span className="mw-icon-box" style={{ background: 'var(--cx-accent-soft)', color: 'var(--brand-hi)', width: 32, height: 32 }}>
                   <Archive size={16} />
                 </span>
                 <h3 style={{ margin: 0 }}>Archive Order?</h3>
@@ -5599,7 +5599,7 @@ type ToastNotice = {
           <div className="mw-modal" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440 }}>
             <div className="mw-modal-head">
               <div className="row" style={{ gap: 8, alignItems: 'center' }}>
-                <span className="mw-icon-box" style={{ background: 'rgba(239, 68, 68, 0.12)', color: '#ef4444', width: 32, height: 32 }}>
+                <span className="mw-icon-box" style={{ background: 'rgba(239, 68, 68, 0.12)', color: 'var(--cx-danger)', width: 32, height: 32 }}>
                   <Trash2 size={16} />
                 </span>
                 <h3 style={{ margin: 0 }}>Delete Notification?</h3>
@@ -5635,7 +5635,7 @@ type ToastNotice = {
                 type="button"
                 className="mw-primary"
                 onClick={handleConfirmDeleteNotification}
-                style={{ minWidth: 140, justifyContent: 'center', background: '#ef4444', borderColor: '#ef4444', color: '#fff' }}
+                style={{ minWidth: 140, justifyContent: 'center', background: 'var(--cx-danger)', borderColor: 'var(--cx-danger)', color: '#fff' }}
               >
                 Delete Notification
               </button>
@@ -5660,7 +5660,7 @@ type ToastNotice = {
               <div className="grid grid--2" style={{ gap: 12, marginTop: 12 }}>
                 {/* Header */}
                 <div className="mw-calc-box">
-                  <span style={{ color: '#06b6d4' }}>Header (Algorithm & Token Type)</span>
+                  <span style={{ color: 'var(--cx-info)' }}>Header (Algorithm & Token Type)</span>
                   <pre style={{ margin: 0, fontSize: '0.72rem', fontFamily: 'var(--font-mono)', color: 'var(--ink)' }}>
                     {JSON.stringify({ alg: 'EdDSA', typ: 'JWT', kid: 'inferxe-sovereign-auth-2026-v1' }, null, 2)}
                   </pre>
@@ -5750,9 +5750,9 @@ function ChangePasswordCard({
     if (/[0-9]/.test(newPassword)) s += 1
     if (/[^A-Za-z0-9]/.test(newPassword)) s += 1
 
-    if (s <= 1) return { score: 1, label: 'Weak', color: '#ef4444', percent: 25 }
-    if (s <= 2) return { score: 2, label: 'Fair', color: '#f59e0b', percent: 50 }
-    if (s <= 3) return { score: 3, label: 'Good', color: '#38bdf8', percent: 75 }
+    if (s <= 1) return { score: 1, label: 'Weak', color: 'var(--cx-danger)', percent: 25 }
+    if (s <= 2) return { score: 2, label: 'Fair', color: 'var(--cx-warn)', percent: 50 }
+    if (s <= 3) return { score: 3, label: 'Good', color: 'var(--cx-info)', percent: 75 }
     return { score: 4, label: 'Strong', color: '#0284c7', percent: 100 }
   }, [newPassword])
 
@@ -5942,7 +5942,7 @@ function ChangePasswordCard({
           <label>
             <span>Confirm New Password</span>
             {confirmPassword && (
-              <small style={{ color: rules.matches ? 'var(--brand-hi)' : '#ef4444', fontWeight: 600 }}>
+              <small style={{ color: rules.matches ? 'var(--brand-hi)' : 'var(--cx-danger)', fontWeight: 600 }}>
                 {rules.matches ? '✓ Matches' : '✗ Does not match'}
               </small>
             )}
@@ -6144,17 +6144,17 @@ function SettingsSection({ flash }: { flash: (msg: string) => void }) {
               <div style={{ background: 'var(--bg-2)', border: '1px solid var(--line)', borderRadius: 8, padding: '12px 14px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.82rem', marginBottom: 6 }}>
                   <span style={{ color: 'var(--ink-3)', fontWeight: 500 }}>Budget Utilization</span>
-                  <span style={{ color: usedPct >= 100 ? '#ef4444' : usedPct >= 80 ? '#f59e0b' : 'var(--brand-hi)', fontWeight: 700 }}>
+                  <span style={{ color: usedPct >= 100 ? 'var(--cx-danger)' : usedPct >= 80 ? 'var(--cx-warn)' : 'var(--brand-hi)', fontWeight: 700 }}>
                     {usedPct}% Utilized
                   </span>
                 </div>
 
-                <div style={{ background: 'rgba(255, 255, 255, 0.08)', borderRadius: 6, height: 8, overflow: 'hidden', margin: '6px 0' }}>
+                <div style={{ background: 'var(--cx-surface)', borderRadius: 6, height: 8, overflow: 'hidden', margin: '6px 0' }}>
                   <div
                     style={{
                       width: `${usedPct}%`,
                       height: '100%',
-                      background: usedPct >= 100 ? '#ef4444' : usedPct >= 80 ? '#f59e0b' : 'var(--brand-hi)',
+                      background: usedPct >= 100 ? 'var(--cx-danger)' : usedPct >= 80 ? 'var(--cx-warn)' : 'var(--brand-hi)',
                       borderRadius: 6,
                       transition: 'width 0.3s cubic-bezier(0.25, 1, 0.5, 1)',
                     }}
@@ -6182,9 +6182,9 @@ function SettingsSection({ flash }: { flash: (msg: string) => void }) {
                     fontSize: '0.76rem',
                     background: usedPct >= 80 ? 'rgba(245, 158, 11, 0.12)' : 'var(--bg-2)',
                     border: `1px solid ${usedPct >= 80 ? 'rgba(245, 158, 11, 0.35)' : 'var(--line)'}`,
-                    color: usedPct >= 80 ? '#f59e0b' : 'var(--ink-3)',
+                    color: usedPct >= 80 ? 'var(--cx-warn)' : 'var(--ink-3)',
                   }}>
-                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#f59e0b' }} />
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--cx-warn)' }} />
                     <span>80% Soft Alert: ₹{softAlertThreshold.toLocaleString('en-IN')}</span>
                   </div>
                   <div style={{
@@ -6196,9 +6196,9 @@ function SettingsSection({ flash }: { flash: (msg: string) => void }) {
                     fontSize: '0.76rem',
                     background: usedPct >= 100 ? 'rgba(239, 68, 68, 0.12)' : 'var(--bg-2)',
                     border: `1px solid ${usedPct >= 100 ? 'rgba(239, 68, 68, 0.35)' : 'var(--line)'}`,
-                    color: usedPct >= 100 ? '#ef4444' : 'var(--ink-3)',
+                    color: usedPct >= 100 ? 'var(--cx-danger)' : 'var(--ink-3)',
                   }}>
-                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#ef4444' }} />
+                    <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--cx-danger)' }} />
                     <span>100% Hard Cap: ₹{budgetNum.toLocaleString('en-IN')}</span>
                   </div>
                 </div>
@@ -6265,7 +6265,7 @@ function SettingsSection({ flash }: { flash: (msg: string) => void }) {
               {corsValidation.isValid ? (
                 <StatusBadge>Valid Origins</StatusBadge>
               ) : (
-                <span style={{ fontSize: '0.72rem', color: '#ef4444', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '2px 8px', borderRadius: 4, fontWeight: 600 }}>
+                <span style={{ fontSize: '0.72rem', color: 'var(--cx-danger)', background: 'rgba(239, 68, 68, 0.15)', border: '1px solid rgba(239, 68, 68, 0.3)', padding: '2px 8px', borderRadius: 4, fontWeight: 600 }}>
                   Invalid URL Format
                 </span>
               )}
@@ -6285,11 +6285,11 @@ function SettingsSection({ flash }: { flash: (msg: string) => void }) {
                   }}
                   placeholder="https://app.novatech.ai, http://localhost:3000"
                   style={{
-                    borderColor: corsTouched && !corsValidation.isValid ? '#ef4444' : undefined,
+                    borderColor: corsTouched && !corsValidation.isValid ? 'var(--cx-danger)' : undefined,
                   }}
                 />
                 {corsTouched && !corsValidation.isValid && (
-                  <small style={{ color: '#ef4444', fontSize: '0.75rem', marginTop: 4, display: 'block' }}>
+                  <small style={{ color: 'var(--cx-danger)', fontSize: '0.75rem', marginTop: 4, display: 'block' }}>
                     {corsValidation.error}
                   </small>
                 )}

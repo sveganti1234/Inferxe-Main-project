@@ -253,17 +253,13 @@ export default function AdminRoles() {
         )}
 
         {/* ── 3. Two-Role Architecture Policy Callout ──────────────────── */}
-        <div
-          className="sa-demo-banner"
-          style={{ borderColor: 'rgba(80, 227, 150, 0.3)', background: 'rgba(80, 227, 150, 0.05)', marginBottom: 20 }}
-          role="status"
-        >
-          <ShieldCheck size={18} style={{ color: '#50e396', flexShrink: 0, marginTop: 1 }} />
+        <div className="ar-notice" role="status">
+          <span className="ar-notice__icon" aria-hidden="true"><ShieldCheck size={18} /></span>
           <div>
-            <strong style={{ color: '#50e396' }}>Platform Two-Role Architecture:</strong>
-            <div style={{ marginTop: 2, color: '#cbd5e1', fontSize: '0.8rem', lineHeight: 1.45 }}>
+            <strong className="ar-notice__title">Platform two-role architecture</strong>
+            <p className="ar-notice__body">
               Inferxe strictly supports only two platform roles: <strong>Super Admin</strong> (<code>superadmin</code>) and <strong>Admin</strong> (<code>admin</code>). Normal administrators receive standard operational capabilities. Custom roles, role escalation, and unauthorized role assignments are prohibited by backend authorization guards.
-            </div>
+            </p>
           </div>
         </div>
 
@@ -293,7 +289,7 @@ export default function AdminRoles() {
             </div>
             <div className="sa-kpi-card__value">{superAdminCount} Super Admin</div>
             <div className="sa-kpi-card__subtext">
-              <span style={{ color: '#38bdf8' }}>Full Platform Authority (21 perms)</span>
+              <span className="ar-tone--info">Full Platform Authority (21 perms)</span>
             </div>
           </div>
 
@@ -307,7 +303,7 @@ export default function AdminRoles() {
             </div>
             <div className="sa-kpi-card__value">{standardAdminCount} Admin</div>
             <div className="sa-kpi-card__subtext">
-              <span style={{ color: '#10b981' }}>Operational Capabilities (10 perms)</span>
+              <span className="ar-tone--accent">Operational Capabilities (10 perms)</span>
             </div>
           </div>
 
@@ -323,7 +319,7 @@ export default function AdminRoles() {
             <div className="sa-kpi-card__subtext">
               <Link
                 to="/dashboard/super-admin/permissions"
-                style={{ color: '#c084fc', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+                className="ar-tone--violet ar-inline-link"
               >
                 <span>View Permission Matrix</span>
                 <ArrowRight size={12} />
@@ -403,147 +399,67 @@ export default function AdminRoles() {
           )}
         </div>
 
+
         {/* ── 6. Roles Display ──────────────────────────────── */}
         {isLoading && adminAccounts.length === 0 ? (
-          <div
-            style={{
-              padding: '60px 20px',
-              textAlign: 'center',
-              background: 'rgba(10, 24, 18, 0.4)',
-              border: '1px solid rgba(80, 227, 150, 0.12)',
-              borderRadius: 14,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 12,
-            }}
-          >
-            <RotateCcw size={24} style={{ color: '#50e396', animation: 'spin 1.2s linear infinite' }} />
-            <div style={{ color: '#94a3b8', fontSize: '0.88rem' }}>
-              Syncing live administrator roles and assignments...
-            </div>
+          <div className="ar-state">
+            <RotateCcw size={24} className="ar-state__icon ar-spin" />
+            <div className="ar-state__body">Syncing live administrator roles and assignments...</div>
           </div>
         ) : filteredRoles.length === 0 ? (
-          <div
-            style={{
-              padding: '48px 20px',
-              textAlign: 'center',
-              background: 'rgba(10, 24, 18, 0.4)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              borderRadius: 14,
-            }}
-          >
-            <Lock size={28} style={{ color: '#94a3b8', margin: '0 auto 12px', opacity: 0.5 }} />
-            <h3 style={{ margin: '0 0 6px', color: '#e2e8f0', fontSize: '1rem' }}>No Roles Match Filter</h3>
-            <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.82rem' }}>
-              Try clearing your search query or selecting a broader category.
-            </p>
+          <div className="ar-state">
+            <Lock size={28} className="ar-state__icon" />
+            <h3 className="ar-state__title">No Roles Match Filter</h3>
+            <p className="ar-state__body">Try clearing your search query or selecting a broader category.</p>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 20 }}>
+          <div className="ar-grid">
             {filteredRoles.map((role) => {
               const assignedAdmins = getRoleAssignedAdmins(role.id)
               const isSuper = role.id === 'superadmin' || role.id === 'super_admin'
 
               return (
-                <div
-                  key={role.id}
-                  style={{
-                    background: '#0F1612',
-                    border: '1px solid #1B2E24',
-                    borderRadius: 12,
-                    padding: 24,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
-                  }}
-                >
+                <div key={role.id} className={`ar-card ${isSuper ? 'ar-card--super' : 'ar-card--admin'}`}>
                   <div>
                     {/* Top Row: Icon, Title, Badge */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <div
-                          style={{
-                            width: 38,
-                            height: 38,
-                            borderRadius: 8,
-                            background: isSuper ? 'rgba(80, 227, 150, 0.15)' : 'rgba(6, 182, 212, 0.15)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            color: isSuper ? '#50e396' : '#06b6d4',
-                          }}
-                        >
+                    <div className="ar-card__top">
+                      <div className="ar-card__id">
+                        <span className="ar-card__icon" aria-hidden="true">
                           {isSuper ? <ShieldCheck size={20} /> : <Users size={20} />}
-                        </div>
+                        </span>
                         <div>
-                          <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: '#FFFFFF' }}>
-                            {role.name}
-                          </h3>
-                          <div style={{ color: '#9CA3AF', fontSize: '0.74rem', fontFamily: 'var(--font-mono)', marginTop: 2 }}>
-                            <code>{role.id}</code>
-                          </div>
+                          <h3 className="ar-card__title">{role.name}</h3>
+                          <code className="ar-card__code">{role.id}</code>
                         </div>
                       </div>
-
-                      <span
-                        style={{
-                          background: isSuper ? 'rgba(80, 227, 150, 0.12)' : 'rgba(6, 182, 212, 0.12)',
-                          color: isSuper ? '#50e396' : '#38bdf8',
-                          border: `1px solid ${isSuper ? 'rgba(80, 227, 150, 0.3)' : 'rgba(6, 182, 212, 0.3)'}`,
-                          borderRadius: 4,
-                          padding: '3px 8px',
-                          fontSize: '0.72rem',
-                          fontWeight: 600,
-                          textTransform: 'uppercase',
-                        }}
-                      >
-                        Standard Role
-                      </span>
+                      <span className="ar-card__badge">Standard role</span>
                     </div>
 
                     {/* Description */}
-                    <p style={{ margin: '0 0 16px', color: '#CBD5E1', fontSize: '0.84rem', lineHeight: 1.5 }}>
-                      {role.description}
-                    </p>
+                    <p className="ar-card__desc">{role.description}</p>
 
                     {/* Meta stats: Permissions & Assigned Admins */}
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginBottom: 16 }}>
-                      <div style={{ background: '#121C16', border: '1px solid #1B2E24', borderRadius: 6, padding: '6px 12px', fontSize: '0.78rem' }}>
-                        <span style={{ color: '#9CA3AF' }}>Permissions: </span>
-                        <strong style={{ color: '#FFFFFF' }}>{role.permissions.length} / 21</strong>
+                    <div className="ar-card__stats">
+                      <div className="ar-stat">
+                        <span>Permissions</span>
+                        <strong>{role.permissions.length} / 21</strong>
                       </div>
-                      <div style={{ background: '#121C16', border: '1px solid #1B2E24', borderRadius: 6, padding: '6px 12px', fontSize: '0.78rem' }}>
-                        <span style={{ color: '#9CA3AF' }}>Assigned: </span>
-                        <strong style={{ color: '#FFFFFF' }}>{assignedAdmins.length} Administrator{assignedAdmins.length === 1 ? '' : 's'}</strong>
+                      <div className="ar-stat">
+                        <span>Assigned</span>
+                        <strong>{assignedAdmins.length} Administrator{assignedAdmins.length === 1 ? '' : 's'}</strong>
                       </div>
                     </div>
 
                     {/* Assigned Admins Roster Preview */}
-                    <div style={{ marginBottom: 16 }}>
-                      <span style={{ color: '#9CA3AF', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600 }}>
-                        Active Members:
-                      </span>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                    <div className="ar-card__members">
+                      <span className="ar-label">Active members</span>
+                      <div className="ar-chips">
                         {assignedAdmins.length === 0 ? (
-                          <span style={{ color: '#6B7280', fontSize: '0.76rem', fontStyle: 'italic' }}>
-                            No active administrators
-                          </span>
+                          <span className="ar-chips__empty">No active administrators</span>
                         ) : (
                           assignedAdmins.map((adm) => (
-                            <span
-                              key={adm.id}
-                              style={{
-                                background: 'rgba(255, 255, 255, 0.05)',
-                                border: '1px solid rgba(255, 255, 255, 0.1)',
-                                borderRadius: 4,
-                                padding: '2px 8px',
-                                fontSize: '0.74rem',
-                                color: '#E2E8F0',
-                              }}
-                            >
-                              {adm.fullName} ({adm.email.split('@')[0]})
+                            <span key={adm.id} className="ar-chip">
+                              {adm.fullName} <em>({adm.email.split('@')[0]})</em>
                             </span>
                           ))
                         )}
@@ -552,31 +468,14 @@ export default function AdminRoles() {
                   </div>
 
                   {/* Actions Row */}
-                  <div style={{ borderTop: '1px solid #1B2E24', paddingTop: 14, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <button
-                      type="button"
-                      className="dash-filter-btn"
-                      onClick={() => setViewingRole(role)}
-                      style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: '0.78rem' }}
-                    >
-                      <Eye size={13} />
-                      <span>Inspect Permissions</span>
+                  <div className="ar-card__actions">
+                    <button type="button" className="dash-filter-btn ar-btn" onClick={() => setViewingRole(role)}>
+                      <Eye size={14} />
+                      <span>Inspect permissions</span>
                     </button>
-
-                    <Link
-                      to="/dashboard/super-admin/accounts"
-                      style={{
-                        color: isSuper ? '#50e396' : '#38bdf8',
-                        textDecoration: 'none',
-                        fontSize: '0.78rem',
-                        fontWeight: 600,
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 4,
-                      }}
-                    >
-                      <span>Manage Admins</span>
-                      <ArrowRight size={12} />
+                    <Link to="/dashboard/super-admin/accounts" className="ar-link">
+                      <span>Manage admins</span>
+                      <ArrowRight size={13} />
                     </Link>
                   </div>
                 </div>
@@ -600,30 +499,19 @@ export default function AdminRoles() {
             >
               <div className="sa-modal-header">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div
-                    style={{
-                      width: 34,
-                      height: 34,
-                      borderRadius: 8,
-                      background: 'rgba(80, 227, 150, 0.15)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#50e396',
-                    }}
-                  >
+                  <div className="sa-modal-icon-wrap--success">
                     <KeyRound size={17} />
                   </div>
                   <div>
                     <h3 className="sa-modal-title">{viewingRole.name} Role Details</h3>
-                    <div style={{ color: '#9CA3AF', fontSize: '0.74rem' }}>
+                    <div>
                       Canonical Platform Role Definition · <code>{viewingRole.id}</code>
                     </div>
                   </div>
                 </div>
                 <button
                   type="button"
-                  className="sa-modal-close"
+                  className="sa-modal-close sa-modal-close-btn"
                   onClick={() => setViewingRole(null)}
                   aria-label="Close"
                 >
@@ -632,29 +520,27 @@ export default function AdminRoles() {
               </div>
 
               <div className="sa-modal-body" style={{ maxHeight: '65vh', overflowY: 'auto' }}>
-                <p style={{ margin: '0 0 16px', color: '#CBD5E1', fontSize: '0.86rem', lineHeight: 1.5 }}>
-                  {viewingRole.description}
-                </p>
+                <p className="ar-card__desc">{viewingRole.description}</p>
 
-                <h4 style={{ fontSize: '0.86rem', fontWeight: 700, color: '#FFFFFF', margin: '0 0 10px' }}>
-                  Assigned Capabilities ({viewingRole.permissions.length} / 21)
+                <h4 className="ar-modal__heading">
+                  Assigned capabilities ({viewingRole.permissions.length} / 21)
                 </h4>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div className="ar-perm-groups">
                   {Array.from(viewingPermissionsByCategory.entries()).map(([cat, perms]) => {
                     if (perms.length === 0) return null
                     return (
-                      <div key={cat} style={{ background: '#121C16', border: '1px solid #1B2E24', borderRadius: 8, padding: 12 }}>
-                        <div style={{ fontSize: '0.74rem', color: '#10B981', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+                      <div key={cat} className="ar-perm-group">
+                        <div className="ar-label ar-label--accent">
                           {cat} ({perms.length})
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <div className="ar-perm-list">
                           {perms.map((p) => (
-                            <div key={p.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: '0.8rem' }}>
-                              <CheckCircle2 size={14} style={{ color: '#10B981', flexShrink: 0, marginTop: 2 }} />
+                            <div key={p.id} className="ar-perm">
+                              <CheckCircle2 size={15} className="ar-perm__icon" />
                               <div>
-                                <span style={{ color: '#FFFFFF', fontWeight: 600 }}>{p.name}</span>
-                                <div style={{ color: '#9CA3AF', fontSize: '0.74rem' }}>{p.description}</div>
+                                <span className="ar-perm__name">{p.name}</span>
+                                <div className="ar-perm__desc">{p.description}</div>
                               </div>
                             </div>
                           ))}

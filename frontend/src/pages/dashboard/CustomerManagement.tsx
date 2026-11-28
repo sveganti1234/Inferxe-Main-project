@@ -346,15 +346,15 @@ export default function CustomerManagement() {
 
         {/* Online Customers */}
         <Tilt max={5} className="dash-stat-tilt">
-          <div className="dash-stat-card glass glass--lift" style={{ borderLeft: '3px solid #50e396' }}>
+          <div className="dash-stat-card glass glass--lift" style={{ borderLeft: '3px solid var(--cx-accent)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
               <span className="dash-stat-label engrave" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <span className="cust-pulse-dot" style={{ display: 'inline-block' }} />
                 Online Now
               </span>
-              <Radio size={16} style={{ color: '#50e396' }} />
+              <Radio size={16} style={{ color: 'var(--cx-accent)' }} />
             </div>
-            <div className="dash-stat-value readout" style={{ color: '#6ee0a1' }}>
+            <div className="dash-stat-value readout" style={{ color: 'var(--cx-accent)' }}>
               <Counter to={summary.online} />
             </div>
             <small style={{ color: 'var(--ink-4)', fontSize: '0.74rem', marginTop: 4, display: 'block' }}>
@@ -365,12 +365,12 @@ export default function CustomerManagement() {
 
         {/* Active Customers */}
         <Tilt max={5} className="dash-stat-tilt">
-          <div className="dash-stat-card glass glass--lift" style={{ borderLeft: '3px solid #06b6d4' }}>
+          <div className="dash-stat-card glass glass--lift" style={{ borderLeft: '3px solid var(--cx-info)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
               <span className="dash-stat-label engrave">Active Clients</span>
-              <Clock size={16} style={{ color: '#06b6d4' }} />
+              <Clock size={16} style={{ color: 'var(--cx-info)' }} />
             </div>
-            <div className="dash-stat-value readout" style={{ color: '#22d3ee' }}>
+            <div className="dash-stat-value readout" style={{ color: 'var(--cx-info)' }}>
               <Counter to={summary.active} />
             </div>
             <small style={{ color: 'var(--ink-4)', fontSize: '0.74rem', marginTop: 4, display: 'block' }}>
@@ -381,12 +381,12 @@ export default function CustomerManagement() {
 
         {/* Inactive Customers */}
         <Tilt max={5} className="dash-stat-tilt">
-          <div className="dash-stat-card glass glass--lift" style={{ borderLeft: '3px solid #f59e0b' }}>
+          <div className="dash-stat-card glass glass--lift" style={{ borderLeft: '3px solid var(--cx-warn)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
               <span className="dash-stat-label engrave">Inactive</span>
-              <UserX size={16} style={{ color: '#f59e0b' }} />
+              <UserX size={16} style={{ color: 'var(--cx-warn)' }} />
             </div>
-            <div className="dash-stat-value readout" style={{ color: '#fbbf24' }}>
+            <div className="dash-stat-value readout" style={{ color: 'var(--cx-warn)' }}>
               <Counter to={summary.inactive} />
             </div>
             <small style={{ color: 'var(--ink-4)', fontSize: '0.74rem', marginTop: 4, display: 'block' }}>
@@ -399,7 +399,7 @@ export default function CustomerManagement() {
       {/* ── Retention Notice Pill ── */}
       <div className="cust-retention-pill">
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.82rem', color: 'var(--ink-3)' }}>
-          <ShieldCheck size={16} style={{ color: 'var(--brand-hi, #50e396)' }} />
+          <ShieldCheck size={16} style={{ color: 'var(--brand-hi, var(--cx-accent))' }} />
           <span>
             <strong style={{ color: 'var(--ink)' }}>Persistent Customer Retention Policy:</strong> Inactive customers are retained permanently and never purged from the database. Activity statuses auto-update upon return.
           </span>
@@ -463,14 +463,14 @@ export default function CustomerManagement() {
                 borderRadius: 8,
                 fontSize: '0.84rem',
                 fontWeight: isActive ? 600 : 500,
-                color: isActive ? '#a3e635' : 'var(--ink-3)',
-                background: isActive ? 'rgba(118, 185, 0, 0.12)' : 'rgba(255, 255, 255, 0.03)',
-                border: isActive ? '1px solid rgba(163, 230, 53, 0.4)' : '1px solid rgba(255, 255, 255, 0.08)',
+                color: isActive ? 'var(--cx-accent)' : 'var(--ink-3)',
+                background: isActive ? 'rgba(118, 185, 0, 0.12)' : 'var(--cx-surface)',
+                border: isActive ? '1px solid rgba(163, 230, 53, 0.4)' : '1px solid var(--cx-border)',
                 cursor: 'pointer',
                 transition: 'all 0.18s ease',
               }}
             >
-              <Icon size={15} style={{ color: isActive ? '#a3e635' : 'var(--ink-4)' }} />
+              <Icon size={15} style={{ color: isActive ? 'var(--cx-accent)' : 'var(--ink-4)' }} />
               <span>{tab.label}</span>
               <span
                 style={{
@@ -478,8 +478,8 @@ export default function CustomerManagement() {
                   fontSize: '0.72rem',
                   padding: '2px 7px',
                   borderRadius: 10,
-                  background: isActive ? 'rgba(163, 230, 53, 0.22)' : 'rgba(255, 255, 255, 0.06)',
-                  color: isActive ? '#a3e635' : 'var(--ink-4)',
+                  background: isActive ? 'rgba(163, 230, 53, 0.22)' : 'var(--cx-surface)',
+                  color: isActive ? 'var(--cx-accent)' : 'var(--ink-4)',
                   fontWeight: 600,
                 }}
               >
@@ -662,7 +662,7 @@ export default function CustomerManagement() {
                     <tr key={c.customer_id} style={{ cursor: 'pointer' }} onClick={() => setSelectedCustomerId(c.customer_id)}>
                       <td>
                         <div className="dash-user-cell">
-                          <div className="dash-user-avatar" style={{ background: c.activity_status === 'Online' ? 'rgba(80, 227, 150, 0.18)' : undefined, color: c.activity_status === 'Online' ? '#6ee0a1' : undefined }}>
+                          <div className="dash-user-avatar" style={{ background: c.activity_status === 'Online' ? 'rgba(80, 227, 150, 0.18)' : undefined, color: c.activity_status === 'Online' ? 'var(--cx-accent)' : undefined }}>
                             {initials}
                           </div>
                           <div>
@@ -675,7 +675,7 @@ export default function CustomerManagement() {
                                     fontSize: '0.66rem',
                                     padding: '1px 6px',
                                     borderRadius: 4,
-                                    color: '#f59e0b',
+                                    color: 'var(--cx-warn)',
                                     borderColor: 'rgba(245, 158, 11, 0.3)',
                                     background: 'rgba(245, 158, 11, 0.1)',
                                     fontWeight: 600,
@@ -701,7 +701,7 @@ export default function CustomerManagement() {
                               fontSize: '0.74rem',
                               color: 'var(--ink-3)',
                               cursor: 'help',
-                              borderBottom: '1px dotted rgba(255, 255, 255, 0.25)',
+                              borderBottom: '1px dotted var(--cx-border)',
                             }}
                             title={`Cognito Member ID: ${c.cognito_sub}`}
                           >
@@ -717,7 +717,7 @@ export default function CustomerManagement() {
                             }}
                             title="Copy Cognito Member ID"
                           >
-                            {copiedId === `cid-${c.customer_id}` ? <Check size={12} style={{ color: '#50e396' }} /> : <Copy size={12} />}
+                            {copiedId === `cid-${c.customer_id}` ? <Check size={12} style={{ color: 'var(--cx-accent)' }} /> : <Copy size={12} />}
                           </button>
                         </div>
                       </td>
@@ -761,7 +761,7 @@ export default function CustomerManagement() {
             alignItems: 'center',
             justifyContent: 'space-between',
             padding: '12px 18px',
-            borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+            borderTop: '1px solid var(--cx-border)',
             fontSize: '0.8rem',
             color: 'var(--ink-3)',
             flexWrap: 'wrap',
@@ -848,8 +848,8 @@ export default function CustomerManagement() {
             ) : (
               <div className="cust-drawer-body">
                 {/* Header Profile Badge */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20, paddingBottom: 16, borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                  <div className="dash-user-avatar" style={{ width: 48, height: 48, fontSize: '1rem', background: '#50e396', color: '#08120d', fontWeight: 700 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20, paddingBottom: 16, borderBottom: '1px solid var(--cx-border)' }}>
+                  <div className="dash-user-avatar" style={{ width: 48, height: 48, fontSize: '1rem', background: 'var(--cx-accent)', color: 'var(--cx-surface)', fontWeight: 700 }}>
                     {detailsRecord.full_name
                       .split(' ')
                       .map((n) => n[0])
@@ -867,7 +867,7 @@ export default function CustomerManagement() {
                             fontSize: '0.68rem',
                             padding: '2px 8px',
                             borderRadius: 4,
-                            color: '#f59e0b',
+                            color: 'var(--cx-warn)',
                             borderColor: 'rgba(245, 158, 11, 0.3)',
                             background: 'rgba(245, 158, 11, 0.1)',
                             fontWeight: 600,
@@ -891,13 +891,13 @@ export default function CustomerManagement() {
                   </span>
                   <div className="well" style={{ padding: '14px 16px', borderRadius: 8, display: 'flex', flexDirection: 'column', gap: 10, fontSize: '0.82rem' }}>
                     {/* Customer Name */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 6, borderBottom: '1px solid var(--cx-border)' }}>
                       <span style={{ color: 'var(--ink-4)' }}>Customer Name:</span>
                       <strong style={{ color: 'var(--ink)', fontSize: '0.86rem' }}>{detailsRecord.full_name || 'Name not provided'}</strong>
                     </div>
 
                     {/* Customer ID */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 6, borderBottom: '1px solid var(--cx-border)' }}>
                       <span style={{ color: 'var(--ink-4)' }}>Customer ID:</span>
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                         <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--ink)' }}>
@@ -910,13 +910,13 @@ export default function CustomerManagement() {
                           onClick={() => handleCopy(detailsRecord.customer_id, `drawer-cid-${detailsRecord.customer_id}`)}
                           title="Copy Customer ID"
                         >
-                          {copiedId === `drawer-cid-${detailsRecord.customer_id}` ? <Check size={12} style={{ color: '#50e396' }} /> : <Copy size={12} />}
+                          {copiedId === `drawer-cid-${detailsRecord.customer_id}` ? <Check size={12} style={{ color: 'var(--cx-accent)' }} /> : <Copy size={12} />}
                         </button>
                       </div>
                     </div>
 
                     {/* Email Address */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 6, borderBottom: '1px solid var(--cx-border)' }}>
                       <span style={{ color: 'var(--ink-4)' }}>Email Address:</span>
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                         <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.8rem', color: 'var(--ink)' }}>
@@ -929,16 +929,16 @@ export default function CustomerManagement() {
                           onClick={() => handleCopy(detailsRecord.email, `drawer-email-${detailsRecord.email}`)}
                           title="Copy Email Address"
                         >
-                          {copiedId === `drawer-email-${detailsRecord.email}` ? <Check size={12} style={{ color: '#50e396' }} /> : <Copy size={12} />}
+                          {copiedId === `drawer-email-${detailsRecord.email}` ? <Check size={12} style={{ color: 'var(--cx-accent)' }} /> : <Copy size={12} />}
                         </button>
                       </div>
                     </div>
 
                     {/* Cognito Member ID */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 6, borderBottom: '1px solid var(--cx-border)' }}>
                       <span style={{ color: 'var(--ink-4)' }}>Cognito Member ID:</span>
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: '#a3e635', fontWeight: 600 }}>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--cx-accent)', fontWeight: 600 }}>
                           {detailsRecord.cognito_sub}
                         </span>
                         <button
@@ -948,13 +948,13 @@ export default function CustomerManagement() {
                           onClick={() => handleCopy(detailsRecord.cognito_sub, `drawer-sub-${detailsRecord.cognito_sub}`)}
                           title="Copy Cognito Member ID"
                         >
-                          {copiedId === `drawer-sub-${detailsRecord.cognito_sub}` ? <Check size={12} style={{ color: '#76b900' }} /> : <Copy size={12} />}
+                          {copiedId === `drawer-sub-${detailsRecord.cognito_sub}` ? <Check size={12} style={{ color: 'var(--cx-accent)' }} /> : <Copy size={12} />}
                         </button>
                       </div>
                     </div>
 
                     {/* Display Customer ID */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 6, borderBottom: '1px solid var(--cx-border)' }}>
                       <span style={{ color: 'var(--ink-4)' }}>Display Customer ID:</span>
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                         <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.78rem', color: 'var(--ink-3)' }}>
@@ -967,13 +967,13 @@ export default function CustomerManagement() {
                           onClick={() => handleCopy(detailsRecord.customer_id, `drawer-cid-${detailsRecord.customer_id}`)}
                           title="Copy Display Customer ID"
                         >
-                          {copiedId === `drawer-cid-${detailsRecord.customer_id}` ? <Check size={12} style={{ color: '#76b900' }} /> : <Copy size={12} />}
+                          {copiedId === `drawer-cid-${detailsRecord.customer_id}` ? <Check size={12} style={{ color: 'var(--cx-accent)' }} /> : <Copy size={12} />}
                         </button>
                       </div>
                     </div>
 
                     {/* Account Classification */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 6, borderBottom: '1px solid var(--cx-border)' }}>
                       <span style={{ color: 'var(--ink-4)' }}>Account Classification:</span>
                       <span
                         className={detailsRecord.is_test_account ? 'tag tag--clay' : 'tag tag--emerald'}
@@ -984,7 +984,7 @@ export default function CustomerManagement() {
                     </div>
 
                     {/* Organization */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 6, borderBottom: '1px solid var(--cx-border)' }}>
                       <span style={{ color: 'var(--ink-4)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                         <Building2 size={13} /> Organization:
                       </span>
@@ -994,13 +994,13 @@ export default function CustomerManagement() {
                     </div>
 
                     {/* Account Status */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 6, borderBottom: '1px solid var(--cx-border)' }}>
                       <span style={{ color: 'var(--ink-4)' }}>Account Status:</span>
                       <span className="tag tag--clay" style={{ textTransform: 'capitalize' }}>{detailsRecord.account_status}</span>
                     </div>
 
                     {/* Activity Status */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 6, borderBottom: '1px solid var(--cx-border)' }}>
                       <span style={{ color: 'var(--ink-4)' }}>Activity Status:</span>
                       <div>
                         {renderStatusBadge(detailsRecord.activity_status)}
@@ -1008,7 +1008,7 @@ export default function CustomerManagement() {
                     </div>
 
                     {/* Registration Date */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 6, borderBottom: '1px solid var(--cx-border)' }}>
                       <span style={{ color: 'var(--ink-4)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                         <Calendar size={13} /> Registration Date:
                       </span>
@@ -1019,7 +1019,7 @@ export default function CustomerManagement() {
                     </div>
 
                     {/* Last Login */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 6, borderBottom: '1px solid var(--cx-border)' }}>
                       <span style={{ color: 'var(--ink-4)' }}>Last Login:</span>
                       <div style={{ textAlign: 'right' }}>
                         <div style={{ fontWeight: 500, color: detailsRecord.last_login_at ? 'var(--ink)' : 'var(--ink-4)' }}>
@@ -1032,10 +1032,10 @@ export default function CustomerManagement() {
                     </div>
 
                     {/* Last Active */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 6, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: 6, borderBottom: '1px solid var(--cx-border)' }}>
                       <span style={{ color: 'var(--ink-4)' }}>Last Active:</span>
                       <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontWeight: 600, color: detailsRecord.last_active_at ? (detailsRecord.activity_status === 'Online' ? '#a3e635' : (detailsRecord.activity_status === 'Active' ? '#22d3ee' : '#fbbf24')) : 'var(--ink-4)' }}>
+                        <div style={{ fontWeight: 600, color: detailsRecord.last_active_at ? (detailsRecord.activity_status === 'Online' ? 'var(--cx-accent)' : (detailsRecord.activity_status === 'Active' ? 'var(--cx-info)' : 'var(--cx-warn)')) : 'var(--ink-4)' }}>
                           {detailsRecord.last_active_at ? formatRelativeTime(detailsRecord.last_active_at) : 'No activity recorded'}
                         </div>
                         {detailsRecord.last_active_at && (
@@ -1065,7 +1065,7 @@ export default function CustomerManagement() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ color: 'var(--ink-4)' }}>AWS Cognito Sub:</span>
                       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.76rem', color: '#a3e635' }}>{detailsRecord.cognito_sub}</span>
+                        <span style={{ fontFamily: 'var(--font-mono)', fontSize: '0.76rem', color: 'var(--cx-accent)' }}>{detailsRecord.cognito_sub}</span>
                         <button
                           type="button"
                           className="dash-btn-ghost"
@@ -1073,7 +1073,7 @@ export default function CustomerManagement() {
                           onClick={() => handleCopy(detailsRecord.cognito_sub, `tech-sub-${detailsRecord.cognito_sub}`)}
                           title="Copy Cognito Member ID"
                         >
-                          {copiedId === `tech-sub-${detailsRecord.cognito_sub}` ? <Check size={12} style={{ color: '#76b900' }} /> : <Copy size={12} />}
+                          {copiedId === `tech-sub-${detailsRecord.cognito_sub}` ? <Check size={12} style={{ color: 'var(--cx-accent)' }} /> : <Copy size={12} />}
                         </button>
                       </div>
                     </div>
@@ -1126,7 +1126,7 @@ export default function CustomerManagement() {
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 90, overflowY: 'auto' }}>
                           {detailsRecord.previous_logins.slice(0, 6).map((ts, idx) => (
                             <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.74rem', fontFamily: 'var(--font-mono)' }}>
-                              <span style={{ color: idx === 0 ? '#6ee0a1' : 'var(--ink-3)' }}>
+                              <span style={{ color: idx === 0 ? 'var(--cx-accent)' : 'var(--ink-3)' }}>
                                 {formatDateTime(ts)}
                               </span>
                               <span style={{ color: 'var(--ink-4)' }}>{formatRelativeTime(ts)}</span>
@@ -1158,7 +1158,7 @@ export default function CustomerManagement() {
                     </div>
                     <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                       <span style={{ color: 'var(--ink-4)' }}>Calculated Activity State:</span>
-                      <span style={{ fontWeight: 600, color: detailsRecord.activity_status === 'Online' ? '#6ee0a1' : (detailsRecord.activity_status === 'Active' ? '#5eead4' : '#fbbf24') }}>
+                      <span style={{ fontWeight: 600, color: detailsRecord.activity_status === 'Online' ? 'var(--cx-accent)' : (detailsRecord.activity_status === 'Active' ? 'var(--cx-info)' : 'var(--cx-warn)') }}>
                         {detailsRecord.activity_status}
                       </span>
                     </div>
@@ -1182,8 +1182,8 @@ export default function CustomerManagement() {
                     ) : (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                         {detailsRecord.activity_logs.map((log) => (
-                          <div key={log.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: '0.78rem', paddingBottom: 8, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                            <Activity size={14} style={{ color: log.event_type === 'login' ? '#50e396' : (log.event_type === 'registration' ? '#5eead4' : '#f59e0b'), marginTop: 2, flexShrink: 0 }} />
+                          <div key={log.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: '0.78rem', paddingBottom: 8, borderBottom: '1px solid var(--cx-border)' }}>
+                            <Activity size={14} style={{ color: log.event_type === 'login' ? 'var(--cx-accent)' : (log.event_type === 'registration' ? 'var(--cx-info)' : 'var(--cx-warn)'), marginTop: 2, flexShrink: 0 }} />
                             <div style={{ flex: 1 }}>
                               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                                 <strong style={{ textTransform: 'capitalize', color: 'var(--ink)' }}>{log.event_type}</strong>

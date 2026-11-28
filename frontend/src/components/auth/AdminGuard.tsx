@@ -7,6 +7,7 @@ import {
   verifyAdminSessionWithDetails,
   isDevelopmentBypassToken,
   isSessionVerifiedRecently,
+  isSigningOutRedirect,
 } from '../../lib/authStore'
 
 interface AdminGuardProps {
@@ -33,7 +34,14 @@ export function AdminGuard({ children }: AdminGuardProps) {
   useEffect(() => {
     let isMounted = true
 
-    const validateAdminAccess = async () => {
+    const validateAdminAccess = async (forceVerify = false) => {
+      // Explicit sign-out via performSignOut() already calls window.location.replace('/login') once it finishes.
+      // Avoid triggering a simultaneous React Router <Navigate to="/login"> that would mount and reload /login twice.
+      if (isSigningOutRedirect()) {
+        if (isMounted) setAuthState('checking')
+        return
+      }
+
       const session = getSession()
 
       // 1. Must have an active session
@@ -50,13 +58,13 @@ export function AdminGuard({ children }: AdminGuardProps) {
       }
 
       // If already verified within TTL, skip redundant network round-trip on every route change
-      if (isSessionVerifiedRecently(session.token)) {
+      if (!forceVerify && isSessionVerifiedRecently(session.token)) {
         if (isMounted) setAuthState('authorized')
         return
       }
 
       // 3. Authoritative server-side DB-backed session verification
-      const verification = await verifyAdminSessionWithDetails(session.token)
+      const verification = await verifyAdminSessionWithDetails(session.token, forceVerify)
       if (!isMounted) return
 
       const verifiedRole = getPortalRole(verification.user?.role)
@@ -69,9 +77,21 @@ export function AdminGuard({ children }: AdminGuardProps) {
     }
 
     void validateAdminAccess()
+    // Re-evaluate when the session changes elsewhere (sign-out, revocation, another tab), matching CustomerGuard.
+    const onAuthChange = () => void validateAdminAccess()
+    window.addEventListener('inferxe_auth_change', onAuthChange)
+    window.addEventListener('storage', onAuthChange)
+    // Back/forward navigation can restore a stale page from the bfcache: re-verify the session then.
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) void validateAdminAccess(true)
+    }
+    window.addEventListener('pageshow', onPageShow)
 
     return () => {
       isMounted = false
+      window.removeEventListener('pageshow', onPageShow)
+      window.removeEventListener('inferxe_auth_change', onAuthChange)
+      window.removeEventListener('storage', onAuthChange)
     }
   }, [location.pathname])
 

@@ -286,17 +286,13 @@ export default function AdminPermissions() {
         )}
 
         {/* ── 3. Architecture Notice ────────────────────────── */}
-        <div
-          className="sa-demo-banner"
-          style={{ borderColor: 'rgba(80, 227, 150, 0.3)', background: 'rgba(80, 227, 150, 0.05)', marginBottom: 20 }}
-          role="status"
-        >
-          <ShieldCheck size={18} style={{ color: '#50e396', flexShrink: 0, marginTop: 1 }} />
+        <div className="ar-notice" role="status">
+          <span className="ar-notice__icon" aria-hidden="true"><ShieldCheck size={18} /></span>
           <div>
-            <strong style={{ color: '#50e396' }}>Platform Permission Architecture:</strong>
-            <div style={{ marginTop: 2, color: '#cbd5e1', fontSize: '0.8rem', lineHeight: 1.45 }}>
+            <strong className="ar-notice__title">Platform permission architecture</strong>
+            <p className="ar-notice__body">
               Platform authorization is anchored by 21 canonical capabilities. The <strong>Super Admin</strong> role possesses all 21 permissions, while standard <strong>Admin</strong> accounts receive 10 operational permissions for tenant, workload, and telemetry management.
-            </div>
+            </p>
           </div>
         </div>
 
@@ -326,7 +322,7 @@ export default function AdminPermissions() {
             </div>
             <div className="sa-kpi-card__value">21 / 21</div>
             <div className="sa-kpi-card__subtext">
-              <span style={{ color: '#38bdf8' }}>100% Platform Access Scope</span>
+              <span className="ar-tone--info">100% Platform Access Scope</span>
             </div>
           </div>
 
@@ -340,7 +336,7 @@ export default function AdminPermissions() {
             </div>
             <div className="sa-kpi-card__value">10 / 21</div>
             <div className="sa-kpi-card__subtext">
-              <span style={{ color: '#10b981' }}>Operations, Telemetry & Billing</span>
+              <span className="ar-tone--accent">Operations, Telemetry &amp; Billing</span>
             </div>
           </div>
 
@@ -354,7 +350,7 @@ export default function AdminPermissions() {
             </div>
             <div className="sa-kpi-card__value">11 Permissions</div>
             <div className="sa-kpi-card__subtext">
-              <span style={{ color: '#c084fc' }}>Admin Management, RBAC, Sessions</span>
+              <span className="ar-tone--violet">Admin Management, RBAC, Sessions</span>
             </div>
           </div>
         </div>
@@ -432,87 +428,38 @@ export default function AdminPermissions() {
 
         {/* ── 6. Permissions Matrix Table ────────────────────── */}
         {isLoading && adminAccounts.length === 0 ? (
-          <div
-            style={{
-              padding: '60px 20px',
-              textAlign: 'center',
-              background: 'rgba(10, 24, 18, 0.4)',
-              border: '1px solid rgba(80, 227, 150, 0.12)',
-              borderRadius: 14,
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 12,
-            }}
-          >
-            <RotateCcw size={24} style={{ color: '#50e396', animation: 'spin 1.2s linear infinite' }} />
-            <div style={{ color: '#94a3b8', fontSize: '0.88rem' }}>
-              Querying platform permission matrix and role assignments...
-            </div>
+          <div className="ar-state">
+            <RotateCcw size={24} className="ar-state__icon ar-spin" />
+            <div className="ar-state__body">Querying platform permission matrix and role assignments...</div>
           </div>
         ) : filteredPermissions.length === 0 ? (
-          <div
-            style={{
-              padding: '48px 20px',
-              textAlign: 'center',
-              background: 'rgba(10, 24, 18, 0.4)',
-              border: '1px solid rgba(255, 255, 255, 0.08)',
-              borderRadius: 14,
-            }}
-          >
-            <Sliders size={28} style={{ color: '#94a3b8', margin: '0 auto 12px', opacity: 0.5 }} />
-            <h3 style={{ margin: '0 0 6px', color: '#e2e8f0', fontSize: '1rem' }}>No Permissions Match</h3>
-            <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.82rem' }}>
-              Try adjusting your search query or selecting a different filter.
-            </p>
+          <div className="ar-state">
+            <Sliders size={28} className="ar-state__icon" />
+            <h3 className="ar-state__title">No Permissions Match</h3>
+            <p className="ar-state__body">Try adjusting your search query or selecting a different filter.</p>
           </div>
         ) : (
-          <div
-            style={{
-              background: '#0F1612',
-              border: '1px solid #1B2E24',
-              borderRadius: 12,
-              overflow: 'hidden',
-              boxShadow: '0 4px 24px rgba(0, 0, 0, 0.4)',
-            }}
-          >
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.84rem' }}>
+          <div className="pm-card">
+            <div className="pm-scroll">
+              <table className="pm-table">
                 <thead>
-                  <tr style={{ borderBottom: '1px solid #1B2E24', background: '#0A120E' }}>
-                    <th style={{ padding: '14px 16px', color: '#9CA3AF', fontWeight: 600, fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.06em', width: '48%' }}>
-                      Canonical Permission & Scope
-                    </th>
-                    <th style={{ padding: '14px 16px', color: '#9CA3AF', fontWeight: 600, fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.06em', width: '18%' }}>
-                      Category
-                    </th>
-                    <th style={{ padding: '14px 16px', color: '#00FF88', fontWeight: 600, fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'center', width: '17%' }}>
-                      Super Admin
-                    </th>
-                    <th style={{ padding: '14px 16px', color: '#38BDF8', fontWeight: 600, fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'center', width: '17%' }}>
-                      Admin
-                    </th>
+                  <tr>
+                    <th style={{ width: '48%' }}>Canonical permission &amp; scope</th>
+                    <th style={{ width: '18%' }}>Category</th>
+                    <th className="pm-col-role pm-tone--super" style={{ width: '17%' }}>Super Admin</th>
+                    <th className="pm-col-role pm-tone--admin" style={{ width: '17%' }}>Admin</th>
                   </tr>
                 </thead>
                 <tbody>
                   {categorizedPermissions.map(([category, perms]) => (
                     <Fragment key={category}>
                       {/* Category Header Row */}
-                      <tr style={{ background: 'rgba(255, 255, 255, 0.02)', borderBottom: '1px solid #152219' }}>
-                        <td
-                          colSpan={4}
-                          style={{
-                            padding: '10px 16px',
-                            fontWeight: 700,
-                            fontSize: '0.76rem',
-                            color: '#10B981',
-                            letterSpacing: '0.04em',
-                            textTransform: 'uppercase',
-                          }}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <tr className="pm-group-row">
+                        <td colSpan={4}>
+                          <div className="pm-group">
                             {getCategoryIcon(category)}
-                            <span>{category} ({perms.length})</span>
+                            <span>{category}</span>
+                            <em>{perms.length}</em>
                           </div>
                         </td>
                       </tr>
@@ -525,110 +472,44 @@ export default function AdminPermissions() {
                         return (
                           <tr
                             key={p.id}
-                            style={{
-                              borderBottom: '1px solid #152219',
-                              transition: 'background 0.15s',
-                              cursor: 'pointer',
-                            }}
+                            className="pm-row"
                             onClick={() => setSelectedPermission(p)}
                             title="Click to inspect permission details and affected administrators"
                           >
                             {/* Permission Name & Code */}
-                            <td style={{ padding: '12px 16px' }}>
-                              <div style={{ fontWeight: 600, color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: 6 }}>
-                                <span>{p.name}</span>
-                              </div>
-                              <div style={{ color: '#9CA3AF', fontSize: '0.74rem', marginTop: 2 }}>
-                                {p.description}
-                              </div>
-                              <div style={{ marginTop: 4 }}>
-                                <code
-                                  style={{
-                                    fontFamily: 'var(--font-mono)',
-                                    fontSize: '0.7rem',
-                                    color: '#6EE7B7',
-                                    background: 'rgba(0, 255, 136, 0.08)',
-                                    padding: '1px 6px',
-                                    borderRadius: 3,
-                                  }}
-                                >
-                                  {p.id}
-                                </code>
-                              </div>
+                            <td>
+                              <div className="pm-name">{p.name}</div>
+                              <div className="pm-desc">{p.description}</div>
+                              <code className="pm-code">{p.id}</code>
                             </td>
 
                             {/* Category Badge */}
-                            <td style={{ padding: '12px 16px' }}>
-                              <span
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: 6,
-                                  color: '#CBD5E1',
-                                  fontSize: '0.74rem',
-                                  background: 'rgba(255, 255, 255, 0.04)',
-                                  padding: '3px 8px',
-                                  borderRadius: 4,
-                                  border: '1px solid rgba(255, 255, 255, 0.08)',
-                                }}
-                              >
+                            <td>
+                              <span className="pm-cat">
                                 {getCategoryIcon(p.category)}
                                 <span>{p.category}</span>
                               </span>
                             </td>
 
                             {/* Super Admin Column */}
-                            <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                            <td className="pm-col-role">
                               {hasSuper ? (
-                                <span
-                                  style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    width: 24,
-                                    height: 24,
-                                    borderRadius: '50%',
-                                    background: 'rgba(0, 255, 136, 0.15)',
-                                    color: '#00FF88',
-                                  }}
-                                  title="Granted to Super Admin"
-                                >
+                                <span className="pm-check pm-tone--super" title="Granted to Super Admin">
                                   <Check size={14} />
                                 </span>
                               ) : (
-                                <span style={{ color: '#4B5563' }}>—</span>
+                                <span className="pm-none">—</span>
                               )}
                             </td>
 
                             {/* Standard Admin Column */}
-                            <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                            <td className="pm-col-role">
                               {hasAdmin ? (
-                                <span
-                                  style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    width: 24,
-                                    height: 24,
-                                    borderRadius: '50%',
-                                    background: 'rgba(56, 189, 248, 0.15)',
-                                    color: '#38BDF8',
-                                  }}
-                                  title="Granted to Standard Admin"
-                                >
+                                <span className="pm-check pm-tone--admin" title="Granted to Standard Admin">
                                   <Check size={14} />
                                 </span>
                               ) : (
-                                <span
-                                  style={{
-                                    color: '#4B5563',
-                                    fontSize: '0.75rem',
-                                    fontFamily: 'var(--font-mono)',
-                                  }}
-                                  title="Restricted from Standard Admin"
-                                >
-                                  —
-                                </span>
+                                <span className="pm-none" title="Restricted from Standard Admin">—</span>
                               )}
                             </td>
                           </tr>
@@ -662,30 +543,19 @@ export default function AdminPermissions() {
               >
                 <div className="sa-modal-header">
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div
-                      style={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: 8,
-                        background: 'rgba(80, 227, 150, 0.15)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        color: '#50e396',
-                      }}
-                    >
+                    <div className="sa-modal-icon-wrap--success">
                       <Sliders size={18} />
                     </div>
                     <div>
                       <h3 className="sa-modal-title">{selectedPermission.name}</h3>
-                      <div style={{ color: '#9CA3AF', fontSize: '0.74rem' }}>
+                      <div>
                         <code>{selectedPermission.id}</code>
                       </div>
                     </div>
                   </div>
                   <button
                     type="button"
-                    className="sa-modal-close"
+                    className="sa-modal-close sa-modal-close-btn"
                     onClick={() => setSelectedPermission(null)}
                     aria-label="Close"
                   >
@@ -694,63 +564,41 @@ export default function AdminPermissions() {
                 </div>
 
                 <div className="sa-modal-body">
-                  <p style={{ margin: '0 0 16px', color: '#CBD5E1', fontSize: '0.86rem', lineHeight: 1.5 }}>
-                    {selectedPermission.description}
-                  </p>
+                  <p className="ar-card__desc">{selectedPermission.description}</p>
 
-                  <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
-                    <div style={{ background: '#121C16', border: '1px solid #1B2E24', borderRadius: 6, padding: '8px 12px', flex: 1 }}>
-                      <div style={{ fontSize: '0.7rem', color: '#9CA3AF', textTransform: 'uppercase' }}>Category</div>
-                      <div style={{ fontSize: '0.84rem', fontWeight: 600, color: '#FFFFFF', marginTop: 2 }}>
-                        {selectedPermission.category}
-                      </div>
+                  <div className="ar-card__stats">
+                    <div className="ar-stat">
+                      <span>Category</span>
+                      <strong>{selectedPermission.category}</strong>
                     </div>
-                    <div style={{ background: '#121C16', border: '1px solid #1B2E24', borderRadius: 6, padding: '8px 12px', flex: 1 }}>
-                      <div style={{ fontSize: '0.7rem', color: '#9CA3AF', textTransform: 'uppercase' }}>Scope</div>
-                      <div style={{ fontSize: '0.84rem', fontWeight: 600, color: standardAdminRole.permissions.includes(selectedPermission.id) ? '#38BDF8' : '#00FF88', marginTop: 2 }}>
+                    <div className="ar-stat">
+                      <span>Scope</span>
+                      <strong className={standardAdminRole.permissions.includes(selectedPermission.id) ? 'pm-tone--admin' : 'pm-tone--super'}>
                         {standardAdminRole.permissions.includes(selectedPermission.id) ? 'All Admin Roles' : 'Super Admin Only'}
-                      </div>
+                      </strong>
                     </div>
                   </div>
 
                   {/* Active Administrators with this Permission */}
                   <div>
-                    <h4 style={{ fontSize: '0.84rem', fontWeight: 700, color: '#FFFFFF', margin: '0 0 8px' }}>
-                      Administrators Granted This Permission ({adminsWithSelectedPerm.length})
+                    <h4 className="ar-modal__heading">
+                      Administrators granted this permission ({adminsWithSelectedPerm.length})
                     </h4>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      {adminsWithSelectedPerm.map((adm) => (
-                        <div
-                          key={adm.id}
-                          style={{
-                            background: '#121C16',
-                            border: '1px solid #1B2E24',
-                            borderRadius: 6,
-                            padding: '8px 12px',
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                          }}
-                        >
-                          <div>
-                            <div style={{ color: '#FFFFFF', fontWeight: 600, fontSize: '0.8rem' }}>{adm.fullName}</div>
-                            <div style={{ color: '#9CA3AF', fontSize: '0.72rem' }}>{adm.email}</div>
+                    <div className="pm-admins">
+                      {adminsWithSelectedPerm.map((adm) => {
+                        const isSuperAdm = adm.isSuperAdmin || adm.role === 'superadmin'
+                        return (
+                          <div key={adm.id} className="pm-admin">
+                            <div>
+                              <div className="pm-admin__name">{adm.fullName}</div>
+                              <div className="pm-admin__email">{adm.email}</div>
+                            </div>
+                            <span className={`pm-role ${isSuperAdm ? 'pm-tone--super' : 'pm-tone--admin'}`}>
+                              {isSuperAdm ? 'Super Admin' : 'Admin'}
+                            </span>
                           </div>
-                          <span
-                            style={{
-                              background: adm.isSuperAdmin || adm.role === 'superadmin' ? 'rgba(0, 255, 136, 0.12)' : 'rgba(56, 189, 248, 0.12)',
-                              color: adm.isSuperAdmin || adm.role === 'superadmin' ? '#00FF88' : '#38BDF8',
-                              padding: '2px 8px',
-                              borderRadius: 4,
-                              fontSize: '0.7rem',
-                              fontWeight: 600,
-                              textTransform: 'uppercase',
-                            }}
-                          >
-                            {adm.isSuperAdmin || adm.role === 'superadmin' ? 'Super Admin' : 'Admin'}
-                          </span>
-                        </div>
-                      ))}
+                        )
+                      })}
                     </div>
                   </div>
                 </div>

@@ -63,17 +63,17 @@ const ALL_CATEGORIES: ActivityCategory[] = [
 function getCategoryIcon(category: ActivityCategory) {
   switch (category) {
     case 'Admin Accounts':
-      return <Users size={14} style={{ color: '#22d3ee' }} />
+      return <Users size={14} style={{ color: 'var(--cx-info)' }} />
     case 'Role Management':
-      return <KeyRound size={14} style={{ color: '#34d399' }} />
+      return <KeyRound size={14} style={{ color: 'var(--cx-accent)' }} />
     case 'Permission Changes':
-      return <Sliders size={14} style={{ color: '#c084fc' }} />
+      return <Sliders size={14} style={{ color: 'var(--cx-violet)' }} />
     case 'Security':
-      return <Shield size={14} style={{ color: '#f87171' }} />
+      return <Shield size={14} style={{ color: 'var(--cx-danger)' }} />
     case 'Platform Operations':
-      return <Cpu size={14} style={{ color: '#fbbf24' }} />
+      return <Cpu size={14} style={{ color: 'var(--cx-warn)' }} />
     default:
-      return <Activity size={14} style={{ color: '#94a3b8' }} />
+      return <Activity size={14} style={{ color: 'var(--cx-text-3)' }} />
   }
 }
 
@@ -111,14 +111,14 @@ function getSeverityBadgeClass(severity: ActivitySeverity) {
 function getSeverityDotColor(severity: ActivitySeverity) {
   switch (severity) {
     case 'critical':
-      return '#ef4444'
+      return 'var(--cx-danger)'
     case 'warning':
-      return '#f59e0b'
+      return 'var(--cx-warn)'
     case 'success':
-      return '#50e396'
+      return 'var(--cx-accent)'
     case 'info':
     default:
-      return '#38bdf8'
+      return 'var(--cx-info)'
   }
 }
 
@@ -736,7 +736,7 @@ export default function AdminActivity() {
           display: 'flex',
           gap: 10,
           margin: '20px 0 16px 0',
-          borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+          borderBottom: '1px solid var(--cx-border)',
           paddingBottom: 14,
           alignItems: 'center',
           flexWrap: 'wrap',
@@ -774,7 +774,7 @@ export default function AdminActivity() {
           <span
             style={{
               background: activeTab === 'sessions' ? 'rgba(0, 0, 0, 0.3)' : 'rgba(80, 227, 150, 0.18)',
-              color: activeTab === 'sessions' ? 'inherit' : '#50e396',
+              color: activeTab === 'sessions' ? 'inherit' : 'var(--cx-accent)',
               borderRadius: 10,
               padding: '2px 8px',
               fontSize: '0.72rem',
@@ -878,7 +878,7 @@ export default function AdminActivity() {
               <AlertTriangle size={18} />
             </div>
           </div>
-          <div className="sa-kpi-val" style={{ color: '#ef4444' }}>
+          <div className="sa-kpi-val" style={{ color: 'var(--cx-danger)' }}>
             {kpiStats.criticalCount}
           </div>
           <div className="sa-kpi-sub">
@@ -897,7 +897,7 @@ export default function AdminActivity() {
       >
         <div className="sa-analytics-header">
           <div className="sa-analytics-title">
-            <BarChart3 size={18} style={{ color: '#50e396' }} />
+            <BarChart3 size={18} style={{ color: 'var(--cx-accent)' }} />
             <span>Activity Telemetry & Breakdown</span>
           </div>
           <button
@@ -931,7 +931,7 @@ export default function AdminActivity() {
               <div className="sa-analytics-subcard">
                 <div className="sa-analytics-subcard-title">
                   <span>Activity Trends (Past 7 Days)</span>
-                  <Calendar size={13} style={{ color: '#50e396' }} />
+                  <Calendar size={13} style={{ color: 'var(--cx-accent)' }} />
                 </div>
                 <div className="sa-bar-chart-wrap">
                   {analyticsData.trends.map((item, idx) => {
@@ -953,7 +953,7 @@ export default function AdminActivity() {
               <div className="sa-analytics-subcard">
                 <div className="sa-analytics-subcard-title">
                   <span>Most Active Administrators</span>
-                  <UserCheck size={13} style={{ color: '#22d3ee' }} />
+                  <UserCheck size={13} style={{ color: 'var(--cx-info)' }} />
                 </div>
                 <div className="sa-leaderboard">
                   {analyticsData.topAdmins.map((adm, i) => {
@@ -994,7 +994,7 @@ export default function AdminActivity() {
               <div className="sa-analytics-subcard">
                 <div className="sa-analytics-subcard-title">
                   <span>Category Distribution</span>
-                  <Layers size={13} style={{ color: '#c084fc' }} />
+                  <Layers size={13} style={{ color: 'var(--cx-violet)' }} />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                   {ALL_CATEGORIES.map((cat) => {
@@ -1018,14 +1018,14 @@ export default function AdminActivity() {
                               width: `${percent}%`,
                               background:
                                 cat === 'Admin Accounts'
-                                  ? '#22d3ee'
+                                  ? 'var(--cx-info)'
                                   : cat === 'Role Management'
-                                  ? '#34d399'
+                                  ? 'var(--cx-accent)'
                                   : cat === 'Permission Changes'
-                                  ? '#c084fc'
+                                  ? 'var(--cx-violet)'
                                   : cat === 'Security'
-                                  ? '#f87171'
-                                  : '#fbbf24',
+                                  ? 'var(--cx-danger)'
+                                  : 'var(--cx-warn)',
                             }}
                           />
                         </div>
@@ -1039,7 +1039,7 @@ export default function AdminActivity() {
               <div className="sa-analytics-subcard">
                 <div className="sa-analytics-subcard-title">
                   <span>Severity Breakdown</span>
-                  <AlertTriangle size={13} style={{ color: '#f87171' }} />
+                  <AlertTriangle size={13} style={{ color: 'var(--cx-danger)' }} />
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                   {(['critical', 'warning', 'info', 'success'] as ActivitySeverity[]).map((sev) => {
@@ -1195,12 +1195,12 @@ export default function AdminActivity() {
           marginBottom: 14,
           padding: '0 4px',
           fontSize: '0.8rem',
-          color: '#94a3b8',
+          color: 'var(--cx-text-3)',
         }}
       >
         <div>
           Showing{' '}
-          <strong style={{ color: '#50e396' }}>{filteredActivities.length}</strong>{' '}
+          <strong style={{ color: 'var(--cx-accent)' }}>{filteredActivities.length}</strong>{' '}
           {filteredActivities.length === 1 ? 'event' : 'events'}{' '}
           {activities.length !== filteredActivities.length && `(filtered from ${activities.length} total)`}
         </div>
@@ -1237,7 +1237,7 @@ export default function AdminActivity() {
       {/* ── 6. Activity Timeline Feed ─────────────────────────────────────── */}
       {isLoadingBackend && activities.length === 0 ? (
         <div className="sa-empty-state">
-          <div className="sa-empty-icon-wrap" style={{ background: 'rgba(80, 227, 150, 0.1)', color: '#50e396' }}>
+          <div className="sa-empty-icon-wrap" style={{ background: 'rgba(80, 227, 150, 0.1)', color: 'var(--cx-accent)' }}>
             <Activity size={24} style={{ animation: 'spin 1.2s linear infinite' }} />
           </div>
           <h3 className="sa-empty-title">Loading Activity Stream...</h3>
@@ -1247,7 +1247,7 @@ export default function AdminActivity() {
         </div>
       ) : paginatedActivities.length === 0 ? (
         <div className="sa-empty-state">
-          <div className="sa-empty-icon-wrap" style={{ background: 'rgba(80, 227, 150, 0.1)', color: '#50e396' }}>
+          <div className="sa-empty-icon-wrap" style={{ background: 'rgba(80, 227, 150, 0.1)', color: 'var(--cx-accent)' }}>
             <Activity size={24} />
           </div>
           <h3 className="sa-empty-title">No Activity Events Found</h3>
@@ -1352,13 +1352,13 @@ export default function AdminActivity() {
                       }}
                     >
                       {act.previousValue && (
-                        <span style={{ color: '#f87171' }}>
+                        <span style={{ color: 'var(--cx-danger)' }}>
                           <strong>Previous:</strong> {act.previousValue}
                         </span>
                       )}
-                      {act.previousValue && act.newValue && <span style={{ color: '#64748b' }}>→</span>}
+                      {act.previousValue && act.newValue && <span style={{ color: 'var(--cx-text-4)' }}>→</span>}
                       {act.newValue && (
-                        <span style={{ color: '#34d399' }}>
+                        <span style={{ color: 'var(--cx-accent)' }}>
                           <strong>New:</strong> {act.newValue}
                         </span>
                       )}
@@ -1460,7 +1460,7 @@ export default function AdminActivity() {
                   <Radio size={18} />
                 </div>
               </div>
-              <div className="sa-kpi-val" style={{ color: '#50e396' }}>
+              <div className="sa-kpi-val" style={{ color: 'var(--cx-accent)' }}>
                 {sessionStats.activeCount}
               </div>
               <div className="sa-kpi-sub">
@@ -1477,11 +1477,11 @@ export default function AdminActivity() {
             >
               <div className="sa-kpi-header">
                 <span className="sa-kpi-label">Expired Sessions</span>
-                <div className="sa-kpi-icon-wrap sa-stat-icon--amber" style={{ color: '#f59e0b', background: 'rgba(245, 158, 11, 0.15)' }}>
+                <div className="sa-kpi-icon-wrap sa-stat-icon--amber" style={{ color: 'var(--cx-warn)', background: 'rgba(245, 158, 11, 0.15)' }}>
                   <Clock size={18} />
                 </div>
               </div>
-              <div className="sa-kpi-val" style={{ color: '#fbbf24' }}>
+              <div className="sa-kpi-val" style={{ color: 'var(--cx-warn)' }}>
                 {sessionStats.expiredCount}
               </div>
               <div className="sa-kpi-sub">
@@ -1502,7 +1502,7 @@ export default function AdminActivity() {
                   <AlertOctagon size={18} />
                 </div>
               </div>
-              <div className="sa-kpi-val" style={{ color: '#ef4444' }}>
+              <div className="sa-kpi-val" style={{ color: 'var(--cx-danger)' }}>
                 {sessionStats.revokedCount}
               </div>
               <div className="sa-kpi-sub">
@@ -1608,16 +1608,16 @@ export default function AdminActivity() {
               <tbody>
                 {sessionLoading ? (
                   <tr>
-                    <td colSpan={6} style={{ textAlign: 'center', padding: '48px 16px', color: '#94a3b8' }}>
-                      <RotateCcw size={22} className="spin" style={{ margin: '0 auto 10px', display: 'block', color: '#50e396' }} />
+                    <td colSpan={6} style={{ textAlign: 'center', padding: '48px 16px', color: 'var(--cx-text-3)' }}>
+                      <RotateCcw size={22} className="spin" style={{ margin: '0 auto 10px', display: 'block', color: 'var(--cx-accent)' }} />
                       Loading live administrator sessions from Supabase...
                     </td>
                   </tr>
                 ) : filteredSessions.length === 0 ? (
                   <tr>
-                    <td colSpan={6} style={{ textAlign: 'center', padding: '48px 16px', color: '#94a3b8' }}>
+                    <td colSpan={6} style={{ textAlign: 'center', padding: '48px 16px', color: 'var(--cx-text-3)' }}>
                       <Laptop size={32} style={{ margin: '0 auto 10px', opacity: 0.4, display: 'block' }} />
-                      <div style={{ fontWeight: 600, color: '#e2e8f0' }}>No Administrator Sessions Found</div>
+                      <div style={{ fontWeight: 600, color: 'var(--cx-text-2)' }}>No Administrator Sessions Found</div>
                       <div style={{ fontSize: '0.8rem', marginTop: 4 }}>
                         {sessions.length === 0
                           ? 'No session records found in Supabase admin_sessions table.'
@@ -1645,14 +1645,14 @@ export default function AdminActivity() {
                             </div>
                             <div className="sa-user-meta" style={{ minWidth: 0 }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                <span className="sa-user-meta__name" style={{ color: '#ffffff', fontWeight: 600 }}>
+                                <span className="sa-user-meta__name" style={{ color: 'var(--cx-text)', fontWeight: 600 }}>
                                   {s.admin_name || acc?.fullName || s.admin_email.split('@')[0]}
                                 </span>
                                 <span className={isSuper ? 'chip chip--lime' : 'chip chip--cyan'} style={{ fontSize: '0.62rem', padding: '1px 6px' }}>
                                   {isSuper ? 'SUPER ADMIN' : 'ADMIN'}
                                 </span>
                               </div>
-                              <span className="sa-user-meta__dept" style={{ color: '#94a3b8', fontSize: '0.74rem' }}>
+                              <span className="sa-user-meta__dept" style={{ color: 'var(--cx-text-3)', fontSize: '0.74rem' }}>
                                 {s.admin_email}
                               </span>
                             </div>
@@ -1661,7 +1661,7 @@ export default function AdminActivity() {
 
                         <td>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                            <code style={{ fontSize: '0.74rem', color: '#cbd5e1', background: 'rgba(0,0,0,0.3)', padding: '2px 6px', borderRadius: 4 }}>
+                            <code style={{ fontSize: '0.74rem', color: 'var(--cx-text-2)', background: 'var(--cx-surface)', padding: '2px 6px', borderRadius: 4 }}>
                               {s.id.slice(0, 8)}...{s.id.slice(-6)}
                             </code>
                             <button
@@ -1669,11 +1669,11 @@ export default function AdminActivity() {
                               className="sa-copy-btn"
                               onClick={() => copyToClipboard(s.id, s.id)}
                               title="Copy Session ID"
-                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', padding: 2 }}
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--cx-text-4)', padding: 2 }}
                             >
-                              {copiedId === s.id ? <Check size={12} style={{ color: '#50e396' }} /> : <Copy size={12} />}
+                              {copiedId === s.id ? <Check size={12} style={{ color: 'var(--cx-accent)' }} /> : <Copy size={12} />}
                             </button>
-                            <span style={{ fontSize: '0.68rem', color: '#64748b' }}>v{s.session_version}</span>
+                            <span style={{ fontSize: '0.68rem', color: 'var(--cx-text-4)' }}>v{s.session_version}</span>
                           </div>
                         </td>
 
@@ -1688,8 +1688,8 @@ export default function AdminActivity() {
                                   width: 6,
                                   height: 6,
                                   borderRadius: '50%',
-                                  background: '#50e396',
-                                  boxShadow: '0 0 8px #50e396',
+                                  background: 'var(--cx-accent)',
+                                  boxShadow: '0 0 8px var(--cx-accent)',
                                 }}
                               />
                               ACTIVE
@@ -1704,7 +1704,7 @@ export default function AdminActivity() {
                                   width: 6,
                                   height: 6,
                                   borderRadius: '50%',
-                                  background: '#ef4444',
+                                  background: 'var(--cx-danger)',
                                 }}
                               />
                               REVOKED
@@ -1719,7 +1719,7 @@ export default function AdminActivity() {
                                   width: 6,
                                   height: 6,
                                   borderRadius: '50%',
-                                  background: '#f59e0b',
+                                  background: 'var(--cx-warn)',
                                 }}
                               />
                               EXPIRED
@@ -1727,11 +1727,11 @@ export default function AdminActivity() {
                           )}
                         </td>
 
-                        <td title={s.created_at} style={{ fontSize: '0.78rem', color: '#cbd5e1' }}>
+                        <td title={s.created_at} style={{ fontSize: '0.78rem', color: 'var(--cx-text-2)' }}>
                           {formatRelativeTime(s.created_at)}
                         </td>
 
-                        <td title={s.expires_at} style={{ fontSize: '0.78rem', color: '#cbd5e1' }}>
+                        <td title={s.expires_at} style={{ fontSize: '0.78rem', color: 'var(--cx-text-2)' }}>
                           {formatRelativeTime(s.expires_at)}
                         </td>
 
@@ -1750,7 +1750,7 @@ export default function AdminActivity() {
                                 gap: 5,
                                 padding: '4px 10px',
                                 fontSize: '0.74rem',
-                                color: '#f87171',
+                                color: 'var(--cx-danger)',
                                 border: '1px solid rgba(239, 68, 68, 0.4)',
                                 background: 'rgba(239, 68, 68, 0.1)',
                                 borderRadius: 6,
@@ -1762,7 +1762,7 @@ export default function AdminActivity() {
                               <span>Revoke Session</span>
                             </button>
                           ) : (
-                            <span style={{ fontSize: '0.74rem', color: '#64748b' }}>
+                            <span style={{ fontSize: '0.74rem', color: 'var(--cx-text-4)' }}>
                               {s.status === 'revoked' ? (
                                 <span title={s.revoked_at || undefined}>Revoked</span>
                               ) : (
@@ -1838,8 +1838,8 @@ export default function AdminActivity() {
                   </div>
                   <div>
                     <h3 className="sa-modal-title">Activity Event Details</h3>
-                    <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
-                      Event ID: <strong style={{ color: '#50e396', fontFamily: 'monospace' }}>{selectedEvent.id}</strong>
+                    <div style={{ fontSize: '0.74rem', color: 'var(--cx-text-3)' }}>
+                      Event ID: <strong style={{ color: 'var(--cx-accent)', fontFamily: 'monospace' }}>{selectedEvent.id}</strong>
                     </div>
                   </div>
                 </div>
@@ -1871,7 +1871,7 @@ export default function AdminActivity() {
                   </span>
                 </div>
 
-                <div style={{ fontSize: '1.05rem', fontWeight: 700, color: '#ffffff', marginTop: 4 }}>
+                <div style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--cx-text)', marginTop: 4 }}>
                   {selectedEvent.action}
                 </div>
 
@@ -1882,8 +1882,8 @@ export default function AdminActivity() {
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     padding: '10px 14px',
-                    background: 'rgba(0, 0, 0, 0.35)',
-                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    background: 'var(--cx-surface)',
+                    border: '1px solid var(--cx-border)',
                     borderRadius: 8,
                   }}
                 >
@@ -1900,10 +1900,10 @@ export default function AdminActivity() {
                       {selectedEvent.adminName.substring(0, 2).toUpperCase()}
                     </div>
                     <div>
-                      <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#ffffff' }}>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--cx-text)' }}>
                         {selectedEvent.adminName}
                       </div>
-                      <div style={{ fontSize: '0.75rem', color: '#94a3b8', fontFamily: 'monospace' }}>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--cx-text-3)', fontFamily: 'monospace' }}>
                         {selectedEvent.adminEmail}
                       </div>
                     </div>
@@ -1929,11 +1929,11 @@ export default function AdminActivity() {
                   <div
                     style={{
                       padding: '8px 12px',
-                      background: 'rgba(0, 0, 0, 0.45)',
+                      background: 'var(--cx-surface)',
                       border: '1px solid rgba(80, 227, 150, 0.2)',
                       borderRadius: 6,
                       fontSize: '0.82rem',
-                      color: '#50e396',
+                      color: 'var(--cx-accent)',
                       fontFamily: 'monospace',
                     }}
                   >
@@ -1947,12 +1947,12 @@ export default function AdminActivity() {
                     <div
                       style={{
                         fontSize: '0.82rem',
-                        color: '#cbd5e1',
+                        color: 'var(--cx-text-2)',
                         lineHeight: 1.5,
-                        background: 'rgba(255, 255, 255, 0.02)',
+                        background: 'var(--cx-surface)',
                         padding: '10px 12px',
                         borderRadius: 6,
-                        border: '1px solid rgba(255, 255, 255, 0.06)',
+                        border: '1px solid var(--cx-border)',
                       }}
                     >
                       {selectedEvent.description}
@@ -1995,15 +1995,15 @@ export default function AdminActivity() {
                     <div
                       style={{
                         padding: '8px 10px',
-                        background: 'rgba(0, 0, 0, 0.3)',
+                        background: 'var(--cx-surface)',
                         borderRadius: 6,
-                        border: '1px solid rgba(255, 255, 255, 0.05)',
+                        border: '1px solid var(--cx-border)',
                       }}
                     >
-                      <div style={{ color: '#64748b', fontSize: '0.68rem', fontWeight: 700 }}>
+                      <div style={{ color: 'var(--cx-text-4)', fontSize: '0.68rem', fontWeight: 700 }}>
                         ISO 8601 TIMESTAMP
                       </div>
-                      <div style={{ color: '#e2e8f0', fontFamily: 'monospace', marginTop: 2 }}>
+                      <div style={{ color: 'var(--cx-text-2)', fontFamily: 'monospace', marginTop: 2 }}>
                         {selectedEvent.isoTimestamp}
                       </div>
                     </div>
@@ -2011,15 +2011,15 @@ export default function AdminActivity() {
                     <div
                       style={{
                         padding: '8px 10px',
-                        background: 'rgba(0, 0, 0, 0.3)',
+                        background: 'var(--cx-surface)',
                         borderRadius: 6,
-                        border: '1px solid rgba(255, 255, 255, 0.05)',
+                        border: '1px solid var(--cx-border)',
                       }}
                     >
-                      <div style={{ color: '#64748b', fontSize: '0.68rem', fontWeight: 700 }}>
+                      <div style={{ color: 'var(--cx-text-4)', fontSize: '0.68rem', fontWeight: 700 }}>
                         CALLING SOURCE
                       </div>
-                      <div style={{ color: '#e2e8f0', marginTop: 2 }}>
+                      <div style={{ color: 'var(--cx-text-2)', marginTop: 2 }}>
                         {selectedEvent.source || 'Super Admin Portal'}
                       </div>
                     </div>
@@ -2028,15 +2028,15 @@ export default function AdminActivity() {
                       style={{
                         gridColumn: '1 / -1',
                         padding: '8px 10px',
-                        background: 'rgba(0, 0, 0, 0.3)',
+                        background: 'var(--cx-surface)',
                         borderRadius: 6,
-                        border: '1px solid rgba(255, 255, 255, 0.05)',
+                        border: '1px solid var(--cx-border)',
                       }}
                     >
-                      <div style={{ color: '#64748b', fontSize: '0.68rem', fontWeight: 700 }}>
+                      <div style={{ color: 'var(--cx-text-4)', fontSize: '0.68rem', fontWeight: 700 }}>
                         CLIENT IP & GEOLOCATION
                       </div>
-                      <div style={{ color: '#e2e8f0', fontFamily: 'monospace', marginTop: 2 }}>
+                      <div style={{ color: 'var(--cx-text-2)', fontFamily: 'monospace', marginTop: 2 }}>
                         {selectedEvent.ipAddress || '103.21.144.62 (Bengaluru, IN)'}
                       </div>
                     </div>
@@ -2050,7 +2050,7 @@ export default function AdminActivity() {
                   className="sa-btn-secondary"
                   onClick={() => copyToClipboard(selectedEvent.id, selectedEvent.id)}
                 >
-                  {copiedId === selectedEvent.id ? <Check size={14} style={{ color: '#50e396' }} /> : <Copy size={14} />}
+                  {copiedId === selectedEvent.id ? <Check size={14} style={{ color: 'var(--cx-accent)' }} /> : <Copy size={14} />}
                   {copiedId === selectedEvent.id ? 'Copied!' : 'Copy Event ID'}
                 </button>
                 <button
@@ -2094,7 +2094,7 @@ export default function AdminActivity() {
                   </div>
                   <div>
                     <h3 className="sa-modal-title">{profileAdminData.name}</h3>
-                    <div style={{ fontSize: '0.76rem', color: '#94a3b8', fontFamily: 'monospace' }}>
+                    <div style={{ fontSize: '0.76rem', color: 'var(--cx-text-3)', fontFamily: 'monospace' }}>
                       {profileAdminData.email}
                     </div>
                   </div>
@@ -2126,8 +2126,8 @@ export default function AdminActivity() {
                   >
                     {profileAdminData.status.toUpperCase()}
                   </span>
-                  <span style={{ fontSize: '0.76rem', color: '#94a3b8', marginLeft: 'auto' }}>
-                    Department: <strong style={{ color: '#ffffff' }}>{profileAdminData.department}</strong>
+                  <span style={{ fontSize: '0.76rem', color: 'var(--cx-text-3)', marginLeft: 'auto' }}>
+                    Department: <strong style={{ color: 'var(--cx-text)' }}>{profileAdminData.department}</strong>
                   </span>
                 </div>
 
@@ -2135,13 +2135,13 @@ export default function AdminActivity() {
                 <div className="sa-profile-stats-grid">
                   <div className="sa-profile-stat-box">
                     <span className="sa-profile-stat-lbl">Total Events</span>
-                    <span className="sa-profile-stat-val" style={{ color: '#50e396' }}>
+                    <span className="sa-profile-stat-val" style={{ color: 'var(--cx-accent)' }}>
                       {profileAdminData.totalCount}
                     </span>
                   </div>
                   <div className="sa-profile-stat-box">
                     <span className="sa-profile-stat-lbl">Critical Events</span>
-                    <span className="sa-profile-stat-val" style={{ color: '#ef4444' }}>
+                    <span className="sa-profile-stat-val" style={{ color: 'var(--cx-danger)' }}>
                       {profileAdminData.criticalCount}
                     </span>
                   </div>
@@ -2149,7 +2149,7 @@ export default function AdminActivity() {
                     <span className="sa-profile-stat-lbl">Top Category</span>
                     <span
                       className="sa-profile-stat-val"
-                      style={{ fontSize: '0.88rem', color: '#38bdf8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                      style={{ fontSize: '0.88rem', color: 'var(--cx-info)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
                     >
                       {profileAdminData.topCategory}
                     </span>
@@ -2158,7 +2158,7 @@ export default function AdminActivity() {
                     <span className="sa-profile-stat-lbl">Last Active</span>
                     <span
                       className="sa-profile-stat-val"
-                      style={{ fontSize: '0.88rem', color: '#e2e8f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                      style={{ fontSize: '0.88rem', color: 'var(--cx-text-2)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
                     >
                       {profileAdminData.lastEvent?.timestamp || 'Recently'}
                     </span>
@@ -2202,8 +2202,8 @@ export default function AdminActivity() {
                         key={e.id}
                         style={{
                           padding: '10px 12px',
-                          background: 'rgba(0, 0, 0, 0.35)',
-                          border: '1px solid rgba(255, 255, 255, 0.06)',
+                          background: 'var(--cx-surface)',
+                          border: '1px solid var(--cx-border)',
                           borderRadius: 8,
                           display: 'flex',
                           alignItems: 'center',
@@ -2218,7 +2218,7 @@ export default function AdminActivity() {
                               style={{
                                 fontSize: '0.84rem',
                                 fontWeight: 600,
-                                color: '#ffffff',
+                                color: 'var(--cx-text)',
                                 whiteSpace: 'nowrap',
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis',
@@ -2230,7 +2230,7 @@ export default function AdminActivity() {
                           <div
                             style={{
                               fontSize: '0.74rem',
-                              color: '#94a3b8',
+                              color: 'var(--cx-text-3)',
                               marginTop: 2,
                               fontFamily: 'monospace',
                               whiteSpace: 'nowrap',
@@ -2243,7 +2243,7 @@ export default function AdminActivity() {
                         </div>
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                          <span style={{ fontSize: '0.72rem', color: '#64748b' }}>{e.timestamp}</span>
+                          <span style={{ fontSize: '0.72rem', color: 'var(--cx-text-4)' }}>{e.timestamp}</span>
                           <button
                             type="button"
                             className="sa-activity-details-btn"
@@ -2303,7 +2303,7 @@ export default function AdminActivity() {
                     style={{
                       width: 36,
                       height: 36,
-                      color: '#ef4444',
+                      color: 'var(--cx-danger)',
                       borderColor: 'rgba(239, 68, 68, 0.4)',
                       background: 'rgba(239, 68, 68, 0.12)',
                     }}
@@ -2326,16 +2326,16 @@ export default function AdminActivity() {
               </div>
 
               <div className="sa-modal-body">
-                <p style={{ fontSize: '0.86rem', color: '#cbd5e1', lineHeight: 1.5, margin: 0 }}>
+                <p style={{ fontSize: '0.86rem', color: 'var(--cx-text-2)', lineHeight: 1.5, margin: 0 }}>
                   You are about to revoke the active session for{' '}
-                  <strong style={{ color: '#ffffff' }}>{sessionToRevoke.admin_email}</strong>.
+                  <strong style={{ color: 'var(--cx-text)' }}>{sessionToRevoke.admin_email}</strong>.
                 </p>
 
                 <div
                   style={{
                     padding: '12px',
-                    background: 'rgba(0, 0, 0, 0.4)',
-                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    background: 'var(--cx-surface)',
+                    border: '1px solid var(--cx-border)',
                     borderRadius: 8,
                     fontSize: '0.78rem',
                     display: 'flex',
@@ -2344,22 +2344,22 @@ export default function AdminActivity() {
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#64748b' }}>Administrator:</span>
-                    <span style={{ color: '#ffffff', fontWeight: 600 }}>{sessionToRevoke.admin_email}</span>
+                    <span style={{ color: 'var(--cx-text-4)' }}>Administrator:</span>
+                    <span style={{ color: 'var(--cx-text)', fontWeight: 600 }}>{sessionToRevoke.admin_email}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#64748b' }}>Role:</span>
-                    <span style={{ color: '#38bdf8', textTransform: 'uppercase' }}>{sessionToRevoke.role}</span>
+                    <span style={{ color: 'var(--cx-text-4)' }}>Role:</span>
+                    <span style={{ color: 'var(--cx-info)', textTransform: 'uppercase' }}>{sessionToRevoke.role}</span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#64748b' }}>Session ID:</span>
-                    <code style={{ color: '#50e396', fontFamily: 'monospace' }}>
+                    <span style={{ color: 'var(--cx-text-4)' }}>Session ID:</span>
+                    <code style={{ color: 'var(--cx-accent)', fontFamily: 'monospace' }}>
                       {sessionToRevoke.id.slice(0, 8)}...{sessionToRevoke.id.slice(-6)}
                     </code>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: '#64748b' }}>Created:</span>
-                    <span style={{ color: '#cbd5e1' }}>{formatRelativeTime(sessionToRevoke.created_at)}</span>
+                    <span style={{ color: 'var(--cx-text-4)' }}>Created:</span>
+                    <span style={{ color: 'var(--cx-text-2)' }}>{formatRelativeTime(sessionToRevoke.created_at)}</span>
                   </div>
                 </div>
 
@@ -2370,7 +2370,7 @@ export default function AdminActivity() {
                     border: '1px solid rgba(239, 68, 68, 0.25)',
                     borderRadius: 8,
                     fontSize: '0.78rem',
-                    color: '#fca5a5',
+                    color: 'var(--cx-danger)',
                     display: 'flex',
                     alignItems: 'center',
                     gap: 8,
@@ -2385,7 +2385,7 @@ export default function AdminActivity() {
                 <div>
                   <label
                     htmlFor="revoke-reason-input"
-                    style={{ display: 'block', fontSize: '0.78rem', color: '#94a3b8', marginBottom: 6 }}
+                    style={{ display: 'block', fontSize: '0.78rem', color: 'var(--cx-text-3)', marginBottom: 6 }}
                   >
                     Revocation Reason (Optional):
                   </label>
@@ -2461,9 +2461,9 @@ export default function AdminActivity() {
               borderRadius: 8,
               fontSize: '0.84rem',
               fontWeight: 600,
-              background: toast.type === 'error' ? '#1c0d0d' : toast.type === 'info' ? '#0b1d24' : '#081d13',
-              border: `1px solid ${toast.type === 'error' ? '#ef4444' : toast.type === 'info' ? '#38bdf8' : '#50e396'}`,
-              color: toast.type === 'error' ? '#fca5a5' : toast.type === 'info' ? '#7dd3fc' : '#86efac',
+              background: toast.type === 'error' ? 'var(--cx-card-a, var(--cx-panel))' : toast.type === 'info' ? 'var(--cx-card-a, var(--cx-panel))' : 'var(--cx-card-a, var(--cx-panel))',
+              border: `1px solid ${toast.type === 'error' ? 'var(--cx-danger)' : toast.type === 'info' ? 'var(--cx-info)' : 'var(--cx-accent)'}`,
+              color: toast.type === 'error' ? 'var(--cx-danger)' : toast.type === 'info' ? 'var(--cx-info)' : 'var(--cx-accent)',
               boxShadow: '0 8px 30px rgba(0,0,0,0.6)',
             }}
           >

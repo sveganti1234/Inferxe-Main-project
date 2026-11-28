@@ -174,7 +174,7 @@ export default function KeyManagement() {
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '4px',
-                  color: '#9CA3AF',
+                  color: 'var(--cx-text-3)',
                   fontSize: '0.78rem',
                   textDecoration: 'none',
                 }}
@@ -186,14 +186,14 @@ export default function KeyManagement() {
               style={{
                 fontSize: '1.5rem',
                 fontWeight: 700,
-                color: '#FFFFFF',
+                color: 'var(--cx-text)',
                 margin: 0,
                 letterSpacing: '-0.02em',
               }}
             >
               Platform API Keys & SSH Credentials
             </h1>
-            <p style={{ margin: '4px 0 0', color: '#9CA3AF', fontSize: '0.84rem' }}>
+            <p style={{ margin: '4px 0 0', color: 'var(--cx-text-3)', fontSize: '0.84rem' }}>
               Centralized audit of all developer access credentials, cluster SSH keys, and emergency revocation controls.
             </p>
           </div>
@@ -202,9 +202,9 @@ export default function KeyManagement() {
             <Link
               to="/dashboard/keys"
               style={{
-                background: '#121C16',
+                background: 'var(--cx-surface)',
                 border: '1px solid rgba(16, 185, 129, 0.35)',
-                color: '#6EE7B7',
+                color: 'var(--cx-accent)',
                 padding: '8px 14px',
                 borderRadius: '8px',
                 fontSize: '0.8rem',
@@ -224,9 +224,9 @@ export default function KeyManagement() {
               onClick={() => void loadKeys()}
               disabled={loading}
               style={{
-                background: '#121C16',
-                border: '1px solid #1B2E24',
-                color: '#E5E7EB',
+                background: 'var(--cx-surface)',
+                border: '1px solid var(--cx-border)',
+                color: 'var(--cx-text-2)',
                 padding: '8px 14px',
                 borderRadius: '8px',
                 fontSize: '0.82rem',
@@ -245,8 +245,8 @@ export default function KeyManagement() {
         {/* ── Privileged Governance Scope Banner ── */}
         <div
           style={{
-            background: 'rgba(251, 191, 36, 0.06)',
-            border: '1px solid rgba(251, 191, 36, 0.28)',
+            background: 'var(--cx-accent-soft)',
+            border: '1px solid color-mix(in srgb, var(--cx-accent) 20%, transparent)',
             borderRadius: '10px',
             padding: '13px 16px',
             marginBottom: '18px',
@@ -270,16 +270,16 @@ export default function KeyManagement() {
                 fontWeight: 700,
                 letterSpacing: '0.06em',
                 textTransform: 'uppercase',
-                background: 'rgba(251, 191, 36, 0.16)',
-                color: '#FBBF24',
-                border: '1px solid rgba(251, 191, 36, 0.35)',
+                background: 'var(--cx-accent-soft)',
+                color: 'var(--cx-accent)',
+                border: '1px solid transparent',
               }}
             >
               <ShieldCheck size={12} /> Super Admin Privileged Tier
             </span>
-            <span style={{ fontSize: '0.8rem', color: '#D1D5DB' }}>
+            <span style={{ fontSize: '0.8rem', color: 'var(--cx-text-2)' }}>
               Emergency API key revocation &amp; permanent SSH public-key deletion with mandatory audited reasons. Use{' '}
-              <Link to="/dashboard/keys" style={{ color: '#6EE7B7', textDecoration: 'underline' }}>
+              <Link to="/dashboard/keys" style={{ color: 'var(--cx-accent)', textDecoration: 'underline' }}>
                 Admin Key Monitoring
               </Link>{' '}
               for read-only usage analytics, security alerts, and audit history.
@@ -292,11 +292,11 @@ export default function KeyManagement() {
           <div
             role="alert"
             style={{
-              background: authError ? 'rgba(245, 158, 11, 0.08)' : '#2B1214',
-              border: `1px solid ${authError ? 'rgba(245, 158, 11, 0.4)' : '#7F1D1D'}`,
+              background: authError ? 'var(--cx-info-soft)' : 'var(--cx-danger-soft)',
+              border: `1px solid ${authError ? 'color-mix(in srgb, var(--cx-info) 30%, transparent)' : 'color-mix(in srgb, var(--cx-danger) 30%, transparent)'}`,
               borderRadius: '10px',
               padding: '20px 22px',
-              color: authError ? '#FDE68A' : '#FCA5A5',
+              color: authError ? 'var(--cx-info)' : 'var(--cx-danger)',
               fontSize: '0.85rem',
               marginBottom: '16px',
               display: 'flex',
@@ -307,7 +307,7 @@ export default function KeyManagement() {
             <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
               <AlertCircle size={18} style={{ flexShrink: 0, marginTop: 2 }} />
               <div>
-                <div style={{ fontWeight: 700, fontSize: '0.94rem', color: '#FFFFFF' }}>
+                <div style={{ fontWeight: 700, fontSize: '0.94rem', color: 'var(--cx-text)' }}>
                   {authError ? 'Super Admin Authentication Required' : 'Key Governance Backend Unavailable'}
                 </div>
                 <div style={{ marginTop: 4 }}>{error}</div>
@@ -322,8 +322,8 @@ export default function KeyManagement() {
                     display: 'inline-flex',
                     alignItems: 'center',
                     gap: '6px',
-                    background: '#FBBF24',
-                    color: '#040D08',
+                    background: 'var(--cx-accent)',
+                    color: 'var(--cx-accent-ink)',
                     border: 'none',
                     borderRadius: '7px',
                     padding: '7px 14px',
@@ -341,9 +341,9 @@ export default function KeyManagement() {
                 onClick={() => void loadKeys()}
                 disabled={loading}
                 style={{
-                  background: '#121C16',
-                  border: '1px solid #23382C',
-                  color: '#E5E7EB',
+                  background: 'var(--cx-surface)',
+                  border: '1px solid var(--cx-border-2)',
+                  color: 'var(--cx-text-2)',
                   borderRadius: '7px',
                   padding: '7px 14px',
                   fontSize: '0.8rem',
@@ -364,11 +364,11 @@ export default function KeyManagement() {
           <div
             role="alert"
             style={{
-              background: '#2B1214',
-              border: '1px solid #7F1D1D',
+              background: 'var(--cx-danger-soft)',
+              border: '1px solid color-mix(in srgb, var(--cx-danger) 30%, transparent)',
               borderRadius: '8px',
               padding: '12px 16px',
-              color: '#FCA5A5',
+              color: 'var(--cx-danger)',
               fontSize: '0.85rem',
               marginBottom: '16px',
               display: 'flex',
@@ -384,11 +384,11 @@ export default function KeyManagement() {
         {successMsg && (
           <div
             style={{
-              background: '#0D2818',
-              border: '1px solid #10B981',
+              background: 'var(--cx-accent-soft)',
+              border: '1px solid var(--cx-accent)',
               borderRadius: '8px',
               padding: '12px 16px',
-              color: '#6EE7B7',
+              color: 'var(--cx-accent)',
               fontSize: '0.85rem',
               marginBottom: '16px',
               display: 'flex',
@@ -406,8 +406,8 @@ export default function KeyManagement() {
         <>
         <div
           style={{
-            background: '#0F1612',
-            border: '1px solid #1B2E24',
+            background: 'var(--cx-card-a, var(--cx-panel))',
+            border: '1px solid var(--cx-border)',
             borderRadius: '10px',
             padding: '14px 18px',
             marginBottom: '20px',
@@ -427,7 +427,7 @@ export default function KeyManagement() {
                 left: '12px',
                 top: '50%',
                 transform: 'translateY(-50%)',
-                color: '#6B7280',
+                color: 'var(--cx-text-4)',
               }}
             />
             <input
@@ -437,11 +437,11 @@ export default function KeyManagement() {
               onChange={(e) => setSearchQuery(e.target.value)}
               style={{
                 width: '100%',
-                background: '#121C16',
-                border: '1px solid #23382C',
+                background: 'var(--cx-surface)',
+                border: '1px solid var(--cx-border-2)',
                 borderRadius: '6px',
                 padding: '8px 12px 8px 36px',
-                color: '#FFFFFF',
+                color: 'var(--cx-text)',
                 fontSize: '0.84rem',
                 outline: 'none',
               }}
@@ -461,9 +461,9 @@ export default function KeyManagement() {
                 type="button"
                 onClick={() => setFilterType(tab.key as any)}
                 style={{
-                  background: filterType === tab.key ? '#FBBF24' : '#121C16',
-                  color: filterType === tab.key ? '#040D08' : '#D1D5DB',
-                  border: `1px solid ${filterType === tab.key ? '#FBBF24' : '#1B2E24'}`,
+                  background: filterType === tab.key ? 'var(--cx-accent)' : 'var(--cx-surface)',
+                  color: filterType === tab.key ? 'var(--cx-accent-ink)' : 'var(--cx-text-2)',
+                  border: `1px solid ${filterType === tab.key ? 'var(--cx-accent)' : 'var(--cx-border)'}`,
                   borderRadius: '6px',
                   padding: '6px 12px',
                   fontSize: '0.78rem',
@@ -481,33 +481,33 @@ export default function KeyManagement() {
         {/* ── Keys Table Card ── */}
         <div
           style={{
-            background: '#0F1612',
-            border: '1px solid #1B2E24',
+            background: 'var(--cx-card-a, var(--cx-panel))',
+            border: '1px solid var(--cx-border)',
             borderRadius: '12px',
             overflow: 'hidden',
-            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.4)',
+            boxShadow: '0 4px 20px var(--cx-surface)',
           }}
         >
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.84rem' }}>
               <thead>
-                <tr style={{ background: '#0B130F', borderBottom: '1px solid #1B2E24' }}>
-                  <th style={{ padding: '12px 18px', color: '#E5E7EB', fontWeight: 600, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                <tr style={{ background: 'var(--cx-surface)', borderBottom: '1px solid var(--cx-border)' }}>
+                  <th style={{ padding: '12px 18px', color: 'var(--cx-text-2)', fontWeight: 600, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                     Credential Name
                   </th>
-                  <th style={{ padding: '12px 18px', color: '#E5E7EB', fontWeight: 600, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  <th style={{ padding: '12px 18px', color: 'var(--cx-text-2)', fontWeight: 600, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                     Type
                   </th>
-                  <th style={{ padding: '12px 18px', color: '#E5E7EB', fontWeight: 600, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  <th style={{ padding: '12px 18px', color: 'var(--cx-text-2)', fontWeight: 600, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                     Owner & Role
                   </th>
-                  <th style={{ padding: '12px 18px', color: '#E5E7EB', fontWeight: 600, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  <th style={{ padding: '12px 18px', color: 'var(--cx-text-2)', fontWeight: 600, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                     Prefix / Fingerprint
                   </th>
-                  <th style={{ padding: '12px 18px', color: '#E5E7EB', fontWeight: 600, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  <th style={{ padding: '12px 18px', color: 'var(--cx-text-2)', fontWeight: 600, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                     Status
                   </th>
-                  <th style={{ padding: '12px 18px', color: '#E5E7EB', fontWeight: 600, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'right' }}>
+                  <th style={{ padding: '12px 18px', color: 'var(--cx-text-2)', fontWeight: 600, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'right' }}>
                     Emergency Action
                   </th>
                 </tr>
@@ -515,16 +515,16 @@ export default function KeyManagement() {
               <tbody>
                 {loading && keys.length === 0 ? (
                   <tr>
-                    <td colSpan={6} style={{ textAlign: 'center', padding: '48px', color: '#9CA3AF' }}>
-                      <RefreshCw size={20} className="spin-icon" style={{ color: '#FBBF24', margin: '0 auto 8px' }} />
+                    <td colSpan={6} style={{ textAlign: 'center', padding: '48px', color: 'var(--cx-text-3)' }}>
+                      <RefreshCw size={20} className="spin-icon" style={{ color: 'var(--cx-accent)', margin: '0 auto 8px' }} />
                       <div>Auditing system credentials...</div>
                     </td>
                   </tr>
                 ) : filteredKeys.length === 0 ? (
                   <tr>
-                    <td colSpan={6} style={{ textAlign: 'center', padding: '48px', color: '#9CA3AF' }}>
+                    <td colSpan={6} style={{ textAlign: 'center', padding: '48px', color: 'var(--cx-text-3)' }}>
                       <Key size={28} style={{ opacity: 0.4, margin: '0 auto 8px' }} />
-                      <div style={{ color: '#FFFFFF', fontWeight: 600 }}>No credentials found</div>
+                      <div style={{ color: 'var(--cx-text)', fontWeight: 600 }}>No credentials found</div>
                       <div style={{ fontSize: '0.78rem', marginTop: '4px' }}>
                         No keys matching current filter selection.
                       </div>
@@ -535,15 +535,15 @@ export default function KeyManagement() {
                     <tr
                       key={key.id}
                       style={{
-                        borderBottom: '1px solid #152219',
+                        borderBottom: '1px solid var(--cx-border)',
                         transition: 'background 0.15s ease',
                       }}
                     >
                       <td style={{ padding: '14px 18px' }}>
-                        <div style={{ fontWeight: 600, color: '#FFFFFF', fontSize: '0.88rem' }}>
+                        <div style={{ fontWeight: 600, color: 'var(--cx-text)', fontSize: '0.88rem' }}>
                           {key.name}
                         </div>
-                        <div style={{ color: '#9CA3AF', fontSize: '0.74rem', fontFamily: 'var(--font-mono)' }}>
+                        <div style={{ color: 'var(--cx-text-3)', fontSize: '0.74rem', fontFamily: 'var(--font-mono)' }}>
                           ID: {key.id}
                         </div>
                       </td>
@@ -552,10 +552,10 @@ export default function KeyManagement() {
                         <span
                           style={{
                             background:
-                              key.type === 'API Key' ? 'rgba(251, 191, 36, 0.12)' : 'rgba(56, 189, 248, 0.12)',
-                            color: key.type === 'API Key' ? '#FBBF24' : '#38BDF8',
+                              key.type === 'API Key' ? 'var(--cx-accent-soft)' : 'rgba(56, 189, 248, 0.12)',
+                            color: key.type === 'API Key' ? 'var(--cx-accent)' : 'var(--cx-info)',
                             border: `1px solid ${
-                              key.type === 'API Key' ? 'rgba(251, 191, 36, 0.25)' : 'rgba(56, 189, 248, 0.25)'
+                              key.type === 'API Key' ? 'transparent' : 'rgba(56, 189, 248, 0.25)'
                             }`,
                             borderRadius: '4px',
                             padding: '3px 8px',
@@ -568,13 +568,13 @@ export default function KeyManagement() {
                       </td>
 
                       <td style={{ padding: '14px 18px' }}>
-                        <div style={{ color: '#E5E7EB', fontWeight: 500 }}>{key.owner_name}</div>
-                        <div style={{ color: '#9CA3AF', fontSize: '0.74rem' }}>{key.owner_email} ({key.role})</div>
+                        <div style={{ color: 'var(--cx-text-2)', fontWeight: 500 }}>{key.owner_name}</div>
+                        <div style={{ color: 'var(--cx-text-3)', fontSize: '0.74rem' }}>{key.owner_email} ({key.role})</div>
                       </td>
 
-                      <td style={{ padding: '14px 18px', color: '#6EE7B7', fontFamily: 'var(--font-mono)', fontSize: '0.76rem' }}>
+                      <td style={{ padding: '14px 18px', color: 'var(--cx-accent)', fontFamily: 'var(--font-mono)', fontSize: '0.76rem' }}>
                         <div>{key.fingerprint || key.prefix}</div>
-                        <div style={{ color: '#9CA3AF', fontSize: '0.7rem', marginTop: '2px' }}>
+                        <div style={{ color: 'var(--cx-text-3)', fontSize: '0.7rem', marginTop: '2px' }}>
                           {key.type === 'API Key'
                             ? `${(key.environment || 'live').toUpperCase()} · ${key.usage_count ?? 0} reqs · Last used: ${formatTimestamp(key.last_used)}`
                             : `${key.ssh_algorithm || 'ssh'} · Added: ${formatTimestamp(key.created_at)}`}
@@ -593,7 +593,7 @@ export default function KeyManagement() {
                               key.status === 'active'
                                 ? 'rgba(16, 185, 129, 0.12)'
                                 : 'rgba(239, 68, 68, 0.12)',
-                            color: key.status === 'active' ? '#10B981' : '#EF4444',
+                            color: key.status === 'active' ? 'var(--cx-accent)' : 'var(--cx-danger)',
                             border: `1px solid ${
                               key.status === 'active'
                                 ? 'rgba(16, 185, 129, 0.25)'
@@ -609,13 +609,13 @@ export default function KeyManagement() {
                               width: '6px',
                               height: '6px',
                               borderRadius: '50%',
-                              background: key.status === 'active' ? '#10B981' : '#EF4444',
+                              background: key.status === 'active' ? 'var(--cx-accent)' : 'var(--cx-danger)',
                             }}
                           />
                           {key.status}
                         </span>
                         {key.revoked_at && (
-                          <div style={{ color: '#9CA3AF', fontSize: '0.68rem', marginTop: '3px' }}>
+                          <div style={{ color: 'var(--cx-text-3)', fontSize: '0.68rem', marginTop: '3px' }}>
                             {formatTimestamp(key.revoked_at)}
                           </div>
                         )}
@@ -631,7 +631,7 @@ export default function KeyManagement() {
                             }}
                             style={{
                               background: 'rgba(239, 68, 68, 0.12)',
-                              color: '#EF4444',
+                              color: 'var(--cx-danger)',
                               border: '1px solid rgba(239, 68, 68, 0.3)',
                               borderRadius: '6px',
                               padding: '5px 12px',
@@ -643,7 +643,7 @@ export default function KeyManagement() {
                             {key.type === 'SSH Key' ? 'Delete SSH Key' : 'Revoke'}
                           </button>
                         ) : (
-                          <span style={{ fontSize: '0.75rem', color: '#6B7280', textTransform: 'capitalize' }}>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--cx-text-4)', textTransform: 'capitalize' }}>
                             {key.status}
                           </span>
                         )}
@@ -675,8 +675,8 @@ export default function KeyManagement() {
           >
             <div
               style={{
-                background: '#0F1612',
-                border: '1px solid #1B2E24',
+                background: 'var(--cx-card-a, var(--cx-panel))',
+                border: '1px solid var(--cx-border)',
                 borderRadius: '14px',
                 width: '100%',
                 maxWidth: '460px',
@@ -694,31 +694,31 @@ export default function KeyManagement() {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    color: '#EF4444',
+                    color: 'var(--cx-danger)',
                   }}
                 >
                   <ShieldAlert size={18} />
                 </div>
                 <div>
-                  <h3 style={{ margin: 0, color: '#FFFFFF', fontSize: '1.1rem', fontWeight: 700 }}>
+                  <h3 style={{ margin: 0, color: 'var(--cx-text)', fontSize: '1.1rem', fontWeight: 700 }}>
                     {targetKey.type === 'SSH Key'
                       ? 'Emergency Delete SSH Public Key'
                       : 'Emergency Revoke API Key'}
                   </h3>
-                  <div style={{ color: '#9CA3AF', fontSize: '0.78rem' }}>
+                  <div style={{ color: 'var(--cx-text-3)', fontSize: '0.78rem' }}>
                     {targetKey.name} ({targetKey.id})
                   </div>
                 </div>
               </div>
 
-              <p style={{ color: '#D1D5DB', fontSize: '0.84rem', margin: '0 0 16px', lineHeight: 1.5 }}>
+              <p style={{ color: 'var(--cx-text-2)', fontSize: '0.84rem', margin: '0 0 16px', lineHeight: 1.5 }}>
                 {targetKey.type === 'SSH Key'
                   ? 'Permanently deletes this SSH public key from the platform, detaches any linked GPU notebook sessions, and removes SSH authorization immediately. This action cannot be undone and is recorded in the audit log.'
                   : 'Immediately marks this API key as revoked in the database so all inference and API requests authenticated under it are rejected. This action cannot be undone and is recorded in the audit log.'}
               </p>
 
               <div style={{ marginBottom: '16px' }}>
-                <label style={{ display: 'block', fontSize: '0.76rem', color: '#9CA3AF', marginBottom: '6px' }}>
+                <label style={{ display: 'block', fontSize: '0.76rem', color: 'var(--cx-text-3)', marginBottom: '6px' }}>
                   Mandatory Audit Reason (min. 3 characters):
                 </label>
                 <input
@@ -728,11 +728,11 @@ export default function KeyManagement() {
                   placeholder="e.g. Suspected key leak / Emergency security revocation"
                   style={{
                     width: '100%',
-                    background: '#121C16',
-                    border: '1px solid #23382C',
+                    background: 'var(--cx-surface)',
+                    border: '1px solid var(--cx-border-2)',
                     borderRadius: '6px',
                     padding: '8px 12px',
-                    color: '#FFFFFF',
+                    color: 'var(--cx-text)',
                     fontSize: '0.82rem',
                     outline: 'none',
                   }}
@@ -745,9 +745,9 @@ export default function KeyManagement() {
                   onClick={() => setTargetKey(null)}
                   disabled={revoking}
                   style={{
-                    background: '#121C16',
-                    border: '1px solid #1B2E24',
-                    color: '#D1D5DB',
+                    background: 'var(--cx-surface)',
+                    border: '1px solid var(--cx-border)',
+                    color: 'var(--cx-text-2)',
                     borderRadius: '6px',
                     padding: '8px 14px',
                     fontSize: '0.82rem',

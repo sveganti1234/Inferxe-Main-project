@@ -626,7 +626,7 @@ export default function AdminAccounts() {
           role="alert"
           style={{ borderColor: 'rgba(239, 68, 68, 0.45)', background: 'rgba(127, 29, 29, 0.2)' }}
         >
-          <AlertCircle size={18} style={{ color: '#f87171', flexShrink: 0, marginTop: 1 }} />
+          <AlertCircle size={18} style={{ color: 'var(--cx-danger)', flexShrink: 0, marginTop: 1 }} />
           <div>
             <strong>Unable to load administrator directory:</strong> {loadError}
           </div>
@@ -803,7 +803,7 @@ export default function AdminAccounts() {
                     <td>
                       <span
                         className="sa-date-text"
-                        style={{ color: acc.status === 'active' ? '#50e396' : '#94a3b8' }}
+                        style={{ color: acc.status === 'active' ? 'var(--cx-accent)' : 'var(--cx-text-3)' }}
                       >
                         {acc.lastActiveAt}
                       </span>
@@ -907,7 +907,7 @@ export default function AdminAccounts() {
                   </div>
                   <div>
                     <h3 className="sa-modal-title">Add Platform Administrator</h3>
-                    <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
+                    <div style={{ fontSize: '0.74rem', color: 'var(--cx-text-3)' }}>
                       Creates a real database-backed Admin account in Supabase.
                     </div>
                   </div>
@@ -936,7 +936,7 @@ export default function AdminAccounts() {
                   <div className="sa-form-group">
                     <label className="sa-form-label" htmlFor="sa-new-admin-email">
                       <span>Administrator Email</span>
-                      <span style={{ color: '#50e396' }}>*</span>
+                      <span style={{ color: 'var(--cx-accent)' }}>*</span>
                     </label>
                     <input
                       id="sa-new-admin-email"
@@ -957,7 +957,7 @@ export default function AdminAccounts() {
                   <div className="sa-form-group">
                     <label className="sa-form-label" htmlFor="sa-new-admin-password">
                       <span>Initial Password</span>
-                      <span style={{ color: '#50e396' }}>*</span>
+                      <span style={{ color: 'var(--cx-accent)' }}>*</span>
                     </label>
                     <div style={{ position: 'relative' }}>
                       <input
@@ -985,7 +985,7 @@ export default function AdminAccounts() {
                           transform: 'translateY(-50%)',
                           background: 'none',
                           border: 'none',
-                          color: '#94a3b8',
+                          color: 'var(--cx-text-3)',
                           cursor: 'pointer',
                           padding: 4,
                           display: 'inline-flex',
@@ -1005,7 +1005,7 @@ export default function AdminAccounts() {
                   <div className="sa-form-group">
                     <label className="sa-form-label" htmlFor="sa-new-admin-confirm-password">
                       <span>Confirm Password</span>
-                      <span style={{ color: '#50e396' }}>*</span>
+                      <span style={{ color: 'var(--cx-accent)' }}>*</span>
                     </label>
                     <input
                       id="sa-new-admin-confirm-password"
@@ -1052,7 +1052,7 @@ export default function AdminAccounts() {
 
                   {/* Security Notice */}
                   <div className="sa-security-notice">
-                    <Lock size={18} style={{ color: '#50e396', flexShrink: 0, marginTop: 2 }} />
+                    <Lock size={18} style={{ color: 'var(--cx-accent)', flexShrink: 0, marginTop: 2 }} />
                     <div>
                       <strong>Server-Side Argon2id Provisioning:</strong>
                       <div>
@@ -1109,7 +1109,7 @@ export default function AdminAccounts() {
                   </div>
                   <div>
                     <h3 className="sa-modal-title">{viewingAdmin.fullName}</h3>
-                    <div style={{ fontSize: '0.76rem', color: '#50e396' }}>{viewingAdmin.email}</div>
+                    <div style={{ fontSize: '0.76rem', color: 'var(--cx-accent)' }}>{viewingAdmin.email}</div>
                   </div>
                 </div>
                 <button
@@ -1159,7 +1159,7 @@ export default function AdminAccounts() {
 
                 {isProtectedSuperAdmin(viewingAdmin) && (
                   <div className="sa-security-notice" style={{ marginTop: 12 }}>
-                    <ShieldCheck size={18} style={{ color: '#50e396', flexShrink: 0, marginTop: 2 }} />
+                    <ShieldCheck size={18} style={{ color: 'var(--cx-accent)', flexShrink: 0, marginTop: 2 }} />
                     <div>
                       <strong>Protected Super Admin Identity:</strong>
                       <div>
@@ -1212,7 +1212,7 @@ export default function AdminAccounts() {
                   </div>
                   <div>
                     <h3 className="sa-modal-title">Deactivate Administrator</h3>
-                    <div style={{ fontSize: '0.74rem', color: '#fbbf24' }}>
+                    <div style={{ fontSize: '0.74rem', color: 'var(--cx-warn)' }}>
                       Immediately revokes all active database sessions
                     </div>
                   </div>
@@ -1236,7 +1236,7 @@ export default function AdminAccounts() {
                   <div>
                     Are you sure you want to deactivate <strong>{deactivatingAdmin.email}</strong>?
                   </div>
-                  <div style={{ fontSize: '0.76rem', color: '#fef3c7' }}>
+                  <div style={{ fontSize: '0.76rem', color: 'var(--cx-text-3)' }}>
                     Deactivation sets <code>is_active = false</code>, increments <code>session_version</code>, revokes all active rows in <code>admin_sessions</code>, and blocks further sign-in across both Node.js and Python services.
                   </div>
                 </div>
@@ -1311,7 +1311,7 @@ export default function AdminAccounts() {
                   </div>
                   <div>
                     <h3 className="sa-modal-title">Reactivate Administrator</h3>
-                    <div style={{ fontSize: '0.74rem', color: '#50e396' }}>
+                    <div style={{ fontSize: '0.74rem', color: 'var(--cx-accent)' }}>
                       Restore standard Admin sign-in access
                     </div>
                   </div>
@@ -1331,7 +1331,7 @@ export default function AdminAccounts() {
               </div>
 
               <div className="sa-modal-body">
-                <div style={{ fontSize: '0.84rem', color: '#cbd5e1', lineHeight: 1.5 }}>
+                <div style={{ fontSize: '0.84rem', color: 'var(--cx-text-2)', lineHeight: 1.5 }}>
                   Reactivating <strong>{reactivatingAdmin.email}</strong> sets <code>is_active = true</code> so they can sign in with a new session. Previously revoked sessions remain permanently invalid.
                 </div>
 
@@ -1396,7 +1396,7 @@ export default function AdminAccounts() {
                   </div>
                   <div>
                     <h3 className="sa-modal-title">Edit Platform Administrator</h3>
-                    <div style={{ fontSize: '0.74rem', color: '#94a3b8' }}>
+                    <div style={{ fontSize: '0.74rem', color: 'var(--cx-text-3)' }}>
                       Update email, rotate password, or document changes with audit logging.
                     </div>
                   </div>
@@ -1425,7 +1425,7 @@ export default function AdminAccounts() {
                   <div className="sa-form-group">
                     <label className="sa-form-label" htmlFor="sa-edit-admin-email">
                       <span>Administrator Email</span>
-                      <span style={{ color: '#50e396' }}>*</span>
+                      <span style={{ color: 'var(--cx-accent)' }}>*</span>
                     </label>
                     <input
                       id="sa-edit-admin-email"
@@ -1471,7 +1471,7 @@ export default function AdminAccounts() {
                           transform: 'translateY(-50%)',
                           background: 'none',
                           border: 'none',
-                          color: '#94a3b8',
+                          color: 'var(--cx-text-3)',
                           cursor: 'pointer',
                           display: 'flex',
                           alignItems: 'center',
@@ -1491,7 +1491,7 @@ export default function AdminAccounts() {
                     <div className="sa-form-group">
                       <label className="sa-form-label" htmlFor="sa-edit-confirm-password">
                         <span>Confirm Reset Password</span>
-                        <span style={{ color: '#50e396' }}>*</span>
+                        <span style={{ color: 'var(--cx-accent)' }}>*</span>
                       </label>
                       <input
                         id="sa-edit-confirm-password"
@@ -1553,7 +1553,7 @@ export default function AdminAccounts() {
 
                   {/* Security Notice */}
                   <div className="sa-security-notice">
-                    <Lock size={18} style={{ color: '#50e396', flexShrink: 0, marginTop: 2 }} />
+                    <Lock size={18} style={{ color: 'var(--cx-accent)', flexShrink: 0, marginTop: 2 }} />
                     <div>
                       <strong>Automatic Session Revocation:</strong>
                       <div>
@@ -1614,7 +1614,7 @@ export default function AdminAccounts() {
                   </div>
                   <div>
                     <h3 className="sa-modal-title">Delete Administrator</h3>
-                    <div style={{ fontSize: '0.74rem', color: '#f87171' }}>
+                    <div style={{ fontSize: '0.74rem', color: 'var(--cx-danger)' }}>
                       Permanent account removal and session revocation
                     </div>
                   </div>
@@ -1671,7 +1671,7 @@ export default function AdminAccounts() {
                 <button
                   type="button"
                   className="dash-warning-btn"
-                  style={{ background: '#b91c1c', borderColor: '#ef4444' }}
+                  style={{ background: '#b91c1c', borderColor: '#b91c1c', color: '#ffffff' }}
                   disabled={deletingAdminLoading}
                   onClick={() => void handleConfirmDelete()}
                 >

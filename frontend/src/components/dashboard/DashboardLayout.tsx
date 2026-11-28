@@ -1398,7 +1398,8 @@ export function DashboardLayout({
     )
   }
 
-  if ((portalRole === 'admin' || portalRole === 'superadmin') && isNested) {
+  // Nested only inside AdminShell, which owns the chrome; don't depend on role (it reads 'customer' mid-sign-out).
+  if (isNested) {
     return (
       <div className="dash-nested-view" style={{ width: '100%', minHeight: '100%' }}>
         {breadcrumb && breadcrumb.length > 0 && (

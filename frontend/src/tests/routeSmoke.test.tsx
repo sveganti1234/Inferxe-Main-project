@@ -97,21 +97,21 @@ describe('lazy routes resolve inside their shells', () => {
 
   it.each(['/dashboard', '/dashboard/customers', '/dashboard/keys', '/dashboard/provider'])('admin page %s', async (path) => {
     storeSession('admin')
-    const ok = await renderApp(path, () => (host.querySelector('.dash-main')?.textContent ?? '').trim().length > 40)
+    const ok = await renderApp(path, () => (host.querySelector('.adm-console #cx-main')?.textContent ?? '').trim().length > 40)
     expect(ok, `${path}: admin page did not render`).toBe(true)
     expect(noErrorFallback()).toBe(true)
   })
 
   it.each(['/dashboard/superadmin', '/dashboard/superadmin/admins', '/dashboard/super-admin/accounts'])('super-admin page %s', async (path) => {
     storeSession('superadmin')
-    const ok = await renderApp(path, () => (host.querySelector('.dash-main')?.textContent ?? '').trim().length > 40)
+    const ok = await renderApp(path, () => (host.querySelector('.adm-console #cx-main')?.textContent ?? '').trim().length > 40)
     expect(ok, `${path}: super-admin page did not render`).toBe(true)
     expect(noErrorFallback()).toBe(true)
   })
 
   it('a customer session cannot open admin pages', async () => {
     storeSession('customer')
-    await renderApp('/dashboard', () => !host.querySelector('.dash-main') && text().length > 0)
-    expect(host.querySelector('.dash-main')).toBeNull()
+    await renderApp('/dashboard', () => !host.querySelector('.adm-console #cx-main') && text().length > 0)
+    expect(host.querySelector('.adm-console #cx-main')).toBeNull()
   })
 })

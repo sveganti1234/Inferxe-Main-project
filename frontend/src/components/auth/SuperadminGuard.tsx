@@ -8,6 +8,7 @@ import {
   verifyAdminSessionWithDetails,
   isDevelopmentBypassToken,
   isSessionVerifiedRecently,
+  isSigningOutRedirect,
 } from '../../lib/authStore'
 
 interface SuperadminGuardProps {
@@ -37,7 +38,14 @@ export function SuperadminGuard({ children }: SuperadminGuardProps) {
   useEffect(() => {
     let isMounted = true
 
-    const validateSuperadminAccess = async () => {
+    const validateSuperadminAccess = async (forceVerify = false) => {
+      // Explicit sign-out via performSignOut() already calls window.location.replace('/login') once it finishes.
+      // Avoid triggering a simultaneous React Router <Navigate to="/login"> that would mount and reload /login twice.
+      if (isSigningOutRedirect()) {
+        if (isMounted) setAuthState('checking')
+        return
+      }
+
       const session = getSession()
 
       // 1. Must have an active session
@@ -64,13 +72,13 @@ export function SuperadminGuard({ children }: SuperadminGuardProps) {
       }
 
       // If already verified within TTL, skip redundant network round-trip on every route change
-      if (isSessionVerifiedRecently(session.token)) {
+      if (!forceVerify && isSessionVerifiedRecently(session.token)) {
         if (isMounted) setAuthState('authorized')
         return
       }
 
       // 3. Authoritative server-side DB-backed session and role verification
-      const verification = await verifyAdminSessionWithDetails(session.token)
+      const verification = await verifyAdminSessionWithDetails(session.token, forceVerify)
       if (!isMounted) return
 
       if (!verification.valid) {
@@ -91,9 +99,21 @@ export function SuperadminGuard({ children }: SuperadminGuardProps) {
     }
 
     void validateSuperadminAccess()
+    // Re-evaluate when the session changes elsewhere (sign-out, revocation, another tab), matching CustomerGuard.
+    const onAuthChange = () => void validateSuperadminAccess()
+    window.addEventListener('inferxe_auth_change', onAuthChange)
+    window.addEventListener('storage', onAuthChange)
+    // Back/forward navigation can restore a stale page from the bfcache: re-verify the session then.
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) void validateSuperadminAccess(true)
+    }
+    window.addEventListener('pageshow', onPageShow)
 
     return () => {
       isMounted = false
+      window.removeEventListener('pageshow', onPageShow)
+      window.removeEventListener('inferxe_auth_change', onAuthChange)
+      window.removeEventListener('storage', onAuthChange)
     }
   }, [location.pathname])
 
