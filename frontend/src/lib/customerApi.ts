@@ -85,6 +85,12 @@ export async function updateCustomerProfile(fullName: string): Promise<CustomerA
   return result.profile
 }
 
+function announceNotificationsChanged(): void {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('inferxe_notifications_change'))
+  }
+}
+
 export async function createCustomerApiKey(name: string): Promise<{ apiKey: CustomerApiRecord; secret: string }> {
   const result = await customerRequest('/api/customer/api-keys', {
     method: 'POST',
@@ -93,6 +99,7 @@ export async function createCustomerApiKey(name: string): Promise<{ apiKey: Cust
   if (!isRecord(result.api_key) || typeof result.secret !== 'string') {
     throw new Error('The server returned an invalid API key response.')
   }
+  announceNotificationsChanged()
   return { apiKey: result.api_key, secret: result.secret }
 }
 
@@ -101,6 +108,7 @@ export async function revokeCustomerApiKey(id: string): Promise<CustomerApiRecor
     method: 'POST',
   })
   if (!isRecord(result.api_key)) throw new Error('The server returned an invalid API key response.')
+  announceNotificationsChanged()
   return result.api_key
 }
 
@@ -110,6 +118,7 @@ export async function addCustomerSshKey(name: string, publicKey: string): Promis
     body: JSON.stringify({ name, public_key: publicKey }),
   })
   if (!isRecord(result.ssh_key)) throw new Error('The server returned an invalid SSH key response.')
+  announceNotificationsChanged()
   return result.ssh_key
 }
 
@@ -117,6 +126,7 @@ export async function deleteCustomerSshKey(id: string): Promise<void> {
   await customerRequest(`/api/customer/ssh-keys/${encodeURIComponent(id)}`, {
     method: 'DELETE',
   })
+  announceNotificationsChanged()
 }
 
 export async function saveCustomerListing(listingId: string): Promise<void> {

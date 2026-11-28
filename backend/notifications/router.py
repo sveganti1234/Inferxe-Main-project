@@ -11,7 +11,7 @@ from decimal import Decimal
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from .auth import AuthenticatedUser, get_current_user, require_admin_user
+from .auth import AuthenticatedUser, get_current_user, require_admin_user, require_superadmin_user
 from .service import NotificationService
 from .db import PG_DB, PG_HOST, DBConnection, PoolTimeoutError, HEALTH_CHECK_POOL_WAIT_SECONDS
 
@@ -27,9 +27,31 @@ class BroadcastRequest(BaseModel):
     target_group: Optional[str] = "all"
     idempotency_key: Optional[str] = None
 
+class SuperAdminAdminCreatedRequest(BaseModel):
+    created_admin_id: Optional[str] = Field(default=None, max_length=128)
+    created_email: Optional[str] = Field(default=None, max_length=255)
+    idempotency_key: Optional[str] = None
+
+class SuperAdminAdminDeletedRequest(BaseModel):
+    deleted_admin_id: Optional[str] = Field(default=None, max_length=128)
+    deleted_email: Optional[str] = Field(default=None, max_length=255)
+    idempotency_key: Optional[str] = None
+
 class PriceUpdateRequest(BaseModel):
     gpu_id: str = Field(..., min_length=1)
     new_price: float = Field(..., gt=0)
+    idempotency_key: Optional[str] = None
+
+class GpuListingCreateRequest(BaseModel):
+    name: str = Field(..., min_length=1, max_length=128)
+    gpu_model: Optional[str] = Field(default=None, max_length=128)
+    vram: Optional[str] = Field(default="24 GB", max_length=64)
+    region: Optional[str] = Field(default="Mumbai, IN", max_length=128)
+    price: float = Field(..., gt=0)
+    listing_id: Optional[str] = Field(default=None, max_length=64)
+    quantity: Optional[int] = Field(default=1, ge=1)
+    currency: Optional[str] = Field(default="INR", max_length=16)
+    billing_unit: Optional[str] = Field(default="hr", max_length=32)
     idempotency_key: Optional[str] = None
 
 class MaintenanceRequest(BaseModel):
@@ -220,7 +242,11 @@ def broadcast_announcement(
     return result
 
 @router.post("/notifications/price-update")
+@router.put("/notifications/price-update")
+@router.patch("/notifications/price-update")
 @router.post("/gpu/update-price")
+@router.put("/gpu/update-price")
+@router.patch("/gpu/update-price")
 def update_gpu_price(
     req: PriceUpdateRequest,
     admin: AuthenticatedUser = Depends(require_admin_user),
@@ -229,13 +255,79 @@ def update_gpu_price(
     Admin-only: Updates GPU hourly price and broadcasts notifications to customers.
     Also creates an admin audit alert for tracking.
     """
-    result = NotificationService.process_gpu_price_update(
+    try:
+        result = NotificationService.process_gpu_price_update(
+            admin_user_id=admin.user_id,
+            gpu_id=req.gpu_id,
+            new_price=req.new_price,
+            idempotency_key=req.idempotency_key,
+        )
+        return result
+    except Exception as exc:
+        logger.error(f"Failed to update GPU price for {req.gpu_id}: {exc}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Price update failed: {str(exc)}",
+        )
+
+@router.post("/notifications/gpu-listing")
+@router.put("/notifications/gpu-listing")
+@router.patch("/notifications/gpu-listing")
+def create_gpu_listing(
+    req: GpuListingCreateRequest,
+    admin: AuthenticatedUser = Depends(require_admin_user),
+):
+    """
+    Admin-only: Creates a new GPU listing in inventory and records an audit notification
+    for administrators in an atomic transaction.
+    """
+    gpu_model = req.gpu_model or req.name.replace("NVIDIA ", "").strip()
+    result = NotificationService.process_gpu_listing_create(
         admin_user_id=admin.user_id,
-        gpu_id=req.gpu_id,
-        new_price=req.new_price,
+        name=req.name,
+        gpu_model=gpu_model,
+        vram=req.vram or "24 GB",
+        region=req.region or "Mumbai, IN",
+        price=req.price,
+        listing_id=req.listing_id,
+        quantity=req.quantity or 1,
+        currency=req.currency or "INR",
+        billing_unit=req.billing_unit or "hr",
         idempotency_key=req.idempotency_key,
     )
     return result
+
+@router.post("/notifications/superadmin/admin-created")
+def notify_superadmin_admin_created(
+    req: SuperAdminAdminCreatedRequest,
+    user: AuthenticatedUser = Depends(require_superadmin_user),
+):
+    """
+    Governance notification endpoint triggered when an Admin account is created.
+    Restricted to authenticated Super Admin users only.
+    """
+    return NotificationService.process_superadmin_admin_created(
+        actor_admin_id=user.user_id,
+        created_admin_id=req.created_admin_id,
+        created_email=req.created_email,
+        idempotency_key=req.idempotency_key,
+    )
+
+@router.post("/notifications/superadmin/admin-deleted")
+def notify_superadmin_admin_deleted(
+    req: SuperAdminAdminDeletedRequest,
+    user: AuthenticatedUser = Depends(require_superadmin_user),
+):
+    """
+    Governance notification endpoint triggered when an Admin account is deleted.
+    Restricted to authenticated Super Admin users only.
+    """
+    return NotificationService.process_superadmin_admin_deleted(
+        actor_admin_id=user.user_id,
+        deleted_admin_id=req.deleted_admin_id,
+        deleted_email=req.deleted_email,
+        idempotency_key=req.idempotency_key,
+    )
 
 @router.post("/notifications/maintenance")
 def schedule_maintenance(

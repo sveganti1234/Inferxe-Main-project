@@ -595,6 +595,105 @@ function parseActiveStatusInput(body) {
 }
 
 /**
+ * Dispatches governance notification for Super Admin operations (Admin creation and deletion).
+ * Hits the FastAPI notification service at port 8002, with safe direct Supabase fallback.
+ * Strictly non-blocking: never fails the primary operation if notification delivery encounters network issues.
+ * Never includes passwords, tokens, or credential secrets.
+ */
+export async function triggerSuperAdminGovernanceNotification({
+  event,
+  actorAdmin,
+  targetAdminId,
+  targetEmail,
+  req,
+  supabaseClient,
+}) {
+  const notificationsPort = process.env.NOTIFICATIONS_PORT || 8002
+  const path = event === 'SUPERADMIN_ADMIN_CREATED'
+    ? '/api/notifications/superadmin/admin-created'
+    : '/api/notifications/superadmin/admin-deleted'
+  const endpoint = `http://127.0.0.1:${notificationsPort}${path}`
+  const authHeader = req?.headers?.authorization || ''
+
+  try {
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(authHeader ? { Authorization: authHeader } : {}),
+      },
+      body: JSON.stringify(
+        event === 'SUPERADMIN_ADMIN_CREATED'
+          ? { created_admin_id: targetAdminId, created_email: targetEmail }
+          : { deleted_admin_id: targetAdminId, deleted_email: targetEmail }
+      ),
+    })
+    if (res.ok) {
+      return true
+    }
+  } catch {
+    // Service offline or non-blocking in isolated environment
+  }
+
+  // Fallback direct persistence via Supabase if FastAPI service is unreachable
+  try {
+    if (supabaseClient && typeof supabaseClient.from === 'function') {
+      const nowIso = new Date().toISOString()
+      const title = event === 'SUPERADMIN_ADMIN_CREATED' ? 'Admin Account Created' : 'Admin Account Deleted'
+      const message = event === 'SUPERADMIN_ADMIN_CREATED'
+        ? 'A new Admin account has been created.'
+        : 'An Admin account has been deleted.'
+
+      let superadmins = []
+      const saQuery = await supabaseClient
+        .from('admin_users')
+        .select('id')
+        .eq('is_active', true)
+        .eq('role', 'superadmin')
+      if (saQuery?.data && Array.isArray(saQuery.data) && saQuery.data.length > 0) {
+        superadmins = saQuery.data.map((r) => r.id)
+      } else if (actorAdmin?.id) {
+        superadmins = [actorAdmin.id]
+      }
+
+      for (const saId of superadmins) {
+        // Ensure compatibility profile exists for FK 23503
+        await supabaseClient.from('profiles').upsert(
+          {
+            user_id: saId,
+            full_name: 'Admin',
+            email: actorAdmin?.email || 'admin@inferxe.com',
+            role: 'admin',
+            status: 'active',
+            auth_provider: 'admin_session',
+            updated_at: nowIso,
+          },
+          { onConflict: 'user_id' }
+        ).catch(() => {})
+
+        await supabaseClient.from('notifications').insert({
+          user_id: saId,
+          title,
+          message,
+          notification_type: event,
+          is_read: false,
+          created_at: nowIso,
+          metadata: {
+            action: event === 'SUPERADMIN_ADMIN_CREATED' ? 'admin_created' : 'admin_deleted',
+            actor_admin_id: actorAdmin?.id,
+            target_admin_id: targetAdminId,
+          },
+        }).catch(() => {})
+      }
+      return true
+    }
+  } catch {
+    // Non-blocking fallback
+  }
+  return false
+}
+
+/**
  * Creates connect/http middleware to handle `/api/admin/*`, `/api/superadmin/*`,
  * and `/api/customer/*` endpoints.
  * Admin authentication is strictly database-backed via Supabase `admin_users` & `admin_sessions`.
@@ -822,6 +921,15 @@ export function createAdminAuthMiddleware(config = {}) {
             supabaseClient,
           )
 
+          await triggerSuperAdminGovernanceNotification({
+            event: 'SUPERADMIN_ADMIN_CREATED',
+            actorAdmin: superadmin,
+            targetAdminId: createdAdmin?.id,
+            targetEmail: createdAdmin?.email,
+            req,
+            supabaseClient,
+          })
+
           return sendJson(req, res, 201, {
             ok: true,
             admin: createdAdmin,
@@ -1037,6 +1145,15 @@ export function createAdminAuthMiddleware(config = {}) {
             },
             supabaseClient,
           )
+
+          await triggerSuperAdminGovernanceNotification({
+            event: 'SUPERADMIN_ADMIN_DELETED',
+            actorAdmin: superadmin,
+            targetAdminId: result?.deletedAdmin?.id || String(adminId),
+            targetEmail: result?.deletedAdmin?.email,
+            req,
+            supabaseClient,
+          })
 
           return sendJson(req, res, 200, {
             ok: true,

@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, useLayoutEffect } from 'react'
+import { useEffect, useState, useRef, useLayoutEffect, useCallback } from 'react'
 import { Link, useLocation, useNavigate, useOutlet } from 'react-router-dom'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
@@ -41,6 +41,14 @@ import { AdminErrorBoundary } from './AdminErrorBoundary'
 import { DashboardLayoutContext } from './DashboardLayoutContext'
 import { AdminHeaderSearch, type AdminSearchSectionItem } from './AdminHeaderSearch'
 import { useAdminSidebarKeyboardNav } from './useAdminSidebarKeyboardNav'
+import {
+  fetchAdminNotifications,
+  fetchAdminUnreadCount,
+  markAdminNotificationRead,
+  markAllAdminNotificationsRead,
+  toUiNotification,
+  type AdminUiNotification,
+} from '../../lib/adminNotificationService'
 
 export function preloadRoute(_path: string) {}
 
@@ -176,36 +184,52 @@ export function AdminShell() {
     left: number
   } | null>(null)
 
-  // Live Notifications State
-  const [liveNotifs, setLiveNotifs] = useState<Array<{ id: string; title: string; detail: string; type: string; time: string; read: boolean }>>(() => {
+  // Live Notifications State (Synchronized with backend notifications API)
+  const [liveNotifs, setLiveNotifs] = useState<AdminUiNotification[]>([])
+  const [unreadNotifCount, setUnreadNotifCount] = useState<number>(0)
+  const [notifLoading, setNotifLoading] = useState<boolean>(false)
+  const [isMarkingAllRead, setIsMarkingAllRead] = useState<boolean>(false)
+
+  const syncNotifs = useCallback(async () => {
     try {
-      const raw = localStorage.getItem('inferxe_demo_notifications_v3')
-      if (raw) return JSON.parse(raw)
-    } catch {}
-    return [
-      { id: 'n1', title: 'Deployment qwen-chat-staging is healthy', detail: 'Serving tokens at 118 tok/s with 0.42s P95 TTFT.', type: 'Deployment', time: '12 mins ago', read: false },
-      { id: 'n2', title: 'Monthly spending alert threshold reached', detail: 'Estimated spend has reached 48% of your monthly cap.', type: 'Billing', time: '2 hours ago', read: false },
-      { id: 'n3', title: 'Yotta NM1 sovereign cluster capacity added', detail: 'New NVIDIA H100 nodes provisioned in Mumbai region.', type: 'Marketplace', time: 'Yesterday', read: true },
-    ]
-  })
+      const [notifsRes, countRes] = await Promise.all([
+        fetchAdminNotifications({ limit: 10 }),
+        fetchAdminUnreadCount(),
+      ])
+      if (notifsRes.ok && notifsRes.data) {
+        setLiveNotifs(notifsRes.data.items.map(toUiNotification))
+      }
+      if (countRes.ok) {
+        setUnreadNotifCount(countRes.unreadCount)
+      } else if (notifsRes.ok && notifsRes.data) {
+        setUnreadNotifCount(notifsRes.data.unread_count)
+      }
+    } catch {
+      /* Keep existing state on transient network failures */
+    } finally {
+      setNotifLoading(false)
+    }
+  }, [])
 
   useEffect(() => {
-    const syncNotifs = () => {
-      try {
-        const raw = localStorage.getItem('inferxe_demo_notifications_v3')
-        if (raw) setLiveNotifs(JSON.parse(raw))
-      } catch {}
-    }
-    syncNotifs()
-    window.addEventListener('inferxe_notifications_change', syncNotifs)
-    window.addEventListener('storage', syncNotifs)
-    return () => {
-      window.removeEventListener('inferxe_notifications_change', syncNotifs)
-      window.removeEventListener('storage', syncNotifs)
-    }
-  }, [location.pathname])
+    setNotifLoading(true)
+    void syncNotifs()
 
-  const unreadNotifCount = liveNotifs.filter((n) => !n.read).length
+    const onNotificationsChange = () => {
+      void syncNotifs()
+    }
+
+    // 15-second background polling for live admin alerts
+    const intervalId = setInterval(() => {
+      void syncNotifs()
+    }, 15000)
+
+    window.addEventListener('inferxe_notifications_change', onNotificationsChange)
+    return () => {
+      clearInterval(intervalId)
+      window.removeEventListener('inferxe_notifications_change', onNotificationsChange)
+    }
+  }, [syncNotifs, location.pathname])
 
   // Mobile responsiveness (matches @media (max-width: 900px))
   const [isMobile, setIsMobile] = useState<boolean>(() => {
@@ -994,19 +1018,48 @@ export function AdminShell() {
                   {dashTheme === "light" ? <Moon size={17} /> : <Sun size={17} />}
                 </button>
 
-                {/* Bell with mint dot & Alerts dropdown */}
+                {/* Bell with numerical badge & Alerts dropdown */}
                 <div ref={notifRef} style={{ position: 'relative' }}>
                   <button
                     className="verdelo-topbar-icon-btn verdelo-bell-btn"
                     title="Notifications & Alerts"
-                    aria-label="Notifications & Alerts"
+                    aria-label={`Notifications & Alerts (${unreadNotifCount} unread)`}
                     onClick={() => {
-                      setNotifOpen(!notifOpen)
+                      const nextOpen = !notifOpen
+                      setNotifOpen(nextOpen)
                       setAdminMenuOpen(false)
+                      if (nextOpen) {
+                        void syncNotifs()
+                      }
                     }}
                   >
                     <Bell size={18} />
-                    {unreadNotifCount > 0 && <span className="verdelo-bell-dot" />}
+                    {unreadNotifCount > 0 && (
+                      <span
+                        className="verdelo-bell-badge"
+                        style={{
+                          position: 'absolute',
+                          top: -3,
+                          right: -3,
+                          minWidth: 16,
+                          height: 16,
+                          padding: '0 4px',
+                          borderRadius: 9999,
+                          backgroundColor: '#10b981',
+                          color: '#022c22',
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          boxShadow: '0 0 6px rgba(16, 185, 129, 0.45)',
+                          pointerEvents: 'none',
+                          lineHeight: 1,
+                        }}
+                      >
+                        {unreadNotifCount > 99 ? '99+' : unreadNotifCount}
+                      </span>
+                    )}
                   </button>
 
                   {notifOpen && (
@@ -1016,19 +1069,29 @@ export function AdminShell() {
                         <button
                           type="button"
                           className="verdelo-alerts-mark-read"
-                          onClick={() => {
-                            const updated = liveNotifs.map((n) => ({ ...n, read: true }))
-                            setLiveNotifs(updated)
-                            localStorage.setItem('inferxe_demo_notifications_v3', JSON.stringify(updated))
-                            window.dispatchEvent(new CustomEvent('inferxe_notifications_change'))
+                          disabled={isMarkingAllRead || unreadNotifCount === 0}
+                          onClick={async () => {
+                            setIsMarkingAllRead(true)
+                            setLiveNotifs((prev) => prev.map((n) => ({ ...n, read: true })))
+                            setUnreadNotifCount(0)
+                            try {
+                              await markAllAdminNotificationsRead()
+                            } finally {
+                              setIsMarkingAllRead(false)
+                              void syncNotifs()
+                            }
                           }}
                         >
-                          Mark all read
+                          {isMarkingAllRead ? 'Marking…' : 'Mark all read'}
                         </button>
                       </div>
 
                       <div className="verdelo-alerts-list">
-                        {liveNotifs.length === 0 ? (
+                        {notifLoading && liveNotifs.length === 0 ? (
+                          <div style={{ textAlign: 'center', padding: '16px', color: 'var(--ink-muted)', fontSize: '0.82rem' }}>
+                            Loading notifications…
+                          </div>
+                        ) : liveNotifs.length === 0 ? (
                           <div style={{ textAlign: 'center', padding: '16px', color: 'var(--ink-muted)', fontSize: '0.82rem' }}>
                             No notifications yet.
                           </div>
@@ -1038,11 +1101,12 @@ export function AdminShell() {
                               key={n.id}
                               className="verdelo-alert-row"
                               style={{ cursor: 'pointer' }}
-                              onClick={() => {
-                                const updated = liveNotifs.map((item) => (item.id === n.id ? { ...item, read: true } : item))
-                                setLiveNotifs(updated)
-                                localStorage.setItem('inferxe_demo_notifications_v3', JSON.stringify(updated))
-                                window.dispatchEvent(new CustomEvent('inferxe_notifications_change'))
+                              onClick={async () => {
+                                if (!n.read) {
+                                  setLiveNotifs((prev) => prev.map((item) => (item.id === n.id ? { ...item, read: true } : item)))
+                                  setUnreadNotifCount((prev) => Math.max(0, prev - 1))
+                                  void markAdminNotificationRead(n.id)
+                                }
                                 setNotifOpen(false)
                                 navigate('/dashboard/notifications')
                               }}

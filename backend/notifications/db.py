@@ -249,10 +249,14 @@ def _assert_test_database_allowed(host: Optional[str]) -> None:
     )
 
 
+class DBNotConfiguredError(RuntimeError):
+    """No PostgreSQL DSN is configured; requests are answered with 503 instead of a bare 500."""
+
+
 def get_connection_params() -> Dict[str, Any]:
     dsn = _resolve_notifications_dsn() or DATABASE_URL
     if not dsn:
-        raise RuntimeError(
+        raise DBNotConfiguredError(
             "SUPABASE_DATABASE_URL (or DATABASE_URL) is required in backend/.env or root .env "
             "pointing to the shared Supabase PostgreSQL connection string."
         )
@@ -854,6 +858,8 @@ def init_db():
                 updated_at TEXT NOT NULL
             );
         """)
+        cur.execute("ALTER TABLE gpu_inventory ADD COLUMN IF NOT EXISTS quantity INTEGER DEFAULT 1;")
+        cur.execute("ALTER TABLE gpu_inventory ADD COLUMN IF NOT EXISTS status VARCHAR(32) DEFAULT 'Available';")
 
         # 7. gpu_deployments table
         cur.execute("""

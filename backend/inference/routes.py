@@ -18,6 +18,7 @@ from starlette.concurrency import run_in_threadpool
 
 from inference.database import check_database_connection, engine
 from inference.supabase_config import SupabaseConfigurationError, get_supabase_settings
+from inference.supabase_notifications import insert_customer_notification_safe
 from inference.supabase_api_keys import (
     APIKeyForbiddenError,
     APIKeyNotFoundError,
@@ -305,6 +306,21 @@ def create_api_key(
             detail="Upstream API key database rejected the request.",
         )
 
+    insert_customer_notification_safe(
+        user_id=user_id,
+        title="API Key Created",
+        message=f'A new API key "{new_key.name}" ({new_key.key_prefix}…) was successfully generated.',
+        notification_type="SECURITY_KEY",
+        related_entity_id=str(new_key.id),
+        metadata={
+            "key_id": str(new_key.id),
+            "name": new_key.name,
+            "key_prefix": new_key.key_prefix,
+            "environment": new_key.environment,
+            "action": "created",
+        },
+    )
+
     return APIKeyCreateResponse(
         id=str(new_key.id),
         name=new_key.name,
@@ -419,6 +435,19 @@ def revoke_api_key(
             id=str(key.id)
         )
 
+    insert_customer_notification_safe(
+        user_id=user_id,
+        title="API Key Revoked",
+        message=f'API key "{key.name or key_uuid}" was permanently revoked.',
+        notification_type="SECURITY_KEY",
+        related_entity_id=str(key.id),
+        metadata={
+            "key_id": str(key.id),
+            "name": key.name,
+            "action": "revoked",
+        },
+    )
+
     return APIKeyRevokeResponse(
         success=True,
         message="API key revoked successfully.",
@@ -477,6 +506,20 @@ def register_ssh_key(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to register SSH key in database.",
         )
+
+    insert_customer_notification_safe(
+        user_id=user_id,
+        title="SSH Key Added",
+        message=f'SSH public key "{new_key.name}" ({new_key.fingerprint}) was registered.',
+        notification_type="SECURITY_KEY",
+        related_entity_id=str(new_key.id),
+        metadata={
+            "key_id": str(new_key.id),
+            "name": new_key.name,
+            "fingerprint": new_key.fingerprint,
+            "action": "created",
+        },
+    )
 
     return SSHKeyResponse(
         id=str(new_key.id),
@@ -598,6 +641,18 @@ def remove_ssh_key(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="SSH key not found.",
         )
+
+    insert_customer_notification_safe(
+        user_id=user_id,
+        title="SSH Key Deleted",
+        message="SSH public key was permanently deleted.",
+        notification_type="SECURITY_KEY",
+        related_entity_id=str(key_uuid),
+        metadata={
+            "key_id": str(key_uuid),
+            "action": "deleted",
+        },
+    )
 
     return SSHKeyDeleteResponse(
         success=True,

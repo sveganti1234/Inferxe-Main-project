@@ -342,3 +342,35 @@ export interface InferenceServiceHealth {
   simulated: boolean
   providerStatus: Nullable<string>
 }
+
+/* ── Workspace Customer Storage ── */
+export interface WorkspaceFile {
+  id: string
+  user_id: string
+  name: string
+  path: string
+  folder_path: string
+  is_folder: boolean
+  size_bytes: number
+  mime_type: Nullable<string>
+  storage_bucket: string
+  storage_path: Nullable<string>
+  created_at: string
+  updated_at: string
+}
+
+export interface StorageUsage {
+  used_bytes: number
+  total_bytes: number
+  available_bytes: number
+  total_files: number
+  quota_percent: number
+}
+
+export interface StorageListingResponse {
+  ok: boolean
+  items: WorkspaceFile[]
+  folder: string
+  usage: StorageUsage
+}
+

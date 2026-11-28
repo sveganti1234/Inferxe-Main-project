@@ -21,7 +21,7 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 if str(ROOT_DIR) not in sys.path:
     sys.path.insert(0, str(ROOT_DIR))
 
-from .db import init_db, close_pool, DBConnection, PoolTimeoutError, PG_DB, PG_HOST, _env_number, HEALTH_CHECK_POOL_WAIT_SECONDS
+from .db import init_db, close_pool, DBConnection, DBNotConfiguredError, PoolTimeoutError, PG_DB, PG_HOST, _env_number, HEALTH_CHECK_POOL_WAIT_SECONDS
 from .router import router
 from .auth import COGNITO_USER_POOL_ID, COGNITO_CLIENT_ID, _COGNITO_PLACEHOLDERS
 
@@ -74,6 +74,13 @@ async def pool_timeout_handler(request: Request, exc: PoolTimeoutError) -> JSONR
     )
 
 
+async def db_not_configured_handler(request: Request, exc: DBNotConfiguredError) -> JSONResponse:
+    return JSONResponse(
+        status_code=503,
+        content={"detail": "Notifications database is not configured. Set SUPABASE_DATABASE_URL in backend/.env."},
+    )
+
+
 def _sanitize_startup_error(message: str) -> str:
     """Mask any PostgreSQL connection strings or credentials that may appear in an error message."""
     import re
@@ -88,6 +95,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 app.add_exception_handler(PoolTimeoutError, pool_timeout_handler)
+app.add_exception_handler(DBNotConfiguredError, db_not_configured_handler)
 
 # CORS Middleware
 app.add_middleware(

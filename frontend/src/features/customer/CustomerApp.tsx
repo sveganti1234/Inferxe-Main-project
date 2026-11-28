@@ -23,6 +23,7 @@ import GpusPage from './pages/GpusPage'
 import PlaygroundPage from './pages/PlaygroundPage'
 import DeploymentsPage from './pages/DeploymentsPage'
 import WishlistPage from './pages/WishlistPage'
+import StoragePage from './pages/StoragePage'
 import SshKeysPage from './pages/SshKeysPage'
 import OrdersPage from './pages/OrdersPage'
 import CheckoutPage from './pages/CheckoutPage'
@@ -46,6 +47,7 @@ const IMPLEMENTED: Partial<Record<SectionId, () => ReactElement>> = {
   playground: () => <PlaygroundPage />,
   deployments: () => <DeploymentsPage />,
   wishlist: () => <WishlistPage />,
+  storage: () => <StoragePage />,
   'ssh-keys': () => <SshKeysPage />,
   orders: () => <OrdersPage />,
   checkout: () => <CheckoutPage />,

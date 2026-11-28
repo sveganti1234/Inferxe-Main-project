@@ -39,6 +39,7 @@ import {
   humaniseCode,
 } from '../data/selectors'
 import {
+  announceNotificationsChanged,
   createDeployment,
   deleteDeployment,
   updateDeploymentStatus,
@@ -160,6 +161,7 @@ export default function DeploymentsPage() {
     try {
       await updateDeploymentStatus(id, newStatus)
       setActionSuccess(`Deployment status updated to ${newStatus}.`)
+      announceNotificationsChanged()
       refresh()
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Could not update deployment status.')
@@ -174,9 +176,11 @@ export default function DeploymentsPage() {
     setActionSuccess(null)
     try {
       await updateDeploymentStatus(id, 'provisioning')
+      announceNotificationsChanged()
       setTimeout(async () => {
         try {
           await updateDeploymentStatus(id, 'running')
+          announceNotificationsChanged()
           refresh()
         } catch {
           // background state transition
@@ -200,6 +204,7 @@ export default function DeploymentsPage() {
       await deleteDeployment(deleteTarget.id)
       setActionSuccess(`Deployment "${deleteTarget.name}" deleted.`)
       setDeleteTarget(null)
+      announceNotificationsChanged()
       refresh()
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Could not delete deployment.')
@@ -227,6 +232,7 @@ export default function DeploymentsPage() {
       })
       setActionSuccess(`Endpoint "${formData.name.trim()}" deployment initiated.`)
       handleCloseCreate()
+      announceNotificationsChanged()
       refresh()
     } catch (err) {
       setActionError(err instanceof Error ? err.message : 'Failed to create deployment.')

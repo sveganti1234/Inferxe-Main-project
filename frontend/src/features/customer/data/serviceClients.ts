@@ -7,7 +7,15 @@
  */
 import { INFERENCE_API_BASE } from '../../../lib/apiConfig'
 import { CustomerApiError, customerRequest, defaultMessage, kindForStatus } from './http'
-import type { InferenceServiceHealth, NotificationItem, NotificationPage, WalletBalance, WorkspaceBudget } from './types'
+import type {
+  InferenceServiceHealth,
+  NotificationItem,
+  NotificationPage,
+  StorageListingResponse,
+  WalletBalance,
+  WorkspaceBudget,
+  WorkspaceFile,
+} from './types'
 
 const toNumber = (value: unknown): number | null => {
   const n = typeof value === 'number' ? value : typeof value === 'string' ? Number(value) : NaN
@@ -127,6 +135,7 @@ export async function addMoneyToWallet(amount: number, idempotencyKey: string): 
     method: 'POST',
     body: { amount, idempotency_key: idempotencyKey },
   })
+  announceNotificationsChanged()
 }
 
 /* ── Monthly budget (8002) ── */
@@ -259,4 +268,114 @@ export async function updateOrderStatus(
     throw new CustomerApiError('invalid_response', defaultMessage('invalid_response'))
   }
 }
+
+/* ── Workspace Storage APIs ── */
+
+export async function fetchStorageFiles(
+  folder: string = '/',
+  search?: string,
+  signal?: AbortSignal,
+): Promise<StorageListingResponse> {
+  const query: Record<string, string> = { folder }
+  if (search && search.trim()) {
+    query.search = search.trim()
+  }
+
+  const body = await customerRequest<StorageListingResponse>('/api/customer/storage/files', {
+    query,
+    signal,
+  })
+
+  if (!body || !body.ok || !Array.isArray(body.items)) {
+    throw new CustomerApiError('invalid_response', defaultMessage('invalid_response'))
+  }
+
+  return body
+}
+
+export async function createStorageFolder(
+  folderPath: string,
+  name: string,
+): Promise<WorkspaceFile> {
+  const trimmedName = name.trim()
+  if (!trimmedName) throw new CustomerApiError('bad_request', 'Folder name is required.')
+
+  const body = await customerRequest<{ ok?: boolean; item?: WorkspaceFile }>('/api/customer/storage/folders', {
+    method: 'POST',
+    body: { folder_path: folderPath, name: trimmedName },
+  })
+
+  if (!body?.ok || !body.item) {
+    throw new CustomerApiError('invalid_response', defaultMessage('invalid_response'))
+  }
+
+  return body.item
+}
+
+export async function uploadStorageFile(
+  folderPath: string,
+  name: string,
+  contentBase64: string,
+  mimeType: string = 'application/octet-stream',
+): Promise<WorkspaceFile> {
+  const trimmedName = name.trim()
+  if (!trimmedName) throw new CustomerApiError('bad_request', 'File name is required.')
+  if (!contentBase64) throw new CustomerApiError('bad_request', 'File content is empty.')
+
+  const body = await customerRequest<{ ok?: boolean; item?: WorkspaceFile }>('/api/customer/storage/upload', {
+    method: 'POST',
+    body: {
+      folder_path: folderPath,
+      name: trimmedName,
+      content_base64: contentBase64,
+      mime_type: mimeType,
+    },
+  })
+
+  if (!body?.ok || !body.item) {
+    throw new CustomerApiError('invalid_response', defaultMessage('invalid_response'))
+  }
+
+  return body.item
+}
+
+export async function getStorageFileDownloadUrl(
+  fileId: string,
+): Promise<{ download_url: string; name: string; size_bytes?: number }> {
+  if (!fileId) throw new CustomerApiError('bad_request', 'File ID is required.')
+
+  const body = await customerRequest<{ ok?: boolean; download_url?: string; name?: string; size_bytes?: number }>(
+    `/api/customer/storage/files/${encodeURIComponent(fileId)}/download`,
+  )
+
+  if (!body?.ok || !body.download_url) {
+    throw new CustomerApiError('invalid_response', defaultMessage('invalid_response'))
+  }
+
+  return {
+    download_url: body.download_url,
+    name: body.name || 'download',
+    size_bytes: body.size_bytes,
+  }
+}
+
+export async function deleteStorageItem(
+  id: string,
+): Promise<{ deleted: boolean; id: string }> {
+  if (!id) throw new CustomerApiError('bad_request', 'Item ID is required.')
+
+  const body = await customerRequest<{ ok?: boolean; deleted?: boolean; id?: string }>(
+    `/api/customer/storage/files/${encodeURIComponent(id)}`,
+    {
+      method: 'DELETE',
+    },
+  )
+
+  if (!body?.ok || !body.deleted) {
+    throw new CustomerApiError('invalid_response', defaultMessage('invalid_response'))
+  }
+
+  return { deleted: true, id }
+}
+
 

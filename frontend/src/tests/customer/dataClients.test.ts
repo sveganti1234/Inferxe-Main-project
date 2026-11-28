@@ -3,6 +3,7 @@ import { ensureFreshSession } from '../../lib/authStore'
 import { CustomerApiError, customerRequest, kindForStatus } from '../../features/customer/data/http'
 import { fetchCustomerWorkspace, normaliseWorkspace } from '../../features/customer/data/workspaceClient'
 import {
+  addMoneyToWallet,
   fetchInferenceHealth,
   fetchNotifications,
   fetchUnreadNotificationCount,
@@ -154,5 +155,20 @@ describe('service clients', () => {
     await expect(fetchInferenceHealth()).resolves.toMatchObject({ inferenceAvailable: true, simulated: false })
     mockFetch.mockResolvedValue(jsonResponse(200, { status: 'ok', nvidia_provider: 'demo' }))
     await expect(fetchInferenceHealth()).resolves.toMatchObject({ inferenceAvailable: true, simulated: true })
+  })
+
+  it('addMoneyToWallet: posts transaction and announces notifications change', async () => {
+    mockFetch.mockResolvedValue(jsonResponse(200, { status: 'success', amount: 500, new_balance: 500 }))
+    const onNotificationChange = vi.fn()
+    window.addEventListener('inferxe_notifications_change', onNotificationChange)
+    await addMoneyToWallet(500, 'idem-test-123')
+    expect(lastRequest().url).toBe('/api/wallet/transactions')
+    expect(lastRequest().init.method).toBe('POST')
+    expect(JSON.parse(String(lastRequest().init.body))).toEqual({
+      amount: 500,
+      idempotency_key: 'idem-test-123',
+    })
+    expect(onNotificationChange).toHaveBeenCalled()
+    window.removeEventListener('inferxe_notifications_change', onNotificationChange)
   })
 })

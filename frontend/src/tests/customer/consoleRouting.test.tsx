@@ -81,6 +81,6 @@ describe('console preview routing', () => {
     storeCustomerSession()
     await renderApp('/dashboard/app/api-keys')
     expect(host.querySelector('.cx-app')).not.toBeNull()
-    expect(host.querySelectorAll('.cx-nav__item')).toHaveLength(18)
+    expect(host.querySelectorAll('.cx-nav__item')).toHaveLength(19)
   })
 })

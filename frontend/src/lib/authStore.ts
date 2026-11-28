@@ -1139,6 +1139,9 @@ export async function createDeveloperAdminAccount(input: {
     }
     invalidateSuperadminAdminsCache()
     invalidateSuperadminOverviewCache()
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('inferxe_notifications_change'))
+    }
     return { ok: true, statusCode: res.status, admin: data.admin }
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : 'Failed to create developer admin account.' }
@@ -1208,6 +1211,9 @@ export async function updateSuperadminAdmin(
     }
     invalidateSuperadminAdminsCache()
     invalidateSuperadminOverviewCache()
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('inferxe_notifications_change'))
+    }
     return { ok: true, statusCode: res.status, admin: data.admin }
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : 'Failed to update administrator account.' }
@@ -1240,6 +1246,9 @@ export async function deleteSuperadminAdmin(
     }
     invalidateSuperadminAdminsCache()
     invalidateSuperadminOverviewCache()
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('inferxe_notifications_change'))
+    }
     return { ok: true, statusCode: res.status }
   } catch (err) {
     return { ok: false, error: err instanceof Error ? err.message : 'Failed to delete administrator account.' }

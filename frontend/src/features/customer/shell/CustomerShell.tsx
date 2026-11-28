@@ -9,6 +9,7 @@ import { selectProfileSummary } from '../data/selectors'
 import { sectionForPath } from '../navigation'
 import { EmptyState, ErrorState } from '../ui/states'
 import { Button, Notice } from '../ui/primitives'
+import { CustomerToastViewport } from '../ui/CustomerToast'
 import { useResourceRefreshing } from '../data/useAsyncResource'
 import { CustomerSidebar } from './CustomerSidebar'
 import { CustomerTopbar } from './CustomerTopbar'
@@ -212,6 +213,7 @@ export function CustomerShell() {
           </main>
         </div>
       </div>
+      <CustomerToastViewport userId={profile?.email ?? workspace?.profile?.user_id ?? null} />
     </div>
     </MotionConfig>
     </ConsoleSignalsContext.Provider>

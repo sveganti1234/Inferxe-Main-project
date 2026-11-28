@@ -18,6 +18,7 @@ import {
   deleteBackendSshKey,
   fetchBackendSshKeys,
 } from '../../../lib/sshKeyService'
+import { announceNotificationsChanged } from '../data/serviceClients'
 import { getSection } from '../navigation'
 import { Button, ButtonLink, Card } from '../ui/primitives'
 
@@ -215,6 +216,7 @@ export default function SshKeysPage() {
     const updated = [newItem, ...keys]
     setKeys(updated)
     saveLocalSshKeys(updated)
+    announceNotificationsChanged()
     setSubmitting(false)
     setShowAddModal(false)
     setMessage({ tone: 'success', text: `Successfully registered public SSH key "${trimmedName}".` })
@@ -229,6 +231,7 @@ export default function SshKeysPage() {
       const updated = keys.filter((k) => k.id !== keyToDelete.id)
       setKeys(updated)
       saveLocalSshKeys(updated)
+      announceNotificationsChanged()
       setMessage({ tone: 'success', text: `Removed SSH key "${keyToDelete.name}".` })
     } catch {
       setMessage({ tone: 'error', text: 'Failed to remove SSH key.' })

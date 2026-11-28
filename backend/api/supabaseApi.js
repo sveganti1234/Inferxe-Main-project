@@ -5,7 +5,7 @@ import {
   CognitoIdentityProviderClient,
 } from '@aws-sdk/client-cognito-identity-provider'
 import { authenticateCognitoRequest, readCustomerJsonBody, sendCustomerJson } from '../auth/customerAuth.js'
-import { extractAdminTokenFromRequest, verifyAdminSession } from '../auth/adminAuth.js'
+import { extractAdminTokenFromRequest, verifyAdminSession, verifyAdminToken } from '../auth/adminAuth.js'
 import { getSupabaseAdminClient } from '../lib/supabase.js'
 import { handleAdminCustomerApi } from './adminCustomersApi.js'
 
@@ -28,9 +28,11 @@ const WORKSPACE_SELECTS = {
   order_reviews: 'id, order_id, user_id, rating, note, created_at, updated_at',
   notebook_sessions: 'id, user_id, deployment_id, name, status, session_url, storage_path, bot_access_enabled, started_at, stopped_at, created_at, updated_at',
   inference_requests: 'id, user_id, organization_id, api_key_id, deployment_id, model_name, provider_name, input_tokens, output_tokens, latency_ms, status, error_message, cost, created_at',
+  customer_workspace_files: 'id, user_id, name, path, folder_path, is_folder, size_bytes, mime_type, storage_bucket, storage_path, created_at, updated_at',
 }
 
 const STORAGE_BUCKETS = new Set([
+  'workspace-files',
   'profile-avatars',
   'notebook-files',
   'inference-outputs',
@@ -164,6 +166,83 @@ async function getRows(supabase, table, columnList, field, value) {
   } catch (err) {
     console.warn(`[customer-api] Query exception for table '${table}':`, err?.message || err)
     return []
+  }
+}
+
+/**
+ * Inserts a customer notification safely with schema-adaptive fallback.
+ * Follows existing notification schema conventions (detail, message, related_entity_id, metadata).
+ * Failures are caught and logged without disrupting the calling deployment or status flow.
+ */
+export async function insertCustomerNotificationSafe(supabase, {
+  userId,
+  title,
+  message,
+  notificationType = 'GPU_DEPLOYMENT',
+  relatedEntityId = null,
+  metadata = null,
+}) {
+  if (!supabase || !userId) return null
+  const now = new Date().toISOString()
+  const notifId = crypto.randomUUID()
+  const metaStr = typeof metadata === 'object' && metadata ? JSON.stringify(metadata) : '{}'
+
+  try {
+    // Attempt 1: Full record with detail, message, related_entity_id, metadata
+    const res1 = await supabase.from('notifications').insert({
+      id: notifId,
+      user_id: userId,
+      title,
+      detail: message,
+      message,
+      notification_type: notificationType,
+      is_read: false,
+      related_entity_id: relatedEntityId,
+      metadata: metaStr,
+      created_at: now,
+    })
+    if (!res1.error) return res1.data
+
+    // Attempt 2: Standard workspace schema with detail only
+    const res2 = await supabase.from('notifications').insert({
+      id: notifId,
+      user_id: userId,
+      title,
+      detail: message,
+      notification_type: notificationType,
+      is_read: false,
+      created_at: now,
+    })
+    if (!res2.error) return res2.data
+
+    // Attempt 3: Schema with message only
+    const res3 = await supabase.from('notifications').insert({
+      id: notifId,
+      user_id: userId,
+      title,
+      message,
+      notification_type: notificationType,
+      is_read: false,
+      created_at: now,
+    })
+    if (!res3.error) return res3.data
+
+    // Attempt 4: Minimal columns (id, user_id, title, notification_type, is_read, created_at)
+    const res4 = await supabase.from('notifications').insert({
+      id: notifId,
+      user_id: userId,
+      title,
+      notification_type: notificationType,
+      is_read: false,
+      created_at: now,
+    })
+    if (res4.error) {
+      console.warn('[customer-api] Failed to insert notification (all attempts):', res4.error.message || res4.error)
+    }
+    return res4.data || null
+  } catch (err) {
+    console.warn('[customer-api] Exception inserting notification for user', userId, ':', err?.message || err)
+    return null
   }
 }
 
@@ -354,6 +433,58 @@ async function getInferenceRequestStats(supabase) {
   return stats
 }
 
+const DEFAULT_STORAGE_QUOTA_BYTES = 10 * 1024 * 1024 * 1024 // 10 GB
+const MAX_SINGLE_UPLOAD_BYTES = 500 * 1024 * 1024 // 500 MB
+
+function sanitizeStorageFileName(rawName) {
+  if (typeof rawName !== 'string') return ''
+  const trimmed = rawName.trim()
+  if (!trimmed || trimmed === '.' || trimmed === '..' || trimmed.includes('/') || trimmed.includes('\\') || trimmed.includes('\0')) {
+    return ''
+  }
+  return trimmed.slice(0, 255)
+}
+
+function sanitizeFolderPath(rawPath) {
+  if (typeof rawPath !== 'string') return '/'
+  const trimmed = rawPath.trim().replace(/\\/g, '/')
+  if (!trimmed || trimmed === '/' || trimmed === '.') return '/'
+  let normalized = trimmed.startsWith('/') ? trimmed : `/${trimmed}`
+  normalized = normalized.replace(/\/+/g, '/')
+  if (normalized.length > 1 && normalized.endsWith('/')) {
+    normalized = normalized.slice(0, -1)
+  }
+  const segments = normalized.split('/').filter(Boolean)
+  if (segments.some((seg) => seg === '.' || seg === '..' || seg.includes('\0'))) {
+    return null
+  }
+  return `/${segments.join('/')}`
+}
+
+async function calculateCustomerStorageUsage(supabase, userId) {
+  const result = await supabase
+    .from('customer_workspace_files')
+    .select('size_bytes')
+    .eq('user_id', userId)
+    .eq('is_folder', false)
+
+  if (result.error) throw result.error
+  const files = result.data || []
+  const usedBytes = files.reduce((sum, f) => sum + (Number(f.size_bytes) || 0), 0)
+  const totalFiles = files.length
+  const quotaBytes = DEFAULT_STORAGE_QUOTA_BYTES
+  const availableBytes = Math.max(0, quotaBytes - usedBytes)
+  const quotaPercent = quotaBytes > 0 ? Math.min(100, Math.round((usedBytes / quotaBytes) * 10000) / 100) : 0
+
+  return {
+    used_bytes: usedBytes,
+    total_bytes: quotaBytes,
+    available_bytes: availableBytes,
+    total_files: totalFiles,
+    quota_percent: quotaPercent,
+  }
+}
+
 function validateStoragePath(path, userId) {
   if (typeof path !== 'string' || path.length > 500 || path.includes('\\') || path.includes('\0')) {
     return false
@@ -382,10 +513,10 @@ function calculateSshFingerprint(publicKey) {
   }
 }
 
-async function handleCustomerApi(req, res, path) {
+export async function handleCustomerApi(req, res, path, deps = {}) {
   let context
   try {
-    context = await getCustomerContext(req)
+    context = await getCustomerContext(req, deps)
   } catch (error) {
     return sendJson(res, error.statusCode || 401, {
       ok: false,
@@ -489,17 +620,49 @@ async function handleCustomerApi(req, res, path) {
         .single()
 
       if (result.error) throw result.error
+
+      // Safe side-effect notification for deployment initiation
+      await insertCustomerNotificationSafe(supabase, {
+        userId: claims.sub,
+        title: 'GPU Deployment Started',
+        message: `Your ${gpuModel} deployment (${name}) has been initiated in ${region}.`,
+        notificationType: 'GPU_DEPLOYMENT',
+        relatedEntityId: id,
+        metadata: {
+          deployment_id: id,
+          status: 'provisioning',
+          gpu_model: gpuModel,
+          model_name: modelName,
+          region,
+        },
+      })
+
       return sendJson(res, 201, { ok: true, deployment: result.data })
     }
 
     if (path.startsWith('/api/customer/deployments/') && req.method === 'PATCH') {
       const deploymentId = decodeURIComponent(path.slice('/api/customer/deployments/'.length))
       const body = await readCustomerJsonBody(req)
-      const allowedStatuses = ['running', 'stopped', 'provisioning', 'terminated']
+      const allowedStatuses = ['running', 'stopped', 'provisioning', 'terminated', 'failed']
       const updateData = { updated_at: new Date().toISOString() }
 
+      // Look up existing deployment to enforce ownership and detect genuine status changes
+      const existing = await supabase
+        .from('deployments')
+        .select('id, user_id, status, name, gpu_model, region')
+        .eq('id', deploymentId)
+        .eq('user_id', claims.sub)
+        .maybeSingle()
+
+      if (existing.error) throw existing.error
+      if (!existing.data) return sendJson(res, 404, { ok: false, error: 'Deployment was not found.' })
+
+      const currentStatus = existing.data.status ? String(existing.data.status).toLowerCase().trim() : ''
+      let nextStatus = null
+      let statusChanged = false
+
       if (body.status !== undefined) {
-        const nextStatus = String(body.status).toLowerCase().trim()
+        nextStatus = String(body.status).toLowerCase().trim()
         if (!allowedStatuses.includes(nextStatus)) {
           return sendJson(res, 400, { ok: false, error: `Invalid status. Must be one of: ${allowedStatuses.join(', ')}` })
         }
@@ -508,6 +671,9 @@ async function handleCustomerApi(req, res, path) {
           updateData.started_at = new Date().toISOString()
         } else if (nextStatus === 'stopped' || nextStatus === 'terminated') {
           updateData.stopped_at = new Date().toISOString()
+        }
+        if (currentStatus !== nextStatus) {
+          statusChanged = true
         }
       }
 
@@ -525,11 +691,63 @@ async function handleCustomerApi(req, res, path) {
 
       if (result.error) throw result.error
       if (!result.data) return sendJson(res, 404, { ok: false, error: 'Deployment was not found.' })
+
+      // Create notification only when status genuinely changed (prevent duplicates)
+      if (statusChanged && nextStatus) {
+        const depName = existing.data.name || result.data.name || deploymentId
+        const gpuName = existing.data.gpu_model || result.data.gpu_model || 'GPU'
+        const regionName = existing.data.region || result.data.region || 'cloud facility'
+
+        let notifTitle = `GPU Deployment ${nextStatus.charAt(0).toUpperCase() + nextStatus.slice(1)}`
+        let notifMessage = `Your ${gpuName} deployment (${depName}) is now ${nextStatus}.`
+
+        if (nextStatus === 'running') {
+          notifTitle = 'GPU Deployment Running'
+          notifMessage = `Your ${gpuName} deployment (${depName}) is now live and serving requests in ${regionName}.`
+        } else if (nextStatus === 'stopped') {
+          notifTitle = 'GPU Deployment Paused'
+          notifMessage = `Your ${gpuName} deployment (${depName}) has been stopped.`
+        } else if (nextStatus === 'terminated') {
+          notifTitle = 'GPU Deployment Terminated'
+          notifMessage = `Your ${gpuName} compute instance (${depName}) has been terminated and resources released.`
+        } else if (nextStatus === 'provisioning') {
+          notifTitle = 'GPU Deployment Started'
+          notifMessage = `Your ${gpuName} deployment (${depName}) is provisioning.`
+        } else if (nextStatus === 'failed') {
+          notifTitle = 'GPU Deployment Failed'
+          notifMessage = `Your ${gpuName} deployment (${depName}) encountered an error and failed.`
+        }
+
+        await insertCustomerNotificationSafe(supabase, {
+          userId: claims.sub,
+          title: notifTitle,
+          message: notifMessage,
+          notificationType: nextStatus === 'failed' ? 'GPU_DEPLOYMENT_FAILED' : 'GPU_DEPLOYMENT',
+          relatedEntityId: deploymentId,
+          metadata: {
+            deployment_id: deploymentId,
+            previous_status: currentStatus,
+            status: nextStatus,
+          },
+        })
+      }
+
       return sendJson(res, 200, { ok: true, deployment: result.data })
     }
 
     if (path.startsWith('/api/customer/deployments/') && req.method === 'DELETE') {
       const deploymentId = decodeURIComponent(path.slice('/api/customer/deployments/'.length))
+
+      const existing = await supabase
+        .from('deployments')
+        .select('id, user_id, status, name, gpu_model')
+        .eq('id', deploymentId)
+        .eq('user_id', claims.sub)
+        .maybeSingle()
+
+      if (existing.error) throw existing.error
+      if (!existing.data) return sendJson(res, 404, { ok: false, error: 'Deployment was not found.' })
+
       const result = await supabase
         .from('deployments')
         .delete()
@@ -540,6 +758,20 @@ async function handleCustomerApi(req, res, path) {
 
       if (result.error) throw result.error
       if (!result.data) return sendJson(res, 404, { ok: false, error: 'Deployment was not found.' })
+
+      await insertCustomerNotificationSafe(supabase, {
+        userId: claims.sub,
+        title: 'GPU Deployment Terminated',
+        message: `Your ${existing.data.gpu_model || 'GPU'} compute instance (${existing.data.name || deploymentId}) has been deleted and resources released.`,
+        notificationType: 'GPU_DEPLOYMENT',
+        relatedEntityId: deploymentId,
+        metadata: {
+          deployment_id: deploymentId,
+          previous_status: existing.data.status,
+          status: 'terminated',
+        },
+      })
+
       return sendJson(res, 200, { ok: true, id: result.data.id })
     }
 
@@ -646,17 +878,54 @@ async function handleCustomerApi(req, res, path) {
         return sendJson(res, 409, { ok: false, error: 'This SSH public key has already been added.' })
       }
       if (result.error) throw result.error
+
+      await insertCustomerNotificationSafe(supabase, {
+        userId: claims.sub,
+        title: 'SSH Key Added',
+        message: `SSH public key "${name}" (${fingerprint.slice(0, 16)}…) was added to your account.`,
+        notificationType: 'SECURITY_KEY',
+        relatedEntityId: result.data.id,
+        metadata: {
+          ssh_key_id: result.data.id,
+          name,
+          fingerprint,
+          action: 'added',
+        },
+      })
+
       return sendJson(res, 201, { ok: true, ssh_key: result.data })
     }
 
     if (path.startsWith('/api/customer/ssh-keys/') && req.method === 'DELETE') {
       const keyId = decodeURIComponent(path.slice('/api/customer/ssh-keys/'.length))
+
+      const existingKey = await supabase
+        .from('ssh_public_keys')
+        .select('id, name')
+        .eq('id', keyId)
+        .eq('user_id', claims.sub)
+        .maybeSingle()
+
       const result = await supabase
         .from('ssh_public_keys')
         .delete()
         .eq('id', keyId)
         .eq('user_id', claims.sub)
       if (result.error) throw result.error
+
+      await insertCustomerNotificationSafe(supabase, {
+        userId: claims.sub,
+        title: 'SSH Key Deleted',
+        message: `SSH public key "${existingKey?.data?.name || keyId}" was removed from your account.`,
+        notificationType: 'SECURITY_KEY',
+        relatedEntityId: keyId,
+        metadata: {
+          ssh_key_id: keyId,
+          name: existingKey?.data?.name,
+          action: 'deleted',
+        },
+      })
+
       return sendJson(res, 200, { ok: true })
     }
 
@@ -679,6 +948,21 @@ async function handleCustomerApi(req, res, path) {
         .select(WORKSPACE_SELECTS.api_keys)
         .single()
       if (result.error) throw result.error
+
+      await insertCustomerNotificationSafe(supabase, {
+        userId: claims.sub,
+        title: 'API Key Created',
+        message: `A new API key "${name}" (${secret.slice(0, 15)}…) was successfully generated.`,
+        notificationType: 'SECURITY_KEY',
+        relatedEntityId: result.data.id,
+        metadata: {
+          key_id: result.data.id,
+          name,
+          key_prefix: secret.slice(0, 15),
+          action: 'created',
+        },
+      })
+
       return sendJson(res, 201, { ok: true, api_key: result.data, secret })
     }
 
@@ -693,32 +977,121 @@ async function handleCustomerApi(req, res, path) {
         .maybeSingle()
       if (result.error) throw result.error
       if (!result.data) return sendJson(res, 404, { ok: false, error: 'API key was not found.' })
+
+      await insertCustomerNotificationSafe(supabase, {
+        userId: claims.sub,
+        title: 'API Key Revoked',
+        message: `API key "${result.data.name || keyId}" was permanently revoked.`,
+        notificationType: 'SECURITY_KEY',
+        relatedEntityId: keyId,
+        metadata: {
+          key_id: keyId,
+          name: result.data.name,
+          action: 'revoked',
+        },
+      })
+
       return sendJson(res, 200, { ok: true, api_key: result.data })
     }
 
-    if (path.startsWith('/api/customer/notifications/') && req.method === 'PATCH') {
-      const notificationId = decodeURIComponent(path.slice('/api/customer/notifications/'.length))
-      const body = await readCustomerJsonBody(req)
-      if (typeof body.is_read !== 'boolean') {
-        return sendJson(res, 400, { ok: false, error: 'Notification read state must be a boolean.' })
+    if ((path === '/api/notifications' || path === '/api/customer/notifications') && req.method === 'GET') {
+      const urlObj = new URL(req.url || '', 'http://localhost')
+      const unreadOnly = urlObj.searchParams.get('unread_only') === 'true'
+      const limit = Math.min(Math.max(parseInt(urlObj.searchParams.get('limit') || '50', 10), 1), 200)
+      const offset = Math.max(parseInt(urlObj.searchParams.get('offset') || '0', 10), 0)
+
+      let query = supabase
+        .from('notifications')
+        .select('*', { count: 'exact' })
+        .eq('user_id', claims.sub)
+
+      if (unreadOnly) {
+        query = query.eq('is_read', false)
       }
+
+      query = query
+        .order('created_at', { ascending: false })
+        .range(offset, offset + limit - 1)
+
+      const result = await query
+      if (result.error) throw result.error
+
+      const unreadResult = await supabase
+        .from('notifications')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', claims.sub)
+        .eq('is_read', false)
+
+      const total = result.count ?? (result.data ? result.data.length : 0)
+      const unreadCount = unreadResult.count ?? 0
+
+      return sendJson(res, 200, {
+        total,
+        unread_count: unreadCount,
+        items: result.data || [],
+      })
+    }
+
+    if ((path === '/api/notifications/unread-count' || path === '/api/customer/notifications/unread-count') && req.method === 'GET') {
+      const unreadResult = await supabase
+        .from('notifications')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', claims.sub)
+        .eq('is_read', false)
+
+      return sendJson(res, 200, {
+        unread_count: unreadResult.count ?? 0,
+      })
+    }
+
+    if ((path === '/api/notifications/read-all' || path === '/api/customer/notifications/read-all') && req.method === 'PATCH') {
+      const now = new Date().toISOString()
+      const result = await supabase
+        .from('notifications')
+        .update({ is_read: true, read_at: now })
+        .eq('user_id', claims.sub)
+        .eq('is_read', false)
+        .select('id')
+
+      if (result.error) throw result.error
+      const updatedCount = result.data ? result.data.length : 0
+      return sendJson(res, 200, { status: 'success', updated_count: updatedCount })
+    }
+
+    if ((path.startsWith('/api/notifications/') && path.endsWith('/read') && req.method === 'PATCH') ||
+        (path.startsWith('/api/customer/notifications/') && req.method === 'PATCH')) {
+      let notificationId
+      let isRead = true
+      if (path.endsWith('/read')) {
+        notificationId = decodeURIComponent(path.slice('/api/notifications/'.length, -'/read'.length))
+      } else {
+        notificationId = decodeURIComponent(path.slice('/api/customer/notifications/'.length))
+        const body = await readCustomerJsonBody(req)
+        if (typeof body.is_read === 'boolean') {
+          isRead = body.is_read
+        }
+      }
+
       const result = await supabase
         .from('notifications')
         .update({
-          is_read: body.is_read,
-          read_at: body.is_read ? new Date().toISOString() : null,
+          is_read: isRead,
+          read_at: isRead ? new Date().toISOString() : null,
         })
         .eq('id', notificationId)
         .eq('user_id', claims.sub)
         .select(WORKSPACE_SELECTS.notifications)
         .maybeSingle()
+
       if (result.error) throw result.error
       if (!result.data) return sendJson(res, 404, { ok: false, error: 'Notification was not found.' })
       return sendJson(res, 200, { ok: true, notification: result.data })
     }
 
-    if (path.startsWith('/api/customer/notifications/') && req.method === 'DELETE') {
-      const notificationId = decodeURIComponent(path.slice('/api/customer/notifications/'.length))
+    if ((path.startsWith('/api/notifications/') || path.startsWith('/api/customer/notifications/')) && req.method === 'DELETE') {
+      const prefix = path.startsWith('/api/notifications/') ? '/api/notifications/' : '/api/customer/notifications/'
+      const notificationId = decodeURIComponent(path.slice(prefix.length))
+
       const result = await supabase
         .from('notifications')
         .delete()
@@ -726,9 +1099,314 @@ async function handleCustomerApi(req, res, path) {
         .eq('user_id', claims.sub)
         .select('id')
         .maybeSingle()
+
       if (result.error) throw result.error
       if (!result.data) return sendJson(res, 404, { ok: false, error: 'Notification was not found.' })
-      return sendJson(res, 200, { ok: true })
+      return sendJson(res, 200, { ok: true, deleted: true, id: notificationId })
+    }
+
+    if (path === '/api/customer/storage/files' && req.method === 'GET') {
+      const urlObj = new URL(req.url || '', 'http://localhost')
+      const rawFolder = urlObj.searchParams.get('folder') || '/'
+      const search = (urlObj.searchParams.get('search') || '').trim()
+      const folder = sanitizeFolderPath(rawFolder)
+      if (folder === null) {
+        return sendJson(res, 400, { ok: false, error: 'Invalid folder path.' })
+      }
+
+      let query = supabase
+        .from('customer_workspace_files')
+        .select(WORKSPACE_SELECTS.customer_workspace_files)
+        .eq('user_id', claims.sub)
+
+      if (search) {
+        query = query.ilike('name', `%${search}%`)
+      } else {
+        query = query.eq('folder_path', folder)
+      }
+
+      query = query.order('is_folder', { ascending: false }).order('name', { ascending: true })
+
+      const [itemsResult, usage] = await Promise.all([
+        query,
+        calculateCustomerStorageUsage(supabase, claims.sub),
+      ])
+
+      if (itemsResult.error) throw itemsResult.error
+
+      return sendJson(res, 200, {
+        ok: true,
+        items: itemsResult.data || [],
+        folder,
+        usage,
+      })
+    }
+
+    if (path === '/api/customer/storage/folders' && req.method === 'POST') {
+      const body = await readCustomerJsonBody(req)
+      const folderPath = sanitizeFolderPath(body.folder_path || '/')
+      const name = sanitizeStorageFileName(body.name)
+
+      if (folderPath === null || !name) {
+        return sendJson(res, 400, { ok: false, error: 'Valid folder path and name are required.' })
+      }
+
+      const fullPath = folderPath === '/' ? `/${name}` : `${folderPath}/${name}`
+
+      const existing = await supabase
+        .from('customer_workspace_files')
+        .select('id')
+        .eq('user_id', claims.sub)
+        .eq('folder_path', folderPath)
+        .eq('name', name)
+        .maybeSingle()
+
+      if (existing.error) throw existing.error
+      if (existing.data) {
+        return sendJson(res, 409, { ok: false, error: 'An item with this name already exists in this folder.' })
+      }
+
+      const insertResult = await supabase
+        .from('customer_workspace_files')
+        .insert({
+          user_id: claims.sub,
+          name,
+          path: fullPath,
+          folder_path: folderPath,
+          is_folder: true,
+          size_bytes: 0,
+          mime_type: 'inode/directory',
+          storage_bucket: 'workspace-files',
+          storage_path: null,
+        })
+        .select(WORKSPACE_SELECTS.customer_workspace_files)
+        .single()
+
+      if (insertResult.error) throw insertResult.error
+      return sendJson(res, 201, { ok: true, item: insertResult.data })
+    }
+
+    if (path === '/api/customer/storage/upload' && req.method === 'POST') {
+      const body = await readCustomerJsonBody(req)
+      const folderPath = sanitizeFolderPath(body.folder_path || '/')
+      const name = sanitizeStorageFileName(body.name)
+      const mimeType = (typeof body.mime_type === 'string' && body.mime_type.trim()) || 'application/octet-stream'
+
+      if (folderPath === null || !name) {
+        return sendJson(res, 400, { ok: false, error: 'Valid folder path and file name are required.' })
+      }
+
+      let buffer
+      if (typeof body.content_base64 === 'string') {
+        buffer = Buffer.from(body.content_base64, 'base64')
+      } else if (typeof body.content === 'string') {
+        buffer = Buffer.from(body.content, 'utf8')
+      } else {
+        return sendJson(res, 400, { ok: false, error: 'File content must be provided in content or content_base64.' })
+      }
+
+      if (buffer.length > MAX_SINGLE_UPLOAD_BYTES) {
+        return sendJson(res, 400, { ok: false, error: 'File size exceeds maximum upload limit of 500 MB.' })
+      }
+
+      const usage = await calculateCustomerStorageUsage(supabase, claims.sub)
+      if (usage.used_bytes + buffer.length > usage.total_bytes) {
+        return sendJson(res, 400, { ok: false, error: 'Storage quota exceeded. Your current quota is 10 GB.' })
+      }
+
+      const fullPath = folderPath === '/' ? `/${name}` : `${folderPath}/${name}`
+      const storagePath = `${claims.sub}${fullPath}`
+
+      const storage = supabase.storage.from('workspace-files')
+      const uploadRes = await storage.upload(storagePath, buffer, {
+        contentType: mimeType,
+        upsert: true,
+      })
+      if (uploadRes.error) throw uploadRes.error
+
+      const upsertRes = await supabase
+        .from('customer_workspace_files')
+        .upsert(
+          {
+            user_id: claims.sub,
+            name,
+            path: fullPath,
+            folder_path: folderPath,
+            is_folder: false,
+            size_bytes: buffer.length,
+            mime_type: mimeType,
+            storage_bucket: 'workspace-files',
+            storage_path: storagePath,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'user_id,folder_path,name' }
+        )
+        .select(WORKSPACE_SELECTS.customer_workspace_files)
+        .single()
+
+      if (upsertRes.error) throw upsertRes.error
+      return sendJson(res, 201, { ok: true, item: upsertRes.data })
+    }
+
+    if (path === '/api/customer/storage/register-file' && req.method === 'POST') {
+      const body = await readCustomerJsonBody(req)
+      const folderPath = sanitizeFolderPath(body.folder_path || '/')
+      const name = sanitizeStorageFileName(body.name)
+      const sizeBytes = Number(body.size_bytes) || 0
+      const mimeType = (typeof body.mime_type === 'string' && body.mime_type.trim()) || 'application/octet-stream'
+      const storagePath = typeof body.storage_path === 'string' ? body.storage_path.trim() : ''
+
+      if (folderPath === null || !name || !storagePath) {
+        return sendJson(res, 400, { ok: false, error: 'Folder path, name, and storage path are required.' })
+      }
+
+      if (!validateStoragePath(storagePath, claims.sub)) {
+        return sendJson(res, 403, { ok: false, error: 'Unauthorized storage path.' })
+      }
+
+      const usage = await calculateCustomerStorageUsage(supabase, claims.sub)
+      if (usage.used_bytes + sizeBytes > usage.total_bytes) {
+        return sendJson(res, 400, { ok: false, error: 'Storage quota exceeded. Your current quota is 10 GB.' })
+      }
+
+      const fullPath = folderPath === '/' ? `/${name}` : `${folderPath}/${name}`
+
+      const upsertRes = await supabase
+        .from('customer_workspace_files')
+        .upsert(
+          {
+            user_id: claims.sub,
+            name,
+            path: fullPath,
+            folder_path: folderPath,
+            is_folder: false,
+            size_bytes: sizeBytes,
+            mime_type: mimeType,
+            storage_bucket: 'workspace-files',
+            storage_path: storagePath,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'user_id,folder_path,name' }
+        )
+        .select(WORKSPACE_SELECTS.customer_workspace_files)
+        .single()
+
+      if (upsertRes.error) throw upsertRes.error
+      return sendJson(res, 201, { ok: true, item: upsertRes.data })
+    }
+
+    if (path.startsWith('/api/customer/storage/files/') && path.endsWith('/download') && req.method === 'GET') {
+      const fileId = decodeURIComponent(path.slice('/api/customer/storage/files/'.length, -'/download'.length))
+      if (!fileId) return sendJson(res, 400, { ok: false, error: 'File ID is required.' })
+
+      const fileResult = await supabase
+        .from('customer_workspace_files')
+        .select(WORKSPACE_SELECTS.customer_workspace_files)
+        .eq('id', fileId)
+        .eq('user_id', claims.sub)
+        .maybeSingle()
+
+      if (fileResult.error) throw fileResult.error
+      if (!fileResult.data) {
+        return sendJson(res, 404, { ok: false, error: 'File was not found or access is denied.' })
+      }
+
+      const file = fileResult.data
+      if (file.is_folder) {
+        return sendJson(res, 400, { ok: false, error: 'Folders cannot be downloaded directly.' })
+      }
+
+      const storage = supabase.storage.from(file.storage_bucket || 'workspace-files')
+      const signedRes = await storage.createSignedUrl(file.storage_path, 300, {
+        download: file.name,
+      })
+
+      if (signedRes.error) throw signedRes.error
+
+      return sendJson(res, 200, {
+        ok: true,
+        download_url: signedRes.data.signedUrl,
+        name: file.name,
+        size_bytes: file.size_bytes,
+        mime_type: file.mime_type,
+      })
+    }
+
+    if (path.startsWith('/api/customer/storage/files/') && req.method === 'DELETE') {
+      const fileId = decodeURIComponent(path.slice('/api/customer/storage/files/'.length))
+      if (!fileId) return sendJson(res, 400, { ok: false, error: 'File ID is required.' })
+
+      const itemResult = await supabase
+        .from('customer_workspace_files')
+        .select(WORKSPACE_SELECTS.customer_workspace_files)
+        .eq('id', fileId)
+        .eq('user_id', claims.sub)
+        .maybeSingle()
+
+      if (itemResult.error) throw itemResult.error
+      if (!itemResult.data) {
+        return sendJson(res, 404, { ok: false, error: 'Item was not found or access is denied.' })
+      }
+
+      const item = itemResult.data
+      const storage = supabase.storage.from(item.storage_bucket || 'workspace-files')
+
+      if (item.is_folder) {
+        // Collect descendants
+        const descendantsResult = await supabase
+          .from('customer_workspace_files')
+          .select('id, storage_path, is_folder')
+          .eq('user_id', claims.sub)
+          .or(`path.eq.${item.path},path.like.${item.path}/%`)
+
+        if (descendantsResult.error) throw descendantsResult.error
+        const allItems = descendantsResult.data || []
+        const storagePathsToDelete = allItems
+          .filter((i) => !i.is_folder && i.storage_path)
+          .map((i) => i.storage_path)
+
+        if (storagePathsToDelete.length > 0) {
+          try {
+            await storage.remove(storagePathsToDelete)
+          } catch (err) {
+            console.warn('[customer-storage] Storage deletion warning:', err.message)
+          }
+        }
+
+        const idsToDelete = [item.id, ...allItems.map((i) => i.id)]
+        const deleteRows = await supabase
+          .from('customer_workspace_files')
+          .delete()
+          .in('id', idsToDelete)
+          .eq('user_id', claims.sub)
+
+        if (deleteRows.error) throw deleteRows.error
+
+        return sendJson(res, 200, {
+          ok: true,
+          deleted: true,
+          id: fileId,
+          count: idsToDelete.length,
+        })
+      } else {
+        if (item.storage_path) {
+          try {
+            await storage.remove([item.storage_path])
+          } catch (err) {
+            console.warn('[customer-storage] Storage file deletion warning:', err.message)
+          }
+        }
+
+        const deleteRow = await supabase
+          .from('customer_workspace_files')
+          .delete()
+          .eq('id', fileId)
+          .eq('user_id', claims.sub)
+
+        if (deleteRow.error) throw deleteRow.error
+
+        return sendJson(res, 200, { ok: true, deleted: true, id: fileId })
+      }
     }
 
     if (path === '/api/customer/storage/signed-url' && req.method === 'POST') {
@@ -1042,6 +1720,40 @@ async function handleAdminApi(req, res, path) {
       })
       if (audit.error) throw audit.error
 
+      if (Object.keys(policyPatch).length || Object.keys(profilePatch).length) {
+        const changedSummary = []
+        if (policyPatch.monthly_spend_limit !== undefined) {
+          changedSummary.push(`monthly spend limit set to ${policyPatch.monthly_spend_limit !== null ? '₹' + Number(policyPatch.monthly_spend_limit).toLocaleString('en-IN') : 'unlimited'}`)
+        }
+        if (policyPatch.rate_limit !== undefined) {
+          changedSummary.push(`rate limit set to ${policyPatch.rate_limit}`)
+        }
+        if (policyPatch.model_access !== undefined) {
+          changedSummary.push(`model access set to ${policyPatch.model_access}`)
+        }
+        if (profilePatch.role !== undefined) {
+          changedSummary.push(`role set to ${profilePatch.role}`)
+        }
+        if (profilePatch.status !== undefined) {
+          changedSummary.push(`status set to ${profilePatch.status}`)
+        }
+
+        const detailMsg = changedSummary.length
+          ? `Your account limits were updated: ${changedSummary.join(', ')}.`
+          : 'Your account allocation and resource limits were updated by an administrator.'
+
+        await insertCustomerNotificationSafe(supabase, {
+          userId,
+          title: 'Account Limits Updated',
+          message: detailMsg,
+          notificationType: 'PLAN_UPDATE',
+          metadata: {
+            administrator_email: admin.email,
+            changed_fields: [...Object.keys(profilePatch), ...Object.keys(policyPatch)],
+          },
+        })
+      }
+
       return sendJson(res, 200, { ok: true })
     }
 
@@ -1055,10 +1767,63 @@ async function handleAdminApi(req, res, path) {
   }
 }
 
-export function createSupabaseApiMiddleware() {
+export function isAdminNotificationRequest(req, deps = {}) {
+  const token = (deps.extractAdminToken || extractAdminTokenFromRequest)(req)
+  if (!token || typeof token !== 'string') return false
+
+  const trimmed = token.trim()
+  if (trimmed.startsWith('ix-') || trimmed === 'admin-dev-token') return false
+
+  const parts = trimmed.split('.')
+  if (parts.length !== 3) return false
+
+  // Inspect JWT header for HS256 algorithm
+  try {
+    const b64Header = parts[0].replace(/-/g, '+').replace(/_/g, '/')
+    const header = JSON.parse(Buffer.from(b64Header, 'base64').toString('utf8'))
+    if (header.alg !== 'HS256' || header.typ !== 'JWT') return false
+  } catch {
+    return false
+  }
+
+  // Allow test injection if provided
+  if (typeof deps.authenticateAdmin === 'function') {
+    try {
+      const res = deps.authenticateAdmin(req, trimmed)
+      return Boolean(res && res.valid !== false)
+    } catch {
+      return false
+    }
+  }
+
+  const secret = String(process.env.ADMIN_SESSION_SECRET || '').trim()
+  if (secret.length >= 32) {
+    const verified = verifyAdminToken(trimmed, secret, {
+      allowedRoles: ['admin', 'superadmin', 'super_admin'],
+    })
+    return verified.valid === true
+  }
+
+  // Fallback: check claims payload has admin role before letting FastAPI verify full DB session
+  try {
+    const b64Payload = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+    const payload = JSON.parse(Buffer.from(b64Payload, 'base64').toString('utf8'))
+    return Boolean(payload && payload.sub && ['admin', 'superadmin', 'super_admin'].includes(payload.role))
+  } catch {
+    return false
+  }
+}
+
+export function createSupabaseApiMiddleware(deps = {}) {
   return async function supabaseApiMiddleware(req, res, next) {
     const path = (req.url || '/').split('?')[0]
-    if (path.startsWith('/api/customer/')) return handleCustomerApi(req, res, path)
+    if (path.startsWith('/api/notifications')) {
+      if (isAdminNotificationRequest(req, deps)) {
+        return next()
+      }
+      return handleCustomerApi(req, res, path, deps)
+    }
+    if (path.startsWith('/api/customer/')) return handleCustomerApi(req, res, path, deps)
     if (path.startsWith('/api/admin/data/') || path === '/api/admin/customers' || path.startsWith('/api/admin/customers/')) {
       return handleAdminApi(req, res, path)
     }
