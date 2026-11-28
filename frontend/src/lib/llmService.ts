@@ -27,8 +27,8 @@ export interface LlmConfig {
 }
 
 export const DEFAULT_LLM_CONFIG: LlmConfig = {
-  activeModel: 'inferxe-qwen-ft',
-  fallbackModel: 'inferxe-assistant',
+  activeModel: 'qwen2.5:1.5b',
+  fallbackModel: 'llama3.2:3b',
   endpoint: OLLAMA_CHAT_ENDPOINT,
   timeoutMs: 12000,
 }
@@ -116,7 +116,7 @@ export async function queryFineTunedModel(
   // 2. Primary RAG Pipeline Call to FastAPI Backend
   try {
     const ragController = new AbortController()
-    const ragTimeout = setTimeout(() => ragController.abort(), 15000)
+    const ragTimeout = setTimeout(() => ragController.abort(), 4000)
 
     const token = (await ensureFreshSession())?.token
     const headers: Record<string, string> = {

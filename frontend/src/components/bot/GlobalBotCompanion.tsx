@@ -120,7 +120,14 @@ export function getBotReply(query: string, currentPath: string = '/'): string {
   const q = rawQ
     .replace(/\bot\b/g, 'to')
     .replace(/\bpriicng\b/g, 'pricing')
-    .replace(/\bgpuss\b/g, 'gpus')
+    .replace(/\bgpuss?\b/g, 'gpus')
+    .replace(/\bgup\b/g, 'gpu')
+    .replace(/\bgups\b/g, 'gpus')
+    .replace(/\bavalible\b/g, 'available')
+    .replace(/\bavaliable\b/g, 'available')
+    .replace(/\bavailble\b/g, 'available')
+    .replace(/\bavialable\b/g, 'available')
+    .replace(/\bwebsit\b/g, 'website')
 
   // 1. Domain Boundary Gatekeeper
   const domainStatus = checkDomainGatekeeper(query)
@@ -220,7 +227,10 @@ export function getBotReply(query: string, currentPath: string = '/'): string {
     q.includes('about inferxe') ||
     q.includes('website overview') ||
     q.includes('explain this website') ||
-    q.includes('tell me about this website')
+    q.includes('tell me about this website') ||
+    q.includes('one api') ||
+    q.includes('many gpu') ||
+    q.includes('concept')
   ) {
     return "**Inferxe** is a GPU marketplace and AI inference platform built around the idea of **'One API, Many GPU Providers'**.\n\n**Available today:**\n1. **Inference API**: `POST /api/v1/inference` with your Inferxe API key as a bearer token. The server chooses the model; there is no streaming and it is not OpenAI-compatible yet.\n2. **Customer console**: API keys, usage, notifications, a read-only billing & wallet view, and a GPU marketplace where you can save listings.\n3. **Sign-in**: customer and admin portals with separate roles.\n\n**Planned (not available yet):** GPU provisioning and deployments, multi-provider routing with automatic failover, and self-service wallet top-ups."
   }
@@ -257,6 +267,30 @@ export function getBotReply(query: string, currentPath: string = '/'): string {
       "• [Deployments](/dashboard/app/deployments): read-only records. Provisioning is not available yet.\n" +
       "• [API keys](/dashboard/app/api-keys), [Usage & analytics](/dashboard/app/usage), [Billing & wallet](/dashboard/app/billing) (read-only), [Notifications](/dashboard/app/notifications), and [Settings](/dashboard/app/settings).\n" +
       "• [SSH keys & notebooks](/dashboard/app/developer): notebook sessions are simulated records, with no real runtime."
+  }
+
+  // 3g-1. Available GPUs in Marketplace / Catalog
+  if (
+    q.includes('what gpus') ||
+    q.includes('which gpus') ||
+    q.includes('list of gpu') ||
+    q.includes('list gpus') ||
+    (q.includes('gpu') && (q.includes('available') || q.includes('offer') || q.includes('catalog') || q.includes('catalogue') || q.includes('options') || q.includes('inventory') || q.includes('fleet')))
+  ) {
+    return (
+      "### GPUs Available on Inferxe:\n\n" +
+      "Inferxe offers a range of high-performance NVIDIA GPUs across Indian data centers (Noida & Mumbai) for AI training, fine-tuning, and inference:\n\n" +
+      "• **NVIDIA H100 SXM5 (80 GB HBM3)**: ₹275–₹280/hr\n" +
+      "  Best for: Large LLMs (70B+), multi-GPU training, and massive context windows (3.35 TB/s memory bandwidth).\n" +
+      "• **NVIDIA L40S (48 GB GDDR6 with ECC)**: ₹100/hr\n" +
+      "  Best for: 14B–34B models, high-throughput FP8 inference, and diffusion models (SDXL, FLUX).\n" +
+      "• **NVIDIA L4 (24 GB GDDR6)**: ₹60/hr\n" +
+      "  Best for: 7B–8B models (Llama 3.1 8B), lightweight inference, and low-power 72W single-slot efficiency.\n" +
+      "• **NVIDIA A100 (80 GB / 40 GB HBM2)**: High-bandwidth enterprise AI and deep learning compute.\n" +
+      "• **NVIDIA RTX 4090 (24 GB GDDR6X)**: High-performance workstation GPU for local AI development and testing.\n" +
+      "• **NVIDIA A30 (24 GB HBM2)**: Mainstream enterprise AI and inference workloads.\n\n" +
+      "You can browse live availability and save listings in the [GPU marketplace](/dashboard/app/gpus), or estimate required VRAM in the [LLM catalog](/dashboard/app/models)."
+    )
   }
 
   // 3g. GPU Rental, Booking & Marketplace Reservation
@@ -853,18 +887,33 @@ export function GlobalBotCompanion() {
           replyText = ADMIN_FEATURES_REPLY
         }
       } else {
-        // Build lightweight conversation history for context
-        const historyPayload = messages.slice(-4).map((m) => ({
-          role: (m.sender === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
-          content: m.text,
-        }))
+        // 1. Check verified knowledge engine first for instant, accurate answers (eliminating local CPU model lag)
+        const instantReply = getBotReply(text, location.pathname)
+        const isGenericFallback =
+          instantReply.startsWith("I am your Inferxe GPU & AI Assistant. Here is how I can help:") ||
+          instantReply.startsWith("Hi there! I am your Inferxe AI Assistant.")
 
-        // Query the active fine-tuned model via RAG service
-        const res = await queryFineTunedModel(text, historyPayload, {
-          userRole,
-          currentPath: location.pathname,
-        })
-        replyText = (!res.isFallback && res.text) ? res.text : getBotReply(text, location.pathname)
+        if (!isGenericFallback) {
+          replyText = instantReply
+        } else {
+          // Build lightweight conversation history for context on open-ended queries
+          const historyPayload = messages.slice(-4).map((m) => ({
+            role: (m.sender === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
+            content: m.text,
+          }))
+
+          try {
+            // Query the active fine-tuned model via RAG service
+            const res = await queryFineTunedModel(text, historyPayload, {
+              userRole,
+              currentPath: location.pathname,
+            })
+            const isRefusal = !!res.text && (res.text.includes("couldn't find verified information") || res.text.includes("don't want to guess"))
+            replyText = (!res.isFallback && res.text && !isRefusal) ? res.text : instantReply
+          } catch {
+            replyText = instantReply
+          }
+        }
       }
 
       const botTs = Date.now()

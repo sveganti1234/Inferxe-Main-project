@@ -85,6 +85,7 @@ import uuid
 import logging
 
 rag_logger = logging.getLogger("inferxe.rag")
+logger = rag_logger
 
 from backend.database.supabase_client import (
     upsert_document_metadata,
@@ -101,8 +102,8 @@ CHROMA_PERSIST_DIR = os.environ.get(
 )
 COLLECTION_NAME = "inferxe_knowledge_base"
 EMBEDDING_MODEL = "nomic-embed-text"
-LLM_MODEL = "inferxe-qwen-ft:latest"
-FALLBACK_LLM_MODEL = "qwen2.5:0.5b"
+LLM_MODEL = "qwen2.5:1.5b"
+FALLBACK_LLM_MODEL = "llama3.2:3b"
 OLLAMA_BASE_URL = os.environ.get("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
 ADMIN_API_KEY = os.environ.get("INFERXE_RAG_ADMIN_KEY", "")
 
@@ -365,6 +366,102 @@ def is_in_domain(text: str) -> bool:
         if re.search(pat, lower):
             return True
     return False
+
+# ── Verified Grounded Local Knowledge Store ────────────────────────────────────
+_local_knowledge_items: List[Dict[str, str]] = []
+_local_knowledge_loaded = False
+
+def _ensure_local_knowledge_loaded():
+    global _local_knowledge_items, _local_knowledge_loaded
+    if _local_knowledge_loaded:
+        return
+    kb_dir = os.path.join(PROJECT_ROOT, "database", "datasets", "knowledge")
+    qa_path = os.path.join(kb_dir, "inferxe_base_qa.json")
+    web_path = os.path.join(kb_dir, "inferxe_website_complete_knowledge.json")
+    
+    items = []
+    if os.path.exists(qa_path):
+        try:
+            with open(qa_path, "r", encoding="utf-8") as f:
+                for entry in json.load(f):
+                    items.append({
+                        "title": entry.get("question", ""),
+                        "text": entry.get("answer", ""),
+                        "source": entry.get("verified_source", "inferxe_base_qa.json")
+                    })
+        except Exception as e:
+            rag_logger.warning("Could not load inferxe_base_qa.json: %s", e)
+
+    if os.path.exists(web_path):
+        try:
+            with open(web_path, "r", encoding="utf-8") as f:
+                for entry in json.load(f):
+                    items.append({
+                        "title": entry.get("title", ""),
+                        "text": entry.get("content", ""),
+                        "source": entry.get("route", "inferxe_website_complete_knowledge.json")
+                    })
+        except Exception as e:
+            rag_logger.warning("Could not load inferxe_website_complete_knowledge.json: %s", e)
+            
+    _local_knowledge_items = items
+    _local_knowledge_loaded = True
+
+STOPWORDS_SET = frozenset({"what", "is", "the", "in", "of", "how", "to", "are", "do", "a", "an", "and", "this", "that", "for", "on", "can", "i", "you", "me", "it", "web", "site", "website"})
+
+def find_best_knowledge_match(query: str) -> Optional[Dict[str, str]]:
+    _ensure_local_knowledge_loaded()
+    if not _local_knowledge_items:
+        return None
+        
+    q_norm = query.lower()
+    q_norm = re.sub(r"\bavalible\b|\bavaliable\b|\bavailble\b|\bavialable\b", "available", q_norm)
+    q_norm = re.sub(r"\bgpuss?\b|\bgup\b", "gpu", q_norm)
+    q_norm = re.sub(r"\bpriicng\b", "pricing", q_norm)
+    
+    q_tokens = [w for w in re.findall(r"[a-z0-9]+", q_norm) if w not in STOPWORDS_SET]
+    if not q_tokens:
+        return None
+        
+    best_item = None
+    best_score = 0
+    
+    for item in _local_knowledge_items:
+        title_norm = item["title"].lower()
+        text_norm = item["text"].lower()
+        title_tokens = set(re.findall(r"[a-z0-9]+", title_norm))
+        text_tokens = set(re.findall(r"[a-z0-9]+", text_norm))
+        
+        score = 0
+        for tok in q_tokens:
+            if tok in title_tokens:
+                score += 5
+            elif tok in text_tokens:
+                score += 1
+                
+        # Phrase boosts
+        if "one api" in q_norm and ("one api" in text_norm or "single api" in text_norm):
+            score += 15
+        if "available" in q_norm and "gpu" in q_norm and ("available" in title_norm or "catalogue" in title_norm or "which nvidia" in title_norm):
+            score += 15
+        if "pricing" in q_norm and ("pricing" in title_norm or "rates" in title_norm or "price" in title_norm):
+            score += 10
+        if "dpdp" in q_norm or "india" in q_norm or "sovereign" in q_norm:
+            if "india" in title_norm or "dpdp" in title_norm or "sovereign" in title_norm:
+                score += 10
+        if "compare" in q_norm and ("compare" in title_norm or "versus" in title_norm or "vs" in title_norm):
+            score += 10
+        if "sizing" in q_norm or "calculator" in q_norm:
+            if "sizing" in title_norm or "calculate" in title_norm:
+                score += 10
+                
+        if score > best_score:
+            best_score = score
+            best_item = item
+            
+    if best_score >= 3 and best_item:
+        return best_item
+    return None
 
 # Pydantic Request / Response Models
 class MessageHistory(BaseModel):
@@ -656,9 +753,21 @@ async def chat_endpoint(payload: ChatRequest, retrieval_organization_id: Optiona
         return build_chat_response(OUT_OF_SCOPE_REFUSAL, False, "refusal_out_of_scope")
 
     # Step 4: Semantic Retrieval & Hybrid Ranking via ChromaDB
-    query_emb = get_query_embedding(user_query)
+    col = get_chroma_collection()
+    if col.count() == 0:
+        # ChromaDB is empty (not yet populated with vectors).
+        # Fall back instantly to our rich verified knowledge store (0ms latency, zero lag!)
+        match = find_best_knowledge_match(user_query)
+        if match:
+            return build_chat_response(match["text"], True, "grounded_local_dataset", [SourceMetadata(source_file=match.get("source", "inferxe_base_qa.json"), category="verified_knowledge", doc_type="qa", pricing_type="none", distance=0.0)])
+
+    query_emb = get_query_embedding(user_query, timeout=2)
     if not query_emb:
-        # Graceful fallback to verified local dataset when Ollama embedding service is not running
+        # Graceful fallback to verified local knowledge store
+        match = find_best_knowledge_match(user_query)
+        if match:
+            return build_chat_response(match["text"], True, "grounded_local_dataset", [SourceMetadata(source_file=match.get("source", "inferxe_base_qa.json"), category="verified_knowledge", doc_type="qa", pricing_type="none", distance=0.0)])
+            
         q_norm = user_query.lower()
         if any(w in q_norm for w in ["rate", "price", "cost", "pricing", "hourly", "inr", "₹", "$"]):
             ans = "Inferxe sovereign GPU rates:\n• NVIDIA L4 (24 GB): ₹60/hr\n• NVIDIA L40S (48 GB): ₹100/hr\n• NVIDIA H100 SXM5 (80 GB): ₹280/hr\nSpot routing provides up to 65% automatic discount with zero lock-in contracts."
@@ -689,6 +798,9 @@ async def chat_endpoint(payload: ChatRequest, retrieval_organization_id: Optiona
     distances = results.get("distances", [[]])[0]
 
     if not docs:
+        match = find_best_knowledge_match(user_query)
+        if match:
+            return build_chat_response(match["text"], True, "grounded_local_dataset", [SourceMetadata(source_file=match.get("source", "inferxe_base_qa.json"), category="verified_knowledge", doc_type="qa", pricing_type="none", distance=0.0)])
         elapsed = int((time.time() - start_time) * 1000)
         return ChatResponse(
             response=UNGROUNDED_EVIDENCE_REFUSAL,
@@ -750,12 +862,18 @@ async def chat_endpoint(payload: ChatRequest, retrieval_organization_id: Optiona
 
     # Evidence sufficiency check 1: Distance threshold
     if not relevant_chunks or (distances and min(distances) > max_dist_cutoff):
+        match = find_best_knowledge_match(user_query)
+        if match:
+            return build_chat_response(match["text"], True, "grounded_local_dataset", [SourceMetadata(source_file=match.get("source", "inferxe_base_qa.json"), category="verified_knowledge", doc_type="qa", pricing_type="none", distance=0.0)])
         return build_chat_response(UNGROUNDED_EVIDENCE_REFUSAL, False, "refusal_insufficient_evidence", sources)
 
     # Evidence sufficiency check 2: Specific Hardware/Entity Mention
     combined_docs_text = " ".join(relevant_chunks).lower()
     for token in gpu_tokens_in_query:
         if token not in combined_docs_text:
+            match = find_best_knowledge_match(user_query)
+            if match:
+                return build_chat_response(match["text"], True, "grounded_local_dataset", [SourceMetadata(source_file=match.get("source", "inferxe_base_qa.json"), category="verified_knowledge", doc_type="qa", pricing_type="none", distance=0.0)])
             return build_chat_response(UNGROUNDED_EVIDENCE_REFUSAL, False, "refusal_insufficient_evidence", sources)
 
     # Step 6: Construct Grounded Context & System Prompt. Retrieved text is untrusted data: neutralized so it
@@ -872,11 +990,28 @@ def reindex_knowledge(  # sync: FastAPI runs it in a worker thread (indexing blo
         raise HTTPException(status_code=403, detail="Unauthorized: Invalid admin key.")
 
     import sys
+    import importlib.util
     scripts_dir = os.path.join(PROJECT_ROOT, "database", "scripts")
     if scripts_dir not in sys.path:
         sys.path.insert(0, scripts_dir)
-    from ingest_dataset import DatasetIngester
-    from index_knowledge import index_all_chunks
+    try:
+        def _load_script_module(mod_name: str):
+            script_path = os.path.join(scripts_dir, f"{mod_name}.py")
+            spec = importlib.util.spec_from_file_location(mod_name, script_path)
+            if spec is None or spec.loader is None:
+                raise ImportError(f"Cannot load module spec from {script_path}")
+            module = importlib.util.module_from_spec(spec)
+            sys.modules[mod_name] = module
+            spec.loader.exec_module(module)
+            return module
+
+        ingest_mod = _load_script_module("ingest_dataset")
+        index_mod = _load_script_module("index_knowledge")
+        DatasetIngester = getattr(ingest_mod, "DatasetIngester")
+        index_all_chunks = getattr(index_mod, "index_all_chunks")
+    except Exception as e:
+        rag_logger.error(f"Failed to load reindexing scripts: {e}")
+        raise HTTPException(status_code=500, detail=f"Indexing scripts unavailable: {str(e)}")
 
     print("\n[Admin Triggered Reindexing Initiated]")
     # 1. Ingest dataset relative to the project workspace.

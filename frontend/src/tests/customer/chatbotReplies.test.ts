@@ -16,6 +16,16 @@ describe('Chatbot query responses and intent handling', () => {
     expect(reply).toContain('/dashboard/app/gpus')
   })
 
+  it('accurately answers "what gpus are avalible in this web site" (with typo)', () => {
+    const reply = getBotReply('what gpus are avalible in this web site')
+    expect(reply).toContain('GPUs Available on Inferxe')
+    expect(reply).toContain('NVIDIA H100')
+    expect(reply).toContain('NVIDIA L40S')
+    expect(reply).toContain('NVIDIA L4')
+    expect(reply).toContain('RTX 4090')
+    expect(reply).toContain('/dashboard/app/gpus')
+  })
+
   it('accurately answers "what are the pricing of gpus"', () => {
     const reply = getBotReply('what are the pricing of gpus')
     expect(reply).toContain('Inferxe GPU Pricing & Planning Rates')
